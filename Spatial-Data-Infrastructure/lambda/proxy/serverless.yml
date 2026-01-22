@@ -1,0 +1,21 @@
+service: gaia-sde-api-v1
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: eu-central-1
+  lambdaHashingVersion: '20201221'
+
+functions:
+  signurl:
+    handler: handler.sign_url
+    events:
+      - http:
+          path: /signurl
+          method: get
+          cors: true
+
+plugins:
+  - serverless-python-requirements
