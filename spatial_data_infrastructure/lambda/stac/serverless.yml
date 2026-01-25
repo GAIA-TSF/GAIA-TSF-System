@@ -1,0 +1,20 @@
+service: gaia-stac-api-v1
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: eu-central-1
+  lambdaHashingVersion: '20201221'
+
+functions:
+  stac:
+    handler: handler.stac
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: '*'
+
+plugins:
+  - serverless-python-requirements

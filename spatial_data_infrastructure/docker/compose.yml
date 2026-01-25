@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: postgis
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: fevcfQBu3b3CfxFU
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pgstac
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stac
+      POSTGRES_PASSWORD: stac
+      POSTGRES_DB: stac
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgstac_data:/var/lib/postgresql/data
+
+  api:
+    image: ghcr.io/stac-utils/stac-fastapi:latest
+    container_name: stacapi
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # Connect to pgstac
+      POSTGRES_USER: stac
+      POSTGRES_PASS: stac
+      POSTGRES_HOST_READER: db
+      POSTGRES_HOST_WRITER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DBNAME: stac
+      DATABASE_URL: postgresql://stac:stac@db:5432/stac
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgstac_data:
+  pgdata:
