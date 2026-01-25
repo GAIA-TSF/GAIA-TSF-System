@@ -1,6 +1,6 @@
-from eou.manual_file_loader import ManualFileLoader
-from eou.data_acquisition_gateway import DataAcquisitionGateway
-from eou.data_extraction import DataExtraction
+from earth_observation_data_uploader.manual_file_loader import ManualFileLoader
+from earth_observation_data_uploader.data_acquisition_gateway import DataAcquisitionGateway
+from earth_observation_data_uploader.data_extraction import DataExtraction
 
 # comes from Quality-Control-and-Logging-Layer
 # from qcl.logger import Logger
