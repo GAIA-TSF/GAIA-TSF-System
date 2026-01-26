@@ -1,3 +1,5 @@
+from earth_observation_data_uploader.data_acquisition_gateway import DataAcquisitionGateway
+
 class TestModules:
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
@@ -11,7 +13,7 @@ class TestModules:
 
         Example of unit test.
         """
-        pass
+        module = DataAcquisitionGateway()
 
     def test_DataAcquisitionGateway_002(self):
         """Test DataAcquisitionGateway module.

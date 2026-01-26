@@ -1,1 +1,3 @@
 pytest==9.0.2
+eodag==3.10.1
+eodag-cube==0.6.3
