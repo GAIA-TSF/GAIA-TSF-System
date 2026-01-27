@@ -3,7 +3,18 @@ import boto3
 from botocore.exceptions import ClientError
 import json
 
-s3 = boto3.client("s3")
+LOCALSTACK = os.getenv("LOCALSTACK", "0") == "1"
+
+if LOCALSTACK:
+    s3 = boto3.client(
+        "s3",
+        endpoint_url="http://localhost:4566",
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        region_name="us-east-1",
+    )
+else:
+    s3 = boto3.client("s3")
 
 
 def validate_user(auth_header):
