@@ -1,4 +1,4 @@
-from earth_observation_data_uploader import EarthObservationDataUploader
+from eou import EarthObservationDataUploader
 
 class TestSubsystem:
     def test_EOU_001(self):

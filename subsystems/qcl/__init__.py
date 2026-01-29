@@ -1,4 +1,4 @@
-from quality_control_and_logging_layer.logger import Logger
+from qcl.logger import Logger
 
 class QualityControlLoggingLayer:
     """The Quality Control Layer serves as the critical validation
