@@ -11,9 +11,14 @@ class TestModules:
     def test_DataAcquisitionGateway_001(self):
         """Test DataAcquisitionGateway module.
 
-        Example of unit test.
+        Test search capability using default backend (eodag).
         """
+        from eodag.api.search_result import SearchResult
+
         module = DataAcquisitionGateway()
+        result = module.search()
+
+        assert isinstance(result, SearchResult)
 
     def test_DataAcquisitionGateway_002(self):
         """Test DataAcquisitionGateway module.
