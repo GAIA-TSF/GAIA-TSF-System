@@ -4,15 +4,15 @@ Major repository for GAIA-TSF System
 
 See [CONTRIBUTING](CONTRIBUTING.md) file for more details.
 
-## Subsystems
+## GAIA-TSF Subsystems
 
 ![GAIA Prototype Overall Architecture](./images/prototype_architecture.png)
 
-Individual subsystems are located in the subsystems directory. Each
-subsystem corresponds to a subdirectory within subsystems, named
-according to the abbreviation of the respective subsystem.
+Individual GAIA-TSF subsystems are located in the `subsystems` directory. Each GAIA-TSF
+subsystem corresponds to a subdirectory within `subsystems` directory, named
+according to the abbreviation of the respective GAIA-TSF subsystem.
 
-| Abbreviation | Subsystem |
+| Abbreviation | GAIA-TSF Subsystem |
 |-------------|-------------|
 | ALE | Alert & Decision Support Engine |
 | DAG | Data Aggregation |
