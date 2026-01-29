@@ -1,6 +1,7 @@
 from eodag.api.search_result import SearchResult
 from eodag_cube.api.product._product import EOProduct
 from eodag_cube.types import XarrayDict
+import shapely
 
 class DataAcquisitionGateway:
     """Data Acquisition Gateway module serves as the automated
@@ -21,9 +22,9 @@ class DataAcquisitionGateway:
         backend.
 
         :param str provider: the provider to be used
-        :param str start: TBD
-        :param str end: TBD
-        :param shapely.geometry.base.BaseGeometry geom: TBD
+        :param str start: start date to be used for temporal filter
+        :param str end: end date to be used for temporal filer
+        :param shapely.geometry.base.BaseGeometry geom: geometry to be used for spatial filter
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
@@ -31,7 +32,7 @@ class DataAcquisitionGateway:
         :return: a collection of EO products matching the criteria
         :rtype: SearchResult
         """
-        return self._backend.search(kwagrs)
+        return self._backend.search(provider, start, end, geom, **kwargs)
 
     def download(self, product: EOProduct) -> XarrayDict:
         """Download selected data product using selected data
