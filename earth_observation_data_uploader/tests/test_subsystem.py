@@ -6,5 +6,5 @@ class TestSubsystem:
 
         Example of unit test.
         """
-        subsystem = EarthObservationDataUploader
+        subsystem = EarthObservationDataUploader()
         assert subsystem.id == "EOU"
