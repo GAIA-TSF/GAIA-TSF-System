@@ -1,8 +1,8 @@
-from earth_observation_data_uploader.manual_file_loader import ManualFileLoader
-from earth_observation_data_uploader.data_acquisition_gateway import DataAcquisitionGateway
-from earth_observation_data_uploader.data_extraction import DataExtraction
+from eou.manual_file_loader import ManualFileLoader
+from eou.data_acquisition_gateway import DataAcquisitionGateway
+from eou.data_extraction import DataExtraction
 
-from quality_control_and_logging_layer.logger import Logger
+from qcl.logger import Logger
 
 class EarthObservationDataUploader:
     """Earth Observation Data Uploader sub-system is designed to
