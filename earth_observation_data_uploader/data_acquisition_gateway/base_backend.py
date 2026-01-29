@@ -6,7 +6,7 @@ from eodag_cube.types import XarrayDict
 
 class DataAcquisitionBackend(ABC):
     @abstractmethod
-    def search(self) -> SearchResult:
+    def search(self, provider, start, end, geom, **kwargs) -> SearchResult:
         pass
 
     @abstractmethod

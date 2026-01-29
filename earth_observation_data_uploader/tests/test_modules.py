@@ -16,9 +16,17 @@ class TestModules:
         from eodag.api.search_result import SearchResult
 
         module = DataAcquisitionGateway()
+        # geom: tests/sample_data/area_intervencao.kmz
+        # start: 2026-01-01
+        # end: 2026-01-29
+        # productType: "S2_MSI_L2A"
+        # count=True ???
+        # )
         result = module.search()
 
         assert isinstance(result, SearchResult)
+        # assert result.number_matched > 0
+        # assert result[0] check if data product is S2 L2A
 
     def test_DataAcquisitionGateway_002(self):
         """Test DataAcquisitionGateway module.

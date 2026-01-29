@@ -15,15 +15,23 @@ class DataAcquisitionGateway:
             pass
         self._backend = DataAcquisitionBackend()
 
-    def search(self) -> SearchResult:
+    def search(self, provider: str, start: str, end: str, geom: shapely.geometry.base.BaseGeometry, **kwargs) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using selected data acquisition
         backend.
 
+        :param str provider: the provider to be used
+        :param str start: TBD
+        :param str end: TBD
+        :param shapely.geometry.base.BaseGeometry geom: TBD
+
+        For other arguments check the backend:
+         - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
+
         :return: a collection of EO products matching the criteria
         :rtype: SearchResult
         """
-        return self._backend.search()
+        return self._backend.search(kwagrs)
 
     def download(self, product: EOProduct) -> XarrayDict:
         """Download selected data product using selected data
