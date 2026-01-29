@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ../:/opt/gaia_tsf
+      - ../subsystems/:/opt/gaia_tsf
     environment:
       LOCALSTACK: "1"
       AWS_ACCESS_KEY_ID: test
