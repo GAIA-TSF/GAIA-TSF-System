@@ -1,30 +1,23 @@
+from osgeo import gdal
+gdal.UseExceptions()
+
 from eou.data_acquisition_gateway import DataAcquisitionGateway
-from zipfile import ZipFile
-import xml.etree.ElementTree as ET
-from shapely.geometry import Polygon, MultiPolygon
 
-def load_geom_from_kmz(kmz_path):
-    with ZipFile(kmz_path, 'r') as kmz:
-        kml_filename = [f for f in kmz.namelist() if f.endswith('.kml')][0]
-        with kmz.open(kml_filename) as kml_file:
-            tree = ET.parse(kml_file)
-            root = tree.getroot()
+def load_geom(file_path):
+    with gdal.OpenEx(file_path, gdal.OF_VECTOR) as ds:
+        layer = ds.GetLayer(0)
+        extent = layer.GetExtent()
+        srs = layer.GetSpatialRef()
+        srs.AutoIdentifyEPSG()
+        auth = srs.GetAuthorityName(None)
+        code = srs.GetAuthorityCode(None)
 
-            ns = {'kml': 'http://www.opengis.net/kml/2.2'}
+        if auth != "EPSG" or code != "4326":
+            raise RuntimeError(f"Unsupported CRS: {auth}:{code}")
 
-            polygons = []
-            for polygon in root.findall('.//kml:Polygon', ns):
-                coords_text = polygon.find('.//kml:coordinates', ns).text.strip()
-                coords = []
-                for line in coords_text.split():
-                    lon, lat, *_ = map(float, line.split(','))
-                    coords.append((lon, lat))
-                polygons.append(Polygon(coords))
+        lonmin, lonmax, latmin, latmax = layer.GetExtent()
 
-            if len(polygons) == 1:
-                return polygons[0]
-            else:
-                return MultiPolygon(polygons)
+        return [lonmin, latmin, lonmax, latmax]
 
 class TestModules:
     def test_ManualFileLoader_001(self):
@@ -47,7 +40,7 @@ class TestModules:
         provider = "cop_dataspace"
         start = "2026-01-01"
         end = "2026-01-29"
-        geom = load_geom_from_kmz("eou/tests/sample_data/area_intervencao.kmz")
+        geom = load_geom("eou/tests/sample_data/area_intervencao.kmz")
         product_type = "S2_MSI_L2A"
 
         result = module.search(
@@ -57,8 +50,6 @@ class TestModules:
             geom=geom,
             productType=product_type
         )
-
-        # count=True ???
 
         assert isinstance(result, SearchResult)
         assert len(result) > 0

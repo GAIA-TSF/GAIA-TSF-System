@@ -1,7 +1,9 @@
-from eodag.api.search_result import SearchResult
-from eodag_cube.api.product._product import EOProduct
-from eodag_cube.types import XarrayDict
-import shapely
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from eodag.api.search_result import SearchResult
+    from eodag_cube.api.product._product import EOProduct
+    from eodag_cube.types import XarrayDict
 
 class DataAcquisitionGateway:
     """Data Acquisition Gateway module serves as the automated
@@ -16,7 +18,7 @@ class DataAcquisitionGateway:
             pass
         self._backend = DataAcquisitionBackend()
 
-    def search(self, provider: str, start: str, end: str, geom: shapely.geometry.base.BaseGeometry, **kwargs) -> SearchResult:
+    def search(self, provider: str, start: str, end: str, geom: list(float), **kwargs) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using selected data acquisition
         backend.
@@ -24,7 +26,7 @@ class DataAcquisitionGateway:
         :param str provider: the provider to be used
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filer
-        :param shapely.geometry.base.BaseGeometry geom: geometry to be used for spatial filter
+        :param list(float) geom: a bounding box as list of float: [lonmin, latmin, lonmax, latmax]
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
