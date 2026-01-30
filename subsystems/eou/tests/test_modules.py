@@ -1,4 +1,4 @@
-from earth_observation_data_uploader.data_acquisition_gateway import DataAcquisitionGateway
+from eou.data_acquisition_gateway import DataAcquisitionGateway
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 from shapely.geometry import Polygon, MultiPolygon
@@ -47,7 +47,7 @@ class TestModules:
         provider = "cop_dataspace"
         start = "2026-01-01"
         end = "2026-01-29"
-        geom = load_geom_from_kmz("earth_observation_data_uploader/tests/sample_data/area_intervencao.kmz")
+        geom = load_geom_from_kmz("eou/tests/sample_data/area_intervencao.kmz")
         product_type = "S2_MSI_L2A"
 
         result = module.search(

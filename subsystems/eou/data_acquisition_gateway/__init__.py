@@ -10,7 +10,7 @@ class DataAcquisitionGateway:
 
     def __init__(self, backend: str = "eodag"):
         if backend == "eodag":
-            from earth_observation_data_uploader.data_acquisition_gateway.eodag_backend import EODAGDataAcquisitionBackend as DataAcquisitionBackend
+            from eou.data_acquisition_gateway.eodag_backend import EODAGDataAcquisitionBackend as DataAcquisitionBackend
         else:
             # raise GAIAConfigurationError(f"Unsupported data acquisition backend: {backend}")
             pass

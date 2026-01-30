@@ -1,4 +1,4 @@
-from earth_observation_data_uploader.data_acquisition_gateway.base_backend import DataAcquisitionBackend
+from eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 from eodag.api.search_result import SearchResult
 from eodag_cube.api.product._product import EOProduct
 from eodag_cube.types import XarrayDict
