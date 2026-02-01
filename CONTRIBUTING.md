@@ -37,6 +37,7 @@ Continuous Integration (CI)
 - configure GitHub Actions for automatic testing
 - run unit tests and static analysis on every push and PR
 - prevent merging if tests fail
+- code quality check tests open automated PRs fixing the violations - merge them
 
 Documentation
 
