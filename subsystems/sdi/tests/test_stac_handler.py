@@ -1,8 +1,6 @@
 import sys
-import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-import json
 
 # Add lambda folder to sys.path for imports
 sys.path.append(str(Path(__file__).resolve().parent.parent / "lambda"))
