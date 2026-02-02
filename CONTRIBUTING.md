@@ -19,7 +19,7 @@ Branching Strategy
 
 Collaboration and Code Review
 
-- create PR for completed features or bugfix (base branch: `develop`)
+- create Pull Request (PR) for completed features or bugfix (base branch: `develop`)
 - conduct peer code reviews
 - use comments and suggestions to improve code quality
 - resolve conflicts and ensure code consistency
@@ -119,3 +119,37 @@ eou/
     ├── test_modules.py
     └── test_subsystem.py
 ```
+
+## For newbies
+
+First, set up your development environment. Choose a suitable IDE ([VS
+Code](https://code.visualstudio.com/),
+[PyCharm](https://www.jetbrains.com/pycharm/), ...,
+[Vim](https://www.vim.org/),
+[Emacs](https://www.gnu.org/software/emacs/) ;-)). Most of these IDEs
+offer integration with Git/GitHub, which is an ideal choice.
+
+![VS Code](./images/contributing_vscode.png)
+
+For beginners, using the [GitHub
+Desktop](https://github.com/apps/desktop) application for
+communicating with GitHub is also an option. You can start with it,
+but over time you will likely integrate this communication into your
+IDE and probably stop using this application. For beginners, however,
+the application is clear and easy to use.
+
+![GitHub Desktop](./images/contributing_github_desktop.png)
+
+### Recommended workflow
+
+1. Create a new branch (`feature/something` or `bugfix/something`) from `develop` branch
+2. Switch to the new branch
+3. Make modifications by implementing a new feature or correcting a bug in the code
+4. Commit changes (may be split into multiple commits)
+5. Create PR on [GitHub](https://github.com/GAIA-TSF/GAIA-TSF-System/compare)
+6. Set up labels, milestone, reviewer(s) and assignee (yourself)
+7. If PR approved then your or reviewer will merge PR into `develop`
+   branch.
+8. If the opponent has comments, respond to them (possibly by new commits)
+9. Repeat this process until the PR is approved (rule: a PR that is
+   not approved cannot be merged)
