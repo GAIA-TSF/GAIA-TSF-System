@@ -10,6 +10,10 @@ Coding style [PEP 8 (Style Guide for Python Code)]:
 - Protected properties/methods: `_snake_case`
 - Private properties/methods: `__snake_case`
 - Package names should be short, all-lowercase, and preferably without underscores.
+- 2 blank lines before a class definition
+- 1 blank line before a function definition
+- trailing comma at the last argument of one-arg-per-line-formatted func calls
+- single quotes for string definitions unless the string already contains them
 
 Branching Strategy
 
