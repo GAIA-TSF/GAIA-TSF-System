@@ -72,9 +72,9 @@ Recommended layout for a single subsystem:
 subsystem_name_abbreviated
 ├── __init__.py
 ├── module_name_1
-    ├── __init__.py
+│   └── __init__.py
 ├── module_name_2
-    ├── __init__.py
+│   └── __init__.py
 ├── README.md
 └── tests
     ├── test_interfaces.py
@@ -108,11 +108,11 @@ subsystem:
 eou/
 ├── __init__.py     # defines EarthObservationDataUploader class
 ├── data_acquisition_gateway
-│   ├── __init__.py # defines DataAcquisitionGateway class
+│   └── __init__.py # defines DataAcquisitionGateway class
 ├── data_extraction
-│   ├── __init__.py # defines DataExtraction class
+│   └── __init__.py # defines DataExtraction class
 ├── manual_file_loader
-│   ├── __init__.py # defines ManualFileLoader
+│   └── __init__.py # defines ManualFileLoader
 ├── README.md
 └── tests
     ├── test_interfaces.py
