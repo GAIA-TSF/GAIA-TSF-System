@@ -13,9 +13,20 @@ class ManualFileLoader:
     def __init__(self):
         pass
 
-    def check_file_validity(self, file_path: str):
+    def check_file_validity(self, file_path: str) -> dict:
         """Open file using GDAL library and perform file validity
         integrity tests.
+
+        Checks:
+        - if file exists
+        - if file may be open by GDAL
+        - if number of rows and columns > 0
+        - if number of bands > 0
+        - if projection is defined and is valid (warning only)
+        - if geotransformation parameters are defined (warning only)
+        - if bands are defined
+        - if sample data from each band may be read as numpy array
+        - for sample data of each channel, it checks whether they do not contain only no-data values.
 
         :param str file_path: path to EO data file
 
