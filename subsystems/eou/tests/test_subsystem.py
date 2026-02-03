@@ -1,5 +1,6 @@
 from eou import EarthObservationDataUploader
 
+
 class TestSubsystem:
     def test_EOU_001(self):
         """Test EarthObservationDataUploader subsystem.
@@ -7,4 +8,4 @@ class TestSubsystem:
         Example of unit test.
         """
         subsystem = EarthObservationDataUploader()
-        assert subsystem.id == "EOU"
+        assert subsystem.id == 'EOU'
