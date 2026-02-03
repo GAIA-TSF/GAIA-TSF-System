@@ -1,7 +1,9 @@
 import os
 import requests
 
-STAC_URL = os.environ.get("STAC_URL", "http://ip-172-31-19-31.eu-central-1.compute.internal:8080")
+STAC_URL = os.environ.get(
+    'STAC_URL', 'http://ip-172-31-19-31.eu-central-1.compute.internal:8080'
+)
 
 
 def stac(event, context):
@@ -11,24 +13,21 @@ def stac(event, context):
     :param context: System context from API Gateway
     :return: Response from STAC running on STAC_URL
     """
-    method = event["requestContext"]["http"]["method"]
-    path = event["rawPath"]
-    query = event.get("queryStringParameters") or {}
-    headers = event.get("headers") or {}
+    method = event['requestContext']['http']['method']
+    path = event['rawPath']
+    query = event.get('queryStringParameters') or {}
+    headers = event.get('headers') or {}
 
     # Publicly available is read only
-    if method not in ("GET", "HEAD"):
-        return {
-            "statusCode": 403,
-            "body": "Forbidden"
-        }
+    if method not in ('GET', 'HEAD'):
+        return {'statusCode': 403, 'body': 'Forbidden'}
 
     # Proxy query for STAC server
-    url = f"{STAC_URL}{path}"
+    url = f'{STAC_URL}{path}'
     resp = requests.request(method, url, headers=headers, params=query)
 
     return {
-        "statusCode": resp.status_code,
-        "headers": dict(resp.headers),
-        "body": resp.text,
+        'statusCode': resp.status_code,
+        'headers': dict(resp.headers),
+        'body': resp.text,
     }
