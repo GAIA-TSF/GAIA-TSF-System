@@ -1,7 +1,5 @@
 # Contributing
 
-## Recommended Software Development Workflow
-
 Coding style [PEP 8 (Style Guide for Python Code)]:
 
 - Class names: `CapWords`
