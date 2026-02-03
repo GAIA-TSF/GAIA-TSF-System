@@ -2,8 +2,10 @@ import boto3
 from botocore.exceptions import ClientError
 import json
 
-s3 = boto3.client("s3")
+from qcl.logger import Logger
 
+s3 = boto3.client("s3")
+id = "SDI"
 
 def validate_user(auth_header):
     """Validates authentification of the user
@@ -36,10 +38,11 @@ def s3_parse_s3_url(s3_url):
     return bucket, key
 
 
-def log_error(event):
+def log_error(err, event):
     """Prints event content so it is logged to Cloud Watch
     """
-    print(event)
+    Logger.debug(f"{id} Error on S3 Proxy requested with event {event}")
+    Logger.debug(f"{id} Error: {err}")
 
 
 def sign_url(event, context):
@@ -62,22 +65,25 @@ def sign_url(event, context):
     try:
         bucket_user, key = s3_parse_s3_url(s3url)
     except ClientError as e:
-        log_error(event)
+        log_error(e, event)
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
     if bucket_user != bucket:
-        log_error(event)
-        return {"statusCode": 400, "body": json.dumps({"error": "Requested bucket is not available"})}
+        e = "Requested bucket is not available"
+        log_error(e, event)
+        return {"statusCode": 400, "body": json.dumps({"error": e})}
 
     if not key:
-        log_error(event)
-        return {"statusCode": 400, "body": json.dumps({"error": "Missing 'file' parameter"})}
+        e = "Missing 'file' parameter"
+        log_error(e, event)
+        return {"statusCode": 400, "body": json.dumps({"error": e})}
 
 
     # TODO Access - not functional yet
     if not user_has_access(auth_header, key):
-        log_error(event)
-        return {"statusCode": 403, "body": json.dumps({"error": "Access denied"})}
+        e = "Access denied"
+        log_error(e, event)
+        return {"statusCode": 403, "body": json.dumps({"error": e})}
 
     # Signed URL
     try:
@@ -88,7 +94,7 @@ def sign_url(event, context):
         )
 
     except ClientError as e:
-        log_error(event)
+        log_error(e, event)
         return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
 
     return {
