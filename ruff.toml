@@ -4,4 +4,10 @@ extend-select = [
     "N"
 ]
 
-pep8-naming.extend-ignore-names = ["test_*"]
+pep8-naming.extend-ignore-names = [
+    "test_*"
+]
+
+[format]
+
+quote-style = "single"
