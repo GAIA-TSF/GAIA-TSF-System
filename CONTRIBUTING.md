@@ -40,6 +40,8 @@ Continuous Integration (CI)
 - run unit tests and static analysis on every push and PR
 - prevent merging if tests fail
 - code quality check tests open automated PRs fixing the violations - merge them
+  - if the code quality check is automatically unfixable, the CQ test will fail
+  - examples of automatically unfixable issues: no `snake_case`
 
 Documentation
 
