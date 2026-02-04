@@ -3,18 +3,11 @@ import logging
 import logging.config
 
 
-class QCLLogger(logging.getLoggerClass()):
-    pass
+def Logger(name='GAIA-TSF', **context):
+    logging.config.fileConfig(
+        os.path.join(os.path.dirname(__file__), 'logging.conf'),
+        disable_existing_loggers=False
+    )
 
-
-def logger():
-    """Return a logger."""
-    logging.config.fileConfig(os.path.join(os.path.dirname(__file__), 'logging.conf'))
-
-    logging.setLoggerClass(QCLLogger)
-    logger = logging.getLogger('GAIA-TSF')
-
-    return logger
-
-
-Logger = logger()
+    base_logger = logging.getLogger(name)
+    return logging.LoggerAdapter(base_logger, context)
