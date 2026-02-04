@@ -34,7 +34,7 @@ class ManualFileLoader:
         :rtype: dict
         """
         result = {
-            "path": file_path,
+            "path": str(file_path),
             "valid": True,
             "errors": [],
             "warnings": []
@@ -46,65 +46,60 @@ class ManualFileLoader:
             return result
 
         try:
-            try:
-                ds = gdal.Open(file_path, gdal.GA_ReadOnly)
-            except RuntimeError as e:
-                result["valid"] = False
-                result["errors"].append(str(e))
-                return result
-
-            # driver check
-            driver = ds.GetDriver().ShortName
-            result["driver"] = driver
-
-            # raster size
-            if ds.RasterXSize <= 0 or ds.RasterYSize <= 0:
-                result["errors"].append("Invalid raster dimensions")
-
-            if ds.RasterCount <= 0:
-                result["errors"].append("No raster bands found")
-
-            # projection
-            proj = ds.GetProjection()
-            if not proj:
-                result["warnings"].append("Missing projection")
-            else:
-                srs = osr.SpatialReference()
-                srs.ImportFromWkt(proj)
-                if not srs.IsProjected() and not srs.IsGeographic():
-                    result["warnings"].append("Invalid spatial reference")
-
-            # geo-transform
-            gt = ds.GetGeoTransform(can_return_null=True)
-            if gt is None:
-                result["warnings"].append("Missing geotransform")
-            else:
-                px_w, px_h = gt[1], gt[5]
-                if px_w == 0 or px_h == 0:
-                    result["errors"].append("Invalid pixel size")
-
-            # band-level checks
-            for i in range(1, ds.RasterCount + 1):
-                band = ds.GetRasterBand(i)
-                if band is None:
-                    result["errors"].append(f"Band {i} missing")
-                    continue
-
-                # try reading a small window
-                try:
-                    arr = band.ReadAsArray(0, 0, min(256, ds.RasterXSize), min(256, ds.RasterYSize))
-                    if arr is None:
-                        result["errors"].append(f"Band {i} unreadable")
-                    elif np.isnan(arr).all():
-                        result["warnings"].append(f"Band {i} contains only NaN values")
-                except Exception as e:
-                    result["errors"].append(f"Band {i} read error: {str(e)}")
-
-            ds = None # close dataset
-
-        except Exception as e:
+            ds = gdal.Open(file_path, gdal.GA_ReadOnly)
+        except RuntimeError as e:
             result["valid"] = False
             result["errors"].append(str(e))
+            return result
+
+        # driver check
+        driver = ds.GetDriver().ShortName
+        result["driver"] = driver
+
+        # raster size
+        if ds.RasterXSize <= 0 or ds.RasterYSize <= 0:
+            result["errors"].append("Invalid raster dimensions")
+
+        if ds.RasterCount <= 0:
+            result["errors"].append("No raster bands found")
+
+        # projection
+        proj = ds.GetProjection()
+        if not proj:
+            result["warnings"].append("Missing projection")
+        else:
+            srs = osr.SpatialReference()
+            srs.ImportFromWkt(proj)
+            if not srs.IsProjected() and not srs.IsGeographic():
+                result["warnings"].append("Invalid spatial reference")
+
+        # geo-transform
+        gt = ds.GetGeoTransform(can_return_null=True)
+        if gt is None:
+            result["warnings"].append("Missing geotransform")
+        else:
+            px_w, px_h = gt[1], gt[5]
+            if px_w == 0 or px_h == 0:
+                result["errors"].append("Invalid pixel size")
+
+        # band-level checks
+        for i in range(1, ds.RasterCount + 1):
+            band = ds.GetRasterBand(i)
+            if band is None:
+                result["errors"].append(f"Band {i} missing")
+                continue
+
+            # try reading a small window
+            try:
+                arr = band.ReadAsArray(0, 0, min(256, ds.RasterXSize), min(256, ds.RasterYSize))
+                if arr is None:
+                    result["errors"].append(f"Band {i} unreadable")
+                elif np.isnan(arr).all():
+                    result["warnings"].append(f"Band {i} contains only NaN values")
+            except RuntimeError as e:
+                result["errors"].append(f"Band {i} read error: {str(e)}")
+
+        ds = None # close dataset
 
         if result["errors"]:
             result["valid"] = False
