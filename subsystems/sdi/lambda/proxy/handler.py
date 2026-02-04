@@ -6,6 +6,7 @@ from qcl.logger import Logger
 
 s3 = boto3.client("s3")
 id = "SDI"
+logger = Logger(subsystem=id)
 
 def validate_user(auth_header):
     """Validates authentification of the user
@@ -41,8 +42,8 @@ def s3_parse_s3_url(s3_url):
 def log_error(err, event):
     """Prints event content so it is logged to Cloud Watch
     """
-    Logger.debug(f"{id} Error on S3 Proxy requested with event {event}")
-    Logger.debug(f"{id} Error: {err}")
+    logger.debug(f"Error on S3 Proxy requested with event {event}")
+    logger.debug(f"Error: {err}")
 
 
 def sign_url(event, context):
