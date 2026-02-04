@@ -1,8 +1,11 @@
 import os
 import requests
 
-STAC_URL = os.environ.get("STAC_URL", "http://ip-172-31-19-31.eu-central-1.compute.internal:8080")
+from qcl.logger import Logger
 
+STAC_URL = os.environ.get("STAC_URL", "http://ip-172-31-19-31.eu-central-1.compute.internal:8080")
+id = "SDI"
+logger = Logger(subsystem=id)
 
 def stac(event, context):
     """
@@ -15,6 +18,8 @@ def stac(event, context):
     path = event["rawPath"]
     query = event.get("queryStringParameters") or {}
     headers = event.get("headers") or {}
+
+    logger.debug(f"STAC requested with method {method} on {path}")
 
     # Publicly available is read only
     if method not in ("GET", "HEAD"):
