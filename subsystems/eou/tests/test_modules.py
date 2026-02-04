@@ -4,7 +4,7 @@ class TestModules:
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
 
-        Performs file integration test
+        Performs file validity test.
         """
         from eou.manual_file_loader import ManualFileLoader
 
