@@ -1,4 +1,4 @@
-FROM ghcr.io/stac-utils/pgstac:latest
+FROM ghcr.io/stac-utils/pgstac:v0.9.9
 
 USER root
 
