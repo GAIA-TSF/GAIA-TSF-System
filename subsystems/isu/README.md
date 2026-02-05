@@ -1,3 +1,11 @@
-# In-Situ-Data-Uploader
+# In-Situ Data Uploader
 
-Interfaces for uploading or streaming geotechnical and environmental sensor data.
+The in-situ data uploader is a modular component responsible for
+collecting and securely transmitting field-acquired data from
+different ground-based sensor technologies to the central data
+pre-processing module. It integrates multiple components to handle
+different data types and ensure reliable, and timely data transfer.
+
+![In-Situ Data Uploader Architecture](../../images/isu_subsystem.png)
+
+
