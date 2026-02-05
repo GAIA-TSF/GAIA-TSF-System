@@ -14,7 +14,7 @@ os.environ["LOCALSTACK"] = "1"
 
 class TestSignURL:
     @classmethod
-    def setup_class(cls):
+    def SetupClass(cls):
         """Set up shared resources for all tests in this class"""
         cls.s3 = boto3.client(
             "s3",
