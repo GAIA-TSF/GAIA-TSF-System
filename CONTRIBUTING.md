@@ -41,7 +41,16 @@ Continuous Integration (CI)
 - prevent merging if tests fail
 - code quality check tests open automated PRs fixing the violations - merge them
   - if the code quality check is automatically unfixable, the CQ test will fail
-  - examples of automatically unfixable issues: no `snake_case`
+    to create a PR (in order to avoid introducing bugs)
+  - unfixable issues and explanations:
+    - Undefined name: it is impossible to know if it is a typo or a missing
+      definition
+    - no `snake_case` for an object name: it is impossible to know if it should
+      be a variable/function (just the name is wrongly formatted) or a class
+      (the name is correctly formatted but wrong clausule used, e.g. `def`
+      instead of `class`)
+    - Local variable is assigned to but never used - it is impossible to know
+      if you forgot to use it or you named the variable wrong
 
 Documentation
 
