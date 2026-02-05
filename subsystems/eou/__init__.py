@@ -4,15 +4,17 @@ from eou.data_extraction import DataExtraction
 
 from qcl.logger import Logger
 
+
 class EarthObservationDataUploader:
     """Earth Observation Data Uploader sub-system is designed to
     manage the acquisition of satellite imagery from both public and
     restricted repositories."""
 
-    id = "EOU"
+    id = 'EOU'
 
     def __init__(self):
-        Logger.debug(f"{self.id} initialized")
+        self.logger = Logger(subsystem=self.id)
+        self.logger.debug('initialized')
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()

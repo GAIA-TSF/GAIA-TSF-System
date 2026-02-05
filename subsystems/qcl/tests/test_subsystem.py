@@ -1,4 +1,5 @@
-from quality_control_and_logging_layer import QualityControlLoggingLayer
+from qcl import QualityControlLoggingLayer
+
 
 class TestSubsystem:
     def test_QCL_001(self):
@@ -6,4 +7,4 @@ class TestSubsystem:
         Example of unit test.
         """
         subsystem = QualityControlLoggingLayer
-        assert subsystem.id == "QCL"
+        assert subsystem.id == 'QCL'
