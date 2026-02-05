@@ -14,7 +14,7 @@ class EarthObservationDataUploader:
 
     def __init__(self):
         self.logger = Logger(subsystem=self.id)
-        self.logger.debug("initialized")
+        self.logger.debug('initialized')
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()
