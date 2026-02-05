@@ -1,4 +1,5 @@
 """Unit tests for the Parsing Engine module."""
+
 import pytest
 from subsystems.isu.parsers import ParsingEngine
 
@@ -25,7 +26,9 @@ def test_water_quality_detection(engine):
 def test_slope_detection(engine):
     """Test if slope CSV is correctly identified."""
     # Mock content: header has displacement
-    csv_content = b'timestamp,sensor_id,displacement_x,displacement_y\n2023-01-01,S1,0.1,0.2'
+    csv_content = (
+        b'timestamp,sensor_id,displacement_x,displacement_y\n2023-01-01,S1,0.1,0.2'
+    )
     filename = 'test_slope_sensor.csv'
 
     result = engine.route_and_parse(csv_content, filename)

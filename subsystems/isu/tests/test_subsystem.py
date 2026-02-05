@@ -1,5 +1,5 @@
 """Tests for the ISU subsystem main class."""
-import pytest
+
 from subsystems.isu import InSituDataUploader
 
 

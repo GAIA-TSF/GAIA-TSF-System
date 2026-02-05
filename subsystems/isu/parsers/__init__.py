@@ -40,7 +40,7 @@ class ParsingEngine:
                 file_ext=ext,
             )
         except Exception as e:
-            raise ValueError(f"Failed to create file signature: {str(e)}")
+            raise ValueError(f'Failed to create file signature: {str(e)}')
 
     def route_and_parse(self, file_content: bytes, filename: str) -> Dict:
         """
@@ -57,11 +57,13 @@ class ParsingEngine:
         for parser in self.registered_parsers:
             score = parser.detect(signature)
             if score > 0:
-                candidates.append({
-                    'parser': parser,
-                    'score': score,
-                    'name': parser.get_parser_name(),
-                })
+                candidates.append(
+                    {
+                        'parser': parser,
+                        'score': score,
+                        'name': parser.get_parser_name(),
+                    }
+                )
 
         candidates.sort(key=lambda x: x['score'], reverse=True)
 
@@ -75,7 +77,7 @@ class ParsingEngine:
         if best_match['score'] < self.confidence_threshold:
             return self._fallback_procedure(
                 filename,
-                f"Top match ({best_match['name']}) confidence {best_match['score']:.2f} is too low.",
+                f'Top match ({best_match["name"]}) confidence {best_match["score"]:.2f} is too low.',
             )
 
         # Ambiguity Check
@@ -84,7 +86,7 @@ class ParsingEngine:
             if gap < 0.1:
                 return self._fallback_procedure(
                     filename,
-                    f"Ambiguous file. Close match between {candidates[0]['name']} and {candidates[1]['name']}",
+                    f'Ambiguous file. Close match between {candidates[0]["name"]} and {candidates[1]["name"]}',
                 )
 
         # Step 4: Execute Parse
@@ -97,7 +99,7 @@ class ParsingEngine:
                 'data': parsed_data,
             }
         except Exception as e:
-            return {'status': 'failed', 'error': f"Parser execution failed: {str(e)}"}
+            return {'status': 'failed', 'error': f'Parser execution failed: {str(e)}'}
 
     def _fallback_procedure(self, filename: str, reason: str) -> Dict:
         """Return quarantine status."""
