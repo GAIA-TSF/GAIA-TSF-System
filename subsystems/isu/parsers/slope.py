@@ -18,18 +18,38 @@ class SlopeStabilityParser(BaseParser):
 
         # 1. Header Signature
         strong_indicators = {
-            'displacement', 'velocity', 'def_x', 'def_y', 'def_z',
-            'pressure', 'pore_water', 'kpa', 'piezo',
-            'inclinometer', 'tilt', 'angle', 'depth',
+            'displacement',
+            'velocity',
+            'def_x',
+            'def_y',
+            'def_z',
+            'pressure',
+            'pore_water',
+            'kpa',
+            'piezo',
+            'inclinometer',
+            'tilt',
+            'angle',
+            'depth',
         }
 
-        matches = [h for h in signature.headers if any(ind in h for ind in strong_indicators)]
+        matches = [
+            h for h in signature.headers if any(ind in h for ind in strong_indicators)
+        ]
 
         if matches:
             score += 0.4 + (0.15 * (len(matches) - 1))
 
         # 2. Filename Indicators
-        filename_indicators = ['slope', 'gnss', 'insar', 'piezo', 'ground_motion', 'egms', 'displacement']
+        filename_indicators = [
+            'slope',
+            'gnss',
+            'insar',
+            'piezo',
+            'ground_motion',
+            'egms',
+            'displacement',
+        ]
         if any(x in signature.filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -44,7 +64,9 @@ class SlopeStabilityParser(BaseParser):
         metadata = {}
 
         # Extract Site ID
-        site_match = re.search(r'(Site[A-Z0-9]+|TUD[A-Z0-9]*)', signature.filename, re.IGNORECASE)
+        site_match = re.search(
+            r'(Site[A-Z0-9]+|TUD[A-Z0-9]*)', signature.filename, re.IGNORECASE
+        )
         metadata['site_id'] = site_match.group(1) if site_match else 'Unknown_Site'
 
         # Infer Sensor Type
@@ -72,20 +94,24 @@ class SlopeStabilityParser(BaseParser):
             df.columns = [str(c).strip().lower() for c in df.columns]
 
             # Standardize Timestamp
-            df = self.standardize_timestamp(df, ['timestamp', 'date', 'time', 'reading_time', 'epoch'])
+            df = self.standardize_timestamp(
+                df, ['timestamp', 'date', 'time', 'reading_time', 'epoch']
+            )
 
             # Basic Validation
             validation_notes = []
 
             if 'depth' in df.columns and not df['depth'].is_monotonic_increasing:
-                validation_notes.append('Info: Depth column is not monotonic (check sensor ordering).')
+                validation_notes.append(
+                    'Info: Depth column is not monotonic (check sensor ordering).'
+                )
 
             disp_cols = [c for c in df.columns if 'disp' in c or 'def' in c]
             for col in disp_cols:
                 if pd.api.types.is_numeric_dtype(df[col]):
                     if df[col].abs().max() > 500:
                         validation_notes.append(
-                            f"Warning: Large displacement detected in {col} (>500). Check sensor health."
+                            f'Warning: Large displacement detected in {col} (>500). Check sensor health.'
                         )
 
             extracted_meta = self.extract_metadata(signature)
@@ -101,4 +127,4 @@ class SlopeStabilityParser(BaseParser):
             }
 
         except Exception as e:
-            raise ValueError(f"Slope Stability Parsing Error: {str(e)}")
+            raise ValueError(f'Slope Stability Parsing Error: {str(e)}')

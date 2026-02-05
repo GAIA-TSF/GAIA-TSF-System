@@ -17,17 +17,37 @@ class WaterQualityParser(BaseParser):
 
         # 1. Strong Indicators
         strong_indicators = {
-            'ph', 'conductivity', 'ec', 'turbidity', 'do', 'orp',
-            'sulfate', 'iron', 'fe', 'tds', 'nitrate', 'mg/l',
+            'ph',
+            'conductivity',
+            'ec',
+            'turbidity',
+            'do',
+            'orp',
+            'sulfate',
+            'iron',
+            'fe',
+            'tds',
+            'nitrate',
+            'mg/l',
         }
 
-        matches = [h for h in signature.headers if any(ind in h for ind in strong_indicators)]
+        matches = [
+            h for h in signature.headers if any(ind in h for ind in strong_indicators)
+        ]
 
         if matches:
             score += 0.4 + (0.15 * (len(matches) - 1))
 
         # 2. Filename Indicators
-        filename_indicators = ['water', 'quality', 'sonde', 'hydro', 'chem', 'lab', 'sample']
+        filename_indicators = [
+            'water',
+            'quality',
+            'sonde',
+            'hydro',
+            'chem',
+            'lab',
+            'sample',
+        ]
         if any(x in signature.filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -57,16 +77,21 @@ class WaterQualityParser(BaseParser):
             if ph_cols:
                 ph_col = ph_cols[0]
                 if not df[ph_col].between(0, 14).all():
-                    validation_notes.append('Warning: pH values out of range (0-14) detected.')
+                    validation_notes.append(
+                        'Warning: pH values out of range (0-14) detected.'
+                    )
 
             # Check negative values
             non_negative_cols = [
-                c for c in df.columns
+                c
+                for c in df.columns
                 if any(x in c for x in ['conductivity', 'ec', 'sulfate', 'turbidity'])
             ]
             for col in non_negative_cols:
                 if (df[col] < 0).any():
-                    validation_notes.append(f"Warning: Negative values detected in {col}.")
+                    validation_notes.append(
+                        f'Warning: Negative values detected in {col}.'
+                    )
 
             return {
                 'type': 'Water Quality Data',
@@ -77,4 +102,4 @@ class WaterQualityParser(BaseParser):
             }
 
         except Exception as e:
-            raise ValueError(f"Water Quality Parsing Error: {str(e)}")
+            raise ValueError(f'Water Quality Parsing Error: {str(e)}')

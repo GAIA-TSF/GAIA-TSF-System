@@ -11,7 +11,9 @@ class FileSignature:
     File signature object to pass metadata between parsers.
     """
 
-    def __init__(self, filename: str, headers: List[str], sample_df: pd.DataFrame, file_ext: str):
+    def __init__(
+        self, filename: str, headers: List[str], sample_df: pd.DataFrame, file_ext: str
+    ):
         self.filename = filename
         # Lowercase and strip headers
         self.headers = [str(h).lower().strip() for h in headers]
@@ -39,10 +41,11 @@ class BaseParser(ABC):
         """Parse content into structured dictionary."""
         pass
 
-    def standardize_timestamp(self,
-                              df: pd.DataFrame,
-                              time_col_candidates: List[str] = None,
-                              ) -> pd.DataFrame:
+    def standardize_timestamp(
+        self,
+        df: pd.DataFrame,
+        time_col_candidates: List[str] = None,
+    ) -> pd.DataFrame:
         """
         Standardize timestamp columns to ISO-8601 UTC.
         """
@@ -64,7 +67,7 @@ class BaseParser(ABC):
                     break
 
         if not target_col:
-            logger.warning(f"[{self.get_parser_name()}] No timestamp column found.")
+            logger.warning(f'[{self.get_parser_name()}] No timestamp column found.')
             return df
 
         try:
@@ -78,7 +81,9 @@ class BaseParser(ABC):
             # QC: Drop invalid timestamps
             invalid_count = df['iso_timestamp'].isna().sum()
             if invalid_count > 0:
-                logger.warning(f"[{self.get_parser_name()}] Dropping {invalid_count} rows with invalid timestamps.")
+                logger.warning(
+                    f'[{self.get_parser_name()}] Dropping {invalid_count} rows with invalid timestamps.'
+                )
                 df = df.dropna(subset=['iso_timestamp'])
 
             # Format as ISO string (SDI standard)
@@ -87,5 +92,7 @@ class BaseParser(ABC):
             return df
 
         except Exception as e:
-            logger.error(f"Timestamp standardization failed: {str(e)}")
-            raise ValueError(f"Failed to standardize timestamp column '{target_col}': {str(e)}")
+            logger.error(f'Timestamp standardization failed: {str(e)}')
+            raise ValueError(
+                f"Failed to standardize timestamp column '{target_col}': {str(e)}"
+            )
