@@ -11,4 +11,4 @@ class QualityControlLoggingLayer:
 
     def __init__(self):
         self.logger = Logger(subsystem=self.id)
-        self.logger.debug(f'{self.id} initialized')
+        self.logger.debug('initialized')

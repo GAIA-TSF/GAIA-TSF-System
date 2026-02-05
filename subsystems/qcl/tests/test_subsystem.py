@@ -6,5 +6,5 @@ class TestSubsystem:
         """Test QualityControlLoggingLayer subsystem.
         Example of unit test.
         """
-        subsystem = QualityControlLoggingLayer
+        subsystem = QualityControlLoggingLayer()
         assert subsystem.id == 'QCL'

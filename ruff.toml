@@ -6,8 +6,7 @@ extend-select = [
 
 [lint.pep8-naming]
 extend-ignore-names = [
-    "test_*",
-    "Logger"
+    "test_*"
 ]
 
 [format]
