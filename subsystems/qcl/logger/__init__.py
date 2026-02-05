@@ -3,11 +3,16 @@ import logging
 import logging.config
 
 
-def Logger(name='GAIA-TSF', **context):
-    logging.config.fileConfig(
-        os.path.join(os.path.dirname(__file__), 'logging.conf'),
-        disable_existing_loggers=False,
-    )
+class Logger:
+    _configured = False
 
-    base_logger = logging.getLogger(name)
-    return logging.LoggerAdapter(base_logger, context)
+    def __new__(cls, name='GAIA-TSF', **context):
+        if not cls._configured:
+            logging.config.fileConfig(
+                os.path.join(os.path.dirname(__file__), 'logging.conf'),
+                disable_existing_loggers=False,
+            )
+            cls._configured = True
+
+        base_logger = logging.getLogger(name)
+        return logging.LoggerAdapter(base_logger, context)
