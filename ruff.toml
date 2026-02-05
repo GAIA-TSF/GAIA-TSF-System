@@ -1,0 +1,15 @@
+[lint]
+
+extend-select = [
+    "N"
+]
+
+[lint.pep8-naming]
+extend-ignore-names = [
+    "test_*",
+    "Logger"
+]
+
+[format]
+
+quote-style = "single"
