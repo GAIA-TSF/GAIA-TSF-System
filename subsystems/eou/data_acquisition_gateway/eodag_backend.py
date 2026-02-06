@@ -1,5 +1,9 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import os
+import glob
+import rioxarray
 from eodag import EODataAccessGateway
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
@@ -25,5 +29,24 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         return self._dag.search(**search_params)
 
-    def download(self, product: EOProduct) -> XarrayDict:
-        raise NotImplementedYet()
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str | XarrayDict:
+        if quicklook:
+            return product.get_quicklook(**kwargs)
+
+        local_path = self._dag.download(product, extract=True, **kwargs)
+
+        product_data = XarrayDict()
+        image_files = glob.glob(os.path.join(local_path, "**", "*.[jt][ip][f]*"), recursive=True)
+
+        for file_path in image_files:
+            band_key = os.path.splitext(os.path.basename(file_path))[0]
+            try:
+                ds = rioxarray.open_rasterio(
+                    file_path,
+                    chunks={'x': 1024, 'y': 1024}
+                ).to_dataset(name="data")
+                product_data[band_key] = ds
+            except Exception:
+                continue
+
+        return product_data

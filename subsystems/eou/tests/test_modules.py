@@ -58,9 +58,52 @@ class TestModules:
     def test_DataAcquisitionGateway_002(self):
         """Test DataAcquisitionGateway module.
 
-        Another example of unit test.
+        Test download capability using default backend (eodag).
         """
-        pass
+        import os
+        import yaml
+
+        config_file = "eou/tests/eodag_config.yml"
+
+        with open(config_file, "r") as f:
+            config_data = yaml.safe_load(f)
+
+        added_envs = []
+        for provider, details in config_data.items():
+            creds = details.get("auth", {}).get("credentials", {})
+            for key, value in creds.items():
+                env_var = f"EODAG__{provider.upper()}__AUTH__CREDENTIALS__{key.upper()}"
+                os.environ[env_var] = str(value)
+                added_envs.append(env_var)
+
+        try:
+            module = DataAcquisitionGateway()
+
+            provider = "cop_dataspace"
+            start = "2026-01-01"
+            end = "2026-01-29"
+            geom = load_geom("eou/tests/sample_data/area_intervencao.kmz")
+            product_type = "S2_MSI_L2A"
+
+            results = module.search(
+                provider=provider,
+                start=start,
+                end=end,
+                geom=geom,
+                productType=product_type
+            )
+
+            assert len(results) > 0
+
+            ql_path = module.download(results[0], quicklook=True)
+
+            assert isinstance(ql_path, str)
+            assert os.path.exists(ql_path)
+            assert os.path.getsize(ql_path) > 0
+
+        finally:
+            for env_var in added_envs:
+                os.environ.pop(env_var, None)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.

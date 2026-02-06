@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -18,7 +19,7 @@ class DataAcquisitionGateway:
             pass
         self._backend = DataAcquisitionBackend()
 
-    def search(self, provider: str, start: str, end: str, geom: list(float), **kwargs) -> SearchResult:
+    def search(self, provider: str, start: str, end: str, geom: list[float], **kwargs) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using selected data acquisition
         backend.
@@ -36,12 +37,13 @@ class DataAcquisitionGateway:
         """
         return self._backend.search(provider, start, end, geom, **kwargs)
 
-    def download(self, product: EOProduct) -> XarrayDict:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str | XarrayDict:
         """Download selected data product using selected data
         acquisition backend.
 
         :param EOProduct product: EO product to be downloaded
-        :return: a dictionary of xarray.Dataset
-        :rtype: XarrayDict
+        :param bool quicklook: If True, only download the preview image
+        :return: a dictionary of xarray.Dataset or a path to the quicklook image
+        :rtype: XarrayDict or str
         """
-        return self._backend.download(product)
+        return self._backend.download(product, quicklook=quicklook, **kwargs)

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -12,5 +13,5 @@ class DataAcquisitionBackend(ABC):
         pass
 
     @abstractmethod
-    def download(self, product: EOProduct) -> XarrayDict:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str | XarrayDict:
         pass
