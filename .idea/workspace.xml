@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1902a063-6462-466f-93a6-f2c5bbb1ee41" name="更改" comment="" />
+    <list default="true" id="1902a063-6462-466f-93a6-f2c5bbb1ee41" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/subsystems/isu/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/subsystems/isu/__init__.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -24,7 +27,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "正在合并 isu__parsers"
+    "git-widget-placeholder": "feature/isu-integration"
   }
 }]]></component>
   <component name="SharedIndexes">
