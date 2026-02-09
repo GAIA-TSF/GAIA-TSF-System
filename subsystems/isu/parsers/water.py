@@ -7,6 +7,7 @@ from .base import BaseParser
 
 logger = logging.getLogger('gaia.isu.parsers.water')
 
+
 class WaterQualityParser(BaseParser):
     """
     Parser for Water Quality data (Sondes, Lab samples).
@@ -17,15 +18,23 @@ class WaterQualityParser(BaseParser):
 
     def detect(self, signature: Dict[str, Any]) -> float:
         """
-                Check if file contains water quality keywords (ph, turbidity, etc.).
-                """
+        Check if file contains water quality keywords (ph, turbidity, etc.).
+        """
         filename = signature.get('filename', '')
         ext = signature.get('extension', '')
         content = signature.get('content', b'')
         score = 0.0
 
         # 1. Filename Indicators
-        filename_indicators = ['water', 'quality', 'sonde', 'hydro', 'chem', 'lab', 'sample']
+        filename_indicators = [
+            'water',
+            'quality',
+            'sonde',
+            'hydro',
+            'chem',
+            'lab',
+            'sample',
+        ]
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -36,8 +45,18 @@ class WaterQualityParser(BaseParser):
             headers = [str(c).lower().strip() for c in df.columns]
 
             strong_indicators = {
-                'ph', 'conductivity', 'ec', 'turbidity', 'do', 'orp',
-                'sulfate', 'iron', 'fe', 'tds', 'nitrate', 'mg/l'
+                'ph',
+                'conductivity',
+                'ec',
+                'turbidity',
+                'do',
+                'orp',
+                'sulfate',
+                'iron',
+                'fe',
+                'tds',
+                'nitrate',
+                'mg/l',
             }
 
             matches = [h for h in headers if any(ind in h for ind in strong_indicators)]
@@ -60,7 +79,7 @@ class WaterQualityParser(BaseParser):
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
-                raise ValueError(f"Unsupported format: {ext}")
+                raise ValueError(f'Unsupported format: {ext}')
 
             df.columns = [str(c).strip().lower() for c in df.columns]
 
@@ -74,8 +93,9 @@ class WaterQualityParser(BaseParser):
             if ph_cols:
                 ph_col = ph_cols[0]
                 if not df[ph_col].between(0, 14).all():
-                    logger.warning(f"[{filename}] pH values out of range (0-14) detected.")
-
+                    logger.warning(
+                        f'[{filename}] pH values out of range (0-14) detected.'
+                    )
 
             # Check negative values
             non_negative_cols = [
@@ -85,7 +105,7 @@ class WaterQualityParser(BaseParser):
             ]
             for col in non_negative_cols:
                 if (df[col] < 0).any():
-                    logger.warning(f"[{filename}] Negative values detected in {col}.")
+                    logger.warning(f'[{filename}] Negative values detected in {col}.')
 
             return df
 

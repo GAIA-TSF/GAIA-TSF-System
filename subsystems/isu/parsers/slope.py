@@ -3,10 +3,11 @@ import pandas as pd
 import io
 import os
 import logging
-import re
 from .base import BaseParser
 
 logger = logging.getLogger('gaia.isu.parsers.slope')
+
+
 class SlopeStabilityParser(BaseParser):
     """
     Parser for Slope Stability data (GNSS, InSAR, Inclinometers).
@@ -26,7 +27,15 @@ class SlopeStabilityParser(BaseParser):
         score = 0.0
 
         # 1. Filename Indicators
-        filename_indicators = ['slope', 'gnss', 'insar', 'piezo', 'ground_motion', 'egms', 'displacement']
+        filename_indicators = [
+            'slope',
+            'gnss',
+            'insar',
+            'piezo',
+            'ground_motion',
+            'egms',
+            'displacement',
+        ]
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -39,9 +48,19 @@ class SlopeStabilityParser(BaseParser):
             headers = [str(c).lower().strip() for c in df.columns]
 
             strong_indicators = {
-                'displacement', 'velocity', 'def_x', 'def_y', 'def_z',
-                'pressure', 'pore_water', 'kpa', 'piezo', 'inclinometer',
-                'tilt', 'angle', 'depth'
+                'displacement',
+                'velocity',
+                'def_x',
+                'def_y',
+                'def_z',
+                'pressure',
+                'pore_water',
+                'kpa',
+                'piezo',
+                'inclinometer',
+                'tilt',
+                'angle',
+                'depth',
             }
 
             # 计算匹配到的关键词数量
@@ -57,7 +76,6 @@ class SlopeStabilityParser(BaseParser):
 
         return min(max(score, 0.0), 1.0)
 
-
     def parse(self, content: bytes, filename: str) -> pd.DataFrame:
         try:
             # 1. Load Data
@@ -67,7 +85,7 @@ class SlopeStabilityParser(BaseParser):
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
-                raise ValueError(f"Unsupported format: {ext}")
+                raise ValueError(f'Unsupported format: {ext}')
 
             # Clean headers
             df.columns = [str(c).strip().lower() for c in df.columns]
@@ -79,18 +97,24 @@ class SlopeStabilityParser(BaseParser):
 
             # Quality Control
             if 'depth' in df.columns:
-                if not df['depth'].is_monotonic_increasing and not df['depth'].is_monotonic_decreasing:
-                    logger.warning(f"[{filename}] Depth column is not monotonic. Check sensor ordering.")
+                if (
+                    not df['depth'].is_monotonic_increasing
+                    and not df['depth'].is_monotonic_decreasing
+                ):
+                    logger.warning(
+                        f'[{filename}] Depth column is not monotonic. Check sensor ordering.'
+                    )
             disp_cols = [c for c in df.columns if 'disp' in c or 'def' in c]
             for col in disp_cols:
                 if pd.api.types.is_numeric_dtype(df[col]):
                     max_disp = df[col].abs().max()
                     if max_disp > 500:
                         logger.warning(
-                            f"[{filename}] Large displacement detected in {col}: {max_disp:.2f}. Check sensor health.")
+                            f'[{filename}] Large displacement detected in {col}: {max_disp:.2f}. Check sensor health.'
+                        )
             # Return cleaned DataFrame
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
             #
-            raise ValueError(f"Slope parser failed to process {filename}: {str(e)}")
+            raise ValueError(f'Slope parser failed to process {filename}: {str(e)}')
