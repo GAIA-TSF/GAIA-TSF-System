@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Dict, List, Any
-import pandas as pd
+#import pandas as pd
 
 from .base import BaseParser
 from .slope import SlopeStabilityParser
