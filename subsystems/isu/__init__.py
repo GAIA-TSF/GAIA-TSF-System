@@ -1,25 +1,43 @@
-from isu.manual_file_loader import ManualFileLoader
-from isu.bulk_upload_scheduler import BulkUploadScheduler
-from isu.streaming_data_handler import StreamingDataHandler
-from isu.data_extraction import DataExtraction
+import logging
+from typing import Optional
+from .parsers import ParsingEngine
+from .scheduler import Scheduler
 
-from qcl.logger import Logger
+logger = logging.getLogger('gaia.isu')
 
 
 class InSituDataUploader:
-    """In-Situ Data Uploader sub-system is responsible for collecting
-    and securely transmitting field-acquired data from different
-    ground-based sensor technologies to the central data
-    pre-processing module.
+    """
+    Main entry point for the In-Situ Data Uploader (ISU) subsystem.
+    Orchestrates parsing and scheduling.
     """
 
-    id = 'ISU'
-
     def __init__(self):
-        self.logger = Logger(subsystem=self.id)
-        self.logger.debug('initialized')
+        """Initialize the ISU subsystem components."""
+        #
+        self.parsing_engine = ParsingEngine()
 
-        self.manual_file_loader = ManualFileLoader()
-        self.bulk_upload_scheduler = BulkUploadScheduler()
-        self.streaming_data_handler = StreamingDataHandler()
-        self.data_extraction = DataExtraction()
+        # Initialize the scheduler (default 60s)
+        self.scheduler = Scheduler(interval_seconds=60)
+
+        logger.info("ISU Subsystem initialized.")
+
+    def start(self):
+        """Start the subsystem services (Scheduler)."""
+        logger.info("Starting ISU Subsystem...")
+
+        # Start the scheduler with a wrapper task
+        self.scheduler.start(self._scheduled_job)
+
+        print('ISU Subsystem started.')
+
+    def stop(self):
+        """Stop the subsystem services."""
+        self.scheduler.stop()
+        logger.info("ISU Subsystem stopped.")
+
+    def _scheduled_job(self):
+        """The task to be executed periodically."""
+        # This will later trigger the file scanning logic
+        # For now, it just logs a heartbeat
+        logger.debug("Scheduler heartbeat: Scanning for new files...")
