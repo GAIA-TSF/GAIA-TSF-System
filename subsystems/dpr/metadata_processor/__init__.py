@@ -6,6 +6,6 @@ class MetadataProcessor:
     ingestion and manual editing by operators to ensure
     discoverability and traceability.
     """
-    
+
     def __init__(self):
         pass
