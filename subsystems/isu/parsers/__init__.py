@@ -1,10 +1,13 @@
 import os
-import io
+import logging
+from typing import Dict, List, Any
 import pandas as pd
-from typing import Dict, List
-from .base import BaseParser, FileSignature
+
+from .base import BaseParser
 from .slope import SlopeStabilityParser
 from .water import WaterQualityParser
+
+logger = logging.getLogger('gaia.isu.parsing_engine')
 
 
 class ParsingEngine:
@@ -21,91 +24,86 @@ class ParsingEngine:
         ]
         self.confidence_threshold = 0.6
 
-    def _create_signature(self, file_content: bytes, filename: str) -> FileSignature:
-        """Create a lightweight file signature from the first 10 rows."""
-        ext = os.path.splitext(filename)[1].lower()
-
-        try:
-            if ext in ['.csv', '.txt']:
-                df_head = pd.read_csv(io.BytesIO(file_content), nrows=10)
-            elif ext in ['.xlsx']:
-                df_head = pd.read_excel(io.BytesIO(file_content), nrows=10)
-            else:
-                raise ValueError('Unsupported container format')
-
-            return FileSignature(
-                filename=filename,
-                headers=list(df_head.columns),
-                sample_df=df_head,
-                file_ext=ext,
-            )
-        except Exception as e:
-            raise ValueError(f'Failed to create file signature: {str(e)}')
-
-    def route_and_parse(self, file_content: bytes, filename: str) -> Dict:
+    def route_and_parse(self, file_content: bytes, filename: str) -> Dict[str, Any]:
         """
         Main Entry: Identify -> Score -> Gate -> Parse.
         """
-        # Step 1: Structural Summary
-        try:
-            signature = self._create_signature(file_content, filename)
-        except ValueError as e:
-            return {'status': 'failed', 'error': str(e)}
+        ext = os.path.splitext(filename)[1].lower()
 
-        # Step 2: Scoring
+        # 1. Create simple signature (dict) instead of object
+        signature = {
+            'filename': filename,
+            'extension': ext,
+            'content': file_content
+        }
+
+        # 2. Scoring: Ask parsers if they recognize the file
         candidates = []
         for parser in self.registered_parsers:
-            score = parser.detect(signature)
-            if score > 0:
-                candidates.append(
-                    {
+            try:
+                score = parser.detect(signature)
+                if score > 0:
+                    candidates.append({
                         'parser': parser,
                         'score': score,
                         'name': parser.get_parser_name(),
-                    }
-                )
+                    })
+            except Exception as e:
+                # Log warning but continue checking other parsers
+                logger.warning(f"Parser detection failed: {e}")
+                continue
 
-        candidates.sort(key=lambda x: x['score'], reverse=True)
-
-        # Step 3: Gating & Routing
+        # Check if any parser matched BEFORE sorting
         if not candidates:
             return self._fallback_procedure(filename, 'No parser matched')
 
+        # Sort by score (highest confidence first)
+        candidates.sort(key=lambda x: x['score'], reverse=True)
         best_match = candidates[0]
 
-        # Threshold Check
+        # 3. Gating: Check confidence threshold
         if best_match['score'] < self.confidence_threshold:
             return self._fallback_procedure(
                 filename,
-                f'Top match ({best_match["name"]}) confidence {best_match["score"]:.2f} is too low.',
+                f'Confidence {best_match["score"]:.2f} is too low.'
             )
 
-        # Ambiguity Check
+        # Check for ambiguity (two parsers with similar scores)
         if len(candidates) > 1:
             gap = candidates[0]['score'] - candidates[1]['score']
             if gap < 0.1:
                 return self._fallback_procedure(
                     filename,
-                    f'Ambiguous file. Close match between {candidates[0]["name"]} and {candidates[1]["name"]}',
+                    f'Ambiguous match between {candidates[0]["name"]} and {candidates[1]["name"]}'
                 )
 
-        # Step 4: Execute Parse
+        # 4. Execution: Parse the file
         try:
-            parsed_data = best_match['parser'].parse(file_content, signature)
+            logger.info(f"Selected {best_match['name']} for {filename}")
+
+            # Call the parser (now returns a DataFrame)
+            parsed_df = best_match['parser'].parse(file_content, filename)
+
+            # Return success response with data preview
             return {
                 'status': 'success',
                 'parser_applied': best_match['name'],
                 'confidence': best_match['score'],
-                'data': parsed_data,
+                'row_count': len(parsed_df),
+                'columns': list(parsed_df.columns),
+                'data_preview': parsed_df.head(5).to_dict(orient='records')
             }
-        except Exception as e:
+
+        except (ValueError, IOError) as e:
+            logger.error(f"Parsing execution failed: {str(e)}")
             return {'status': 'failed', 'error': f'Parser execution failed: {str(e)}'}
 
-    def _fallback_procedure(self, filename: str, reason: str) -> Dict:
-        """Return quarantine status."""
+    def _fallback_procedure(self, filename: str, reason: str) -> Dict[str, Any]:
+        """Handle files that cannot be parsed (Quarantine)."""
+        logger.info(f"Quarantine: {filename} - {reason}")
         return {
             'status': 'quarantine',
-            'message': 'Automatic parsing failed, file moved to quarantine.',
+            'message': 'Automatic parsing failed.',
             'reason': reason,
             'filename': filename,
             'action_required': 'Manual Inspection',

@@ -1,24 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import pandas as pd
+import io
 import logging
 
 logger = logging.getLogger('gaia.isu.parser')
-
-
-class FileSignature:
-    """
-    File signature object to pass metadata between parsers.
-    """
-
-    def __init__(
-        self, filename: str, headers: List[str], sample_df: pd.DataFrame, file_ext: str
-    ):
-        self.filename = filename
-        # Lowercase and strip headers
-        self.headers = [str(h).lower().strip() for h in headers]
-        self.sample_df = sample_df
-        self.extension = file_ext.lower()
 
 
 class BaseParser(ABC):
@@ -31,13 +17,30 @@ class BaseParser(ABC):
         """Return unique identifier for the parser."""
         pass
 
+    def _read_file_sample(self, content: bytes, ext: str, nrows: int = 5) -> Optional[pd.DataFrame]:
+        """
+        Helper method to read a small sample of the file for detection/preview.
+        Reduces code duplication across parsers.
+        """
+        try:
+            if ext == '.csv':
+                return pd.read_csv(io.BytesIO(content), nrows=nrows)
+            elif ext in ['.xlsx', '.xls']:
+                return pd.read_excel(io.BytesIO(content), nrows=nrows)
+            return None
+        except (ValueError, pd.errors.ParserError):
+            # Return None if parsing fails (not a valid CSV/Excel)
+            return None
+        except Exception as e:
+            logger.debug(f"Sample read failed: {str(e)}")
+            return None
     @abstractmethod
-    def detect(self, signature: FileSignature) -> float:
+    def detect(self, signature: Dict[str, Any]) -> float:
         """Calculate confidence score (0.0 - 1.0) based on file signature."""
         pass
 
     @abstractmethod
-    def parse(self, content: bytes, signature: FileSignature) -> Dict[str, Any]:
+    def parse(self, content: bytes, filename: str) -> pd.DataFrame:
         """Parse content into structured dictionary."""
         pass
 
@@ -91,7 +94,7 @@ class BaseParser(ABC):
 
             return df
 
-        except Exception as e:
+        except (KeyError, ValueError) as e:
             logger.error(f'Timestamp standardization failed: {str(e)}')
             raise ValueError(
                 f"Failed to standardize timestamp column '{target_col}': {str(e)}"
