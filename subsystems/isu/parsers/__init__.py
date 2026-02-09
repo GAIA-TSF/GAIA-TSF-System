@@ -1,7 +1,7 @@
 import os
 import logging
 from typing import Dict, List, Any
-#import pandas as pd
+# import pandas as pd
 
 from .base import BaseParser
 from .slope import SlopeStabilityParser
@@ -31,11 +31,7 @@ class ParsingEngine:
         ext = os.path.splitext(filename)[1].lower()
 
         # 1. Create simple signature (dict) instead of object
-        signature = {
-            'filename': filename,
-            'extension': ext,
-            'content': file_content
-        }
+        signature = {'filename': filename, 'extension': ext, 'content': file_content}
 
         # 2. Scoring: Ask parsers if they recognize the file
         candidates = []
@@ -43,14 +39,16 @@ class ParsingEngine:
             try:
                 score = parser.detect(signature)
                 if score > 0:
-                    candidates.append({
-                        'parser': parser,
-                        'score': score,
-                        'name': parser.get_parser_name(),
-                    })
+                    candidates.append(
+                        {
+                            'parser': parser,
+                            'score': score,
+                            'name': parser.get_parser_name(),
+                        }
+                    )
             except Exception as e:
                 # Log warning but continue checking other parsers
-                logger.warning(f"Parser detection failed: {e}")
+                logger.warning(f'Parser detection failed: {e}')
                 continue
 
         # Check if any parser matched BEFORE sorting
@@ -64,8 +62,7 @@ class ParsingEngine:
         # 3. Gating: Check confidence threshold
         if best_match['score'] < self.confidence_threshold:
             return self._fallback_procedure(
-                filename,
-                f'Confidence {best_match["score"]:.2f} is too low.'
+                filename, f'Confidence {best_match["score"]:.2f} is too low.'
             )
 
         # Check for ambiguity (two parsers with similar scores)
@@ -74,12 +71,12 @@ class ParsingEngine:
             if gap < 0.1:
                 return self._fallback_procedure(
                     filename,
-                    f'Ambiguous match between {candidates[0]["name"]} and {candidates[1]["name"]}'
+                    f'Ambiguous match between {candidates[0]["name"]} and {candidates[1]["name"]}',
                 )
 
         # 4. Execution: Parse the file
         try:
-            logger.info(f"Selected {best_match['name']} for {filename}")
+            logger.info(f'Selected {best_match["name"]} for {filename}')
 
             # Call the parser (now returns a DataFrame)
             parsed_df = best_match['parser'].parse(file_content, filename)
@@ -91,16 +88,16 @@ class ParsingEngine:
                 'confidence': best_match['score'],
                 'row_count': len(parsed_df),
                 'columns': list(parsed_df.columns),
-                'data_preview': parsed_df.head(5).to_dict(orient='records')
+                'data_preview': parsed_df.head(5).to_dict(orient='records'),
             }
 
         except (ValueError, IOError) as e:
-            logger.error(f"Parsing execution failed: {str(e)}")
+            logger.error(f'Parsing execution failed: {str(e)}')
             return {'status': 'failed', 'error': f'Parser execution failed: {str(e)}'}
 
     def _fallback_procedure(self, filename: str, reason: str) -> Dict[str, Any]:
         """Handle files that cannot be parsed (Quarantine)."""
-        logger.info(f"Quarantine: {filename} - {reason}")
+        logger.info(f'Quarantine: {filename} - {reason}')
         return {
             'status': 'quarantine',
             'message': 'Automatic parsing failed.',

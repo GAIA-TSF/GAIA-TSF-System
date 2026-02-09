@@ -17,7 +17,9 @@ class BaseParser(ABC):
         """Return unique identifier for the parser."""
         pass
 
-    def _read_file_sample(self, content: bytes, ext: str, nrows: int = 5) -> Optional[pd.DataFrame]:
+    def _read_file_sample(
+        self, content: bytes, ext: str, nrows: int = 5
+    ) -> Optional[pd.DataFrame]:
         """
         Helper method to read a small sample of the file for detection/preview.
         Reduces code duplication across parsers.
@@ -32,8 +34,9 @@ class BaseParser(ABC):
             # Return None if parsing fails (not a valid CSV/Excel)
             return None
         except Exception as e:
-            logger.debug(f"Sample read failed: {str(e)}")
+            logger.debug(f'Sample read failed: {str(e)}')
             return None
+
     @abstractmethod
     def detect(self, signature: Dict[str, Any]) -> float:
         """Calculate confidence score (0.0 - 1.0) based on file signature."""
