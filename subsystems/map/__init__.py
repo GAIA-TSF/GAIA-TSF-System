@@ -1,8 +1,7 @@
-from map.dataset import DatasetModule
-from map.learning import LearningModule
-from map.inference import InferenceModule
-from map.xai import ExplainabilityModule
-
+from .dataset import DatasetModule
+# from .learning import LearningModule
+# from .inference import InferenceModule
+# from .xai import ExplainabilityModule
 
 class MachineLearningAnomalyPrediction:
     """Machine Learning Anomaly Prediction (MAP) subsystem.
@@ -15,6 +14,6 @@ class MachineLearningAnomalyPrediction:
 
     def __init__(self):
         self.dataset = DatasetModule()
-        self.learning = LearningModule()
-        self.inference = InferenceModule()
-        self.xai = ExplainabilityModule()
+        # self.learning = LearningModule()
+        # self.inference = InferenceModule()
+        # self.xai = ExplainabilityModule()
