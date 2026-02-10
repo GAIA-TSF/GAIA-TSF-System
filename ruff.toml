@@ -3,11 +3,13 @@
 extend-select = [
     "N"
 ]
+extend-ignore = [
+    "E402",  # Module level import not at top of file
+]
 
 [lint.pep8-naming]
 extend-ignore-names = [
-    "test_*",
-    "Logger"
+    "test_*"
 ]
 
 [format]

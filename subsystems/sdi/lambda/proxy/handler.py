@@ -1,8 +1,22 @@
+import os
 import boto3
 from botocore.exceptions import ClientError
 import json
 
 from qcl.logger import Logger
+
+LOCALSTACK = os.getenv('LOCALSTACK', '0') == '1'
+
+if LOCALSTACK:
+    s3 = boto3.client(
+        's3',
+        endpoint_url='http://localhost:4566',
+        aws_access_key_id='test',
+        aws_secret_access_key='test',
+        region_name='us-east-1',
+    )
+else:
+    s3 = boto3.client('s3')
 
 s3 = boto3.client('s3')
 id = 'SDI'
