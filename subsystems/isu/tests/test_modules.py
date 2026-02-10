@@ -58,13 +58,14 @@ def test_excel_parsing(engine, tmp_path):
     assert result['status'] == 'success'
     assert result['row_count'] == 1
 
+
 def test_unknown_extension(engine, tmp_path):
     """Test that unsupported file formats are handled gracefully."""
     # 1. Setup: Create a file with an unsupported extension
     d = tmp_path / 'input'
     d.mkdir()
     p = d / 'funny_image.jpg'
-    p.write_bytes(b'\xFF\xD8\xFF')
+    p.write_bytes(b'\xff\xd8\xff')
 
     # 2. Action
     content = p.read_bytes()
