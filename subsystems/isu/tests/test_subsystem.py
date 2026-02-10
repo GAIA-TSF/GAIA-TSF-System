@@ -9,78 +9,93 @@ from unittest.mock import MagicMock, patch
 from subsystems.isu import InSituDataUploader
 
 
-@pytest.fixture
-def mock_subsystem_logger():
-    """Mock the global logger used by the subsystem."""
-    return MagicMock()
-
-
-@pytest.fixture
-def isu_system(tmp_path, mock_subsystem_logger):
+class TestSubsystem:
     """
-    Initialize the ISU subsystem with temporary directories.
-    This ensures we don't mess up the real 'data/input' folder.
+    Integration test suite for ISU subsystem.
+    Follows project naming convention (test_ISU_xxx).
     """
-    # 1. Create fake input/processed directories
-    input_dir = tmp_path / 'input'
-    processed_dir = tmp_path / 'processed'
-    input_dir.mkdir()
-    processed_dir.mkdir()
 
-    # 2. Initialize the subsystem with these paths
-    # We patch the logger to verify logs later
-    with patch('subsystems.isu.logger', mock_subsystem_logger):
+    @pytest.fixture
+    def mock_logger_class(self):
+        """
+        Mock the QCL Logger class.
+        This ensures that when InSituDataUploader calls Logger(), it gets a mock.
+        """
+        with patch('subsystems.isu.Logger') as MockLogger:
+            # Configure the mock instance that will be returned
+            mock_instance = MockLogger.return_value
+            yield mock_instance
+
+    @pytest.fixture
+    def isu_system(self, tmp_path, mock_logger_class):
+        """
+        Initialize the ISU subsystem with temporary directories.
+        """
+        # 1. Create fake input/processed directories to allow safe testing
+        input_dir = tmp_path / 'input'
+        processed_dir = tmp_path / 'processed'
+        input_dir.mkdir()
+        processed_dir.mkdir()
+
+        # 2. Initialize the subsystem
+        # Note: We don't need to patch 'logger' object manually because
+        # mock_logger_class fixture already patched the class constructor.
         isu = InSituDataUploader(
             input_dir=str(input_dir), processed_dir=str(processed_dir)
         )
-        # Mock the scheduler to prevent actual infinite loops during test
+
+        # 3. Mock the scheduler to prevent actual threading/infinite loops during test
         isu.scheduler = MagicMock()
+
         return isu
 
+    def test_ISU_001(self, isu_system):
+        """Test ISU Subsystem Initialization."""
+        # Verify Identity
+        assert getattr(isu_system, 'id', None) == 'ISU'
 
-def test_initialization(isu_system):
-    """Test if the subsystem initializes its components correctly."""
-    assert isu_system.parsing_engine is not None
-    assert isu_system.scheduler is not None
-    # Verify directories were created (handled by fixture, but good to check logic)
-    assert os.path.exists(isu_system.input_dir)
-    assert os.path.exists(isu_system.processed_dir)
+        # Verify Components
+        assert isu_system.parsing_engine is not None
+        assert isu_system.scheduler is not None
 
+        # Verify Directories
+        assert os.path.exists(isu_system.input_dir)
+        assert os.path.exists(isu_system.processed_dir)
 
-def test_full_integration_flow(isu_system, tmp_path):
-    """
-    Critical Integration Test:
-    1. Place a file in input_dir.
-    2. Trigger the scan method manually.
-    3. Verify the file is parsed and moved to processed_dir.
-    """
-    # 1. Setup: Create a dummy .csv file in the input directory
-    input_file = tmp_path / 'input' / 'sensor_data.csv'
-    input_file.write_text('timestamp,value\n2023-01-01,100')
+    def test_ISU_002(self, isu_system, tmp_path):
+        """
+        Test Critical Integration Flow:
+        File Detection -> Parsing -> Archiving.
+        """
+        # 1. Setup: Create a dummy .csv file in the input directory
+        # Using specific content that matches the Slope Parser (US-ISU-04)
+        input_file = tmp_path / 'input' / 'sensor_data.csv'
+        input_file.write_text('timestamp,displacement_x,displacement_y\n2023-01-01,0.5,0.1')
 
-    # 2. Action: Manually trigger the job that the Scheduler would run
-    # This proves the "integration" works: Scanner -> Parser -> Archiver
-    isu_system._scan_and_process_files()
+        # 2. Action: Manually trigger the job that the Scheduler would run
+        # This simulates one "tick" of the scheduler
+        isu_system._scan_and_process_files()
 
-    # 3. Verification
+        # 3. Verification
 
-    # A. Check if ParsingEngine was actually used (by checking logs)
-    # The system logger should have recorded success
-    # (Note: In a real integration test, we might mock the ParsingEngine to spy on it,
-    # but here we rely on the side effect: file movement)
+        # A. Check File Lifecycle: File should be GONE from input
+        assert not input_file.exists(), 'File should be moved from input directory'
 
-    # B. Check File Lifecycle: File should be GONE from input
-    assert not input_file.exists(), 'File should be moved from input directory'
+        # B. Check File Lifecycle: File should APPEAR in processed
+        processed_file = tmp_path / 'processed' / 'sensor_data.csv'
+        assert processed_file.exists(), 'File should be archived to processed directory'
 
-    # C. Check File Lifecycle: File should APPEAR in processed
-    processed_file = tmp_path / 'processed' / 'sensor_data.csv'
-    assert processed_file.exists(), 'File should be archived to processed directory'
+        # C. Verify Logger was called (proving parsing success)
+        # We access the mock logger instance injected into the system
+        # Assuming parsing was successful, info logs should happen
+        assert isu_system.logger.info.called
 
+    def test_ISU_003(self, isu_system):
+        """Test Scheduler Start/Stop Commands."""
+        # Test Start
+        isu_system.start()
+        isu_system.scheduler.start.assert_called_once()
 
-def test_scheduler_start_stop(isu_system):
-    """Test that start/stop commands trigger the scheduler."""
-    isu_system.start()
-    isu_system.scheduler.start.assert_called_once()
-
-    isu_system.stop()
-    isu_system.scheduler.stop.assert_called_once()
+        # Test Stop
+        isu_system.stop()
+        isu_system.scheduler.stop.assert_called_once()

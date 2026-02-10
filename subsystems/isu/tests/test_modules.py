@@ -24,16 +24,18 @@ def test_csv_parsing(engine, tmp_path):
     d = tmp_path / 'input'
     d.mkdir()
     p = d / 'test_data.csv'
-    p.write_text('col1,col2\n1,2')
+    p.write_text('timestamp,displacement_x,displacement_y\n2026-01-01,0.1,0.2')
 
-    # 2. Action: Parse the file using the engine
-    # Note: We must pass the file path as a string
-    df = engine.parse_file(str(p))
+    # 2. Action: Read bytes and pass to route_and_parse
+    content = p.read_bytes()
+    result = engine.route_and_parse(content, p.name)
 
     # 3. Assertion: Verify the result
-    assert df is not None, 'Resulting DataFrame should not be None'
-    assert not df.empty, 'DataFrame should not be empty'
-    # Verify that the logger recorded the success info
+    assert result['status'] == 'success'
+    assert 'Slope' in result['parser_applied']
+    assert result['row_count'] == 1
+
+    # Verify logger
     engine.logger.info.assert_called()
 
 
@@ -45,16 +47,16 @@ def test_excel_parsing(engine, tmp_path):
     p = d / 'test_data.xlsx'
 
     # Create a real Excel file using pandas
-    df_source = pd.DataFrame({'a': [10, 20], 'b': [30, 40]})
+    df_source = pd.DataFrame({'timestamp': ['2026-01-01'], 'ph': [7.0]})
     df_source.to_excel(p, index=False)
 
     # 2. Action
-    df = engine.parse_file(str(p))
+    content = p.read_bytes()
+    result = engine.route_and_parse(content, p.name)
 
     # 3. Assertion
-    assert df is not None
-    assert len(df) == 2, 'Should read exactly 2 rows'
-
+    assert result['status'] == 'success'
+    assert result['row_count'] == 1
 
 def test_unknown_extension(engine, tmp_path):
     """Test that unsupported file formats are handled gracefully."""
@@ -62,13 +64,12 @@ def test_unknown_extension(engine, tmp_path):
     d = tmp_path / 'input'
     d.mkdir()
     p = d / 'funny_image.jpg'
-    p.write_text('not data')
+    p.write_bytes(b'\xFF\xD8\xFF')
 
     # 2. Action
-    df = engine.parse_file(str(p))
+    content = p.read_bytes()
+    result = engine.route_and_parse(content, p.name)
 
     # 3. Assertion
-    # The engine should return None for unsupported files, not crash
-    assert df is None
-    # Verify that a warning was logged
-    engine.logger.warning.assert_called()
+    assert result['status'] == 'quarantine'
+    assert 'No parser matched' in result['reason']
