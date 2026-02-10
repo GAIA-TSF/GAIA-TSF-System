@@ -33,16 +33,11 @@ class Scheduler:
         logger.info(f"Scheduler started with interval: {self.interval}s")
 
     def stop(self) -> None:
-        """Stop the scheduler gracefully."""
         if not self._is_running:
             return
-
-        logger.info("Stopping scheduler...")
         self._stop_event.set()
-
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
-
         self._is_running = False
         logger.info("Scheduler stopped.")
 
@@ -52,8 +47,8 @@ class Scheduler:
             try:
                 # Execute the task
                 task_func()
-            except Exception as e:
-                logger.error(f"Scheduled task failed: {str(e)}")
+            except (OSError, RuntimeError, ValueError) as e:
+                logger.error(f"Scheduled task failed: {str(e)}", exc_info=True)
 
             # Sleep in short bursts to allow quick stopping
             # (Check stop_event every 0.5 seconds)
