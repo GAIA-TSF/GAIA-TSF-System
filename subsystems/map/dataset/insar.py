@@ -8,7 +8,7 @@ This class defines InSAR dataset of displacement for PyTorch
 X: inputs
 y: targets 
 - create_mirmazloumi_2023_dataset()
--  synthetic dataset 
+- create_synthetic_insar_datas() 
 """
 
 

@@ -1,5 +1,5 @@
 from .dataset import DatasetModule
-# from .learning import LearningModule
+from .learning import LearningModule
 # from .inference import InferenceModule
 # from .xai import ExplainabilityModule
 
@@ -14,6 +14,6 @@ class MachineLearningAnomalyPrediction:
 
     def __init__(self):
         self.dataset = DatasetModule()
-        # self.learning = LearningModule()
+        self.learning = LearningModule()
         # self.inference = InferenceModule()
         # self.xai = ExplainabilityModule()

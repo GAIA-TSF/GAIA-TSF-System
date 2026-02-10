@@ -8,9 +8,23 @@ The Machine Learning  Predictive Analytics sub-system functions as the core inte
 
 ## Deployment
 
-Prepare synthetic data of slope stability:
+Prepare and plot Mirmazloumi et al. (2023) and synthetic data of slope stability:
 
 ```
-python3 /gaia_tsf/map/synthetic_data/create_synthetic_data.py
+python3 -m subsystems.map.scripts.visualize_insar_dataset \
+    --dataset mirmazloumi_2023
+
+
+python3 -m subsystems.map.scripts.visualize_insar_dataset \
+    --dataset synthetic \
+    --anomaly-magnitude 5.0
 ```
 
+Learn LSTM recurrent model on the Mirmazloumi et al. (2023) and synthetic dataset of slope stability: 
+
+````
+python3 -m subsystems.map.scripts.train_lstm_mirmazloumi
+
+python3 -m subsystems.map.scripts.train_lstm_synthetic \
+    --anomaly-magnitude 50.0
+```
