@@ -7,7 +7,6 @@ from .slope import SlopeStabilityParser
 from .water import WaterQualityParser
 
 
-
 class ParsingEngine:
     """
     Core logic for identifying file content and selecting the correct parser.
@@ -47,7 +46,7 @@ class ParsingEngine:
                     )
 
             except (ValueError, TypeError, AttributeError) as e:
-                self.logger.warning(f"Error matching parser {parser.name}: {e}")
+                self.logger.warning(f'Error matching parser {parser.name}: {e}')
                 continue
 
         # Check if any parser matched BEFORE sorting
