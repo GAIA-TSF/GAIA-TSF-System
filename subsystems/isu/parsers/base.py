@@ -33,7 +33,7 @@ class BaseParser(ABC):
         except (ValueError, pd.errors.ParserError):
             # Return None if parsing fails (not a valid CSV/Excel)
             return None
-        except Exception as e:
+        except (ValueError, pd.errors.ParserError, TypeError, OSError) as e:
             logger.debug(f'Sample read failed: {str(e)}')
             return None
 

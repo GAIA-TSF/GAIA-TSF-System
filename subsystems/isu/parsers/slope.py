@@ -40,11 +40,10 @@ class SlopeStabilityParser(BaseParser):
             score += 0.2
 
         # 2. Header Signature (Critical)
-        # 使用父类的 helper 读取前几行，避免重复写读取逻辑
+        # Read the first few lines to avoid repeatedly writing the reading logic.
         df = self._read_file_sample(content, ext)
 
         if df is not None:
-            # 转换为小写并去除空格
             headers = [str(c).lower().strip() for c in df.columns]
 
             strong_indicators = {
@@ -63,13 +62,13 @@ class SlopeStabilityParser(BaseParser):
                 'depth',
             }
 
-            # 计算匹配到的关键词数量
+            # Calculate the number of matched keywords
             matches = [h for h in headers if any(ind in h for ind in strong_indicators)]
             if matches:
-                # 匹配得越多，分数越高
+                # The more matches you get, the higher your score.
                 score += 0.4 + (0.15 * len(matches))
 
-            # 3. Negative Indicators (排除水质数据)
+            # 3. Negative Indicators (Excluding water quality data)
             negative_indicators = {'ph', 'conductivity', 'turbidity', 'sulfate'}
             if any(neg in h for h in headers for neg in negative_indicators):
                 score -= 0.6

@@ -1,5 +1,4 @@
 import os
-import logging
 from typing import Dict, List, Any
 # import pandas as pd
 
@@ -7,7 +6,6 @@ from .base import BaseParser
 from .slope import SlopeStabilityParser
 from .water import WaterQualityParser
 
-logger = logging.getLogger('gaia.isu.parsing_engine')
 
 
 class ParsingEngine:
@@ -16,7 +14,8 @@ class ParsingEngine:
     Replaces the legacy ImportCatalogue.
     """
 
-    def __init__(self):
+    def __init__(self, logger):
+        self.logger = logger
         # Register available parsers
         self.registered_parsers: List[BaseParser] = [
             SlopeStabilityParser(),
@@ -46,9 +45,9 @@ class ParsingEngine:
                             'name': parser.get_parser_name(),
                         }
                     )
-            except Exception as e:
-                # Log warning but continue checking other parsers
-                logger.warning(f'Parser detection failed: {e}')
+
+            except (ValueError, TypeError, AttributeError) as e:
+                self.logger.warning(f"Error matching parser {parser.name}: {e}")
                 continue
 
         # Check if any parser matched BEFORE sorting
@@ -76,7 +75,7 @@ class ParsingEngine:
 
         # 4. Execution: Parse the file
         try:
-            logger.info(f'Selected {best_match["name"]} for {filename}')
+            self.logger.info(f'Selected {best_match["name"]} for {filename}')
 
             # Call the parser (now returns a DataFrame)
             parsed_df = best_match['parser'].parse(file_content, filename)
@@ -92,12 +91,12 @@ class ParsingEngine:
             }
 
         except (ValueError, IOError) as e:
-            logger.error(f'Parsing execution failed: {str(e)}')
+            self.logger.error(f'Parsing execution failed: {str(e)}')
             return {'status': 'failed', 'error': f'Parser execution failed: {str(e)}'}
 
     def _fallback_procedure(self, filename: str, reason: str) -> Dict[str, Any]:
         """Handle files that cannot be parsed (Quarantine)."""
-        logger.info(f'Quarantine: {filename} - {reason}')
+        self.logger.info(f'Quarantine: {filename} - {reason}')
         return {
             'status': 'quarantine',
             'message': 'Automatic parsing failed.',
