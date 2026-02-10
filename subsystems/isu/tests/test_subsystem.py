@@ -21,9 +21,9 @@ class TestSubsystem:
         Mock the QCL Logger class.
         This ensures that when InSituDataUploader calls Logger(), it gets a mock.
         """
-        with patch('subsystems.isu.Logger') as MockLogger:
+        with patch('subsystems.isu.Logger') as mock_cls:
             # Configure the mock instance that will be returned
-            mock_instance = MockLogger.return_value
+            mock_instance = mock_cls.return_value
             yield mock_instance
 
     @pytest.fixture
