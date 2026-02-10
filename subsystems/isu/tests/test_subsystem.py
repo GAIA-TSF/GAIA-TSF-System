@@ -70,7 +70,9 @@ class TestSubsystem:
         # 1. Setup: Create a dummy .csv file in the input directory
         # Using specific content that matches the Slope Parser (US-ISU-04)
         input_file = tmp_path / 'input' / 'sensor_data.csv'
-        input_file.write_text('timestamp,displacement_x,displacement_y\n2023-01-01,0.5,0.1')
+        input_file.write_text(
+            'timestamp,displacement_x,displacement_y\n2023-01-01,0.5,0.1'
+        )
 
         # 2. Action: Manually trigger the job that the Scheduler would run
         # This simulates one "tick" of the scheduler
