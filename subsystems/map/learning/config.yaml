@@ -1,0 +1,28 @@
+model:
+  input_size: 1
+  hidden_size: 64
+  num_layers: 1
+  output_size: 1
+  horizon: 5
+  mode: forecasting  # forecasting | reconstruction
+  dropout: 0.0
+  bidirectional: false
+
+trainer:
+  look_back: 12
+  horizon: 5
+  batch_size: 8
+  epochs: 200
+  learning_rate: 0.001
+  weight_decay: 0.0
+  early_stopping: false
+  patience: 20
+  device: auto  # auto | cpu | cuda
+
+dataset:
+  type: synthetic  # synthetic | mirmazloumi_2023
+  length: 80
+  noise_std: 0.5
+  trend_amplitude: 20.0
+  anomaly_magnitude: 20.0
+  split_ratio: 0.2  # fraction for test
