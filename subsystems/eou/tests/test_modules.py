@@ -6,12 +6,11 @@ from eou.data_acquisition_gateway import DataAcquisitionGateway
 def load_geom(file_path):
     with gdal.OpenEx(file_path, gdal.OF_VECTOR) as ds:
         layer = ds.GetLayer(0)
-        extent = layer.GetExtent()
+
         srs = layer.GetSpatialRef()
         srs.AutoIdentifyEPSG()
         auth = srs.GetAuthorityName(None)
         code = srs.GetAuthorityCode(None)
-
         if auth != "EPSG" or code != "4326":
             raise RuntimeError(f"Unsupported CRS: {auth}:{code}")
 
