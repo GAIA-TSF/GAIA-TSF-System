@@ -1,15 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import os
-import glob
-import rioxarray
 from eodag import EODataAccessGateway
 
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
-    from eodag_cube.types import XarrayDict
 
 from eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
