@@ -6,20 +6,25 @@ if TYPE_CHECKING:
     from eodag_cube.api.product._product import EOProduct
     from eodag_cube.types import XarrayDict
 
+
 class DataAcquisitionGateway:
     """Data Acquisition Gateway module serves as the automated
     ingestion engine for the sub-system.
     """
 
-    def __init__(self, backend: str = "eodag"):
-        if backend == "eodag":
-            from eou.data_acquisition_gateway.eodag_backend import EODAGDataAcquisitionBackend as DataAcquisitionBackend
+    def __init__(self, backend: str = 'eodag'):
+        if backend == 'eodag':
+            from eou.data_acquisition_gateway.eodag_backend import (
+                EODAGDataAcquisitionBackend as DataAcquisitionBackend,
+            )
         else:
             # raise GAIAConfigurationError(f"Unsupported data acquisition backend: {backend}")
             pass
         self._backend = DataAcquisitionBackend()
 
-    def search(self, provider: str, start: str, end: str, geom: list[float], **kwargs) -> SearchResult:
+    def search(
+        self, provider: str, start: str, end: str, geom: list[float], **kwargs
+    ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using selected data acquisition
         backend.
@@ -37,7 +42,9 @@ class DataAcquisitionGateway:
         """
         return self._backend.search(provider, start, end, geom, **kwargs)
 
-    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str | XarrayDict:
+    def download(
+        self, product: EOProduct, quicklook: bool = False, **kwargs
+    ) -> str | XarrayDict:
         """Download selected data product using selected data
         acquisition backend.
 
