@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ../subsystems/:/opt/gaia_tsf
+    environment:
+      LOCALSTACK: "1"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      - localstack
+    networks:
+      - gaia_net
+
+  localstack:
+    image: localstack/localstack:4.13.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+    networks:
+      - gaia_net
+
+networks:
+  gaia_net:

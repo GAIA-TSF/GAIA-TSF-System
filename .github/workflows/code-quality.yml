@@ -8,6 +8,7 @@ on:
     paths:
       - "**.py"
       - ".github/workflows/code-quality.yml"
+      - "ruff.toml"
 
 jobs:
   ruff-fix:
@@ -66,12 +67,14 @@ jobs:
           labels: automated-pr
           reviewers: ${{ github.actor }}
 
-      - name: Send comment to original PR
+      - name: Send comment to original PR and fail
         # create a comment in the PR that is reminding the user to merge the automated code quality-fix PR
         if: ${{ steps.create-pull-request.outputs.pull-request-url && steps.create-pull-request.outputs.pull-request-operation != 'none' }}
         run: |
           comment_body="Python formatting issues found. They can be fixed by merging automatically-${{ steps.create-pull-request.outputs.pull-request-operation }} PR #${{ steps.create-pull-request.outputs.pull-request-number }}."
           curl -s -H "Authorization: token ${token}" -X POST -d "{\"body\": \"${comment_body}\"}" "https://api.github.com/repos/${repo}/issues/${{ github.event.pull_request.number }}/comments"
+          # now fail because attention makes you feel important
+          exit 1
         env:
           repo: ${{ github.repository }}
           token: ${{ secrets.GITHUB_TOKEN }}
