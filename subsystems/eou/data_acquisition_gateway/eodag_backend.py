@@ -33,25 +33,8 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
     def download(
         self, product: EOProduct, quicklook: bool = False, **kwargs
-    ) -> str | XarrayDict:
+    ) -> str:
         if quicklook:
             return product.get_quicklook(**kwargs)
 
-        local_path = self._dag.download(product, extract=True, **kwargs)
-
-        product_data = XarrayDict()
-        image_files = glob.glob(
-            os.path.join(local_path, '**', '*.[jt][ip][f]*'), recursive=True
-        )
-
-        for file_path in image_files:
-            band_key = os.path.splitext(os.path.basename(file_path))[0]
-            try:
-                ds = rioxarray.open_rasterio(
-                    file_path, chunks={'x': 1024, 'y': 1024}
-                ).to_dataset(name='data')
-                product_data[band_key] = ds
-            except Exception:
-                continue
-
-        return product_data
+        return self._dag.download(product, extract=False, **kwargs)

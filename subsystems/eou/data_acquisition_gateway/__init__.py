@@ -44,13 +44,13 @@ class DataAcquisitionGateway:
 
     def download(
         self, product: EOProduct, quicklook: bool = False, **kwargs
-    ) -> str | XarrayDict:
+    ) -> str:
         """Download selected data product using selected data
         acquisition backend.
 
         :param EOProduct product: EO product to be downloaded
         :param bool quicklook: If True, only download the preview image
-        :return: a dictionary of xarray.Dataset or a path to the quicklook image
-        :rtype: XarrayDict or str
+        :return: a path to the download data
+        :rtype: str
         """
         return self._backend.download(product, quicklook=quicklook, **kwargs)
