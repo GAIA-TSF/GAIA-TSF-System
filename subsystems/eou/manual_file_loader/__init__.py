@@ -82,8 +82,9 @@ class ManualFileLoader:
 
         # band-level checks
         for i in range(1, ds.RasterCount + 1):
-            band = ds.GetRasterBand(i)
-            if band is None:
+            try:
+                band = ds.GetRasterBand(i)
+            except RuntimeError:
                 result['errors'].append(f'Band {i} missing')
                 continue
 
@@ -92,9 +93,7 @@ class ManualFileLoader:
                 arr = band.ReadAsArray(
                     0, 0, min(256, ds.RasterXSize), min(256, ds.RasterYSize)
                 )
-                if arr is None:
-                    result['errors'].append(f'Band {i} unreadable')
-                elif np.isnan(arr).all():
+                if np.isnan(arr).all():
                     result['warnings'].append(f'Band {i} contains only NaN values')
             except RuntimeError as e:
                 result['errors'].append(f'Band {i} read error: {str(e)}')
