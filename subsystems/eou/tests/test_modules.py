@@ -1,7 +1,9 @@
 from osgeo import gdal
+
 gdal.UseExceptions()
 
 from eou.data_acquisition_gateway import DataAcquisitionGateway
+
 
 def load_geom(file_path):
     with gdal.OpenEx(file_path, gdal.OF_VECTOR) as ds:
@@ -11,12 +13,13 @@ def load_geom(file_path):
         srs.AutoIdentifyEPSG()
         auth = srs.GetAuthorityName(None)
         code = srs.GetAuthorityCode(None)
-        if auth != "EPSG" or code != "4326":
-            raise RuntimeError(f"Unsupported CRS: {auth}:{code}")
+        if auth != 'EPSG' or code != '4326':
+            raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
 
         lonmin, lonmax, latmin, latmax = layer.GetExtent()
 
         return [lonmin, latmin, lonmax, latmax]
+
 
 class TestModules:
     def test_ManualFileLoader_001(self):
@@ -36,18 +39,14 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         # Search parameters
-        provider = "cop_dataspace"
-        start = "2026-01-01"
-        end = "2026-01-29"
-        geom = load_geom("eou/tests/sample_data/area_intervencao.kmz")
-        product_type = "S2_MSI_L2A"
+        provider = 'cop_dataspace'
+        start = '2026-01-01'
+        end = '2026-01-29'
+        geom = load_geom('eou/tests/sample_data/area_intervencao.kmz')
+        product_type = 'S2_MSI_L2A'
 
         result = module.search(
-            provider=provider,
-            start=start,
-            end=end,
-            geom=geom,
-            productType=product_type
+            provider=provider, start=start, end=end, geom=geom, productType=product_type
         )
 
         assert isinstance(result, SearchResult)
@@ -62,34 +61,34 @@ class TestModules:
         import os
         import yaml
 
-        config_file = "eou/tests/eodag_config.yml"
+        config_file = 'eou/tests/eodag_config.yml'
 
-        with open(config_file, "r") as f:
+        with open(config_file, 'r') as f:
             config_data = yaml.safe_load(f)
 
         added_envs = []
         for provider, details in config_data.items():
-            creds = details.get("auth", {}).get("credentials", {})
+            creds = details.get('auth', {}).get('credentials', {})
             for key, value in creds.items():
-                env_var = f"EODAG__{provider.upper()}__AUTH__CREDENTIALS__{key.upper()}"
+                env_var = f'EODAG__{provider.upper()}__AUTH__CREDENTIALS__{key.upper()}'
                 os.environ[env_var] = str(value)
                 added_envs.append(env_var)
 
         try:
             module = DataAcquisitionGateway()
 
-            provider = "cop_dataspace"
-            start = "2026-01-01"
-            end = "2026-01-29"
-            geom = load_geom("eou/tests/sample_data/area_intervencao.kmz")
-            product_type = "S2_MSI_L2A"
+            provider = 'cop_dataspace'
+            start = '2026-01-01'
+            end = '2026-01-29'
+            geom = load_geom('eou/tests/sample_data/area_intervencao.kmz')
+            product_type = 'S2_MSI_L2A'
 
             results = module.search(
                 provider=provider,
                 start=start,
                 end=end,
                 geom=geom,
-                productType=product_type
+                productType=product_type,
             )
 
             assert len(results) > 0
