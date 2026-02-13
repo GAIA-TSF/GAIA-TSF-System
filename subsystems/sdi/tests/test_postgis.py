@@ -1,32 +1,28 @@
-import os
 import psycopg2
 import pytest
 
 
 DB_CONFIG = {
-    "host": "postgis",
-    "port": 5432,
-    "dbname": "geodata",
-    "user": "postgres",
-    "password": "fevcfQBu3b3CfxFU",
+    'host': 'postgis',
+    'port': 5432,
+    'dbname': 'geodata',
+    'user': 'postgres',
+    'password': 'fevcfQBu3b3CfxFU',
 }
 
 
 class TestPostGIS:
-
-    @pytest.fixture(scope="module")
+    @pytest.fixture(scope='module')
     def db_connection(self):
         conn = psycopg2.connect(**DB_CONFIG)
         yield conn
         conn.close()
-
 
     def test_connection(self, db_connection):
         with db_connection.cursor() as cur:
             cur.execute('SELECT 1;')
             result = cur.fetchone()
             assert result[0] == 1
-
 
     def test_schema_exists(self, db_connection):
         with db_connection.cursor() as cur:
@@ -38,7 +34,6 @@ class TestPostGIS:
             result = cur.fetchone()
             assert result is not None, "Schema 'test' does not exist"
 
-
     def test_table_exists(self, db_connection):
         with db_connection.cursor() as cur:
             cur.execute("""
@@ -48,8 +43,7 @@ class TestPostGIS:
                           AND table_name = 'fakesite_phmeasurements_2025_cybele';
                         """)
             result = cur.fetchone()
-            assert result is not None, "Table does not exist"
-
+            assert result is not None, 'Table does not exist'
 
     def test_can_read_data(self, db_connection):
         with db_connection.cursor() as cur:
