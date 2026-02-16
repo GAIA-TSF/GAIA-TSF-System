@@ -31,7 +31,7 @@ services:
       - "7432:5432"
     volumes:
       - pgstac_data:/var/lib/postgresql/data
-      - ../tests:/opt/sdi_tests
+      - ../../../subsystems/:/opt/gaia_tsf
 
   stacapi:
     build:

@@ -24,6 +24,7 @@ So now it runs on pgstac image.
 ```sh
 cd system-root/subsystems/sdi/docker/
 docker-compose up
-docker-compose exec pgstacdb pytest /opt/sdi_tests/test_postgis.py -sv
-docker-compose exec pgstacdb pytest /opt/sdi_tests/test_stac.py -sv
+docker-compose exec pgstacdb pytest /opt/gaia_tsf/sdi/tests/test_postgis.py -sv
+docker-compose exec pgstacdb pytest /opt/gaia_tsf/sdi/tests/test_stac.py -sv
+docker-compose exec pgstacdb python3 -m pytest /opt/gaia_tsf/sdi/tests/test_isu_import.py -sv
 ```
