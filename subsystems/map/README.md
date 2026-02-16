@@ -22,9 +22,18 @@ python3 -m subsystems.map.scripts.visualize_insar_dataset \
 
 Learn LSTM recurrent model on the Mirmazloumi et al. (2023) and synthetic dataset of slope stability: 
 
-````
-python3 -m subsystems.map.scripts.train_lstm_mirmazloumi
+```
+python3 -m subsystems.map.learning.lstm_learning \
+    --dataset synthetic
 
-python3 -m subsystems.map.scripts.train_lstm_synthetic \
-    --anomaly-magnitude 50.0
+python3 -m subsystems.map.learning.lstm_learning \
+    --dataset mirmazloumi_2023
+```
+
+
+Run inference on synthetic dataset. 
+```
+python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
+
+python3 -m subsystems.map.inference.lstm_inference --dataset mirmazloumi_2023
 ```

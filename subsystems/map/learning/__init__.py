@@ -19,6 +19,8 @@ class LearningModule:
         hidden_size: int,
         num_layers: int,
         horizon: int,
+        dropout: float = 0.0,
+        bidirectional: bool = False,
     ) -> LstmModel:
         return LstmModel(
             input_size=input_size,
@@ -26,6 +28,9 @@ class LearningModule:
             num_layers=num_layers,
             output_size=horizon,
             mode='forecasting',
+            horizon=horizon,
+            dropout=dropout,
+            bidirectional=bidirectional,
         )
 
     def create_reconstruction_model(
@@ -33,6 +38,8 @@ class LearningModule:
         input_size: int,
         hidden_size: int,
         num_layers: int,
+        dropout: float = 0.0,
+        bidirectional: bool = False,
     ) -> LstmModel:
         return LstmModel(
             input_size=input_size,
@@ -40,6 +47,9 @@ class LearningModule:
             num_layers=num_layers,
             output_size=input_size,
             mode='reconstruction',
+            horizon=1,
+            dropout=dropout,
+            bidirectional=bidirectional,
         )
 
     @staticmethod
