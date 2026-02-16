@@ -74,6 +74,21 @@ Release Management
 - use a unified base image (python-3.14?)
 - use pre-built images for CI
 
+## Testing
+
+Build docker:
+
+```sh
+cd docker
+docker-compose up --build
+```
+
+Run tests for the testfile wished:
+
+```sh
+docker exec pgstacdb pytest /opt/gaia_tsf/subsystem/tests/testfile.py -v
+```
+
 ## Recommended code subsystem layout
 
 Subsystems code is placed in `subsystems` directory. Subsystems are
