@@ -27,9 +27,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         return self._dag.search(**search_params)
 
-    def download(
-        self, product: EOProduct, quicklook: bool = False, **kwargs
-    ) -> str:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
         if quicklook:
             return product.get_quicklook(**kwargs)
 
