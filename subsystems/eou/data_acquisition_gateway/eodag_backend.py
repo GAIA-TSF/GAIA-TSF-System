@@ -32,3 +32,6 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             return product.get_quicklook(**kwargs)
 
         return self._dag.download(product, extract=False, **kwargs)
+
+    def set_config(self, config_file: str) -> None:
+        raise NotImplementedError()
