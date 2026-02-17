@@ -13,7 +13,5 @@ class DataAcquisitionBackend(ABC):
         pass
 
     @abstractmethod
-    def download(
-        self, product: EOProduct, quicklook: bool = False, **kwargs
-    ) -> str:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
         pass

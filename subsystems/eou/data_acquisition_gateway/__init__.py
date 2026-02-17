@@ -41,9 +41,7 @@ class DataAcquisitionGateway:
         """
         return self._backend.search(provider, start, end, geom, **kwargs)
 
-    def download(
-        self, product: EOProduct, quicklook: bool = False, **kwargs
-    ) -> str:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
         """Download selected data product using selected data
         acquisition backend.
 
