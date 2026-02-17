@@ -28,7 +28,7 @@ class TestModules:
         'provider': 'cop_dataspace',
         'start': '2026-01-01',
         'end': '2026-01-29',
-        'productType': 'S2_MSI_L2A'
+        'productType': 'S2_MSI_L2A',
     }
 
     @staticmethod
@@ -43,9 +43,7 @@ class TestModules:
         from eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
-        result = module.check_file_validity(
-            self._get_data_path('ENMAP01_sample.tif')
-        )
+        result = module.check_file_validity(self._get_data_path('ENMAP01_sample.tif'))
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
@@ -62,7 +60,7 @@ class TestModules:
 
         result = module.search(
             geom=load_geom(self._get_data_path('area_intervencao.kmz')),
-            **self.search_filter
+            **self.search_filter,
         )
 
         assert isinstance(result, SearchResult)
@@ -95,7 +93,7 @@ class TestModules:
 
             results = module.search(
                 geom=load_geom(self._get_data_path('area_intervencao.kmz')),
-                **self.search_filter
+                **self.search_filter,
             )
 
             assert len(results) > 0
