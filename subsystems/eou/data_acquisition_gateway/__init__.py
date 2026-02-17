@@ -17,7 +17,7 @@ class DataAcquisitionGateway:
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            raise RuntimeError(f"Unsupported data acquisition backend: {backend}")
+            raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
 
         self._backend = DataAcquisitionBackend()
 
