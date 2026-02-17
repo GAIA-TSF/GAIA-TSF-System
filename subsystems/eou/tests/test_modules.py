@@ -24,6 +24,17 @@ def load_geom(file_path):
 
 
 class TestModules:
+    search_filter = {
+        'provider': 'cop_dataspace',
+        'start': '2026-01-01',
+        'end': '2026-01-29',
+        'productType': 'S2_MSI_L2A'
+    }
+
+    @staticmethod
+    def _get_data_path(filename):
+        return Path(__file__).parent / 'sample_data' / filename
+
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
 
@@ -33,7 +44,7 @@ class TestModules:
 
         module = ManualFileLoader()
         result = module.check_file_validity(
-            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.tif'
+            self._get_data_path('ENMAP01_sample.tif')
         )
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
@@ -49,20 +60,14 @@ class TestModules:
 
         module = DataAcquisitionGateway()
 
-        # Search parameters
-        provider = 'cop_dataspace'
-        start = '2026-01-01'
-        end = '2026-01-29'
-        geom = load_geom('eou/tests/sample_data/area_intervencao.kmz')
-        product_type = 'S2_MSI_L2A'
-
         result = module.search(
-            provider=provider, start=start, end=end, geom=geom, productType=product_type
+            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            **self.search_filter
         )
 
         assert isinstance(result, SearchResult)
         assert len(result) > 0
-        assert result[0].product_type == product_type
+        assert result[0].product_type == self.search_filter['productType']
 
     def test_DataAcquisitionGateway_002(self):
         """Test DataAcquisitionGateway module.
@@ -88,18 +93,9 @@ class TestModules:
         try:
             module = DataAcquisitionGateway()
 
-            provider = 'cop_dataspace'
-            start = '2026-01-01'
-            end = '2026-01-29'
-            geom = load_geom('eou/tests/sample_data/area_intervencao.kmz')
-            product_type = 'S2_MSI_L2A'
-
             results = module.search(
-                provider=provider,
-                start=start,
-                end=end,
-                geom=geom,
-                productType=product_type,
+                geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+                **self.search_filter
             )
 
             assert len(results) > 0
@@ -107,8 +103,8 @@ class TestModules:
             ql_path = module.download(results[0], quicklook=True)
 
             assert isinstance(ql_path, str)
-            assert os.path.exists(ql_path)
-            assert os.path.getsize(ql_path) > 0
+            assert Path(ql_path).exists()
+            assert Path(ql_path).stat().st_size > 0
 
         finally:
             for env_var in added_envs:
