@@ -15,3 +15,7 @@ class DataAcquisitionBackend(ABC):
     @abstractmethod
     def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
         pass
+
+    @abstractmethod
+    def set_config(self, config_file: str) -> None:
+        pass
