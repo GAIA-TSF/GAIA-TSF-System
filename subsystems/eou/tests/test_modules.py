@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from osgeo import gdal
 
 gdal.UseExceptions()
@@ -25,9 +27,18 @@ class TestModules:
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
 
-        Example of unit test.
+        Performs file validity test.
         """
-        pass
+        from eou.manual_file_loader import ManualFileLoader
+
+        module = ManualFileLoader()
+        result = module.check_file_validity(
+            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.tif'
+        )
+
+        assert result['valid'] is True and result['driver'] == 'GTiff'
+        assert len(result['errors']) < 1
+        assert len(result['warnings']) < 1
 
     def test_DataAcquisitionGateway_001(self):
         """Test DataAcquisitionGateway module.

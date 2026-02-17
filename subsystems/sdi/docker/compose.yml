@@ -10,40 +10,48 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
     ports:
-      - "5432:5432"
-  db:
+      - "6432:5432"
+  pgstacdb:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pgstac
+    container_name: pgstacdb
     restart: unless-stopped
     environment:
       POSTGRES_USER: stac
       POSTGRES_PASSWORD: stac
       POSTGRES_DB: stac
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U stac" ]
+      interval: 5s
+      retries: 5
     ports:
-      - "15432:5432"
+      - "7432:5432"
     volumes:
       - pgstac_data:/var/lib/postgresql/data
+      - ../tests:/opt/sdi_tests
 
-  api:
-    image: ghcr.io/stac-utils/stac-fastapi:latest
+  stacapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.stacapi
     container_name: stacapi
     restart: unless-stopped
     depends_on:
-      - db
+      - pgstacdb
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
       POSTGRES_PASS: stac
-      POSTGRES_HOST_READER: db
-      POSTGRES_HOST_WRITER: db
+      POSTGRES_HOST_READER: pgstacdb
+      POSTGRES_HOST_WRITER: pgstacdb
       POSTGRES_PORT: 5432
       POSTGRES_DBNAME: stac
-      DATABASE_URL: postgresql://stac:stac@db:5432/stac
+      DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
     ports:
-      - "8080:8080"
+      - "9080:8000"
 
 volumes:
   pgstac_data:
