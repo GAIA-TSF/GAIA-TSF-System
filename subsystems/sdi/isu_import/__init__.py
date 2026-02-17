@@ -19,6 +19,7 @@ DB_CONFIG = {
 
 STAC_URL = 'http://stacapi:8000'
 
+
 class IsuDataZipImporter:
     """
     Handles importing CSV data from ZIP into PostGIS
@@ -60,9 +61,9 @@ class IsuDataZipImporter:
 
         for root, _, files in os.walk(self.temp_dir):
             for file in files:
-                if file.lower().endswith(".csv"):
+                if file.lower().endswith('.csv'):
                     self.csv_file = os.path.join(root, file)
-                elif file.lower().endswith(".json"):
+                elif file.lower().endswith('.json'):
                     self.json_file = os.path.join(root, file)
 
         if not self.csv_file or not self.json_file:
@@ -82,8 +83,8 @@ class IsuDataZipImporter:
         Extract table name from STAC asset href.
         """
         try:
-            original_url = self.stac_json["assets"]["data"]["href"]
-            self.table_name = original_url.split("/")[-1]
+            original_url = self.stac_json['assets']['data']['href']
+            self.table_name = original_url.split('/')[-1]
         except KeyError:
             message = 'STAC JSON does not contain assets.data.href'
             self.logger.debug(message)
@@ -98,11 +99,11 @@ class IsuDataZipImporter:
         try:
             with psycopg2.connect(**self.pg_config) as conn:
                 with conn.cursor() as cur:
-
                     table_identifier = sql.Identifier(self.table_name)
 
                     # Drop and recreate table
-                    cur.execute(sql.SQL("""
+                    cur.execute(
+                        sql.SQL("""
                                         DROP TABLE IF EXISTS {table};
     
                                         CREATE TABLE {table} (
@@ -112,32 +113,39 @@ class IsuDataZipImporter:
                                                                  value DOUBLE PRECISION,
                                                                  measurement_date DATE
                                         );
-                                        """).format(table=table_identifier))
+                                        """).format(table=table_identifier)
+                    )
 
                     # Bulk load CSV
-                    with open(self.csv_file, "r") as f:
+                    with open(self.csv_file, 'r') as f:
                         cur.copy_expert(
                             sql.SQL("""
                                 COPY {table}(lon, lat, value, measurement_date)
                                 FROM STDIN WITH CSV HEADER
-                            """).format(table=table_identifier).as_string(conn),
-                            f
+                            """)
+                            .format(table=table_identifier)
+                            .as_string(conn),
+                            f,
                         )
 
                     # Add geometry column
-                    cur.execute(sql.SQL("""
+                    cur.execute(
+                        sql.SQL("""
                                         ALTER TABLE {table}
                                             ADD COLUMN geom geometry(Point, 4326);
     
                                         UPDATE {table}
                                         SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326);
-                                        """).format(table=table_identifier))
+                                        """).format(table=table_identifier)
+                    )
 
                     # Create indexes
-                    cur.execute(sql.SQL("""
+                    cur.execute(
+                        sql.SQL("""
                                         CREATE INDEX ON {table} USING GIST (geom);
                                         CREATE INDEX ON {table} (measurement_date);
-                                        """).format(table=table_identifier))
+                                        """).format(table=table_identifier)
+                    )
 
             self.logger.debug(f'Table "{self.table_name}" successfully imported.')
 
@@ -147,25 +155,23 @@ class IsuDataZipImporter:
             self.logger.debug(message)
             raise RuntimeError(message) from e
 
-
-
     def _update_stac_json(self):
         """
         Update STAC asset href to reflect actual PostgreSQL connection.
         """
         pg_url = (
-            f"postgresql://user:password"
-            f"@{self.pg_config['host']}:{self.pg_config['port']}"
-            f"/{self.pg_config['dbname']}#{self.table_name}"
+            f'postgresql://user:password'
+            f'@{self.pg_config["host"]}:{self.pg_config["port"]}'
+            f'/{self.pg_config["dbname"]}#{self.table_name}'
         )
 
-        self.stac_json["assets"]["data"]["href"] = pg_url
+        self.stac_json['assets']['data']['href'] = pg_url
 
     def _post_to_stac(self):
         """
         Send updated STAC Item to STAC API.
         """
-        headers = {"Content-Type": "application/json"}
+        headers = {'Content-Type': 'application/json'}
 
         print(self.stac_json)
 
@@ -194,7 +200,7 @@ class IsuDataZipImporter:
         response = requests.post(
             f'{STAC_URL}/collections/{collection_id}/items',
             headers=headers,
-            json=self.stac_json
+            json=self.stac_json,
         )
 
         if response.status_code not in (200, 201):
@@ -203,4 +209,3 @@ class IsuDataZipImporter:
             raise Exception(message)
 
         self.logger.debug('STAC item successfully posted.')
-
