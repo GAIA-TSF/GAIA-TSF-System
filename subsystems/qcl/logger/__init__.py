@@ -13,7 +13,7 @@ class Logger:
 
             handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s"
+                '%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s'
             )
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)
