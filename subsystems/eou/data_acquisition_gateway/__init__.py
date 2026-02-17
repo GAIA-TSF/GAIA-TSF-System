@@ -51,3 +51,11 @@ class DataAcquisitionGateway:
         :rtype: str
         """
         return self._backend.download(product, quicklook=quicklook, **kwargs)
+
+    def set_config(self, config_file: str) -> None:
+        """Set configuration options for data acquisition backend.
+
+        :param str config_file: Configuration file path
+        :return: None
+        """
+        self._backend.set_config(config_file)

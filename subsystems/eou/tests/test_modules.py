@@ -72,41 +72,23 @@ class TestModules:
 
         Test download capability using default backend (eodag).
         """
-        import os
-        import yaml
-
         config_file = 'eou/tests/eodag_config.yml'
 
-        with open(config_file, 'r') as f:
-            config_data = yaml.safe_load(f)
+        module = DataAcquisitionGateway()
 
-        added_envs = []
-        for provider, details in config_data.items():
-            creds = details.get('auth', {}).get('credentials', {})
-            for key, value in creds.items():
-                env_var = f'EODAG__{provider.upper()}__AUTH__CREDENTIALS__{key.upper()}'
-                os.environ[env_var] = str(value)
-                added_envs.append(env_var)
+        results = module.search(
+            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            **self.search_filter,
+        )
 
-        try:
-            module = DataAcquisitionGateway()
+        assert len(results) > 0
 
-            results = module.search(
-                geom=load_geom(self._get_data_path('area_intervencao.kmz')),
-                **self.search_filter,
-            )
+        module.set_config(config_file)
+        ql_path = module.download(results[0], quicklook=True)
 
-            assert len(results) > 0
-
-            ql_path = module.download(results[0], quicklook=True)
-
-            assert isinstance(ql_path, str)
-            assert Path(ql_path).exists()
-            assert Path(ql_path).stat().st_size > 0
-
-        finally:
-            for env_var in added_envs:
-                os.environ.pop(env_var, None)
+        assert isinstance(ql_path, str)
+        assert Path(ql_path).exists()
+        assert Path(ql_path).stat().st_size > 0
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
