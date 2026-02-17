@@ -1,5 +1,6 @@
 from qcl.logger import Logger
 
+
 class SpatialDataInfrastructure:
     """SpatialDataInfrastructure sub-system"""
 
