@@ -86,7 +86,7 @@ docker compose up --build
 Run tests for the testfile wished:
 
 ```sh
-docker exec pgstacdb pytest /opt/gaia_tsf/subsystem/tests/testfile.py -v
+docker exec pgstacdb python3 -m pytest /opt/gaia_tsf/subsystem/tests/testfile.py -v
 ```
 
 ## Recommended code subsystem layout
