@@ -80,7 +80,7 @@ Build docker:
 
 ```sh
 cd docker
-docker-compose up --build
+docker compose up --build
 ```
 
 Run tests for the testfile wished:

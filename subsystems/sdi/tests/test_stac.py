@@ -1,7 +1,7 @@
 import requests
 import uuid
 
-STAC_URL = 'http://stacapi:8000'  # Service in docker-compose + port in container
+STAC_URL = 'http://stacapi:8000'  # Service in docker compose + port in container
 
 
 class TestSTAC:
