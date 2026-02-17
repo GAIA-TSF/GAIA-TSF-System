@@ -17,8 +17,8 @@ class DataAcquisitionGateway:
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            # raise GAIAConfigurationError(f"Unsupported data acquisition backend: {backend}")
-            pass
+            raise RuntimeError(f"Unsupported data acquisition backend: {backend}")
+
         self._backend = DataAcquisitionBackend()
 
     def search(
