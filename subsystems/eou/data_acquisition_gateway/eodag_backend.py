@@ -34,6 +34,6 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         return self._dag.download(product, extract=False, **kwargs)
 
     def set_config(self, config_file: str) -> None:
-        with open(config_file, "r") as f:
+        with open(config_file, 'r') as f:
             config_str = f.read()
         self._dag.update_providers_config(config_str)
