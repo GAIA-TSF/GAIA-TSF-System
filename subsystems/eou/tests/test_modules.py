@@ -11,7 +11,7 @@ class TestModules:
 
         module = ManualFileLoader()
         result = module.check_file_validity(
-            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.tif'
+            str(Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.tif')
         )
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
