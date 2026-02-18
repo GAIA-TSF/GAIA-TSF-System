@@ -19,19 +19,3 @@ data is subsequently passed to the **Data Extraction** logic for
 validation and integration into the processing pipeline.
 
 ![EO Data Uploader Architecture](../../images/eou_subsystem.png)
-
-## Deployment
-
-Build subsystem image:
-
-```sh
-docker build --tag gaia_tsf_eou:latest docker/
-```
-
-Run unit tests:
-
-```
-docker run --rm -v `pwd`/..:/opt/gaia_tsf \
- gaia_tsf_eou:latest \
- python3 -m pytest /opt/gaia_tsf/eou/tests/test_subsystem.py
-```
