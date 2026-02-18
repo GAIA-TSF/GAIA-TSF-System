@@ -23,6 +23,9 @@ services:
       POSTGRES_USER: stac
       POSTGRES_PASSWORD: stac
       POSTGRES_DB: stac
+      LOCALSTACK: "1"
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 5s
@@ -32,6 +35,20 @@ services:
     volumes:
       - pgstac_data:/var/lib/postgresql/data
       - ../subsystems:/opt/gaia_tsf
+    networks:
+      - gaia_net
+    depends_on:
+      - localstack
+
+  localstack:
+    image: localstack/localstack:4.13.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+    networks:
+      - gaia_net
 
   stacapi:
     build:
@@ -56,3 +73,6 @@ services:
 volumes:
   pgstac_data:
   pgdata:
+
+networks:
+  gaia_net:
