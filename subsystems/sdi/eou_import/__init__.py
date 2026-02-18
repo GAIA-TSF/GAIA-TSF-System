@@ -11,6 +11,7 @@ from qcl.logger import Logger
 STAC_URL = 'http://stacapi:8000'
 ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
 
+
 class EouDataZipImporter:
     """
     Handles importing raster data from ZIP into S3
@@ -73,7 +74,7 @@ class EouDataZipImporter:
         """
 
         if not self.raster_file:
-            raise Exception("Raster file not found. Cannot upload to S3.")
+            raise Exception('Raster file not found. Cannot upload to S3.')
 
         s3 = boto3.client(
             's3',
@@ -95,16 +96,12 @@ class EouDataZipImporter:
 
         # Use filename as S3 key (you can adjust folder structure if needed)
         filename = os.path.basename(self.raster_file)
-        s3_key = f"rasters/{filename}"
+        s3_key = f'rasters/{filename}'
 
         # Upload file (better for large files than put_object)
-        s3.upload_file(
-            Filename=self.raster_file,
-            Bucket=bucket_name,
-            Key=s3_key
-        )
+        s3.upload_file(Filename=self.raster_file, Bucket=bucket_name, Key=s3_key)
 
-        self.logger.debug(f"Uploaded {self.raster_file} to s3://{bucket_name}/{s3_key}")
+        self.logger.debug(f'Uploaded {self.raster_file} to s3://{bucket_name}/{s3_key}')
 
         self.s3_bucket = bucket_name
         self.s3_key = s3_key
@@ -114,16 +111,15 @@ class EouDataZipImporter:
         Update STAC asset href to reflect actual S3 location.
         """
 
-        if not hasattr(self, "s3_bucket") or not hasattr(self, "s3_key"):
-            raise Exception("S3 location not available. Did upload run?")
+        if not hasattr(self, 's3_bucket') or not hasattr(self, 's3_key'):
+            raise Exception('S3 location not available. Did upload run?')
 
-        s3_url = f"http://localstack:4566/{self.s3_bucket}/{self.s3_key}"
+        s3_url = f'http://localstack:4566/{self.s3_bucket}/{self.s3_key}'
 
         # pokud je asset pojmenovaný B01
-        self.stac_json["assets"]["B01"]["href"] = s3_url
+        self.stac_json['assets']['B01']['href'] = s3_url
 
-        self.logger.debug(f"STAC asset href updated to {s3_url}")
-
+        self.logger.debug(f'STAC asset href updated to {s3_url}')
 
     def _post_to_stac(self):
         """
