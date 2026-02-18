@@ -8,19 +8,19 @@ from eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
 def load_geom(file_path):
-    with gdal.OpenEx(file_path, gdal.OF_VECTOR) as ds:
-        layer = ds.GetLayer(0)
+    ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
+    layer = ds.GetLayer(0)
 
-        srs = layer.GetSpatialRef()
-        srs.AutoIdentifyEPSG()
-        auth = srs.GetAuthorityName(None)
-        code = srs.GetAuthorityCode(None)
-        if auth != 'EPSG' or code != '4326':
-            raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
+    srs = layer.GetSpatialRef()
+    srs.AutoIdentifyEPSG()
+    auth = srs.GetAuthorityName(None)
+    code = srs.GetAuthorityCode(None)
+    if auth != 'EPSG' or code != '4326':
+        raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
+    lonmin, lonmax, latmin, latmax = layer.GetExtent()
+    ds = None
 
-        lonmin, lonmax, latmin, latmax = layer.GetExtent()
-
-        return [lonmin, latmin, lonmax, latmax]
+    return [lonmin, latmin, lonmax, latmax]
 
 
 class TestModules:
@@ -33,7 +33,7 @@ class TestModules:
 
     @staticmethod
     def _get_data_path(filename):
-        return Path(__file__).parent / 'sample_data' / filename
+        return str(Path(__file__).parent / 'sample_data' / filename)
 
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
