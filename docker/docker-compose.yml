@@ -13,6 +13,8 @@ services:
       - ./init:/docker-entrypoint-initdb.d
     ports:
       - "6432:5432"
+    networks:
+      - gaia_net
   pgstacdb:
     build:
       context: .
@@ -69,6 +71,8 @@ services:
       DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
     ports:
       - "9080:8000"
+    networks:
+      - gaia_net
 
 volumes:
   pgstac_data:
