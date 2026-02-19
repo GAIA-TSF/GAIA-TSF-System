@@ -8,6 +8,7 @@ It is planned to have:
 - dataset for AMD (Sweden, real)
 """
 
+
 class DatasetModule(Dataset, metaclass=abc.ABCMeta):
     """Abstract base class for MAP datasets."""
 
@@ -15,4 +16,3 @@ class DatasetModule(Dataset, metaclass=abc.ABCMeta):
     def build(self):
         """Build internal tensors."""
         raise NotImplementedError
-

@@ -58,7 +58,7 @@ def main():
     print(trainer_cfg)
 
     device = _select_device(trainer_cfg['device'])
-    print(device) 
+    print(device)
 
     # -----------------------------
     # Dataset selection
@@ -138,7 +138,7 @@ def main():
     # -----------------------------
     # Training
     # -----------------------------
-    print('Training starts') 
+    print('Training starts')
     train_losses = []
     test_losses = []
 
@@ -151,9 +151,7 @@ def main():
 
         if epoch == 0 or epoch % 10 == 0:
             print(
-                f'Epoch {epoch:03d} | '
-                f'Train: {train_loss:.4f} | '
-                f'Test: {test_loss:.4f}',
+                f'Epoch {epoch:03d} | Train: {train_loss:.4f} | Test: {test_loss:.4f}',
             )
 
     # -----------------------------
@@ -173,4 +171,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

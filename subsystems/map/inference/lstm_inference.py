@@ -1,4 +1,3 @@
-
 import matplotlib.pyplot as plt
 import torch
 
@@ -15,7 +14,6 @@ Run prediction on synthetic dataset.
 
 
 def main():
-    
     print('config')
     look_back = 12
     horizon = 5

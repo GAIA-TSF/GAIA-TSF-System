@@ -52,12 +52,11 @@ class InSARDataset(DatasetModule):
             series_length - self._look_back - self._horizon,
         ):
             inputs.append(
-                self._displacement[idx:idx + self._look_back],
+                self._displacement[idx : idx + self._look_back],
             )
             targets.append(
                 self._displacement[
-                    idx + self._look_back:
-                    idx + self._look_back + self._horizon
+                    idx + self._look_back : idx + self._look_back + self._horizon
                 ],
             )
 
@@ -77,7 +76,6 @@ class InSARDataset(DatasetModule):
         self._targets = torch.from_numpy(
             targets_array,
         )
-
 
     def _validate_inputs(self):
         if self._displacement.ndim != 1:
@@ -102,29 +100,95 @@ class InSARDataset(DatasetModule):
         return self._split_info
 
 
-
 def create_mirmazloumi_2023_dataset(
     look_back: int,
     horizon: int,
 ) -> InSARDataset:
     """Reproduce Fig. 4 time series from Mirmazloumi et al. (2023)."""
 
-    train_displacement = np.array([
-        0.0, 4.2, 5.1, 1.8, 0.5, 4.8, 5.8, -1.5, 3.1, -0.2,
-        -3.5, 1.2, 2.1, -5.8, -0.5, -0.2, -3.8, 3.5, 5.5, 2.8,
-        4.9, 2.8, 13.1, 4.1, 4.5, 6.7, 4.8, 1.9, 0.2, 7.1,
-        7.3, 2.2, -1.1, 2.1, -6.8, 4.1, 2.9, 13.5, 2.1, 6.2,
-        -4.5, -3.1, -0.2, -0.5, -3.5, 2.1, -5.2, 2.2, -1.8,
-    ])
+    train_displacement = np.array(
+        [
+            0.0,
+            4.2,
+            5.1,
+            1.8,
+            0.5,
+            4.8,
+            5.8,
+            -1.5,
+            3.1,
+            -0.2,
+            -3.5,
+            1.2,
+            2.1,
+            -5.8,
+            -0.5,
+            -0.2,
+            -3.8,
+            3.5,
+            5.5,
+            2.8,
+            4.9,
+            2.8,
+            13.1,
+            4.1,
+            4.5,
+            6.7,
+            4.8,
+            1.9,
+            0.2,
+            7.1,
+            7.3,
+            2.2,
+            -1.1,
+            2.1,
+            -6.8,
+            4.1,
+            2.9,
+            13.5,
+            2.1,
+            6.2,
+            -4.5,
+            -3.1,
+            -0.2,
+            -0.5,
+            -3.5,
+            2.1,
+            -5.2,
+            2.2,
+            -1.8,
+        ]
+    )
 
-    test_displacement = np.array([
-        -2.5, -13.5, -4.5, 2.5, -0.5, 1.1, -3.1, 2.2,
-        -5.5, -6.5, -4.1, -11.8, 0.5, 9.2, 0.8,
-    ])
+    test_displacement = np.array(
+        [
+            -2.5,
+            -13.5,
+            -4.5,
+            2.5,
+            -0.5,
+            1.1,
+            -3.1,
+            2.2,
+            -5.5,
+            -6.5,
+            -4.1,
+            -11.8,
+            0.5,
+            9.2,
+            0.8,
+        ]
+    )
 
-    anomaly_displacement = np.array([
-        1.5, 6.5, 0.1, 1.8, 0.6,
-    ])
+    anomaly_displacement = np.array(
+        [
+            1.5,
+            6.5,
+            0.1,
+            1.8,
+            0.6,
+        ]
+    )
 
     displacement = np.concatenate(
         [
@@ -148,9 +212,7 @@ def create_mirmazloumi_2023_dataset(
             'label': 'Test',
         },
         'anomaly': {
-            'start_index': (
-                len(train_displacement) + len(test_displacement)
-            ),
+            'start_index': (len(train_displacement) + len(test_displacement)),
             'end_index': len(displacement),
             'label': 'Anomaly Period',
         },
@@ -247,4 +309,3 @@ def create_synthetic_insar_dataset(
         look_back=look_back,
         horizon=horizon,
     )
-

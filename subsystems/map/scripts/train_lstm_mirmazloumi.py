@@ -12,9 +12,7 @@ python3 -m subsystems.map.scripts.train_lstm_mirmazloumi
 """
 
 
-
 def main():
-    
     # -------------------------------
     # Configuration
     # -------------------------------
@@ -28,7 +26,6 @@ def main():
     device = torch.device(
         'cuda' if torch.cuda.is_available() else 'cpu',
     )
-
 
     # -------------------------------
     # Dataset
@@ -102,7 +99,7 @@ def main():
     def plot_learning_curves(
         train_losses: list[float],
         test_losses: list[float],
-        ):
+    ):
         epochs = range(1, len(train_losses) + 1)
 
         plt.figure(figsize=(8, 4))
@@ -131,7 +128,6 @@ def main():
         plt.tight_layout()
         plt.show()
 
-
     # -------------------------------
     # Training loop
     # -------------------------------
@@ -150,7 +146,7 @@ def main():
         )
 
         train_losses.append(train_loss)
-        test_losses.append(test_loss) 
+        test_losses.append(test_loss)
 
         if epoch % 10 == 0 or epoch == 1:
             print(

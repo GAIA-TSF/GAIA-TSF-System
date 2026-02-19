@@ -3,6 +3,7 @@ from .learning import LearningModule
 # from .inference import InferenceModule
 # from .xai import ExplainabilityModule
 
+
 class MachineLearningAnomalyPrediction:
     """Machine Learning Anomaly Prediction (MAP) subsystem.
 
