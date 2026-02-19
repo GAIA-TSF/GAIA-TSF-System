@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 
@@ -6,6 +5,7 @@ import torch
 This class runs sliding-window inference and reconstructs 
 a continuous prediction series.
 """
+
 
 class Predictor:
     """Runs model inference over time series and computes residuals."""
@@ -34,19 +34,23 @@ class Predictor:
 
         with torch.no_grad():
             for i in range(len(displacement) - self._look_back - self._horizon):
+                window = displacement[i : i + self._look_back]
 
-                window = displacement[i:i + self._look_back]
-
-                inputs = torch.tensor(
-                    window,
-                    dtype=torch.float32,
-                ).unsqueeze(0).unsqueeze(-1).to(self._device)
+                inputs = (
+                    torch.tensor(
+                        window,
+                        dtype=torch.float32,
+                    )
+                    .unsqueeze(0)
+                    .unsqueeze(-1)
+                    .to(self._device)
+                )
 
                 forecast = self._model(inputs).cpu().numpy().flatten()
 
                 pred_index = i + self._look_back
 
-                predictions[pred_index:pred_index + self._horizon] = forecast
+                predictions[pred_index : pred_index + self._horizon] = forecast
 
         return predictions
 

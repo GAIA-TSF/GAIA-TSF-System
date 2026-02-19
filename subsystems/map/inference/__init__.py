@@ -1,4 +1,3 @@
-
 from .predictor import Predictor
 
 """
@@ -11,6 +10,7 @@ It should NOT decide anomalies — only produce:
 
 The decision threshold will belong to xAI / Early Alert detector later.
 """
+
 
 class InferenceModule:
     """MAP inference module."""

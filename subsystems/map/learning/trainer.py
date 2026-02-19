@@ -54,4 +54,3 @@ class Trainer:
                 total_loss += loss.item()
 
         return total_loss / len(dataloader)
-

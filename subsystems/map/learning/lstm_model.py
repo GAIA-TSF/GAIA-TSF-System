@@ -5,6 +5,7 @@ import torch.nn as nn
 This is the prototype LSTM module for InSAR time series modelling.
 """
 
+
 class LstmModel(nn.Module):
     """Generic LSTM model for time-series learning.
 
@@ -43,7 +44,7 @@ class LstmModel(nn.Module):
             batch_first=True,
             bidirectional=bidirectional,
         )
-        
+
         direction_multiplier = 2 if bidirectional else 1
 
         self._head = nn.Linear(
