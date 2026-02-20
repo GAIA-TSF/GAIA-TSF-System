@@ -51,6 +51,8 @@ Continuous Integration (CI)
       instead of `class`)
     - Local variable is assigned to but never used - it is impossible to know
       if you forgot to use it or you named the variable wrong
+    - Module imported but unused - it is impossible to know if you forgot to
+      use it or you decided it is not needed anymore
 
 Documentation
 
