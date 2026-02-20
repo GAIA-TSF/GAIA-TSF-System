@@ -1,13 +1,24 @@
-import os
+import sys
 import logging
-import logging.config
 
 
-def Logger(name='GAIA-TSF', **context):
-    logging.config.fileConfig(
-        os.path.join(os.path.dirname(__file__), 'logging.conf'),
-        disable_existing_loggers=False,
-    )
+class Logger:
+    _configured = False
 
-    base_logger = logging.getLogger(name)
-    return logging.LoggerAdapter(base_logger, context)
+    def __new__(cls, name='GAIA-TSF', **context):
+        base_logger = logging.getLogger(name)
+
+        if not cls._configured:
+            base_logger.setLevel(logging.DEBUG)
+
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            base_logger.addHandler(handler)
+            base_logger.propagate = False
+
+            cls._configured = True
+
+        return logging.LoggerAdapter(base_logger, context)
