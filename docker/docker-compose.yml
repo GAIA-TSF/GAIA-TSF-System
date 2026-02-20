@@ -1,20 +1,46 @@
 version: "3.9"
 
 services:
-  app:
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: postgis
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: fevcfQBu3b3CfxFU
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    ports:
+      - "6432:5432"
+    networks:
+      - gaia_net
+  pgstacdb:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - ../subsystems/:/opt/gaia_tsf
+    container_name: pgstacdb
+    restart: unless-stopped
     environment:
+      POSTGRES_USER: stac
+      POSTGRES_PASSWORD: stac
+      POSTGRES_DB: stac
       LOCALSTACK: "1"
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
-    depends_on:
-      - localstack
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U stac" ]
+      interval: 5s
+      retries: 5
+    ports:
+      - "7432:5432"
+    volumes:
+      - pgstac_data:/var/lib/postgresql/data
+      - ../subsystems:/opt/gaia_tsf
     networks:
       - gaia_net
+    depends_on:
+      - localstack
 
   localstack:
     image: localstack/localstack:4.13.0
@@ -25,6 +51,32 @@ services:
       - DEBUG=1
     networks:
       - gaia_net
+
+  stacapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.stacapi
+    container_name: stacapi
+    restart: unless-stopped
+    depends_on:
+      - pgstacdb
+    environment:
+      # Connect to pgstac
+      POSTGRES_USER: stac
+      POSTGRES_PASS: stac
+      POSTGRES_HOST_READER: pgstacdb
+      POSTGRES_HOST_WRITER: pgstacdb
+      POSTGRES_PORT: 5432
+      POSTGRES_DBNAME: stac
+      DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
+    ports:
+      - "9080:8000"
+    networks:
+      - gaia_net
+
+volumes:
+  pgstac_data:
+  pgdata:
 
 networks:
   gaia_net:
