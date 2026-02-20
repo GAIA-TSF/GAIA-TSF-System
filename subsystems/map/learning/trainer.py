@@ -41,17 +41,16 @@ class Trainer:
         self,
         dataloader: torch.utils.data.DataLoader,
     ) -> float:
-        
         """
-        Fix len(test_loader) == 0: 
-        Sliding-window forecasting does not split by points. 
-        It splits by valid windows. 
+        Fix len(test_loader) == 0:
+        Sliding-window forecasting does not split by points.
+        It splits by valid windows.
         - Detect empty validation set
         - Skip validation automatically
         """
         if len(dataloader) == 0:
-            return float('nan') 
-    
+            return float('nan')
+
         self._model.eval()
         total_loss = 0.0
 

@@ -1,4 +1,3 @@
-
 import argparse
 import yaml
 import matplotlib.pyplot as plt
@@ -75,10 +74,7 @@ def _build_indices(dataset, split_name, look_back, horizon):
         window_start = i
         window_end = i + look_back + horizon
 
-        if (
-            window_start >= split['start_index']
-            and window_end <= split['end_index']
-        ):
+        if window_start >= split['start_index'] and window_end <= split['end_index']:
             indices.append(i)
 
     return indices
@@ -163,10 +159,13 @@ def main():
 
         if epoch == 0 or epoch % 20 == 0:
             if np.isnan(test_loss):
-                print(f'Epoch {epoch:03d} | train {train_loss:.4f} | no validation windows')
+                print(
+                    f'Epoch {epoch:03d} | train {train_loss:.4f} | no validation windows'
+                )
             else:
-                print(f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}')
-                            
+                print(
+                    f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}'
+                )
 
     # -----------------------------
     # Inference
