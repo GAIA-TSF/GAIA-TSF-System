@@ -1,7 +1,7 @@
 model:
   input_size: 1
   hidden_size: 64
-  num_layers: 1
+  num_layers: 3
   output_size: 1
   horizon: 5
   mode: forecasting  # forecasting | reconstruction
@@ -9,7 +9,7 @@ model:
   bidirectional: false
 
 trainer:
-  look_back: 12
+  look_back: 10
   horizon: 5
   batch_size: 8
   epochs: 200
@@ -26,3 +26,11 @@ dataset:
   trend_amplitude: 10.0
   anomaly_magnitude: 20.0
   split_ratio: 0.2  # fraction for test
+
+inference: # slope instability 
+  mc_samples: 40
+  sigma_threshold: 2.5 
+
+# Early precursor detection	1.5–2.0
+# Balanced detection	2.5
+# Operational alarm	3.0

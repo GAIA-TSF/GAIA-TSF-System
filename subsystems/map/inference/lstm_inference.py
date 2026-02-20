@@ -166,42 +166,78 @@ def main():
                 print(f'Epoch {epoch:03d} | train {train_loss:.4f} | no validation windows')
             else:
                 print(f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}')
-                            
+
 
     # -----------------------------
     # Inference
     # -----------------------------
     inference = InferenceModule()
 
+    inf_cfg = config['inference']
+
     predictor = inference.create_predictor(
         model=model,
         device=device,
         look_back=look_back,
         horizon=horizon,
+        mc_samples=inf_cfg['mc_samples'],
+        sigma_threshold=inf_cfg['sigma_threshold'],
     )
 
     displacement = dataset.displacement
     time_days = dataset.time_days
 
-    prediction = predictor.predict_series(displacement)
-    residuals = predictor.compute_residuals(displacement, prediction)
-    score = predictor.anomaly_score(residuals)
+    # old prediction 
+    # prediction = predictor.predict_series(displacement)
+    # residuals = predictor.compute_residuals(displacement, prediction)
+    # score = predictor.anomaly_score(residuals)
+
+    # Uncertainty added
+    print(vars(predictor))
+     
+    mean_pred, std_pred = predictor.predict_series(displacement)
+    residuals = predictor.compute_residuals(displacement, mean_pred)
+    D, threshold, anomaly_mask = predictor.detect_anomaly(residuals, std_pred)
 
     # -----------------------------
     # Plot
     # -----------------------------
     plt.figure(figsize=(10, 6))
 
+    # --- Prediction plot ---
     plt.subplot(2, 1, 1)
-    plt.plot(time_days, displacement, marker='.', label='Observed', color='black')
-    plt.plot(time_days, prediction, marker='.', label='Predicted', color='blue')
-    plt.legend()
-    plt.title('Prediction vs Observation')
 
-    plt.subplot(2, 1, 2)
-    plt.plot(time_days, score, label='Anomaly score', color='red')
+    plt.plot(time_days, displacement, '.', color='black', label='Observed')
+    plt.plot(time_days, mean_pred, '.', color='blue', label='Predicted')
+
+    # uncertainty band
+    upper = mean_pred + threshold
+    lower = mean_pred - threshold
+    plt.fill_between(time_days, lower, upper, color='blue', alpha=0.2, label='Uncertainty')
+
+    # anomalies
+    plt.scatter(
+        time_days[anomaly_mask],
+        displacement[anomaly_mask],
+        color='red',
+        s=40,
+        label='Detected anomaly',
+    )
+
     plt.legend()
-    plt.title('Residual-based anomaly magnitude')
+    plt.title('Prediction with uncertainty bounds')
+    plt.xlabel('Time (days)')
+    plt.ylabel('Displacement')
+
+    # --- Magnitude D plot ---
+    plt.subplot(2, 1, 2)
+
+    plt.plot(time_days, D, color='red', label='Anomaly magnitude D')
+    plt.plot(time_days, threshold, color='black', linestyle='--', label='Threshold')
+    plt.legend()
+    plt.title('Anomaly score')
+    plt.xlabel('Time (days)')
+    plt.ylabel('|Residual|')
 
     plt.tight_layout()
     plt.show()
