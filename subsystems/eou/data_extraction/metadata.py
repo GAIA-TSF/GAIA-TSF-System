@@ -7,9 +7,11 @@ if TYPE_CHECKING:
 import os
 import json
 from datetime import datetime, UTC
-   
+
 from osgeo import gdal, osr
+
 gdal.UseExceptions()
+
 
 class RasterDataset:
     """
@@ -66,7 +68,7 @@ class RasterDataset:
         """
         srs = self.get_spatial_reference()
         if srs:
-            auth = srs.GetAttrValue("AUTHORITY", 1)
+            auth = srs.GetAttrValue('AUTHORITY', 1)
             if auth:
                 return int(auth)
         return None
@@ -128,10 +130,12 @@ class RasterDataset:
         bands = []
         for i in range(1, self.dataset.RasterCount + 1):
             band = self.dataset.GetRasterBand(i)
-            bands.append({
-                "data_type": gdal.GetDataTypeName(band.DataType),
-                "nodata": band.GetNoDataValue()
-            })
+            bands.append(
+                {
+                    'data_type': gdal.GetDataTypeName(band.DataType),
+                    'nodata': band.GetNoDataValue(),
+                }
+            )
         return bands
 
 
@@ -141,12 +145,12 @@ class StacItemFactory:
     """
 
     MIME_LOOKUP: Dict[str, str] = {
-        "GTiff": "image/tiff; application=geotiff",
-        "JP2OpenJPEG": "image/jp2",
-        "HDF5": "application/x-hdf5",
-        "netCDF": "application/x-netcdf",
-        "AAIGrid": "text/plain",
-        "VRT": "application/xml"
+        'GTiff': 'image/tiff; application=geotiff',
+        'JP2OpenJPEG': 'image/jp2',
+        'HDF5': 'application/x-hdf5',
+        'netCDF': 'application/x-netcdf',
+        'AAIGrid': 'text/plain',
+        'VRT': 'application/xml',
     }
 
     def __init__(self, raster: RasterDataset):
@@ -165,14 +169,16 @@ class StacItemFactory:
         :rtype: dict
         """
         return {
-            "type": "Polygon",
-            "coordinates": [[
-                [bbox[0], bbox[1]],
-                [bbox[0], bbox[3]],
-                [bbox[2], bbox[3]],
-                [bbox[2], bbox[1]],
-                [bbox[0], bbox[1]]
-            ]]
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [bbox[0], bbox[1]],
+                    [bbox[0], bbox[3]],
+                    [bbox[2], bbox[3]],
+                    [bbox[2], bbox[1]],
+                    [bbox[0], bbox[1]],
+                ]
+            ],
         }
 
     def create_item(self) -> Dict[str, Any]:
@@ -183,7 +189,7 @@ class StacItemFactory:
         :rtype: dict
         """
         item_id = os.path.splitext(os.path.basename(self.raster.path))[0]
-        now =  datetime.now(UTC).isoformat() + "Z"
+        now = datetime.now(UTC).isoformat() + 'Z'
 
         bbox = self.raster.get_bbox_wgs84()
         geometry = self._build_geometry(bbox)
@@ -191,33 +197,32 @@ class StacItemFactory:
         width, height = self.raster.size
 
         stac_item: Dict[str, Any] = {
-            "type": "Feature",
-            "stac_version": "1.0.0",
-            "stac_extensions": [
-                "https://stac-extensions.github.io/projection/v1.0.0/schema.json",
-                "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': [
+                'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+                'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
             ],
-            "id": item_id,
-            "properties": {
-                "datetime": now,
-                "proj:epsg": self.raster.get_epsg(),
-                "proj:shape": [height, width],
-                "proj:transform": list(self.raster.geotransform),
-                "raster:bands": self.raster.get_band_metadata()
+            'id': item_id,
+            'properties': {
+                'datetime': now,
+                'proj:epsg': self.raster.get_epsg(),
+                'proj:shape': [height, width],
+                'proj:transform': list(self.raster.geotransform),
+                'raster:bands': self.raster.get_band_metadata(),
             },
-            "bbox": bbox,
-            "geometry": geometry,
-            "assets": {
-                "data": {
-                    "href": os.path.abspath(self.raster.path),
-                    "type": self.MIME_LOOKUP.get(
-                        self.raster.driver,
-                        "application/octet-stream"
+            'bbox': bbox,
+            'geometry': geometry,
+            'assets': {
+                'data': {
+                    'href': os.path.abspath(self.raster.path),
+                    'type': self.MIME_LOOKUP.get(
+                        self.raster.driver, 'application/octet-stream'
                     ),
-                    "roles": ["data"]
+                    'roles': ['data'],
                 }
             },
-            "links": []
+            'links': [],
         }
 
         return stac_item
@@ -232,6 +237,6 @@ class StacItemFactory:
         :rtype: str
         """
         item = self.create_item()
-        with open(output_path, "w") as f:
+        with open(output_path, 'w') as f:
             json.dump(item, f, indent=4)
         return output_path
