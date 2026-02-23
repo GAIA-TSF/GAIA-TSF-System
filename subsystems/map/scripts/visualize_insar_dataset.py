@@ -5,18 +5,21 @@ import matplotlib.pyplot as plt
 from ..dataset.insar import (
     create_mirmazloumi_2023_dataset,
     create_synthetic_insar_dataset,
-)
+) 
 
 
 """
 Usage: 
 
-python3 -m subsystems.map.scripts.visualize_insar_dataset --dataset mirmazloumi_2023 
+python3 -m subsystems.map.scripts.visualize_insar_dataset \
+    --dataset mirmazloumi_2023 
 
-python3 -m subsystems.map.scripts.visualize_insar_dataset --dataset synthetic
+python3 -m subsystems.map.scripts.visualize_insar_dataset \
+    --dataset synthetic \
+    --anomaly-magnitude 5.0
+
 
 """
-
 
 def plot_insar_dataset(dataset, title: str):
     plt.figure(figsize=(10, 4))
@@ -48,7 +51,6 @@ def plot_insar_dataset(dataset, title: str):
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-
 
 def _parse_arguments():
     parser = argparse.ArgumentParser(
@@ -102,10 +104,14 @@ def _load_dataset(
                 look_back=12,
                 horizon=5,
             ),
-            (f'Synthetic InSAR Time Series (Anomaly = {anomaly_magnitude:.1f} mm)'),
+            (
+                'Synthetic InSAR Time Series '
+                f'(Anomaly = {anomaly_magnitude:.1f} mm)'
+            ),
         )
 
     raise ValueError(f'Unknown dataset: {dataset_name}')
+
 
 
 if __name__ == '__main__':
@@ -120,3 +126,4 @@ if __name__ == '__main__':
         dataset=dataset,
         title=title,
     )
+

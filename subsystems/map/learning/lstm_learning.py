@@ -55,10 +55,10 @@ def main():
     model_cfg = config['model']
     trainer_cfg = config['trainer']
     dataset_cfg = config['dataset']
-    print(trainer_cfg)
+    # print(trainer_cfg)
 
     device = _select_device(trainer_cfg['device'])
-    print(device)
+    # print(device)
 
     # -----------------------------
     # Dataset selection

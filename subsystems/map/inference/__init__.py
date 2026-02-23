@@ -22,18 +22,35 @@ class InferenceModule:
         self,
         model,
         device,
-        look_back,
-        horizon,
-        mc_samples: int = 40,
-        sigma_threshold: float = 2.5,
-    ):
-        print("Creating predictor with MC:", mc_samples) 
+
+        # model geometry
+        look_back: int,
+        horizon: int,
         
-        return Predictor(
+        # probabilistic inference 
+        mc_samples: int,
+        sigma_threshold: float,
+
+        # monitoring logic
+        warmup_factor: int,
+        calibration_fraction: float,
+        persistence: int,
+        use_model_uncertainty: bool
+    ):
+        
+        return Predictor(            
             model=model,
             device=device,
+            
+            # model geometry
             look_back=look_back,
             horizon=horizon,
-            mc_samples=mc_samples, 
+
+            mc_samples=mc_samples,
             sigma_threshold=sigma_threshold,
+
+            warmup_factor=warmup_factor,
+            calibration_fraction=calibration_fraction,
+            persistence=persistence,
+            use_model_uncertainty=use_model_uncertainty,
         )

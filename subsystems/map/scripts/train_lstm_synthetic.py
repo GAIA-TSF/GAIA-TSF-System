@@ -1,3 +1,4 @@
+
 import argparse
 
 import matplotlib.pyplot as plt
@@ -10,9 +11,8 @@ from ..learning import LearningModule
 """
 Usage: 
 python3 -m subsystems.map.scripts.train_lstm_synthetic \
-    --anomaly-magnitude 5.0
+    --anomaly-magnitude 50.0
 """
-
 
 def _parse_arguments():
     parser = argparse.ArgumentParser(

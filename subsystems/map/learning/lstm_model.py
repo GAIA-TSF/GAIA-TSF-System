@@ -40,6 +40,7 @@ class LstmModel(nn.Module):
             input_size=input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
+            # TODO: set dropout 
             # dropout=dropout if num_layers > 1 else 0.2,
             batch_first=True,
             bidirectional=bidirectional,

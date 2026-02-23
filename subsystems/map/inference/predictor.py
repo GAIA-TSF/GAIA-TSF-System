@@ -16,28 +16,68 @@ class Predictor:
     """
 
     def __init__(
-        self,
-        model: torch.nn.Module,
-        device: torch.device,
-        look_back: int,
-        horizon: int,
-        mc_samples: int = None,
-        sigma_threshold: float = None,
-    ):
-        self._model = model.to(device)
-        self._device = device
-        self._look_back = look_back
-        self._horizon = horizon 
+            self,
+            model: torch.nn.Module,
+            device: torch.device,
+            look_back: int,
+            horizon: int,
+            mc_samples: int,
+            sigma_threshold: float,
+            warmup_factor: int,
+            calibration_fraction: float,
+            persistence: int,
+            use_model_uncertainty: bool,
+        ):
+            self._model = model.to(device)
+            self._device = device
 
-        # safe defaults if caller forgot arguments
-        self._mc_samples = 40 if mc_samples is None else mc_samples
-        self._sigma_threshold = 2.5 if sigma_threshold is None else sigma_threshold
+            self._look_back = look_back
+            self._horizon = horizon
+
+            self._mc_samples = mc_samples
+            self._sigma_threshold = sigma_threshold
+
+            # monitoring parameters
+            self._warmup_factor = warmup_factor
+            self._calibration_fraction = calibration_fraction
+            self._persistence = persistence
+            self._use_model_uncertainty = use_model_uncertainty
+
+            # learned later
+            self._monitor_start = None
+            self._baseline_sigma = None
         
     # Enable dropout during inference
     def _enable_dropout(self):
         for module in self._model.modules():
             if isinstance(module, nn.Dropout):
                 module.train()
+
+    def _compute_monitoring_regions(self, series_length):
+
+        warmup = self._warmup_factor * self._look_back
+        calibration = int(self._calibration_fraction * series_length)
+
+        monitor_start = warmup + calibration
+
+        self._monitor_start = monitor_start
+
+        print(f"[Monitoring]")
+        print(f" Warmup end:       {warmup}")
+        print(f" Calibration end:  {monitor_start}")
+        print(f" Monitoring start: {monitor_start}")
+    
+    def _fit_baseline(self, residuals):
+
+        warmup = self._warmup_factor * self._look_back
+        calib_end = self._monitor_start
+
+        baseline = residuals[warmup:calib_end]
+
+        self._baseline_sigma = np.nanstd(baseline)
+
+        print(f"[Baseline] residual σ = {self._baseline_sigma:.4f}")
+
 
 
     def predict_series(
@@ -135,12 +175,15 @@ class Predictor:
         anomaly_mask[:warmup] = False
 
         # require persistence
-        min_duration = 3
+        min_duration = 2
+        clean_mask = anomaly_mask.copy()
 
         for i in range(len(anomaly_mask)):
             if anomaly_mask[i]:
-                window = anomaly_mask[i:i+min_duration]
-                if np.sum(window) < min_duration:
-                    anomaly_mask[i] = False
+                end = min(i + min_duration, len(anomaly_mask))
+                if np.sum(anomaly_mask[i:end]) < (end - i):
+                    clean_mask[i] = False
+
+        anomaly_mask = clean_mask
 
         return D, threshold, anomaly_mask 
