@@ -35,6 +35,8 @@ jobs:
 
   eou:
     needs: docker
+
+    runs-on: ubuntu-24.04
     steps:
       - name: Run EOU test suite
         run: |
@@ -44,6 +46,8 @@ jobs:
 
   sdi:
     needs: docker
+
+    runs-on: ubuntu-24.04
     steps:
       - name: Run SDI test suite
         run: |
