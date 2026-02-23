@@ -1,6 +1,5 @@
 """Unit tests for the Scheduler module."""
 
-import pytest
 import time
 from subsystems.isu.scheduler import Scheduler
 

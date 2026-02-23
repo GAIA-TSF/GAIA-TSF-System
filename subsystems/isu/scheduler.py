@@ -32,30 +32,32 @@ class Scheduler:
     def start(self, task_func: Callable[[], None]) -> None:
         """Start the background scheduler thread."""
         if self._is_running:
-            self.logger.warning("Scheduler is already running.")
+            self.logger.warning('Scheduler is already running.')
             return
 
         self._stop_event.clear()
         self._is_running = True
 
         # Run the loop in a separate daemon thread
-        self._thread = threading.Thread(target=self._run_loop, args=(task_func,), daemon=True)
+        self._thread = threading.Thread(
+            target=self._run_loop, args=(task_func,), daemon=True
+        )
         self._thread.start()
-        self.logger.info(f"Scheduler started with interval: {self.interval}s")
+        self.logger.info(f'Scheduler started with interval: {self.interval}s')
 
     def stop(self) -> None:
         """Stop the scheduler gracefully."""
         if not self._is_running:
             return
 
-        self.logger.info("Stopping scheduler...")
+        self.logger.info('Stopping scheduler...')
         self._stop_event.set()
 
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
         self._is_running = False
-        self.logger.info("Scheduler stopped.")
+        self.logger.info('Scheduler stopped.')
 
     def _run_loop(self, task_func: Callable[[], None]) -> None:
         """Internal loop handling execution and sleep."""
@@ -66,7 +68,7 @@ class Scheduler:
 
             # Catch specific errors only (No bare exceptions)
             except (OSError, RuntimeError, ValueError) as e:
-                self.logger.error(f"Scheduled task failed: {str(e)}", exc_info=True)
+                self.logger.error(f'Scheduled task failed: {str(e)}', exc_info=True)
 
             # Responsive sleep loop
             # Check stop_event frequently (every 0.5s) to allow quick shutdown
