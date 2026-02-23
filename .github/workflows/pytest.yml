@@ -1,0 +1,52 @@
+name: pytest
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'subsystems/**'
+      - 'docker/**'
+      - '.github/workflows/pytest.yml'
+      - "!**.md"
+  pull_request:
+    paths:
+      - 'subsystems/**'
+      - 'docker/**'
+      - '.github/workflows/pytest.yml'
+      - "!**.md"
+
+jobs:
+  docker:
+    name: build docker and run tests
+
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+  eou:
+    needs: docker
+    steps:
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls eou/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  sdi:
+    needs: docker
+    steps:
+      - name: Run SDI test suite
+        run: |
+          for i in $(ls sdi/tests/*py); do
+            docker exec "python3 -m pytest -v $i"
+          done
