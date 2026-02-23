@@ -1,11 +1,7 @@
 import os
 import shutil
-from typing import Optional
-
 # Import QCL Logger
-
 from qcl.logger import Logger
-
 from .parsers import ParsingEngine
 from .scheduler import Scheduler
 
