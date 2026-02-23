@@ -70,6 +70,7 @@ class Scheduler:
 
             # Responsive sleep loop
             # Check stop_event frequently (every 0.5s) to allow quick shutdown
+            # Calculate steps: 10s interval / 0.5s step = 20 steps
             for _ in range(int(self.interval * 2)):
                 if self._stop_event.is_set():
                     break
