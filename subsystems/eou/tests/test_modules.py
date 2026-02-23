@@ -8,6 +8,7 @@ gdal.UseExceptions()
 from eou.data_acquisition_gateway import DataAcquisitionGateway
 from eou.data_extraction import DataExtraction
 
+
 def load_geom(file_path):
     ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
     layer = ds.GetLayer(0)
@@ -96,14 +97,15 @@ class TestModules:
 
         Test metadata creation on single GeoTIFF file.
         """
+
         def item_dict_no_datetime(item_dict):
             if 'properties' in item_dict and 'datetime' in item_dict['properties']:
                 del item_dict['properties']['datetime']
             return item_dict
-        
+
         module = DataExtraction(self._get_data_path('ENMAP01_sample.tif'))
         item_dict = module.stac_factory().create_item()
 
-        with open(self._get_data_path('ENMAP01_sample.json'), "r") as f:
+        with open(self._get_data_path('ENMAP01_sample.json'), 'r') as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)

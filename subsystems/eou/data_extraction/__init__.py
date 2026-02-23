@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 from .metadata import RasterDataset, StacItemFactory
 
+
 class DataExtraction:
     """Data Extraction module acts as the central logic module for
     ingestion. It receives inputs from both the manual loader and the
