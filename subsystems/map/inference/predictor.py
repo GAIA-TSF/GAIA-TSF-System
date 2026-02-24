@@ -7,7 +7,7 @@ This class runs sliding-window inference and reconstructs
 a continuous prediction series.
 """
 
-print("Loaded predictor with MC Dropout")
+# print("Loaded predictor with MC Dropout")
 
 class Predictor:
     """
@@ -152,38 +152,27 @@ class Predictor:
         residuals = observations - predictions
         return residuals
 
-    def detect_anomaly(self, 
-        residuals: np.ndarray, 
-        std_pred: np.ndarray, 
-    ):
-        """
-        D = |residual|
-        anomaly if D > k * sigma
-        """
+    def detect_anomaly(self, residuals, std_pred):
 
         D = np.abs(residuals)
-        threshold = self._sigma_threshold * std_pred
 
-        # smooth threshold 
-        window = 7
-        threshold = np.convolve(threshold, np.ones(window)/window, mode='same') 
+        # threshold selection
+        if self._use_model_uncertainty:
+            threshold = self._sigma_threshold * std_pred
+        else:
+            threshold = np.full_like(residuals,
+                                    self._sigma_threshold * self._baseline_sigma)
 
         anomaly_mask = D > threshold
 
-        # ignore warm-up region 
-        warmup = self._look_back + self._horizon
-        anomaly_mask[:warmup] = False
+        # disable detection before monitoring
+        anomaly_mask[:self._monitor_start] = False
 
-        # require persistence
-        min_duration = 2
-        clean_mask = anomaly_mask.copy()
-
+        # persistence rule
         for i in range(len(anomaly_mask)):
             if anomaly_mask[i]:
-                end = min(i + min_duration, len(anomaly_mask))
-                if np.sum(anomaly_mask[i:end]) < (end - i):
-                    clean_mask[i] = False
+                window = anomaly_mask[i:i+self._persistence]
+                if np.sum(window) < self._persistence:
+                    anomaly_mask[i] = False
 
-        anomaly_mask = clean_mask
-
-        return D, threshold, anomaly_mask 
+        return D, threshold, anomaly_mask
