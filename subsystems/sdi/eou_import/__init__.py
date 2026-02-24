@@ -13,6 +13,7 @@ ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
 
 # TODO Make parent class
 
+
 class EouDataZipImporter:
     """
     Handles importing raster data from ZIP into S3
