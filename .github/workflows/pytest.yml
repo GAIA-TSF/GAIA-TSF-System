@@ -42,6 +42,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
+          echo $(ls)
+          echo $(ls sdi/tests/*py)
           for i in $(ls eou/tests/*py); do
             docker exec pgstacdb python3 -m pytest -v $i"
           done
