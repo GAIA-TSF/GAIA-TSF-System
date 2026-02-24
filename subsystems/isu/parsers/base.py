@@ -8,6 +8,7 @@ class BaseParser(ABC):
     """
     Abstract Base Class for all parser plugins.
     """
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -72,7 +73,9 @@ class BaseParser(ABC):
                     break
 
         if not target_col:
-            self.logger.warning(f'[{self.get_parser_name()}] No timestamp column found.')
+            self.logger.warning(
+                f'[{self.get_parser_name()}] No timestamp column found.'
+            )
             return df
 
         try:
