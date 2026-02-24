@@ -44,6 +44,8 @@ jobs:
         run: |
           echo $(ls)
           echo $(docker exec pgstacdb ls sdi/tests/*py)
+          echo $(docker ps)
+          echo "***"
           for i in $(ls subsystems/eou/tests/*py); do
             docker exec pgstacdb python3 -m pytest -v $i"
           done
