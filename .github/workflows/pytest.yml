@@ -43,7 +43,6 @@ jobs:
       - name: Run EOU test suite
         run: |
           echo $(ls)
-          echo $(docker exec pgstacdb ls sdi/tests/*py)
           echo $(docker ps)
           echo "***"
           for i in $(ls subsystems/eou/tests/*py); do
