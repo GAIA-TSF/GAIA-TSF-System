@@ -38,6 +38,8 @@ jobs:
 
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v6
+
       - name: Run EOU test suite
         run: |
           for i in $(ls eou/tests/*py); do
@@ -49,6 +51,8 @@ jobs:
 
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v6
+
       - name: Run SDI test suite
         run: |
           for i in $(ls sdi/tests/*py); do
