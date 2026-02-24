@@ -11,6 +11,7 @@ from qcl.logger import Logger
 STAC_URL = 'http://stacapi:8000'
 ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
 
+# TODO Make parent class
 
 class EouDataZipImporter:
     """
