@@ -6,11 +6,9 @@ if TYPE_CHECKING:
 
 from abc import ABC, abstractmethod
 
+
 class BasePipeline(ABC):
-    metadata = {
-        'title': 'unknown',
-        'abstract': 'unknown'
-    }
+    metadata = {'title': 'unknown', 'abstract': 'unknown'}
 
     def configure(self, config: Mapping[str, Any]) -> None:
         """Configure pipeline using structured config.

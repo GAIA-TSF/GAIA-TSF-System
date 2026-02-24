@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 from .sentinel1 import Sentinel1Pipeline
 
+
 class PreprocessingPipelines:
     """The Preprocessing Pipelines are designed as a sequence of
     independent modules tailored for data refinement. Key modules
@@ -18,9 +19,7 @@ class PreprocessingPipelines:
     """
 
     def __init__(self):
-        self._pipelines = {
-            'sentinel1': Sentinel1Pipeline()
-        }
+        self._pipelines = {'sentinel1': Sentinel1Pipeline()}
 
     @property
     def pipelines(self) -> Dict[str, Any]:

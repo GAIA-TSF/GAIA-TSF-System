@@ -1,10 +1,12 @@
 from .base import BasePipeline
 
+
 class Sentinel1Pipeline(BasePipeline):
     metadata = {
         'title': 'Sentinel-1',
-        'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data'
+        'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
     }
+
     def _build_sbas_stack(self):
         raise NotImplementedError()
 
@@ -15,5 +17,3 @@ class Sentinel1Pipeline(BasePipeline):
         self._build_sbas_stack()
         self._reframe_sbas
         # ...
-    
-    
