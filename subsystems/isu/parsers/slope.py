@@ -2,10 +2,7 @@ from typing import Dict, Any
 import pandas as pd
 import io
 import os
-import logging
 from .base import BaseParser
-
-logger = logging.getLogger('gaia.isu.parsers.slope')
 
 
 class SlopeStabilityParser(BaseParser):
@@ -94,26 +91,9 @@ class SlopeStabilityParser(BaseParser):
                 df, ['timestamp', 'date', 'time', 'reading_time', 'epoch']
             )
 
-            # Quality Control
-            if 'depth' in df.columns:
-                if (
-                    not df['depth'].is_monotonic_increasing
-                    and not df['depth'].is_monotonic_decreasing
-                ):
-                    logger.warning(
-                        f'[{filename}] Depth column is not monotonic. Check sensor ordering.'
-                    )
-            disp_cols = [c for c in df.columns if 'disp' in c or 'def' in c]
-            for col in disp_cols:
-                if pd.api.types.is_numeric_dtype(df[col]):
-                    max_disp = df[col].abs().max()
-                    if max_disp > 500:
-                        logger.warning(
-                            f'[{filename}] Large displacement detected in {col}: {max_disp:.2f}. Check sensor health.'
-                        )
+
             # Return cleaned DataFrame
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            #
             raise ValueError(f'Slope parser failed to process {filename}: {str(e)}')

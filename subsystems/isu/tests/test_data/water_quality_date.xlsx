@@ -1,0 +1,7 @@
+Date,pH,Turbidity,Conductivity,DO,Sulfate,Notes
+01/01/2026 08:00,7.2,2.5,450.0,8.5,25.0,Normal
+01/01/2026 09:00,7.4,2.8,460.5,8.3,26.1,Normal
+01/01/2026 10:00,15.5,3.1,475.0,8.1,27.5,pH out of range
+01/01/2026 11:00,6.8,-1.5,480.0,7.9,-5.0,Negative values
+01/01/2026 12:00,7.1,4.0,455.0,8.0,24.5,Normal
+invalid_date_str,7.0,3.5,452.0,8.2,25.5,Bad timestamp

@@ -4,22 +4,23 @@ Tests how the Scheduler, Scanner, and Parsing Engine work together.
 """
 
 import os
+import shutil
 import pytest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 from subsystems.isu import InSituDataUploader
 
+TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
 class TestSubsystem:
     """
     Integration test suite for ISU subsystem.
-    Follows project naming convention (test_ISU_xxx).
     """
 
     @pytest.fixture
     def mock_logger_class(self):
         """
         Mock the QCL Logger class.
-        This ensures that when InSituDataUploader calls Logger(), it gets a mock.
         """
         with patch('subsystems.isu.Logger') as mock_cls:
             # Configure the mock instance that will be returned
@@ -38,8 +39,6 @@ class TestSubsystem:
         processed_dir.mkdir()
 
         # 2. Initialize the subsystem
-        # Note: We don't need to patch 'logger' object manually because
-        # mock_logger_class fixture already patched the class constructor.
         isu = InSituDataUploader(
             input_dir=str(input_dir), processed_dir=str(processed_dir)
         )
@@ -67,12 +66,12 @@ class TestSubsystem:
         Test Critical Integration Flow:
         File Detection -> Parsing -> Archiving.
         """
-        # 1. Setup: Create a dummy .csv file in the input directory
-        # Using specific content that matches the Slope Parser (US-ISU-04)
-        input_file = tmp_path / 'input' / 'sensor_data.csv'
-        input_file.write_text(
-            'timestamp,displacement_x,displacement_y\n2023-01-01,0.5,0.1'
-        )
+        # 1. Setup
+        source_file = TEST_DATA_DIR / 'slope_sensor_data.csv'
+        input_dir = tmp_path / 'input'
+        input_file = input_dir / 'slope_sensor_data.csv'
+        
+        shutil.copy(source_file, input_file)
 
         # 2. Action: Manually trigger the job that the Scheduler would run
         # This simulates one "tick" of the scheduler
@@ -84,7 +83,7 @@ class TestSubsystem:
         assert not input_file.exists(), 'File should be moved from input directory'
 
         # B. Check File Lifecycle: File should APPEAR in processed
-        processed_file = tmp_path / 'processed' / 'sensor_data.csv'
+        processed_file = tmp_path / 'processed' / 'slope_sensor_data.csv'
         assert processed_file.exists(), 'File should be archived to processed directory'
 
         # C. Verify Logger was called (proving parsing success)

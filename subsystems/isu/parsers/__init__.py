@@ -1,7 +1,5 @@
 import os
 from typing import Dict, List, Any
-# import pandas as pd
-
 from .base import BaseParser
 from .slope import SlopeStabilityParser
 from .water import WaterQualityParser
@@ -17,8 +15,8 @@ class ParsingEngine:
         self.logger = logger
         # Register available parsers
         self.registered_parsers: List[BaseParser] = [
-            SlopeStabilityParser(),
-            WaterQualityParser(),
+            SlopeStabilityParser(self.logger),
+            WaterQualityParser(self.logger),
         ]
         self.confidence_threshold = 0.6
 
@@ -46,7 +44,7 @@ class ParsingEngine:
                     )
 
             except (ValueError, TypeError, AttributeError) as e:
-                self.logger.warning(f'Error matching parser {parser.name}: {e}')
+                self.logger.warning(f'Error matching parser {parser.get_parser_name()}: {e}')
                 continue
 
         # Check if any parser matched BEFORE sorting

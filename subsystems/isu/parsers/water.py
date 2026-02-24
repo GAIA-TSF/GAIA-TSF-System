@@ -2,10 +2,7 @@ from typing import Dict, Any
 import pandas as pd
 import io
 import os
-import logging
 from .base import BaseParser
-
-logger = logging.getLogger('gaia.isu.parsers.water')
 
 
 class WaterQualityParser(BaseParser):
@@ -38,7 +35,7 @@ class WaterQualityParser(BaseParser):
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
-        # 2. Header Indicators (使用父类 helper)
+        # 2. Header Indicators
         df = self._read_file_sample(content, ext)
 
         if df is not None:
@@ -63,7 +60,7 @@ class WaterQualityParser(BaseParser):
             if matches:
                 score += 0.4 + (0.15 * len(matches))
 
-            # 3. Negative Indicators (排除边坡数据)
+            # 3. Negative Indicators
             negative_indicators = {'displacement', 'velocity', 'inclinometer', 'gnss'}
             if any(neg in h for h in headers for neg in negative_indicators):
                 score -= 0.6
@@ -86,26 +83,6 @@ class WaterQualityParser(BaseParser):
             # 2. Standardize Timestamp
             #
             df = self.standardize_timestamp(df)
-
-            # Validation / QC Logic
-            # Check pH range (0-14)
-            ph_cols = [c for c in df.columns if 'ph' in c]
-            if ph_cols:
-                ph_col = ph_cols[0]
-                if not df[ph_col].between(0, 14).all():
-                    logger.warning(
-                        f'[{filename}] pH values out of range (0-14) detected.'
-                    )
-
-            # Check negative values
-            non_negative_cols = [
-                c
-                for c in df.columns
-                if any(x in c for x in ['conductivity', 'ec', 'sulfate', 'turbidity'])
-            ]
-            for col in non_negative_cols:
-                if (df[col] < 0).any():
-                    logger.warning(f'[{filename}] Negative values detected in {col}.')
 
             return df
 

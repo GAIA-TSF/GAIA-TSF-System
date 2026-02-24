@@ -2,15 +2,14 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import io
-import logging
-
-logger = logging.getLogger('gaia.isu.parser')
 
 
 class BaseParser(ABC):
     """
     Abstract Base Class for all parser plugins.
     """
+    def __init__(self, logger):
+        self.logger = logger
 
     @abstractmethod
     def get_parser_name(self) -> str:
@@ -25,7 +24,7 @@ class BaseParser(ABC):
         Reduces code duplication across parsers.
         """
         try:
-            if ext == '.csv':
+            if ext in ['.csv', '.txt']:
                 return pd.read_csv(io.BytesIO(content), nrows=nrows)
             elif ext in ['.xlsx', '.xls']:
                 return pd.read_excel(io.BytesIO(content), nrows=nrows)
@@ -34,7 +33,7 @@ class BaseParser(ABC):
             # Return None if parsing fails (not a valid CSV/Excel)
             return None
         except (ValueError, pd.errors.ParserError, TypeError, OSError) as e:
-            logger.debug(f'Sample read failed: {str(e)}')
+            self.logger.debug(f'Sample read failed: {str(e)}')
             return None
 
     @abstractmethod
@@ -73,7 +72,7 @@ class BaseParser(ABC):
                     break
 
         if not target_col:
-            logger.warning(f'[{self.get_parser_name()}] No timestamp column found.')
+            self.logger.warning(f'[{self.get_parser_name()}] No timestamp column found.')
             return df
 
         try:
@@ -87,7 +86,7 @@ class BaseParser(ABC):
             # QC: Drop invalid timestamps
             invalid_count = df['iso_timestamp'].isna().sum()
             if invalid_count > 0:
-                logger.warning(
+                self.logger.warning(
                     f'[{self.get_parser_name()}] Dropping {invalid_count} rows with invalid timestamps.'
                 )
                 df = df.dropna(subset=['iso_timestamp'])
@@ -98,7 +97,7 @@ class BaseParser(ABC):
             return df
 
         except (KeyError, ValueError) as e:
-            logger.error(f'Timestamp standardization failed: {str(e)}')
+            self.logger.error(f'Timestamp standardization failed: {str(e)}')
             raise ValueError(
                 f"Failed to standardize timestamp column '{target_col}': {str(e)}"
             )
