@@ -43,8 +43,8 @@ jobs:
       - name: Run EOU test suite
         run: |
           echo $(ls)
-          echo $(ls sdi/tests/*py)
-          for i in $(ls eou/tests/*py); do
+          echo $(docker exec pgstacdb ls sdi/tests/*py)
+          for i in $(ls subsystems/eou/tests/*py); do
             docker exec pgstacdb python3 -m pytest -v $i"
           done
 
@@ -57,6 +57,6 @@ jobs:
 
       - name: Run SDI test suite
         run: |
-          for i in $(ls sdi/tests/*py); do
+          for i in $(ls subsystems/sdi/tests/*py); do
             docker exec "python3 -m pytest -v $i"
           done
