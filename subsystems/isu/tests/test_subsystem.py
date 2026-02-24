@@ -12,6 +12,7 @@ from subsystems.isu import InSituDataUploader
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
+
 class TestSubsystem:
     """
     Integration test suite for ISU subsystem.
@@ -70,7 +71,7 @@ class TestSubsystem:
         source_file = TEST_DATA_DIR / 'slope_sensor_data.csv'
         input_dir = tmp_path / 'input'
         input_file = input_dir / 'slope_sensor_data.csv'
-        
+
         shutil.copy(source_file, input_file)
 
         # 2. Action: Manually trigger the job that the Scheduler would run

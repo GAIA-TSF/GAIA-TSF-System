@@ -44,7 +44,9 @@ class ParsingEngine:
                     )
 
             except (ValueError, TypeError, AttributeError) as e:
-                self.logger.warning(f'Error matching parser {parser.get_parser_name()}: {e}')
+                self.logger.warning(
+                    f'Error matching parser {parser.get_parser_name()}: {e}'
+                )
                 continue
 
         # Check if any parser matched BEFORE sorting

@@ -91,7 +91,6 @@ class SlopeStabilityParser(BaseParser):
                 df, ['timestamp', 'date', 'time', 'reading_time', 'epoch']
             )
 
-
             # Return cleaned DataFrame
             return df
 
