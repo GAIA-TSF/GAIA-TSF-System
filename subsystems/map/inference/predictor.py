@@ -46,8 +46,9 @@ class Predictor:
             # learned later
             self._monitor_start = None
             self._baseline_sigma = None
-        
-    # Enable dropout during inference
+
+
+    # Enable MC dropout during inference
     def _enable_dropout(self):
         for module in self._model.modules():
             if isinstance(module, nn.Dropout):
@@ -151,6 +152,25 @@ class Predictor:
     ):
         residuals = observations - predictions
         return residuals
+    
+    @staticmethod
+    def compute_velocity_residuals(
+        observations: np.ndarray,
+        predictions: np.ndarray,
+    ):
+        """
+        Velocity residuals (first derivative mismatch)
+
+        v_obs(t)  = x(t) - x(t-1)
+        v_pred(t) = x̂(t) - x̂(t-1)
+
+        Detects acceleration instead of displacement offset.
+        """
+
+        obs_v = np.diff(observations, prepend=observations[0])
+        pred_v = np.diff(predictions, prepend=predictions[0])
+
+        return obs_v - pred_v
 
     def detect_anomaly(self, residuals, std_pred):
 
@@ -159,14 +179,25 @@ class Predictor:
         # threshold selection
         if self._use_model_uncertainty:
             threshold = self._sigma_threshold * std_pred
+        # else:
+        #     threshold = np.full_like(residuals,
+        #                             self._sigma_threshold * self._baseline_sigma)
+
         else:
-            threshold = np.full_like(residuals,
-                                    self._sigma_threshold * self._baseline_sigma)
+            if self._baseline_sigma is None:
+                raise RuntimeError("Baseline sigma not initialized")
+            threshold = np.full_like(
+                residuals,
+                self._sigma_threshold * self._baseline_sigma,
+            )
 
         anomaly_mask = D > threshold
 
         # disable detection before monitoring
-        anomaly_mask[:self._monitor_start] = False
+        # anomaly_mask[:self._monitor_start] = False
+
+        # keep NaNs from breaking persistence 
+        anomaly_mask[np.isnan(D)] = False
 
         # persistence rule
         for i in range(len(anomaly_mask)):

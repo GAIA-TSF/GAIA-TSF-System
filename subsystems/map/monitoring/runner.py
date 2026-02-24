@@ -47,16 +47,23 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     # --------------------------------------------------
     # 2) Estimate baseline ONLY from calibration region
     # --------------------------------------------------
-    calibration_residuals = residuals[warmup_end:calibration_end]
+    # --- velocity residual ---
+    vel_residuals = np.diff(residuals, prepend=residuals[warmup_end])
 
-    k, h, sigma0 = calibrate_cusum(calibration_residuals, len(calibration_residuals))
+    calibration_vel = vel_residuals[warmup_end:calibration_end]
 
+    mu0, sigma0, k, h = calibrate_cusum(calibration_vel, len(calibration_vel))
+
+    print(f"[Baseline μ] {mu0:.4f}")
     print(f"[Baseline σ] {sigma0:.4f}")
-    print(f"[CUSUM] k={k:.4f}  h={h:.4f}")
+    print(f"[CUSUM normalized] k={k:.2f}  h={h:.2f}")
 
     # --------------------------------------------------
     # 3) Run CUSUM on full residual series
     # --------------------------------------------------
+    # --- normalize velocity residuals ---
+    z = (vel_residuals - mu0) / sigma0
+
     cusum = CUSUMDetector(k, h)
 
     # allocate full-length outputs
@@ -64,7 +71,7 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     alarms = np.zeros_like(residuals, dtype=bool)
 
     # run ONLY during monitoring
-    S_monitor, alarms_monitor = cusum.run(residuals[calibration_end:])
+    S_monitor, alarms_monitor = cusum.run(z[calibration_end:])
 
     # place back into global timeline
     S[calibration_end:] = S_monitor
@@ -92,6 +99,7 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
         "calibration_end": calibration_end,
         "monitor_start": calibration_end,
         "baseline_sigma": sigma0,
+        "baseline_mean": mu0, 
     }
 
     return monitoring
