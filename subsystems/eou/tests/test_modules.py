@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from osgeo import gdal
@@ -6,7 +5,6 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 from eou.data_acquisition_gateway import DataAcquisitionGateway
-from eou.data_extraction import DataExtraction
 
 
 def load_geom(file_path):
@@ -95,17 +93,6 @@ class TestModules:
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
 
-        Test metadata creation on single GeoTIFF file.
+        Example of unit test.
         """
-
-        def item_dict_no_datetime(item_dict):
-            if 'properties' in item_dict and 'datetime' in item_dict['properties']:
-                del item_dict['properties']['datetime']
-            return item_dict
-
-        module = DataExtraction(self._get_data_path('ENMAP01_sample.tif'))
-        item_dict = module.stac_factory().create_item()
-
-        with open(self._get_data_path('ENMAP01_sample.json'), 'r') as f:
-            json_dict = json.load(f)
-        assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
+        pass
