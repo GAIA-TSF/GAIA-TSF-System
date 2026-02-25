@@ -7,3 +7,5 @@ pypgstac==0.9.9  # sdi
 psycopg==3.2.13  # sdi
 psycopg_pool==3.2.8  # sdi
 eodag==3.10.1 # eou
+pandas==2.3.3 # isu
+openpyxl==3.1.5 # isu
