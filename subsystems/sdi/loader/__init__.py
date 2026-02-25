@@ -48,16 +48,12 @@ class SdiLoader(ABC):
         """
         Template method defining the full import workflow.
         """
-        try:
-            self._extract_zip()
-            self._load_stac_json()
-            self._import_data()
-            self._update_stac_json()
-            self._post_to_stac()
-        finally:
-            # TODO return back cleanup
-            placeholder = ''
-            # self._cleanup()
+        self._extract_zip()
+        self._load_stac_json()
+        self._import_data()
+        self._update_stac_json()
+        self._post_to_stac()
+        # TODO maybe return back cleanup
 
     def _extract_zip(self):
         """
@@ -186,7 +182,6 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg2.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-                        table_identifier = sql.Identifier(self.table_name)
 
                         # Drop and create table
                         cur.execute(sql.SQL(f"DROP TABLE IF EXISTS {self.table_name};"))
