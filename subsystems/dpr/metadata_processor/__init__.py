@@ -1,3 +1,4 @@
+
 from .generator import MetadataGenerator
 
 class MetadataProcessor:
@@ -10,4 +11,4 @@ class MetadataProcessor:
     """
 
     def __init__(self):
-        pass
+        self.generator = MetadataGenerator()
