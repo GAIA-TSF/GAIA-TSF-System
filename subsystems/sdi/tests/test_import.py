@@ -6,6 +6,7 @@ import tempfile
 from sdi.loader import InSituDataLoader
 from sdi.loader import EarthObservationDataLoader
 
+
 def file_md5(path):
     """
     Compute MD5 hash of a file.
@@ -15,6 +16,7 @@ def file_md5(path):
         for chunk in iter(lambda: f.read(4096), b''):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
 
 class TestInSituDataLoader:
     def test_import(self):
@@ -26,6 +28,7 @@ class TestInSituDataLoader:
         importer = InSituDataLoader(zip_path=zip_path)
 
         importer.import_zip()
+
 
 class TestEarthObservationDataLoader:
     def test_import_via_stac(self):

@@ -70,7 +70,7 @@ class SdiLoader(ABC):
                     self.json_file = os.path.join(root, file)
 
         if not self.json_file:
-            raise Exception("ZIP must contain one JSON file.")
+            raise Exception('ZIP must contain one JSON file.')
 
     def _load_stac_json(self):
         """
@@ -94,12 +94,16 @@ class SdiLoader(ABC):
         headers = {'Content-Type': 'application/json'}
 
         # Temporal interval from JSON
-        start_dt = self.stac_json['properties'].get('start_datetime', self.stac_json['properties'].get('datetime'))
-        end_dt = self.stac_json['properties'].get('end_datetime', self.stac_json['properties'].get('datetime'))
+        start_dt = self.stac_json['properties'].get(
+            'start_datetime', self.stac_json['properties'].get('datetime')
+        )
+        end_dt = self.stac_json['properties'].get(
+            'end_datetime', self.stac_json['properties'].get('datetime')
+        )
         interval = [[start_dt, end_dt]] if start_dt and end_dt else [[None, None]]
 
         # Spatial bbox from JSON
-        bbox = self.stac_json.get('bbox', [0,0,1,1])
+        bbox = self.stac_json.get('bbox', [0, 0, 1, 1])
 
         # Create a new collection
         collection_id = f'testcollection{uuid.uuid4().hex[:8]}'
@@ -114,7 +118,9 @@ class SdiLoader(ABC):
             'license': 'proprietary',
         }
 
-        response = requests.post(f'{self.stac_api_url}/collections', json=collection_payload)
+        response = requests.post(
+            f'{self.stac_api_url}/collections', json=collection_payload
+        )
         if response.status_code not in (200, 201):
             raise Exception(f'STAC API error: {response.text}')
 
@@ -122,12 +128,12 @@ class SdiLoader(ABC):
         response = requests.post(
             f'{self.stac_api_url}/collections/{collection_id}/items',
             headers=headers,
-            json=self.stac_json
+            json=self.stac_json,
         )
         if response.status_code not in (200, 201):
             raise Exception(f'STAC API error: {response.text}')
 
-        self.logger.debug("STAC item successfully posted.")
+        self.logger.debug('STAC item successfully posted.')
 
     @abstractmethod
     def _import_data(self):
@@ -150,18 +156,20 @@ class InSituDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise Exception("STAC JSON contains no assets")
+            raise Exception('STAC JSON contains no assets')
 
         for asset_key, asset in assets.items():
             href = asset.get('href')
             columns = asset.get('table:columns', [])
 
             if not href or not columns:
-                self.logger.debug(f"Skipping asset {asset_key}, missing href or columns")
+                self.logger.debug(
+                    f'Skipping asset {asset_key}, missing href or columns'
+                )
                 continue
 
             # Determine table name from STAC id + asset key
-            self.table_name = f"{self.stac_json['id']}_{asset_key}"
+            self.table_name = f'{self.stac_json["id"]}_{asset_key}'
 
             # Build SQL column definitions dynamically
             sql_columns = []
@@ -174,26 +182,31 @@ class InSituDataLoader(SdiLoader):
                     sql_type = 'TIMESTAMP'
                 else:
                     sql_type = 'TEXT'
-                sql_columns.append(f"{col_name} {sql_type}")
+                sql_columns.append(f'{col_name} {sql_type}')
 
             # Always add geom column
-            sql_columns.append("geom geometry(Point, 4326)")
+            sql_columns.append('geom geometry(Point, 4326)')
 
             try:
                 with psycopg2.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-
                         # Drop and create table
-                        cur.execute(sql.SQL(f"DROP TABLE IF EXISTS {self.table_name};"))
-                        cur.execute(sql.SQL(f"CREATE TABLE {self.table_name} ({', '.join(sql_columns)});"))
+                        cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
+                        cur.execute(
+                            sql.SQL(
+                                f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                            )
+                        )
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
                         with open(csv_path, 'r') as f:
                             cur.copy_expert(
-                                sql.SQL(f"COPY {self.table_name}({', '.join([c['name'] for c in columns])}) "
-                                        "FROM STDIN WITH CSV HEADER").as_string(conn),
-                                f
+                                sql.SQL(
+                                    f'COPY {self.table_name}({", ".join([c["name"] for c in columns])}) '
+                                    'FROM STDIN WITH CSV HEADER'
+                                ).as_string(conn),
+                                f,
                             )
 
                         # Update geom column from lat/lon
@@ -208,7 +221,9 @@ class InSituDataLoader(SdiLoader):
                 self.logger.debug(f'Table "{self.table_name}" successfully imported.')
 
             except Exception as e:
-                raise RuntimeError(f"Failed to import asset {asset_key} into PostGIS: {e}") from e
+                raise RuntimeError(
+                    f'Failed to import asset {asset_key} into PostGIS: {e}'
+                ) from e
 
     def _update_stac_json(self):
         """
@@ -217,7 +232,7 @@ class InSituDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         for asset_key, asset in assets.items():
-            table_name = f"{self.stac_json['id']}_{asset_key}"
+            table_name = f'{self.stac_json["id"]}_{asset_key}'
             pg_url = (
                 f'postgresql://user:password'
                 f'@{self.pg_config["host"]}:{self.pg_config["port"]}'
@@ -239,7 +254,7 @@ class EarthObservationDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise Exception("STAC JSON contains no assets")
+            raise Exception('STAC JSON contains no assets')
 
         self.raster_files = []  # store all raster paths processed
 
@@ -262,13 +277,15 @@ class EarthObservationDataLoader(SdiLoader):
         for asset_key, asset in assets.items():
             href = asset.get('href')
             if not href:
-                self.logger.debug(f"Skipping asset {asset_key}, missing href")
+                self.logger.debug(f'Skipping asset {asset_key}, missing href')
                 continue
 
             # Resolve raster file path from ZIP
             raster_path = os.path.join(self.temp_dir, href)
             if not os.path.exists(raster_path):
-                self.logger.debug(f"Raster file {href} not found in extracted ZIP, skipping")
+                self.logger.debug(
+                    f'Raster file {href} not found in extracted ZIP, skipping'
+                )
                 continue
 
             # Save path to raster_files list
