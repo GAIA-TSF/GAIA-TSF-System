@@ -68,7 +68,7 @@ class Scheduler:
     def _run_loop(self, task_func: Callable[[], None]) -> None:
         """
         Internal loop handling execution and sleep.
-        
+
         :param task_func: The function to execute.
         :type task_func: Callable[[], None]
         :return: None
