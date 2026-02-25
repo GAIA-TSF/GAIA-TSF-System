@@ -122,7 +122,7 @@ class SdiLoader(ABC):
             f'{self.stac_api_url}/collections', json=collection_payload
         )
         if response.status_code not in (200, 201):
-            raise Exception(f'STAC API error: {response.text}')
+            raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
 
         # Post the STAC feature as item
         response = requests.post(
