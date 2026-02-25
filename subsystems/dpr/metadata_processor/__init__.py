@@ -1,5 +1,5 @@
-
 from .generator import MetadataGenerator
+
 
 class MetadataProcessor:
     """The Metadata Processor acts as the governance layer, providing
