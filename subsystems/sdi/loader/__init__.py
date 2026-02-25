@@ -70,7 +70,7 @@ class SdiLoader(ABC):
                     self.json_file = os.path.join(root, file)
 
         if not self.json_file:
-            raise Exception('ZIP must contain one JSON file.')
+            raise FileNotFoundError('ZIP must contain one JSON file.')
 
     def _load_stac_json(self):
         """
