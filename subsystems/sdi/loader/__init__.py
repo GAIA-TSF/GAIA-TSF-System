@@ -131,7 +131,7 @@ class SdiLoader(ABC):
             json=self.stac_json,
         )
         if response.status_code not in (200, 201):
-            raise Exception(f'STAC API error: {response.text}')
+            raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
 
         self.logger.debug('STAC item successfully posted.')
 
