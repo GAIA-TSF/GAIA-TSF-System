@@ -1,10 +1,6 @@
 import threading
 import time
-import logging
 from typing import Callable, Optional, Any
-
-# Define default fallback logger (used only if QCL Logger is not injected)
-default_logger = logging.getLogger('gaia.isu.scheduler')
 
 
 class Scheduler:
@@ -17,20 +13,26 @@ class Scheduler:
         """
         Initialize the Scheduler.
 
-        Args:
-            interval_seconds: How often to run the task (in seconds).
-            logger: Optional injected logger instance (should be QCL Logger).
+        :param interval_seconds: How often to run the task (in seconds).
+        :type interval_seconds: int
+        :param logger: Injected QCL Logger instance.
+        :type logger: Any
         """
         self.interval = interval_seconds
-        # Dependency injection logic: prioritize the passed logger
-        self.logger = logger if logger else default_logger
+        self.logger = logger
 
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._is_running = False
 
     def start(self, task_func: Callable[[], None]) -> None:
-        """Start the background scheduler thread."""
+        """
+        Start the background scheduler thread.
+
+        :param task_func: The function to be executed periodically.
+        :type task_func: Callable[[], None]
+        :return: None
+        """
         if self._is_running:
             self.logger.warning('Scheduler is already running.')
             return
@@ -46,7 +48,11 @@ class Scheduler:
         self.logger.info(f'Scheduler started with interval: {self.interval}s')
 
     def stop(self) -> None:
-        """Stop the scheduler gracefully."""
+        """
+        Stop the scheduler gracefully.
+
+        :return: None
+        """
         if not self._is_running:
             return
 
@@ -60,7 +66,13 @@ class Scheduler:
         self.logger.info('Scheduler stopped.')
 
     def _run_loop(self, task_func: Callable[[], None]) -> None:
-        """Internal loop handling execution and sleep."""
+        """
+        Internal loop handling execution and sleep.
+        
+        :param task_func: The function to execute.
+        :type task_func: Callable[[], None]
+        :return: None
+        """
         while not self._stop_event.is_set():
             try:
                 # Execute the task
