@@ -247,6 +247,7 @@ class MetadataGenerator:
     """
     The automatic generation of metadata during ingestion.
     """
+
     def __init__(self, data_source: str):
         """Initialize Metadata Generator.
 
@@ -257,12 +258,12 @@ class MetadataGenerator:
         if Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds)
-        elif Path(data_source).suffix in ('.csv', ):
+        elif Path(data_source).suffix in ('.csv',):
             # TODO: ISU
             pass
         else:
             # TODO: replace by GAIA-TSF exception
-            raise RuntimeError("Unsupported datasource")
+            raise RuntimeError('Unsupported datasource')
 
     @property
     def stac(self) -> StacItemFactory:
