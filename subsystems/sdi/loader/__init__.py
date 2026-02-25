@@ -57,7 +57,7 @@ class SdiLoader(ABC):
 
     def _extract_zip(self):
         """
-        Extract ZIP file and locate CSV and JSON files.
+        Extract ZIP file and locate data and JSON files.
         """
         self.temp_dir = tempfile.mkdtemp()
 
