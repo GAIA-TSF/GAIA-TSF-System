@@ -61,8 +61,6 @@ class TestEarthObservationDataLoader:
         asset_url = asset['href']
         assert asset_url, 'STAC asset does not contain href'
 
-        print(asset_url)
-
         # Download the file from STAC asset URL
         temp_file = tempfile.NamedTemporaryFile(delete=False)
         r = requests.get(asset_url, stream=True)
@@ -78,8 +76,3 @@ class TestEarthObservationDataLoader:
         assert md5_input == md5_downloaded, (
             'Downloaded file does not match the original GeoTIFF'
         )
-
-        print(md5_input)
-        print(md5_downloaded)
-
-        print('Round-trip via STAC passed')

@@ -220,9 +220,14 @@ class InSituDataLoader(SdiLoader):
 
                 self.logger.debug(f'Table "{self.table_name}" successfully imported.')
 
-            except Exception as e:
+            except psycopg2.Error as e:
                 raise RuntimeError(
-                    f'Failed to import asset {asset_key} into PostGIS: {e}'
+                    f"""
+                    PostgreSQL error while importing {asset_key}
+                    Table: {self.table_name}
+                    SQLSTATE: {e.pgcode}
+                    Message: {e.pgerror}
+                    """
                 ) from e
 
     def _update_stac_json(self):
