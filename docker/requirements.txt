@@ -1,7 +1,7 @@
 pytest==8.4.2  # all modules
 boto3==1.42.37  # eou
 # numpy==2.0.2  # eou
-gdal==3.2.2  # eou
+gdal==3.2.2  # eou, dpr
 requests==2.32.5  # eou, sdi
 pypgstac==0.9.9  # sdi
 psycopg==3.2.13  # sdi
