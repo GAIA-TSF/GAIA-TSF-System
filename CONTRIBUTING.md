@@ -51,6 +51,8 @@ Continuous Integration (CI)
       instead of `class`)
     - Local variable is assigned to but never used - it is impossible to know
       if you forgot to use it or you named the variable wrong
+    - Module imported but unused - it is impossible to know if you forgot to
+      use it or you decided it is not needed anymore
 
 Documentation
 
@@ -73,6 +75,21 @@ Release Management
 - use a unified deployment system (Docker)
 - use a unified base image (python-3.14?)
 - use pre-built images for CI
+
+## Testing
+
+Build docker:
+
+```sh
+cd docker
+docker compose up --build
+```
+
+Run tests for the testfile wished:
+
+```sh
+docker exec pgstacdb python3 -m pytest /opt/gaia_tsf/subsystem/tests/testfile.py -v
+```
 
 ## Recommended code subsystem layout
 
