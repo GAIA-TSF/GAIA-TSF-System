@@ -31,7 +31,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 50g
+          memory: 100g
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 5s
