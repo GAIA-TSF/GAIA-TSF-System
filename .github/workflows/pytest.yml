@@ -27,7 +27,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run ALE test suite
         run: |
           cd subsystems
           for i in $(ls ale/tests/*py); do
@@ -46,7 +46,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run DAG test suite
         run: |
           cd subsystems
           for i in $(ls dag/tests/*py); do
@@ -65,7 +65,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run DPR test suite
         run: |
           cd subsystems
           for i in $(ls dpr/tests/*py); do
@@ -103,7 +103,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run ISU test suite
         run: |
           cd subsystems
           for i in $(ls isu/tests/*py); do
@@ -122,7 +122,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run MAP test suite
         run: |
           cd subsystems
           for i in $(ls map/tests/*py); do
@@ -141,7 +141,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run NTF test suite
         run: |
           cd subsystems
           for i in $(ls ntf/tests/*py); do
@@ -160,7 +160,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run QCL test suite
         run: |
           cd subsystems
           for i in $(ls qcl/tests/*py); do
@@ -179,7 +179,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run REP test suite
         run: |
           cd subsystems
           for i in $(ls rep/tests/*py); do
@@ -204,7 +204,7 @@ jobs:
           for i in $(ls sdi/tests/*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   vid:
@@ -217,7 +217,7 @@ jobs:
           cd docker
           docker compose up --detach
 
-      - name: Run EOU test suite
+      - name: Run VID test suite
         run: |
           cd subsystems
           for i in $(ls vid/tests/*py); do
