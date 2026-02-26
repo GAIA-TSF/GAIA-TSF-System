@@ -18,6 +18,14 @@ class InSituDataUploader:
     def __init__(
         self, input_dir: str = 'data/input', processed_dir: str = 'data/processed'
     ):
+        """
+        Initialize the InSituDataUploader subsystem.
+
+        :param input_dir: The directory path to monitor for incoming data files.
+        :type input_dir: str
+        :param processed_dir: The directory path where files are moved after processing.
+        :type processed_dir: str
+        """
         self.logger = Logger(subsystem=self.id)
         self.logger.debug('ISU Subsystem initializing...')
 
@@ -32,20 +40,41 @@ class InSituDataUploader:
         self.logger.debug('ISU Subsystem components initialized.')
 
     def _ensure_directories(self):
+        """
+        Verify the existence of required directories and create them if they are missing.
+
+        :raises OSError: If directory creation fails due to permissions or OS errors.
+        :return: None
+        """
         for path in [self.input_dir, self.processed_dir]:
             if not os.path.exists(path):
                 os.makedirs(path)
                 self.logger.info(f'Created directory: {path}')
 
     def start(self):
+        """
+        Start the ISU Subsystem and begin the scheduled file monitoring.
+
+        :return: None
+        """
         self.logger.info(f'Starting ISU Subsystem (monitoring {self.input_dir})...')
         self.scheduler.start(self._scan_and_process_files)
 
     def stop(self):
+        """
+        Gracefully stop the ISU Subsystem and halt scheduled tasks.
+
+        :return: None
+        """
         self.scheduler.stop()
         self.logger.info('ISU Subsystem stopped.')
 
     def _scan_and_process_files(self):
+        """
+        Scan the input directory for existing files and trigger the processing pipeline.
+
+        :return: None
+        """
         self.logger.debug('Scanning for files...')
         try:
             files = [
@@ -67,6 +96,15 @@ class InSituDataUploader:
             self._process_single_file(file_path, filename)
 
     def _process_single_file(self, file_path: str, filename: str):
+        """
+        Read a single file from disk and route it through the parsing engine.
+
+        :param file_path: The absolute or relative path to the file.
+        :type file_path: str
+        :param filename: The name of the file being processed.
+        :type filename: str
+        :return: None
+        """
         try:
             with open(file_path, 'rb') as f:
                 content = f.read()
@@ -91,6 +129,13 @@ class InSituDataUploader:
             self.logger.error(f'File access error on {filename}: {str(e)}')
 
     def _archive_file(self, filename: str):
+        """
+        Move a file from the input directory to the processed directory.
+
+        :param filename: The name of the file to archive.
+        :type filename: str
+        :return: None
+        """
         src_path = os.path.join(self.input_dir, filename)
         dst_path = os.path.join(self.processed_dir, filename)
         try:
