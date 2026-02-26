@@ -27,6 +27,7 @@ jobs:
           cd subsystems
           for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -40,6 +41,7 @@ jobs:
           cd subsystems
           for i in $(ls dag/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -53,6 +55,7 @@ jobs:
           cd subsystems
           for i in $(ls dpr/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -66,6 +69,7 @@ jobs:
           cd subsystems
           for i in $(ls eou/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -79,6 +83,7 @@ jobs:
           cd subsystems
           for i in $(ls isu/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -92,6 +97,7 @@ jobs:
           cd subsystems
           for i in $(ls map/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -105,6 +111,7 @@ jobs:
           cd subsystems
           for i in $(ls ntf/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -118,6 +125,7 @@ jobs:
           cd subsystems
           for i in $(ls qcl/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -131,6 +139,7 @@ jobs:
           cd subsystems
           for i in $(ls rep/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -144,6 +153,7 @@ jobs:
           cd subsystems
           for i in $(ls sdi/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
 
@@ -157,5 +167,6 @@ jobs:
           cd subsystems
           for i in $(ls vid/tests/*py); do
             echo "*** running test suite: $i ***"
+            cd /opt/gaia_tsf/docker
             docker compose run pgstacdb python3 -m pytest -v $i
           done
