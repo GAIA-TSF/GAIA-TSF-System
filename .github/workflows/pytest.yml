@@ -174,7 +174,7 @@ jobs:
       - name: Run SDI test suite
         run: |
           for i in $(docker exec pgstacdb sh -c "ls sdi/tests/*py"); do
-            docker exec pgstacdb ""python3 -m pytest -v $i"
+            docker exec pgstacdb "python3 -m pytest -v $i"
           done
 
   vid:
