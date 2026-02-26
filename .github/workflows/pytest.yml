@@ -22,16 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls ale/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   dag:
@@ -39,16 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls dag/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   dpr:
@@ -56,16 +48,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls dpr/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   eou:
@@ -73,16 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls eou/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   isu:
@@ -90,16 +74,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls isu/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   map:
@@ -107,16 +87,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls map/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   ntf:
@@ -124,16 +100,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls ntf/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   qcl:
@@ -141,16 +113,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls qcl/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   rep:
@@ -158,16 +126,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls rep/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   sdi:
@@ -175,16 +139,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run SDI test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls sdi/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
 
   vid:
@@ -192,14 +152,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Build docker
-        run: |
-          cd docker
-          docker compose up --build --detach
-
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb sh -c "ls vid/tests/*py"); do
+          cd subsystems
+          for i in $(ls ale/tests/*py); do
             echo "*** running test suite: $i ***"
-            docker exec pgstacdb python3 -m pytest -v $i
+            docker compose run pgstacdb python3 -m pytest -v $i
           done
