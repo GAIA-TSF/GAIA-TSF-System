@@ -51,7 +51,8 @@ services:
     networks:
       - gaia_net
     depends_on:
-      - localstack
+      localstack:
+        condition: service_healthy
 
   localstack:
     image: localstack/localstack:4.13.0
@@ -75,7 +76,8 @@ services:
     container_name: stacapi
     restart: unless-stopped
     depends_on:
-      - pgstacdb
+      pgstacdb:
+        condition: service_healthy
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
