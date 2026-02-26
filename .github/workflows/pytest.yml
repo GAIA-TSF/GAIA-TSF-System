@@ -29,8 +29,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls ale/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls ale/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   dag:
@@ -45,8 +45,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls dag/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls dag/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   dpr:
@@ -61,8 +61,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls dpr/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls dpr/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   eou:
@@ -77,13 +77,13 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          echo $(ls)
-          echo $(docker exec pgstacdb ls)
-          echo $(docker exec pgstacdb ls eou)
-          echo $(docker exec pgstacdb ls eou/tests)
-          echo $(docker exec pgstacdb ls eou/tests/*py)
-          for i in $(docker exec pgstacdb ls eou/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          echo $(sh -c "ls)
+          echo $(docker exec pgstacdb sh -c "ls)
+          echo $(docker exec pgstacdb sh -c "ls eou)
+          echo $(docker exec pgstacdb sh -c "ls eou/tests)
+          echo $(docker exec pgstacdb sh -c "ls eou/tests/*py")
+          for i in $(docker exec pgstacdb sh -c "ls eou/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   isu:
@@ -98,8 +98,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls isu/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls isu/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   map:
@@ -114,8 +114,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls map/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls map/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   ntf:
@@ -130,8 +130,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls ntf/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls ntf/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   qcl:
@@ -146,8 +146,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls qcl/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls qcl/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   rep:
@@ -162,8 +162,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls rep/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls rep/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   sdi:
@@ -178,8 +178,8 @@ jobs:
 
       - name: Run SDI test suite
         run: |
-          for i in $(docker exec pgstacdb ls sdi/tests/*py); do
-            docker exec pgstacdb "python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls sdi/tests/*py"); do
+            docker exec pgstacdb "python3 -m pytest -v $i
           done
 
   vid:
@@ -194,6 +194,6 @@ jobs:
 
       - name: Run EOU test suite
         run: |
-          for i in $(docker exec pgstacdb ls vid/tests/*py); do
-            docker exec pgstacdb python3 -m pytest -v $i"
+          for i in $(docker exec pgstacdb sh -c "ls vid/tests/*py"); do
+            docker exec pgstacdb python3 -m pytest -v $i
           done
