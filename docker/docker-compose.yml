@@ -53,6 +53,8 @@ services:
     depends_on:
       localstack:
         condition: service_healthy
+    links:
+      - localstack
 
   localstack:
     image: localstack/localstack:4.13.0
@@ -78,6 +80,8 @@ services:
     depends_on:
       pgstacdb:
         condition: service_healthy
+    links:
+      - pgstacdb
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
