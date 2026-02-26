@@ -49,9 +49,7 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         with open(
-            Path(__file__).parent.parent.parent
-            / 'eou'
-            / 'tests'
+            Path(__file__).parent
             / 'sample_data'
             / 'ENMAP01_sample.json',
             'r',
