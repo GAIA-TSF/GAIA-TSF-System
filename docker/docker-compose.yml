@@ -28,6 +28,9 @@ services:
       LOCALSTACK: "1"
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+    resources:
+      limits:
+        memory: 5g
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 5s
