@@ -17,14 +17,8 @@ on:
       - "!**.md"
 
 jobs:
-  docker:
-    name: build docker and run tests
-
+  ale:
     runs-on: ubuntu-24.04
-
-    strategy:
-      fail-fast: false
-
     steps:
       - uses: actions/checkout@v6
 
@@ -33,31 +27,168 @@ jobs:
           cd docker
           docker compose up --build --detach
 
-  eou:
-    needs: docker
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/ale/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
 
+  dag:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
-          echo $(ls)
-          echo $(docker ps)
-          echo "***"
+          for i in $(ls subsystems/dag/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  dpr:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/dpr/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  eou:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
           for i in $(ls subsystems/eou/tests/*py); do
             docker exec pgstacdb python3 -m pytest -v $i"
           done
 
-  sdi:
-    needs: docker
-
+  isu:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/isu/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  map:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/map/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  ntf:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/ntf/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  qcl:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/qcl/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  rep:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/rep/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
+          done
+
+  sdi:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run SDI test suite
         run: |
           for i in $(ls subsystems/sdi/tests/*py); do
-            docker exec "python3 -m pytest -v $i"
+            docker exec pgstacdb "python3 -m pytest -v $i"
+          done
+
+  vid:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
+      - name: Run EOU test suite
+        run: |
+          for i in $(ls subsystems/vid/tests/*py); do
+            docker exec pgstacdb python3 -m pytest -v $i"
           done
