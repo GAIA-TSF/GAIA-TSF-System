@@ -30,7 +30,7 @@ jobs:
       - name: Run ALE test suite
         run: |
           cd subsystems
-          for i in $(ls ale/tests/*py); do
+          for i in $(ls ale/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -49,7 +49,7 @@ jobs:
       - name: Run DAG test suite
         run: |
           cd subsystems
-          for i in $(ls dag/tests/*py); do
+          for i in $(ls dag/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -68,7 +68,7 @@ jobs:
       - name: Run DPR test suite
         run: |
           cd subsystems
-          for i in $(ls dpr/tests/*py); do
+          for i in $(ls dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -87,7 +87,7 @@ jobs:
       - name: Run EOU test suite
         run: |
           cd subsystems
-          for i in $(ls eou/tests/*py); do
+          for i in $(ls eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -106,7 +106,7 @@ jobs:
       - name: Run ISU test suite
         run: |
           cd subsystems
-          for i in $(ls isu/tests/*py); do
+          for i in $(ls isu/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -125,7 +125,7 @@ jobs:
       - name: Run MAP test suite
         run: |
           cd subsystems
-          for i in $(ls map/tests/*py); do
+          for i in $(ls map/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -144,7 +144,7 @@ jobs:
       - name: Run NTF test suite
         run: |
           cd subsystems
-          for i in $(ls ntf/tests/*py); do
+          for i in $(ls ntf/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -163,7 +163,7 @@ jobs:
       - name: Run QCL test suite
         run: |
           cd subsystems
-          for i in $(ls qcl/tests/*py); do
+          for i in $(ls qcl/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -182,7 +182,7 @@ jobs:
       - name: Run REP test suite
         run: |
           cd subsystems
-          for i in $(ls rep/tests/*py); do
+          for i in $(ls rep/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -201,7 +201,7 @@ jobs:
       - name: Run SDI test suite
         run: |
           cd subsystems
-          for i in $(ls sdi/tests/*py); do
+          for i in $(ls sdi/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
@@ -220,7 +220,7 @@ jobs:
       - name: Run VID test suite
         run: |
           cd subsystems
-          for i in $(ls vid/tests/*py); do
+          for i in $(ls vid/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
             docker compose run pgstacdb python3 -m pytest -v $i
