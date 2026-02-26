@@ -32,6 +32,7 @@ services:
       resources:
         limits:
           memory: 100G
+          oom_kill_disable: true
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 5s
