@@ -204,7 +204,7 @@ jobs:
           for i in $(ls sdi/tests/*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose run pgstacdb python3 -m pytest -v $i
+            docker exec pgstacdb python3 -m pytest -v $i
           done
 
   vid:
