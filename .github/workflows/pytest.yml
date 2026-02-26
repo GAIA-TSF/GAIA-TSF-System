@@ -22,6 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
           cd subsystems
@@ -35,6 +40,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
 
       - name: Run EOU test suite
         run: |
@@ -50,6 +60,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
           cd subsystems
@@ -63,6 +78,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
 
       - name: Run EOU test suite
         run: |
@@ -78,6 +98,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
           cd subsystems
@@ -91,6 +116,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
 
       - name: Run EOU test suite
         run: |
@@ -106,6 +136,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
           cd subsystems
@@ -119,6 +154,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
 
       - name: Run EOU test suite
         run: |
@@ -134,6 +174,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run EOU test suite
         run: |
           cd subsystems
@@ -148,6 +193,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
+
       - name: Run SDI test suite
         run: |
           cd subsystems
@@ -161,6 +211,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --detach
 
       - name: Run EOU test suite
         run: |
