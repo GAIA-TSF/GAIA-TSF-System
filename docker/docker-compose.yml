@@ -20,7 +20,6 @@ services:
       - "6432:5432"
     networks:
       - gaia_net
-      - host
   pgstacdb:
     build:
       context: .
@@ -51,7 +50,6 @@ services:
       - ../subsystems:/opt/gaia_tsf
     networks:
       - gaia_net
-      - host
     depends_on:
       - localstack
 
@@ -69,7 +67,6 @@ services:
       retries: 5
     networks:
       - gaia_net
-      - host
 
   stacapi:
     build:
@@ -97,7 +94,6 @@ services:
       - "9080:8000"
     networks:
       - gaia_net
-      - host
 
 volumes:
   pgstac_data:
