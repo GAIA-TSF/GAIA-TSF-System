@@ -58,9 +58,7 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         with open(
-            Path(__file__).parent
-            / 'sample_data'
-            / 'ENMAP01_sample.json',
+            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
             'r',
         ) as f:
             json_dict = json.load(f)
