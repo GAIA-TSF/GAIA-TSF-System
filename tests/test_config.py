@@ -23,9 +23,7 @@ class TestConfig:
             Path(__file__).parent / 'projects' / 'jagersfontein.yml'
         )
         del config['project']['name']
-        config.validate(
-            dict(config)
-        )  # re-validate config after modification
+        config.validate(dict(config))  # re-validate config after modification
         assert config.is_valid() is False
 
         # make WKT invalid
@@ -33,7 +31,5 @@ class TestConfig:
             Path(__file__).parent / 'projects' / 'jagersfontein.yml'
         )
         config['project']['aoi']['geom'] = 'X'
-        config.validate(
-            dict(config)
-        )  # re-validate config after modification
+        config.validate(dict(config))  # re-validate config after modification
         assert config.is_valid() is False
