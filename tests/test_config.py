@@ -23,7 +23,7 @@ class TestConfig:
             Path(__file__).parent / 'projects' / 'jagersfontein.yml'
         )
         del config['project']['name']
-        config.errors = config.validate(
+        config.validate(
             dict(config)
         )  # re-validate config after modification
         assert config.is_valid() is False
@@ -33,7 +33,7 @@ class TestConfig:
             Path(__file__).parent / 'projects' / 'jagersfontein.yml'
         )
         config['project']['aoi']['geom'] = 'X'
-        config.errors = config.validate(
+        config.validate(
             dict(config)
         )  # re-validate config after modification
         assert config.is_valid() is False
