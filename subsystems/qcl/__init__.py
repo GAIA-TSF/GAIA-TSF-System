@@ -1,7 +1,6 @@
 from typing import Any, Dict
-from .logger import Logger
+from .logger import Logger as Logger
 
-# Import the main class from the core layer module
 from .layer import QualityControlLoggingLayer 
 
 class QCLayer:
