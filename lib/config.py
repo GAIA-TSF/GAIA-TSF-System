@@ -146,8 +146,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
     def __init__(self, config_path: str):
         """Initialize project config reader.
 
-        If required option is not defined than GAIA-TSF exception is
-        raised.
+        Validity may be checked by is_valid() method.
 
         :param str config_path: path to config file
         """
