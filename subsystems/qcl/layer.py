@@ -43,7 +43,9 @@ class QcMetrics:
     def compute_in_situ_metrics(self, df: Any) -> Dict[str, float]:
         """Computes basic quality metrics for in-situ DataFrames."""
         return {
-            'missing_values_pct': float(df.isnull().sum().sum() / df.size) if df.size > 0 else 0.0,
+            'missing_values_pct': float(df.isnull().sum().sum() / df.size)
+            if df.size > 0
+            else 0.0,
         }
 
     def compute_eo_metrics(self, metadata: Dict[str, Any]) -> Dict[str, float]:
@@ -56,7 +58,7 @@ class QcMetrics:
 
 class DataLineageLogger:
     """
-    Records all applied rules, transformations, filters, and QC actions to ensure 
+    Records all applied rules, transformations, filters, and QC actions to ensure
     auditability and compliance with SDI standards.
     """
 
@@ -70,9 +72,7 @@ class DataLineageLogger:
             'actions': actions,
             'status': status,
         }
-        self._logger.info(
-            f'[QC DB LOG] Lineage recorded: {json.dumps(log_entry)}'
-        )
+        self._logger.info(f'[QC DB LOG] Lineage recorded: {json.dumps(log_entry)}')
 
 
 class ErrorNotification:
@@ -103,10 +103,14 @@ class InSituQualityController:
         self, df: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Tuple[str, Dict[str, float], List[str], List[str]]:
         self._logger.info(f'Starting in-situ validation for {dataset_id}')
-        
+
         status = 'Pass'
         errors = []
-        actions_applied = ['Missing Values Check', 'Unique ID Check', 'Physical Range Check']
+        actions_applied = [
+            'Missing Values Check',
+            'Unique ID Check',
+            'Physical Range Check',
+        ]
 
         # 1. Check Unique ID
         if self._rules.get('require_unique_id') and df.index.duplicated().any():
@@ -138,10 +142,15 @@ class EoRasterQualityController:
         self, data_array: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Tuple[str, Dict[str, float], List[str], List[str]]:
         self._logger.info(f'Starting EO raster validation for {dataset_id}')
-        
+
         status = 'Pass'
         errors = []
-        actions_applied = ['Null Pixel Check', 'Geometric Alignment Check', 'Metadata Completeness', 'SNR Check']
+        actions_applied = [
+            'Null Pixel Check',
+            'Geometric Alignment Check',
+            'Metadata Completeness',
+            'SNR Check',
+        ]
 
         # 1. Null Pixel Check
         null_pct = metadata.get('null_pixel_pct', 0)
@@ -150,7 +159,9 @@ class EoRasterQualityController:
             errors.append(f'Null pixels ({null_pct}) exceed 2% limit.')
 
         # 2. Geometric Alignment Check
-        if self._rules.get('require_geo_alignment') and not metadata.get('is_geometrically_aligned', False):
+        if self._rules.get('require_geo_alignment') and not metadata.get(
+            'is_geometrically_aligned', False
+        ):
             status = 'Fail'
             errors.append('Geometric alignment validation failed.')
 
@@ -188,18 +199,16 @@ class QcCatalog:
         self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Tuple[str, Dict[str, float], List[str], List[str]]:
         if data_type in self._controllers:
-            return self._controllers[data_type].validate(
-                data, metadata, dataset_id
-            )
-        
+            return self._controllers[data_type].validate(data, metadata, dataset_id)
+
         self._logger.error(f'No QC Controller found for {data_type}')
         raise ValueError(f'No QC Controller found for {data_type}')
 
 
 class QualityControlLoggingLayer:
     """
-    The Quality Control Layer serves as the critical validation gatekeeper within 
-    the GAIA-TSF monitoring architecture, situated between the ingestion/ETL 
+    The Quality Control Layer serves as the critical validation gatekeeper within
+    the GAIA-TSF monitoring architecture, situated between the ingestion/ETL
     processes and the Spatial Data Infrastructure (SDI) storage.
     """
 
@@ -232,7 +241,7 @@ class QualityControlLoggingLayer:
     ) -> Dict[str, Any]:
         """Automated Validation Mode."""
         self.logger.info(f'Processing incoming data {dataset_id} of type {data_type}')
-        
+
         # Route to appropriate controller
         status, metrics, errors, actions = self._catalog.route_and_validate(
             data_type, data, metadata, dataset_id
@@ -252,13 +261,17 @@ class QualityControlLoggingLayer:
             'errors': errors,
         }
 
-    def manual_review(self, dataset_id: str, action: str, new_status: str = None) -> str:
+    def manual_review(
+        self, dataset_id: str, action: str, new_status: str = None
+    ) -> str:
         """
-        Manual Review Interface allowing data managers to inspect, override, 
+        Manual Review Interface allowing data managers to inspect, override,
         or re-run QC checks.
         """
-        self.logger.info(f'Manual review triggered for {dataset_id} with action: {action}')
-        
+        self.logger.info(
+            f'Manual review triggered for {dataset_id} with action: {action}'
+        )
+
         if action == 'inspect':
             return f'Inspecting logs for {dataset_id}...'
         elif action == 'override' and new_status:
@@ -271,6 +284,6 @@ class QualityControlLoggingLayer:
                 dataset_id, ['Manual QC Re-run Triggered'], 'Pending'
             )
             return f'Re-running QC pipeline for {dataset_id}...'
-        
+
         self.logger.warning(f'Invalid manual review action provided: {action}')
         return 'Invalid manual review action.'
