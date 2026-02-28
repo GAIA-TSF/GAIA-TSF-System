@@ -23,7 +23,7 @@ class TestSubsystem:
         """
         Mock the QCL Logger class.
         """
-        with patch('subsystems.isu.Logger') as mock_cls:
+        with patch('isu.Logger') as mock_cls:
             # Configure the mock instance that will be returned
             mock_instance = mock_cls.return_value
             yield mock_instance
