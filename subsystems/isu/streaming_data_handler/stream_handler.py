@@ -98,7 +98,9 @@ class KafkaStreamHandler:
                             topic=message.topic,
                         )
             except Exception as e:
-                self.logger.error(f'Error during streaming consumption: {str(e)}', exc_info=True)
+                self.logger.error(
+                    f'Error during streaming consumption: {str(e)}', exc_info=True
+                )
                 time.sleep(1)
 
     def stop(self) -> None:
@@ -129,14 +131,14 @@ class KafkaStreamHandler:
         :rtype: None
         """
         dataset_id = f'stream_{uuid.uuid4().hex[:8]}'
-        
+
         self.logger.info(
             f'Ingesting stream data | Source: {topic} | Mode: Streaming | ID: {dataset_id}'
         )
 
         try:
             df = pd.DataFrame([payload])
-            
+
             sensor_type = payload.get('sensor_type', 'unknown')
             data_type = 'in_situ'
 
@@ -159,7 +161,7 @@ class KafkaStreamHandler:
                     f'Data {dataset_id} failed QC. Errors: {qc_result["errors"]}. Dropping payload.'
                 )
                 return
-            
+
             self.etl_callback(
                 df=df,
                 metadata=metadata,
@@ -168,4 +170,6 @@ class KafkaStreamHandler:
             self.logger.info(f'Data {dataset_id} passed QC and routed to ETL.')
 
         except Exception as e:
-            self.logger.error(f'Failed to process stream payload {dataset_id}: {str(e)}')
+            self.logger.error(
+                f'Failed to process stream payload {dataset_id}: {str(e)}'
+            )

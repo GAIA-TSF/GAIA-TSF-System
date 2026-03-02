@@ -36,7 +36,7 @@ class StreamingDataHandler:
         self.logger = logger
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback
-        
+
         self._stream_processor = KafkaStreamHandler(
             broker=broker,
             topics=topics,
@@ -75,8 +75,8 @@ class StreamingDataHandler:
         """
         self.logger.info('Stopping StreamingDataHandler...')
         self._stream_processor.stop()
-        
+
         if self._thread:
             self._thread.join(timeout=3.0)
-            
+
         self.logger.info('StreamingDataHandler successfully stopped.')
