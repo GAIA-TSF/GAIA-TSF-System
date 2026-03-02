@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-subsystems_path = str(Path(__file__).parent.parent / "subsystems")
+subsystems_path = str(Path(__file__).parent.parent / 'subsystems')
 
 if subsystems_path not in sys.path:
     sys.path.insert(0, subsystems_path)
@@ -15,10 +15,10 @@ from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 def load_geom_from_wkt(wkt_string: str) -> list[float]:
     geom = ogr.CreateGeometryFromWkt(wkt_string)
     if geom is None:
-        raise RuntimeError("Invalid WKT geometry")
+        raise RuntimeError('Invalid WKT geometry')
 
     if not geom.IsValid():
-        raise RuntimeError("Geometry is not valid")
+        raise RuntimeError('Geometry is not valid')
 
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
@@ -27,8 +27,8 @@ def load_geom_from_wkt(wkt_string: str) -> list[float]:
     auth = srs.GetAuthorityName(None)
     code = srs.GetAuthorityCode(None)
 
-    if auth != "EPSG" or code != "4326":
-        raise RuntimeError(f"Unsupported CRS: {auth}:{code}")
+    if auth != 'EPSG' or code != '4326':
+        raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
 
     lonmin, lonmax, latmin, latmax = geom.GetEnvelope()
 
@@ -48,11 +48,11 @@ class TestSentinel1Workflow:
             Path(__file__).parent / 'projects' / 'jagersfontein.yml'
         )
 
-        assert "POLYGON" in config["project"]["aoi"]["geom"]
+        assert 'POLYGON' in config['project']['aoi']['geom']
 
         module = DataAcquisitionGateway()
         results = module.search(
-            geom=load_geom_from_wkt(config["project"]["aoi"]["geom"]),
+            geom=load_geom_from_wkt(config['project']['aoi']['geom']),
             **self.search_filter,
         )
 
