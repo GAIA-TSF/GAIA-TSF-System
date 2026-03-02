@@ -52,7 +52,7 @@ def plot_results(time, obs, pred, std, mon):
     ax2.plot(time, mon["threshold"], "--", color="black", label="Threshold")
 
     _draw_monitoring_regions(ax2, time, mon)
-
+    
     ax2.set_title("Anomaly magnitude")
     ax2.legend(loc="upper left")
 
@@ -61,13 +61,33 @@ def plot_results(time, obs, pred, std, mon):
     ax3 = plt.subplot(3,1,3)
 
     # Align detector index with time axis
-    cusum_time = time[:len(mon["S"])]
+    # acceleration / decelerration / oscillation 
+    # cusum_time = time[:len(mon["S_acc"])]
+    start = mon["monitor_start"]
+    
+    # CUSUM already aligned to full timeline
+    ax3.plot(time, mon["S_acc"], color="red", label="Acceleration CUSUM")
+    ax3.plot(time, mon["S_dec"], color="green", label="Deceleration CUSUM")
 
-    ax3.plot(cusum_time, mon["S"], color="purple", label="CUSUM")
-    ax3.axhline(mon["h"], linestyle="--", color="black", label="CUSUM limit")
+    ax3.scatter(
+        time[mon["alarm_acc"]],
+        mon["S_acc"][mon["alarm_acc"]],
+        color="red",
+    )
 
-    alarm_idx = np.where(mon["alarms"])[0]
-    ax3.scatter(cusum_time[alarm_idx], mon["S"][alarm_idx], color="red", label="Alarm")
+    ax3.scatter(
+        time[mon["alarm_dec"]],
+        mon["S_dec"][mon["alarm_dec"]],
+        color="green",
+    )
+
+    if "alarm_osc" in mon:
+        ax3.scatter(
+            time[mon["alarm_osc"]],
+            mon["S_acc"][mon["alarm_osc"]],
+            color="orange",
+            label="Oscillation",
+        )
 
     _draw_monitoring_regions(ax3, time, mon)
 

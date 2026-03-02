@@ -28,9 +28,9 @@ dataset:
 
 monitoring: 
   # warmup = warmup_factor × look_back 
-  warmup_factor: 4  # multiples of model memory
+  warmup_factor: 2  # multiples of model memory
   # fraction of series used to learn normal behaviour  
-  calibration_fraction: 0.25   
+  calibration_fraction: 0.4   
   # minimum consecutive exceedances
   persistence: 3          
   # false = baseline residual threshold 
