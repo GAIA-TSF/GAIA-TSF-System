@@ -1,15 +1,18 @@
 import sys
 from pathlib import Path
 
-subsystems_path = str(Path(__file__).parent.parent / 'subsystems')
+subsystems_path = str(Path(__file__).resolve().parent.parent.parent)
 
 if subsystems_path not in sys.path:
     sys.path.insert(0, subsystems_path)
 
-from osgeo import ogr, osr
+root_path = str(Path(__file__).resolve().parent.parent.parent.parent)
+if root_path not in sys.path:
+    sys.path.append(root_path)
 
+from osgeo import ogr, osr
 from lib.config import ProjectConfigReader
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
+from eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
 def load_geom_from_wkt(wkt_string: str) -> list[float]:
@@ -45,7 +48,7 @@ class TestSentinel1Workflow:
 
     def test_download(self):
         config = ProjectConfigReader(
-            Path(__file__).parent / 'projects' / 'jagersfontein.yml'
+            str(Path(__file__).parent.parent.parent.parent / 'tests' / 'projects' / 'jagersfontein.yml')
         )
 
         assert 'POLYGON' in config['project']['aoi']['geom']
@@ -58,9 +61,16 @@ class TestSentinel1Workflow:
 
         assert len(results) > 0
 
-        config_eodag = 'subsystems/eou/tests/eodag_config.yml'
-
+        config_eodag = str(Path(__file__).parent.parent.parent / 'eou' / 'tests' / 'eodag_config.yml')
         module.set_config(config_eodag)
-        ql_path = module.download(results[0], quicklook=True)
 
-        assert Path(ql_path).exists()
+        ql_path = None
+
+        try:
+            ql_path = module.download(results[0], quicklook=True)
+
+            assert Path(ql_path).exists()
+
+        finally:
+            if ql_path and Path(ql_path).exists():
+                Path(ql_path).unlink()
