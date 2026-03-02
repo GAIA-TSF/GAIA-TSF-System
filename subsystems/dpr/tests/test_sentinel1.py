@@ -48,7 +48,12 @@ class TestSentinel1Workflow:
 
     def test_download(self):
         config = ProjectConfigReader(
-            str(Path(__file__).parent.parent.parent.parent / 'tests' / 'projects' / 'jagersfontein.yml')
+            str(
+                Path(__file__).parent.parent.parent.parent
+                / 'tests'
+                / 'projects'
+                / 'jagersfontein.yml'
+            )
         )
 
         assert 'POLYGON' in config['project']['aoi']['geom']
@@ -61,7 +66,9 @@ class TestSentinel1Workflow:
 
         assert len(results) > 0
 
-        config_eodag = str(Path(__file__).parent.parent.parent / 'eou' / 'tests' / 'eodag_config.yml')
+        config_eodag = str(
+            Path(__file__).parent.parent.parent / 'eou' / 'tests' / 'eodag_config.yml'
+        )
         module.set_config(config_eodag)
 
         ql_path = None
