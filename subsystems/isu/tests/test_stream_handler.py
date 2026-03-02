@@ -143,10 +143,10 @@ class TestKafkaStreamHandler:
 
         # Assert QC check was called
         mock_qc_layer.check.assert_called_once()
-        
+
         # Assert ETL callback was executed since QC passed
         mock_etl_callback.assert_called_once()
-        
+
         # Verify the DataFrame argument passed to the ETL callback
         args, kwargs = mock_etl_callback.call_args
         passed_df = kwargs['df'] if 'df' in kwargs else args[0]
@@ -200,7 +200,7 @@ class TestKafkaStreamHandler:
 
         # Assert QC check was called
         mock_qc_layer.check.assert_called_once()
-        
+
         # Assert ETL callback was NEVER called because QC failed
         mock_etl_callback.assert_not_called()
         mock_logger.warning.assert_called()
@@ -211,7 +211,9 @@ class TestStreamingDataHandler:
     Test suite for the StreamingDataHandler facade class.
     """
 
-    @patch('isu.streaming_data_handler.stream_handler.KafkaStreamHandler.start_consuming')
+    @patch(
+        'isu.streaming_data_handler.stream_handler.KafkaStreamHandler.start_consuming'
+    )
     @patch('isu.streaming_data_handler.stream_handler.KafkaConsumer')
     def test_start_and_stop(
         self,
@@ -251,7 +253,7 @@ class TestStreamingDataHandler:
 
         # Start the facade
         handler.start()
-        
+
         # Verify thread was created and started
         assert handler._thread is not None
         assert handler._thread.is_alive() is True
@@ -259,6 +261,6 @@ class TestStreamingDataHandler:
 
         # Stop the facade
         handler.stop()
-        
+
         # Depending on timing, thread may still be joining, but stop logic should execute
         mock_logger.info.assert_any_call('Stopping StreamingDataHandler...')
