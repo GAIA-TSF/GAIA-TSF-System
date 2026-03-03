@@ -43,13 +43,14 @@ class TestSentinel1Workflow:
         )
         module.set_config(config_eodag)
 
-        ql_path = None
+        # TBD: store data based on configuration (projects.data_dir)
+        data_path = None
         try:
-            ql_path = module.download(results[0], quicklook=True)
-            assert Path(ql_path).exists()
+            data_path = module.download(results[0], quicklook=False)
+            assert Path(data_path).exists()
         finally:
-            if ql_path and Path(ql_path).exists():
-                Path(ql_path).unlink()
+            if data_path and Path(data_path).exists():
+                Path(data_path).unlink()
 
     def test_run_workflow(self):
         module = PreprocessingPipelines()
