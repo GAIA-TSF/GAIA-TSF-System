@@ -41,6 +41,7 @@ services:
       - gaia_net
     depends_on:
       - localstack
+    command: tail -F anything
 
   localstack:
     image: localstack/localstack:4.13.0
