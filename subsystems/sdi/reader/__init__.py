@@ -7,15 +7,16 @@ from qcl.logger import Logger
 
 STAC_URL = 'http://stacapi:8000'
 
-class SdiReader:
 
+class SdiReader:
     def __init__(self):
         """Simple SDI client for searching and downloading assets."""
         self.id = 'SDI'
         self.logger = Logger(subsystem=self.id)
 
-
-    def search_assets(self, query_string: str, asset_name: Optional[str] = None) -> List[Dict]:
+    def search_assets(
+        self, query_string: str, asset_name: Optional[str] = None
+    ) -> List[Dict]:
         """
         Perform a STAC search request and return a list of matching assets.
 
@@ -26,19 +27,19 @@ class SdiReader:
                            If None, all assets from matching items are returned.
         :return: List of asset dictionaries (each containing at least 'href' and metadata).
         """
-        search_url = f"{STAC_URL}/search?{query_string}"
+        search_url = f'{STAC_URL}/search?{query_string}'
 
         response = requests.post(search_url, json={})
         response.raise_for_status()
 
-        features = response.json().get("features", [])
+        features = response.json().get('features', [])
         if not features:
             return []
 
         results = []
 
         for item in features:
-            assets = item.get("assets", {})
+            assets = item.get('assets', {})
             if asset_name:
                 # Return only the specified asset if it exists
                 if asset_name in assets:
@@ -63,7 +64,7 @@ class SdiReader:
         tmp_path = Path(tmp_file.name)
 
         # Stream download to avoid loading the whole file into memory
-        with open(tmp_path, "wb") as f:
+        with open(tmp_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)

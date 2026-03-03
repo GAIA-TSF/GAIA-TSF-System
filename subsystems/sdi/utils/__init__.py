@@ -1,8 +1,8 @@
 import hashlib
 from qcl.logger import Logger
 
-class SdiUtils:
 
+class SdiUtils:
     def __init__(self):
         """Simple SDI client for searching and downloading assets."""
         self.id = 'SDI'
