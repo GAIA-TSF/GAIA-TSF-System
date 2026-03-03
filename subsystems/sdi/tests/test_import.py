@@ -6,6 +6,7 @@ from sdi.loader import InSituDataLoader
 from sdi.loader import EarthObservationDataLoader
 from sdi.utils import SdiUtils
 
+
 class TestInSituDataLoader:
     def test_import(self):
         base_dir = Path(__file__).parent
