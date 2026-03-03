@@ -1,21 +1,20 @@
 import sys
 from pathlib import Path
 
-subsystems_path = str(Path(__file__).resolve().parent.parent.parent)
-
-if subsystems_path not in sys.path:
-    sys.path.insert(0, subsystems_path)
-
-root_path = str(Path(__file__).resolve().parent.parent.parent.parent)
-if root_path not in sys.path:
-    sys.path.append(root_path)
-
 from osgeo import ogr, osr
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
 def load_geom_from_wkt(wkt_string: str) -> list[float]:
+    """Get extent from WKT.
+
+    :param str wkt_string: WKT string to be parsed
+
+    :return list[float]: extent
+    """
     geom = ogr.CreateGeometryFromWkt(wkt_string)
     if geom is None:
         raise RuntimeError('Invalid WKT geometry')
@@ -47,6 +46,8 @@ class TestSentinel1Workflow:
     }
 
     def test_download(self):
+        """Test EOU Data Acquisition Gateway to download Sentinel-1 data.
+        """
         config = ProjectConfigReader(
             str(
                 Path(__file__).parent.parent.parent.parent
@@ -72,10 +73,8 @@ class TestSentinel1Workflow:
         module.set_config(config_eodag)
 
         ql_path = None
-
         try:
             ql_path = module.download(results[0], quicklook=True)
-
             assert Path(ql_path).exists()
 
         finally:
