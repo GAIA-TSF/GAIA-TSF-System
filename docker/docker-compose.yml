@@ -63,8 +63,8 @@ services:
     environment:
       - SERVICES=s3
       - DEBUG=1
-      - POSTGRES_USER=stac
-      - POSTGRES_PASSWORD=stac
+    #   - POSTGRES_USER=stac
+    #   - POSTGRES_PASSWORD=stac
     # healthcheck:
     #   test: [ "CMD-SHELL", "pg_isready -U stac" ]
     #   interval: 10s
@@ -80,9 +80,9 @@ services:
     container_name: stacapi
     restart: unless-stopped
     depends_on:
-      pgstacdb:
-        condition: service_healthy
-    links:
+    #   pgstacdb:
+    #     condition: service_healthy
+    # links:
       - pgstacdb
     environment:
       # Connect to pgstac
@@ -93,11 +93,11 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DBNAME: stac
       DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U stac" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+    # healthcheck:
+    #   test: [ "CMD-SHELL", "pg_isready -U stac" ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 10
     ports:
       - "9080:8000"
     networks:
