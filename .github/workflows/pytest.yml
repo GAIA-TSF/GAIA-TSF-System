@@ -85,8 +85,11 @@ jobs:
           docker compose up --detach
 
       - name: Run EOU test suite
+        env:
+          CDSE: ${{secrets.CDSE}}
         run: |
           cd subsystems
+          echo $CDSE > eou/tests/eodag_config.yml
           for i in $(ls eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
