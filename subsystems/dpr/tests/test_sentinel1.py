@@ -55,6 +55,6 @@ class TestSentinel1Workflow:
         module = PreprocessingPipelines()
         # TBD: propapage project configuration file
         pipeline = module.pipeline['sentinel1']
-        pipeline.run() # TBD: to be implemented
+        pipeline.run()  # TBD: to be implemented
 
         # TBD: check results
