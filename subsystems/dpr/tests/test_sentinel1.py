@@ -8,35 +8,6 @@ from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
-def load_geom_from_wkt(wkt_string: str) -> list[float]:
-    """Get extent from WKT.
-
-    :param str wkt_string: WKT string to be parsed
-
-    :return list[float]: extent
-    """
-    geom = ogr.CreateGeometryFromWkt(wkt_string)
-    if geom is None:
-        raise RuntimeError('Invalid WKT geometry')
-
-    if not geom.IsValid():
-        raise RuntimeError('Geometry is not valid')
-
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    geom.AssignSpatialReference(srs)
-    srs.AutoIdentifyEPSG()
-    auth = srs.GetAuthorityName(None)
-    code = srs.GetAuthorityCode(None)
-
-    if auth != 'EPSG' or code != '4326':
-        raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
-
-    lonmin, lonmax, latmin, latmax = geom.GetEnvelope()
-
-    return [lonmin, latmin, lonmax, latmax]
-
-
 class TestSentinel1Workflow:
     search_filter = {
         'provider': 'cop_dataspace',
@@ -57,11 +28,11 @@ class TestSentinel1Workflow:
             )
         )
 
-        assert 'POLYGON' in config['project']['aoi']['geom']
+        assert config.is_valid() is True
 
         module = DataAcquisitionGateway()
         results = module.search(
-            geom=load_geom_from_wkt(config['project']['aoi']['geom']),
+            geom=config['project']['aoi']['geom'],
             **self.search_filter,
         )
 
@@ -76,7 +47,6 @@ class TestSentinel1Workflow:
         try:
             ql_path = module.download(results[0], quicklook=True)
             assert Path(ql_path).exists()
-
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
