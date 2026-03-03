@@ -17,10 +17,16 @@ def load_geom(file_path):
     code = srs.GetAuthorityCode(None)
     if auth != 'EPSG' or code != '4326':
         raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
-    lonmin, lonmax, latmin, latmax = layer.GetExtent()
+
+    feature = layer.GetNextFeature()
+    if feature is None:
+        ds = None
+        raise RuntimeError('No features found')
+
+    wkt = feature.GetGeometryRef().ExportToWkt()
     ds = None
 
-    return [lonmin, latmin, lonmax, latmax]
+    return wkt
 
 
 class TestModules:
@@ -84,11 +90,15 @@ class TestModules:
         assert len(results) > 0
 
         module.set_config(config_file)
-        ql_path = module.download(results[0], quicklook=True)
-
-        assert isinstance(ql_path, str)
-        assert Path(ql_path).exists()
-        assert Path(ql_path).stat().st_size > 0
+        ql_path = None
+        try:
+            ql_path = module.download(results[0], quicklook=True)
+            assert isinstance(ql_path, str)
+            assert Path(ql_path).exists()
+            assert Path(ql_path).stat().st_size > 0
+        finally:
+            if ql_path and Path(ql_path).exists():
+                Path(ql_path).unlink()
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
