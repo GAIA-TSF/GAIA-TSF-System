@@ -22,7 +22,7 @@ class PreprocessingPipelines:
         self._pipelines = {'sentinel1': Sentinel1Pipeline()}
 
     @property
-    def pipelines(self) -> Dict[str, Any]:
+    def metadata(self) -> Dict[str, Any]:
         """
         Get list of registered pipelines.
 
@@ -34,3 +34,7 @@ class PreprocessingPipelines:
             metadata[pid] = pipeline.metadata
 
         return metadata
+
+    @property
+    def pipeline(self):
+        return self._pipelines

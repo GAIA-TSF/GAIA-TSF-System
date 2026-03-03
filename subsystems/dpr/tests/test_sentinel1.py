@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
+from dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
 class TestSentinel1Workflow:
@@ -49,3 +50,11 @@ class TestSentinel1Workflow:
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
+
+    def test_run_workflow(self):
+        module = PreprocessingPipelines()
+        # TBD: propapage project configuration file
+        pipeline = module.pipeline['sentinel1']
+        pipeline.run() # TBD: to be implemented
+
+        # TBD: check results
