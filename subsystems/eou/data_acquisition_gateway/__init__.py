@@ -22,7 +22,7 @@ class DataAcquisitionGateway:
         self._backend = DataAcquisitionBackend()
 
     def search(
-        self, provider: str, start: str, end: str, geom: list[float], **kwargs
+        self, provider: str, start: str, end: str, geom: str, **kwargs
     ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using selected data acquisition
@@ -31,7 +31,7 @@ class DataAcquisitionGateway:
         :param str provider: the provider to be used
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filer
-        :param list(float) geom: a bounding box as list of float: [lonmin, latmin, lonmax, latmax]
+        :param str geom: geometry as WKT
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
