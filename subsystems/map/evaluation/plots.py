@@ -27,10 +27,10 @@ def _draw_monitoring_regions(ax, time, mon):
 
 def plot_results(time, obs, pred, std, mon):
 
-    plt.figure(figsize=(11, 8))
+    plt.figure(figsize=(11, 11))
 
     # ---------------- Prediction ----------------
-    ax1 = plt.subplot(3,1,1)
+    ax1 = plt.subplot(4,1,1)
 
     ax1.plot(time, obs, ".", color="black", label="Observed")
     ax1.plot(time, pred, ".", color="blue", label="Predicted")
@@ -46,7 +46,7 @@ def plot_results(time, obs, pred, std, mon):
 
 
     # ---------------- Residual ----------------
-    ax2 = plt.subplot(3,1,2)
+    ax2 = plt.subplot(4,1,2)
 
     ax2.plot(time, mon["D"], color="red", label="|Residual|")
     ax2.plot(time, mon["threshold"], "--", color="black", label="Threshold")
@@ -58,7 +58,7 @@ def plot_results(time, obs, pred, std, mon):
 
 
     # ---------------- CUSUM ----------------
-    ax3 = plt.subplot(3,1,3)
+    ax3 = plt.subplot(4,1,3)
 
     # Align detector index with time axis
     # acceleration / decelerration / oscillation 
@@ -88,11 +88,29 @@ def plot_results(time, obs, pred, std, mon):
             color="orange",
             label="Oscillation",
         )
-
+    
     _draw_monitoring_regions(ax3, time, mon)
 
     ax3.set_title("CUSUM early warning")
     ax3.legend(loc="upper left")
+
+    # ---------------- Bayesian risk ----------------
+    ax4 = plt.subplot(4,1,4)
+
+    if "risk" in mon:
+
+        ax4.plot(time, mon["cp_prob"], color="purple", alpha=0.5, label="Change probability")
+        ax4.plot(time, mon["risk"], color="magenta", linewidth=2, label="Smoothed risk")
+
+        # operational warning levels
+        ax4.axhline(0.3, color="orange", linestyle="--", linewidth=1, label="Medium risk")
+        ax4.axhline(0.6, color="red", linestyle="--", linewidth=1.5, label="High risk")
+
+    _draw_monitoring_regions(ax4, time, mon)
+
+    ax4.set_ylim(0, 1)
+    ax4.set_title("Bayesian regime change probability")
+    ax4.legend(loc="upper left")
 
     plt.tight_layout()
     plt.show()

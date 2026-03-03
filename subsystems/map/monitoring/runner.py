@@ -5,6 +5,22 @@ from subsystems.map.monitoring.calibration import calibrate_cusum
 from subsystems.map.monitoring.cusum import CUSUMDetector
 # from subsystems.map.monitoring.oscillation import OscillationDetector
 from subsystems.map.monitoring.regime import resolve_regime 
+from subsystems.map.monitoring.bayesian_cp import BayesianChangePointDetector 
+
+"""
+1.  Residual anomaly: Short-term magnitude violation
+
+2. CUSUM: Persistent directional instability
+
+3. Bayesian CP: Probabilistic regime shift detection 
+
+if risk > 0.6 and S_acc rising:
+    risk_level = HIGH
+elif risk > 0.3:
+    risk_level = MEDIUM
+else:
+    risk_level = LOW
+"""
 
 
 def _ema(signal, tau):
@@ -117,6 +133,7 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     warmup_end = max(warmup_end, filter_delay)
     calibration_end = max(calibration_end, warmup_end + 20) 
 
+    
     # --------------------------------------------
     # STEP 3 — acceleration innovation
     # this is the real failure precursor
@@ -207,6 +224,32 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     # also ignore pre-monitoring anomalies
     anomaly_mask[:calibration_end] = False
 
+    # --------------------------------------------
+    # BAYESIAN CHANGE POINT DETECTION
+    # --------------------------------------------
+    bocpd = BayesianChangePointDetector(hazard=1/50) 
+
+    # BOCPD works on mean shift → use signed acceleration
+    acc = np.gradient(vel_trend)
+
+    mu_a = np.mean(acc[warmup_end:calibration_end])
+    std_a = np.std(acc[warmup_end:calibration_end]) + 1e-6
+
+    acc_norm = (acc - mu_a) / std_a
+
+    cp_prob_monitor = bocpd.run(acc_norm[calibration_end:])
+
+    # smooth
+    risk_monitor = _ema(cp_prob_monitor, tau=20)
+
+    # allocate full timeline
+    cp_full = np.zeros_like(residuals)
+    risk_full = np.zeros_like(residuals)
+
+    cp_full[calibration_end:] = cp_prob_monitor
+    risk_full[calibration_end:] = risk_monitor
+    
+
     # --------------------------------------------------
     # 5) Build monitoring result dictionary
     # --------------------------------------------------
@@ -234,6 +277,10 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     "warmup_end": warmup_end,
     "calibration_end": calibration_end,
     "monitor_start": calibration_end,
+
+    # Bayesian change probability
+    "cp_prob": cp_full,
+    "risk": risk_full,
 
     # baseline
     "baseline_sigma": sigma0,
