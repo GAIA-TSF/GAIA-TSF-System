@@ -51,9 +51,9 @@ services:
     networks:
       - gaia_net
     depends_on:
-      localstack:
-        condition: service_healthy
-    links:
+    #   localstack:
+    #     condition: service_healthy
+    # links:
       - localstack
 
   localstack:
