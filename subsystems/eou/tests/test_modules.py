@@ -1,3 +1,5 @@
+import pytest
+
 from pathlib import Path
 
 from osgeo import gdal
@@ -41,6 +43,7 @@ class TestModules:
     def _get_data_path(filename):
         return str(Path(__file__).parent / 'sample_data' / filename)
 
+    @pytest.mark.skip(reason="error in GDAL vs NUMPY - will be solved in #126")
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
 
