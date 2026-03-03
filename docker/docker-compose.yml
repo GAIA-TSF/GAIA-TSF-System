@@ -1,6 +1,17 @@
 version: "3.9"
 
 services:
+  gaiatesting:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gaiatesting
+    restart: unless-stopped
+    volumes:
+      - ../subsystems:/opt/gaia_tsf
+    networks:
+      - gaia_net
+    command: tail -f /dev/null
   postgis:
     image: postgis/postgis:16-3.4
     container_name: postgis
@@ -18,7 +29,7 @@ services:
   pgstacdb:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.pgstacdb
     container_name: pgstacdb
     restart: unless-stopped
     environment:
@@ -41,7 +52,6 @@ services:
       - gaia_net
     depends_on:
       - localstack
-    command: tail -F anything
 
   localstack:
     image: localstack/localstack:4.13.0
