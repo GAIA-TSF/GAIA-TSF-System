@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 
+# to be removed when https://github.com/GAIA-TSF/GAIA-TSF-System/issues/97 is solved
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
