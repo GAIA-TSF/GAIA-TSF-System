@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-from osgeo import ogr, osr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from lib.config import ProjectConfigReader
@@ -17,8 +16,7 @@ class TestSentinel1Workflow:
     }
 
     def test_download(self):
-        """Test EOU Data Acquisition Gateway to download Sentinel-1 data.
-        """
+        """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
         config = ProjectConfigReader(
             str(
                 Path(__file__).parent.parent.parent.parent
