@@ -47,7 +47,9 @@ class TestSentinel1Workflow:
         output_directory = config['project']['data_dir']
         data_path = None
         try:
-            data_path = module.download(results[0], quicklook=False, output_dir=output_directory)
+            data_path = module.download(
+                results[0], quicklook=False, output_dir=output_directory
+            )
             assert Path(data_path).exists()
         finally:
             if data_path and Path(data_path).exists():
