@@ -1,5 +1,5 @@
 pytest==9.0.2  # all modules
-boto3==1.42.37  # eou
+boto3==1.42.60  # eou
 # numpy==2.0.2  # eou
 gdal==3.10.3  # eou
 requests==2.32.5  # eou, sdi
