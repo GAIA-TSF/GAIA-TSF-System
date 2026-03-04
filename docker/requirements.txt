@@ -1,4 +1,4 @@
-pytest==8.4.2  # all modules
+pytest==9.0.2  # all modules
 boto3==1.42.37  # eou
 # numpy==2.0.2  # eou
 gdal==3.10.3  # eou
