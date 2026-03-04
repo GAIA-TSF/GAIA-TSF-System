@@ -33,7 +33,7 @@ jobs:
           for i in $(ls ale/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   dag:
@@ -52,7 +52,7 @@ jobs:
           for i in $(ls dag/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   dpr:
@@ -71,7 +71,7 @@ jobs:
           for i in $(ls dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   eou:
@@ -93,7 +93,7 @@ jobs:
           for i in $(ls eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   isu:
@@ -112,7 +112,7 @@ jobs:
           for i in $(ls isu/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   map:
@@ -131,7 +131,7 @@ jobs:
           for i in $(ls map/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   ntf:
@@ -150,7 +150,7 @@ jobs:
           for i in $(ls ntf/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   qcl:
@@ -169,7 +169,7 @@ jobs:
           for i in $(ls qcl/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   rep:
@@ -188,7 +188,7 @@ jobs:
           for i in $(ls rep/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   sdi:
@@ -207,7 +207,7 @@ jobs:
           for i in $(ls sdi/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
 
   vid:
@@ -226,5 +226,5 @@ jobs:
           for i in $(ls vid/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd ../docker
-            docker compose exec pgstacdb python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -v $i
           done
