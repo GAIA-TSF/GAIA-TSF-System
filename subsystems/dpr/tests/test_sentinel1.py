@@ -15,6 +15,7 @@ class TestSentinel1Workflow:
         'start': '2026-01-01',
         'end': '2026-01-29',
         'productType': 'S1_SAR_SLC',
+        'orbitDirection': 'ascending',
     }
 
     def test_download(self):
@@ -43,10 +44,10 @@ class TestSentinel1Workflow:
         )
         module.set_config(config_eodag)
 
-        # TBD: store data based on configuration (projects.data_dir)
+        output_directory = config['project']['data_dir']
         data_path = None
         try:
-            data_path = module.download(results[0], quicklook=False)
+            data_path = module.download(results[0], quicklook=False, output_dir=output_directory)
             assert Path(data_path).exists()
         finally:
             if data_path and Path(data_path).exists():
