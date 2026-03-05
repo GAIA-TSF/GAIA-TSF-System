@@ -21,6 +21,7 @@ else:
 id = 'SDI'
 logger = Logger(subsystem=id)
 
+
 def validate_user(auth_header):
     """Validates authentification of the user"""
     # TODO base on some access management (Cognito, OAuth ?)

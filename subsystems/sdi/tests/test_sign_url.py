@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / 'lambda'))
 
 from proxy.handler import sign_url
 
+
 class TestSignURL:
     @classmethod
     def setup_class(cls):
