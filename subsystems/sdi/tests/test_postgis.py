@@ -3,6 +3,7 @@ import pytest
 
 from config import DB_CONFIG_PG
 
+
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):

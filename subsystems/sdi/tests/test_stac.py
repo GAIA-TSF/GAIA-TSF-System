@@ -3,6 +3,7 @@ import uuid
 
 from config import STAC_URL
 
+
 class TestSTAC:
     def test_stac_alive(self):
         """STAC API is running on /"""
