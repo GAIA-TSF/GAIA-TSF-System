@@ -44,13 +44,13 @@ class SdiLoader(ABC):
 
         self.logger = Logger(subsystem=self.id)
 
-    def import_zip(self):
+    def import_zip(self, append_data=False):
         """
         Template method defining the full import workflow.
         """
         self._extract_zip()
         self._load_stac_json()
-        self._import_data()
+        self._import_data(append_data)
         self._update_stac_json()
         self._post_to_stac()
         # TODO maybe return back cleanup
@@ -148,7 +148,7 @@ class InSituDataLoader(SdiLoader):
     Concrete implementation for CSV datasets described in STAC JSON.
     """
 
-    def _import_data(self):
+    def _import_data(self, append_data=False):
         """
         Import all assets defined in STAC JSON into PostGIS.
         Dynamically creates tables based on 'table:columns' for each asset.
@@ -190,16 +190,37 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg2.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-                        # Drop and create table
-                        cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
-                        cur.execute(
-                            sql.SQL(
-                                f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                        # Check if table exists
+                        table_exists = False
+                        if append_data:
+                            cur.execute(
+                                "SELECT to_regclass(%s);",
+                                (self.table_name,)
                             )
-                        )
+                            table_exists = cur.fetchone()[0] is not None
+
+                        # Table handling
+                        if not append_data:
+                            # původní režim
+                            cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
+                            cur.execute(
+                                sql.SQL(
+                                    f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                                )
+                            )
+
+                        else:
+                            # append režim
+                            if not table_exists:
+                                cur.execute(
+                                    sql.SQL(
+                                        f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                                    )
+                                )
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
+
                         with open(csv_path, 'r') as f:
                             cur.copy_expert(
                                 sql.SQL(
@@ -252,7 +273,7 @@ class EarthObservationDataLoader(SdiLoader):
     Handles uploading raster files to S3 and publishing STAC items.
     """
 
-    def _import_data(self):
+    def _import_data(self, append_data=False):
         """
         Locate raster assets in STAC JSON, upload each to S3,
         and update asset href dynamically.

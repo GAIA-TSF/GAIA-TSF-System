@@ -1,8 +1,7 @@
 import requests
 import uuid
 
-STAC_URL = 'http://stacapi:8000'  # Service in docker compose + port in container
-
+from config import *
 
 class TestSTAC:
     def test_stac_alive(self):

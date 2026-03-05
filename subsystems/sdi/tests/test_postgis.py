@@ -1,20 +1,12 @@
 import psycopg2
 import pytest
 
-
-DB_CONFIG = {
-    'host': 'postgis',
-    'port': 5432,
-    'dbname': 'geodata',
-    'user': 'postgres',
-    'password': 'fevcfQBu3b3CfxFU',
-}
-
+from config import *
 
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(**DB_CONFIG_PG)
         yield conn
         conn.close()
 
