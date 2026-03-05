@@ -10,6 +10,8 @@ services:
     depends_on:
       pgstacdb:
         condition: service_healthy
+    links:
+      - pgstacdb
     volumes:
       - ../subsystems:/opt/gaia_tsf
     networks:
