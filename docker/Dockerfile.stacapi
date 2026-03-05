@@ -2,9 +2,10 @@
 FROM ghcr.io/stac-utils/stac-fastapi:latest
 
 # Dependencies for psycopg3
-RUN apt-get update && apt-get install -y libpq-dev gcc curl
-RUN pip install --no-cache-dir psycopg[binary] psycopg2-binary psycopg_pool
+RUN apt-get update
+RUN apt-get install -y libpq-dev gcc curl
 RUN rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir psycopg[binary] psycopg2-binary psycopg_pool
 
 COPY wait-for-db.sh /usr/local/bin/wait-for-db.sh
 RUN chmod +x /usr/local/bin/wait-for-db.sh
