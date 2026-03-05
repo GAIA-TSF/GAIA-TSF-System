@@ -1,7 +1,7 @@
 import psycopg2
 import pytest
 
-from config import *
+from config import DB_CONFIG_PG
 
 class TestPostGIS:
     @pytest.fixture(scope='module')

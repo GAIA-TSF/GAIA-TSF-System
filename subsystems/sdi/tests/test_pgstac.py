@@ -1,7 +1,7 @@
 import psycopg2
 import pytest
 
-from config import *
+from config import DB_CONFIG_STAC
 
 class TestPGSTAC:
     @pytest.fixture(scope='module')

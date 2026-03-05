@@ -1,7 +1,7 @@
 import requests
 import uuid
 
-from config import *
+from config import STAC_URL
 
 class TestSTAC:
     def test_stac_alive(self):

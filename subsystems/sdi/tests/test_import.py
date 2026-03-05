@@ -9,7 +9,7 @@ import pytest
 from sdi.loader import InSituDataLoader
 from sdi.loader import EarthObservationDataLoader
 
-from config import *
+from config import DB_CONFIG_PG
 
 def file_md5(path):
     """
