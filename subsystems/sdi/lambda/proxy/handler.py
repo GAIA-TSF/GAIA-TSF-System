@@ -18,7 +18,6 @@ if LOCALSTACK:
 else:
     s3 = boto3.client('s3')
 
-s3 = boto3.client('s3')
 id = 'SDI'
 logger = Logger(subsystem=id)
 

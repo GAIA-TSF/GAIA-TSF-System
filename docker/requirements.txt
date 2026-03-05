@@ -1,9 +1,13 @@
 pytest==8.4.2  # all modules
 boto3==1.42.37  # eou
 # numpy==2.0.2  # eou
-gdal==3.2.2  # eou
+gdal==3.10.3  # eou
 requests==2.32.5  # eou, sdi
-pypgstac==0.9.9  # sdi
 psycopg==3.2.13  # sdi
+psycopg2==2.9.11  # sdi
 psycopg_pool==3.2.8  # sdi
 eodag==3.10.1 # eou
+pandas==3.0.1 # isu
+openpyxl==3.1.5 # isu
+pyyaml==6.0.3 # lib.config
+shapely==2.1.2 # lib.config
