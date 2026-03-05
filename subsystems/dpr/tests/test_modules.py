@@ -8,7 +8,7 @@ class TestModules:
         Check preprocessing pipelines metadata.
         """
         module = PreprocessingPipelines()
-        data = module.pipelines
+        data = module.metadata
         assert isinstance(data, dict) and all(
             isinstance(k, str)
             and isinstance(v, dict)
