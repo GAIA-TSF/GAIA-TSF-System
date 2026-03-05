@@ -9,27 +9,29 @@ from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
 from dpr.preprocessing_pipelines import PreprocessingPipelines
 
-@pytest.fixture(scope="class")
+
+@pytest.fixture(scope='class')
 def pipeline():
     module = PreprocessingPipelines()
     return module.pipeline['sentinel1']
 
-@pytest.fixture(scope="class")
+
+@pytest.fixture(scope='class')
 def config():
     return ProjectConfigReader(
-            str(
-                Path(__file__).parent.parent.parent.parent
-                / 'tests'
-                / 'projects'
-                / 'jagersfontein.yml'
-            )
+        str(
+            Path(__file__).parent.parent.parent.parent
+            / 'tests'
+            / 'projects'
+            / 'jagersfontein.yml'
         )
+    )
+
 
 class TestSentinel1Workflow:
     def test_config(self, config):
         """Test project configuration."""
         assert config.is_valid() is True
-
 
     def test_download(self, config):
         """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
