@@ -193,16 +193,15 @@ class InSituDataLoader(SdiLoader):
                         # Check if table exists
                         table_exists = False
                         if append_data:
-                            cur.execute(
-                                "SELECT to_regclass(%s);",
-                                (self.table_name,)
-                            )
+                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
                             table_exists = cur.fetchone()[0] is not None
 
                         # Table handling
                         if not append_data:
                             # původní režim
-                            cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
+                            cur.execute(
+                                sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};')
+                            )
                             cur.execute(
                                 sql.SQL(
                                     f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'

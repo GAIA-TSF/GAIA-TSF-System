@@ -11,6 +11,7 @@ from sdi.loader import EarthObservationDataLoader
 
 from config import DB_CONFIG_PG
 
+
 def file_md5(path):
     """
     Compute MD5 hash of a file.
@@ -23,7 +24,6 @@ def file_md5(path):
 
 
 class TestInSituDataLoader:
-
     @pytest.fixture(scope='module')
     def db_connection(self):
         conn = psycopg2.connect(**DB_CONFIG_PG)
