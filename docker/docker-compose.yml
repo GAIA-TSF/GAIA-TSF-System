@@ -7,11 +7,15 @@ services:
       dockerfile: Dockerfile
     container_name: gaiatesting
     restart: unless-stopped
+    depends_on:
+      pgstacdb:
+        condition: service_healthy
     volumes:
       - ../subsystems:/opt/gaia_tsf
     networks:
       - gaia_net
     command: tail -f /dev/null
+
   postgis:
     image: postgis/postgis:16-3.4
     container_name: postgis
@@ -31,6 +35,7 @@ services:
       - "6432:5432"
     networks:
       - gaia_net
+
   pgstacdb:
     build:
       context: .
