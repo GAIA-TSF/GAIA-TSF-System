@@ -4,14 +4,13 @@ import json
 import boto3
 from pathlib import Path
 
+# Set environment for LocalStack
+os.environ['LOCALSTACK'] = '1'
+
 # Add lambda folder to sys.path
 sys.path.append(str(Path(__file__).resolve().parent.parent / 'lambda'))
 
 from proxy.handler import sign_url
-
-# Set environment for LocalStack
-os.environ['LOCALSTACK'] = '1'
-
 
 class TestSignURL:
     @classmethod
