@@ -148,10 +148,6 @@ class StacItemFactory:
     MIME_LOOKUP: Dict[str, str] = {
         'GTiff': 'image/tiff; application=geotiff',
         'JP2OpenJPEG': 'image/jp2',
-        'HDF5': 'application/x-hdf5',
-        'netCDF': 'application/x-netcdf',
-        'AAIGrid': 'text/plain',
-        'VRT': 'application/xml',
     }
 
     def __init__(self, raster: RasterDataset):
