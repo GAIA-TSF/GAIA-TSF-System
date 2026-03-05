@@ -70,9 +70,9 @@ services:
       - ../subsystems:/opt/gaia_tsf
     networks:
       - gaia_net
-    depends_on:
-      localstack:
-        condition: service_healthy
+    # depends_on:
+    #   localstack:
+    #     condition: service_healthy
     # links:
     #   - localstack
 
