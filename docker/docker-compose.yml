@@ -83,8 +83,8 @@ services:
     environment:
       - SERVICES=s3
       - DEBUG=1
-      - POSTGRES_USER=stac
-      - POSTGRES_PASSWORD=stac
+    #   - POSTGRES_USER=stac
+    #   - POSTGRES_PASSWORD=stac
     # healthcheck:
     #   test: [ "CMD-SHELL", "pg_isready -U stac" ]
     #   interval: 10s
