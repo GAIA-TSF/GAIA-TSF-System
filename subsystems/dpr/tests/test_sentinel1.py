@@ -31,7 +31,7 @@ class TestSentinel1Workflow:
         assert config.is_valid() is True
 
 
-    def test_download(self):
+    def test_download(self, config):
         """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
         search_filter = {
             'provider': 'cop_dataspace',
@@ -41,11 +41,10 @@ class TestSentinel1Workflow:
             'orbitDirection': 'ascending',
         }
 
-
         module = DataAcquisitionGateway()
         results = module.search(
             geom=config['project']['aoi']['geom'],
-            **self.search_filter,
+            **search_filter,
         )
         assert len(results) > 0
 
