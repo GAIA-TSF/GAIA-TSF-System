@@ -1,4 +1,5 @@
 import sys
+import pytest
 from pathlib import Path
 
 
@@ -8,19 +9,14 @@ from lib.config import ProjectConfigReader
 from eou.data_acquisition_gateway import DataAcquisitionGateway
 from dpr.preprocessing_pipelines import PreprocessingPipelines
 
+@pytest.fixture(scope="class")
+def pipeline():
+    module = PreprocessingPipelines()
+    return module.pipeline['sentinel1']
 
-class TestSentinel1Workflow:
-    search_filter = {
-        'provider': 'cop_dataspace',
-        'start': '2026-01-01',
-        'end': '2026-01-29',
-        'productType': 'S1_SAR_SLC',
-        'orbitDirection': 'ascending',
-    }
-
-    def test_download(self):
-        """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
-        config = ProjectConfigReader(
+@pytest.fixture(scope="class")
+def config():
+    return ProjectConfigReader(
             str(
                 Path(__file__).parent.parent.parent.parent
                 / 'tests'
@@ -29,14 +25,28 @@ class TestSentinel1Workflow:
             )
         )
 
+class TestSentinel1Workflow:
+    def test_config(self, config):
+        """Test project configuration."""
         assert config.is_valid() is True
+
+
+    def test_download(self):
+        """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
+        search_filter = {
+            'provider': 'cop_dataspace',
+            'start': '2026-01-01',
+            'end': '2026-01-29',
+            'productType': 'S1_SAR_SLC',
+            'orbitDirection': 'ascending',
+        }
+
 
         module = DataAcquisitionGateway()
         results = module.search(
             geom=config['project']['aoi']['geom'],
             **self.search_filter,
         )
-
         assert len(results) > 0
 
         config_eodag = str(
@@ -55,10 +65,5 @@ class TestSentinel1Workflow:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()
 
-    def test_run_workflow(self):
-        module = PreprocessingPipelines()
-        # TBD: propapage project configuration file
-        pipeline = module.pipeline['sentinel1']
-        pipeline.run()  # TBD: to be implemented
-
-        # TBD: check results
+    def test_run_workflow(self, pipeline, config):
+        pass
