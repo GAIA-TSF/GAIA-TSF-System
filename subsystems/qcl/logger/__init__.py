@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 # TBD: remove when root path defined
+# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.config import SettingsReader
 
