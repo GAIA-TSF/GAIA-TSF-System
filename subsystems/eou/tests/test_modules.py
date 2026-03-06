@@ -78,8 +78,6 @@ class TestModules:
 
         Test download capability using default backend (eodag).
         """
-        config_file = 'eou/tests/eodag_config.yml'
-
         module = DataAcquisitionGateway()
 
         results = module.search(

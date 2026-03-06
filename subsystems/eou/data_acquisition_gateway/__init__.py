@@ -29,6 +29,7 @@ class DataAcquisitionGateway(BaseObject):
             raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
 
         self._backend = DataAcquisitionBackend()
+        # TBD: raise GaiaSettingsError
         self._backend.set_config(self.settings['eou']['eodag'])
 
     def search(

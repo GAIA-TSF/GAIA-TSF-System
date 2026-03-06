@@ -12,29 +12,28 @@ from abc import ABC, abstractmethod
 
 from qcl.logger import Logger
 
-ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
-
-DB_CONFIG = {
-    'host': 'postgis',
-    'port': 5432,
-    'dbname': 'geodata',
-    'user': 'postgres',
-    'password': 'fevcfQBu3b3CfxFU',
-}
-
-STAC_URL = 'http://stacapi:8000'
+# TBD: remove when root path defined
+# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from lib.base import BaseObject
 
 
-class SdiLoader(ABC):
+class SdiLoader(ABC, BaseObject):
     """
     Base class defining the workflow for loading
     a ZIP package into SDI.
     """
 
     def __init__(self, zip_path, pg_config=None, stac_api_url=None):
+        ABC.__init__(self)
+        BaseObject.__init__(self)
+
         self.zip_path = zip_path
-        self.pg_config = pg_config or DB_CONFIG
-        self.stac_api_url = stac_api_url or STAC_URL
+        # TBD: raise GaiaSettingsError
+        self.pg_config = pg_config or self.settings['sdi']['db']
+        self.stac_api_url = stac_api_url or self.settings['sdi']['stac_url']
 
         self.temp_dir = None
         self.json_file = None

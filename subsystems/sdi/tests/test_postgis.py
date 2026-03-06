@@ -2,19 +2,19 @@ import psycopg2
 import pytest
 
 
-DB_CONFIG = {
-    'host': 'postgis',
-    'port': 5432,
-    'dbname': 'geodata',
-    'user': 'postgres',
-    'password': 'fevcfQBu3b3CfxFU',
-}
+# TBD: remove when root path defined
+# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from lib.config import SettingsReader
 
 
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG)
+        settings = SettingsReader()
+        conn = psycopg2.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 
