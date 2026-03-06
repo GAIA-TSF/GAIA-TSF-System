@@ -1,0 +1,3 @@
+qcl:
+  logger:
+    level: DEBUG
