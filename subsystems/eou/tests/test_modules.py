@@ -89,7 +89,6 @@ class TestModules:
 
         assert len(results) > 0
 
-        module.set_config(config_file)
         ql_path = None
         try:
             ql_path = module.download(results[0], quicklook=True)

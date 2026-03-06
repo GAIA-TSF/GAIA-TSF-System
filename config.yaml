@@ -1,3 +1,10 @@
 qcl:
   logger:
     level: DEBUG
+eou:
+  eodag:
+    cop_dataspace:
+      auth:
+        credentials:
+          username: "gaia.tsf.project@gmail.com"
+          password: ""

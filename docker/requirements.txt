@@ -9,5 +9,5 @@ psycopg_pool==3.2.8  # sdi
 eodag==3.10.1 # eou
 pandas==3.0.1 # isu
 openpyxl==3.1.5 # isu
-pyyaml==6.0.3 # lib.config
+pyyaml==6.0.3 # lib.config, eou
 shapely==2.1.2 # lib.config
