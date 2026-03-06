@@ -225,31 +225,39 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     anomaly_mask[:calibration_end] = False
 
     # --------------------------------------------
-    # BAYESIAN CHANGE POINT DETECTION
+    # BAYESIAN ACCELERATION PROBABILITY
     # --------------------------------------------
-    bocpd = BayesianChangePointDetector(hazard=1/50) 
 
-    # BOCPD works on mean shift → use signed acceleration
-    acc = np.gradient(vel_trend)
+    from scipy.stats import norm
 
+    # acceleration of normalized signal
+    acc = np.gradient(z)
+
+    # baseline acceleration statistics
     mu_a = np.mean(acc[warmup_end:calibration_end])
-    std_a = np.std(acc[warmup_end:calibration_end]) + 1e-6
+    sigma_a = np.std(acc[warmup_end:calibration_end]) + 1e-6
 
-    acc_norm = (acc - mu_a) / std_a
+    # probability acceleration exceeds baseline
+    p_acc = 1 - norm.cdf(acc, loc=mu_a, scale=sigma_a)
 
-    cp_prob_monitor = bocpd.run(acc_norm[calibration_end:])
+    persist = persistence(acc, win=25)
 
-    # smooth
-    risk_monitor = _ema(cp_prob_monitor, tau=20)
+    p_acc = p_acc * persist
+
+    # smooth probability
+    risk_monitor = _ema(p_acc[calibration_end:], tau=40) 
+
+    # normalize risk scale
+    # risk_monitor = risk_monitor / (np.max(risk_monitor) + 1e-6)
+    risk_monitor = _ema(p_acc[calibration_end:], tau=40)
 
     # allocate full timeline
-    cp_full = np.zeros_like(residuals)
     risk_full = np.zeros_like(residuals)
+    cp_full = np.zeros_like(residuals)
 
-    cp_full[calibration_end:] = cp_prob_monitor
     risk_full[calibration_end:] = risk_monitor
+    cp_full[calibration_end:] = p_acc[calibration_end:]
     
-
     # --------------------------------------------------
     # 5) Build monitoring result dictionary
     # --------------------------------------------------

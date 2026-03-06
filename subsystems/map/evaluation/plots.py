@@ -27,7 +27,7 @@ def _draw_monitoring_regions(ax, time, mon):
 
 def plot_results(time, obs, pred, std, mon):
 
-    plt.figure(figsize=(11, 11))
+    plt.figure(figsize=(11, 9))
 
     # ---------------- Prediction ----------------
     ax1 = plt.subplot(4,1,1)
@@ -99,7 +99,7 @@ def plot_results(time, obs, pred, std, mon):
 
     if "risk" in mon:
 
-        ax4.plot(time, mon["cp_prob"], color="purple", alpha=0.5, label="Change probability")
+        # ax4.plot(time, mon["cp_prob"], color="purple", alpha=0.5, label="Change probability")
         ax4.plot(time, mon["risk"], color="magenta", linewidth=2, label="Smoothed risk")
 
         # operational warning levels
