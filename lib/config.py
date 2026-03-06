@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 import yaml
+from pathlib import Path
 
 from shapely import wkt
 from shapely.errors import ShapelyError
@@ -161,3 +162,8 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         })
 
         self.validate(dict(self))
+
+class SettingsReader(ConfigReader):
+    """Get internal system settings."""
+    def __init__(self):
+        super().__init__(Path(__file__).parent.parent / "config.yaml")

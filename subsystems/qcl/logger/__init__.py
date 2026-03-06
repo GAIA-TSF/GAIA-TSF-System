@@ -1,6 +1,10 @@
 import sys
 import logging
+from pathlib import Path
 
+# TBD: remove when root path defined
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+from lib.config import SettingsReader
 
 class Logger:
     _configured = False
@@ -9,7 +13,13 @@ class Logger:
         base_logger = logging.getLogger(name)
 
         if not cls._configured:
-            base_logger.setLevel(logging.DEBUG)
+            config = SettingsReader()
+
+            try:
+                level = logging.getLevelName(config['qcl']['logger']['level'])
+            except KeyError:
+                level = logging.DEBUG
+            base_logger.setLevel(level)
 
             handler = logging.StreamHandler(sys.stdout)
             formatter = logging.Formatter(
