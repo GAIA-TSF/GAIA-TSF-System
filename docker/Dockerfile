@@ -1,6 +1,6 @@
 FROM python:3.14-slim-trixie
 
-USER root
+# USER root
 
 RUN apt-get update
 RUN apt-get install -y gdal-bin libgdal-dev
