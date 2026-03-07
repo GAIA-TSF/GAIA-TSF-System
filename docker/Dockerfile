@@ -1,4 +1,4 @@
-FROM python:3.14-alpine-trixie
+FROM python:3.14-alpine
 
 # USER root
 
