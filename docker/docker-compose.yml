@@ -14,10 +14,6 @@ services:
         condition: service_healthy
     links:
       - pgstacdb
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 100G
     volumes:
       - ../subsystems:/opt/gaia_tsf
     networks:
