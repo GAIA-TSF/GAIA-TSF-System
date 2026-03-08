@@ -202,13 +202,15 @@ class InSituDataLoader(SdiLoader):
                         csv_path = os.path.join(self.temp_dir, href)
 
                         query = sql.SQL(
-                            "COPY {} ({}) FROM STDIN WITH CSV HEADER"
+                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
                             sql.Identifier(self.table_name),
-                            sql.SQL(", ").join(sql.Identifier(c["name"]) for c in columns),
+                            sql.SQL(', ').join(
+                                sql.Identifier(c['name']) for c in columns
+                            ),
                         )
 
-                        with open(csv_path, "rb") as f:
+                        with open(csv_path, 'rb') as f:
                             with cur.copy(query) as copy:
                                 while data := f.read(8192):
                                     copy.write(data)
