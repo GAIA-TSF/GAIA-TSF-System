@@ -7,7 +7,7 @@ from config import DB_CONFIG_PG
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_PG)
+        conn = psycopg.connect(**DB_CONFIG)
         yield conn
         conn.close()
 
