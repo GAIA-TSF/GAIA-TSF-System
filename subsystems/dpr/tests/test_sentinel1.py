@@ -1,6 +1,9 @@
 import sys
 import pytest
 from pathlib import Path
+import os
+from shapely.wkt import loads
+from shapely.geometry import Polygon
 
 
 # to be removed when https://github.com/GAIA-TSF/GAIA-TSF-System/issues/97 is solved
@@ -65,6 +68,29 @@ class TestSentinel1Workflow:
         finally:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()
+
+    def test_001_download_orbits(self, pipeline, config):
+        data_dir = config['project']['data_dir']
+        pipeline._download_orbits(data_dir)
+        eof_files = [f for f in os.listdir(data_dir) if f.endswith('.EOF')]
+        assert len(eof_files) > 0
+
+    def test_002_download_dem_baseline(self, pipeline, config):
+        aoi = loads(config['project']['aoi']['geom'])
+        min_lon, min_lat, max_lon, max_lat = aoi.bounds
+        bbox = Polygon([
+            (min_lon, min_lat),
+            (max_lon, min_lat),
+            (max_lon, max_lat),
+            (min_lon, max_lat),
+            (min_lon, min_lat),
+        ])
+
+        result = pipeline._download_dem_baseline(bbox)
+        assert result.rio.crs.to_epsg() == 4326
+        assert "lat" in result.coords
+        assert "lon" in result.coords
+        assert result.ndim == 2
 
     def test_run_workflow(self, pipeline, config):
         pass
