@@ -3,8 +3,8 @@ import json
 import os
 import tempfile
 import shutil
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import requests
 import uuid
 import boto3
@@ -188,65 +188,81 @@ class InSituDataLoader(SdiLoader):
             sql_columns.append('geom geometry(Point, 4326)')
 
             try:
-                with psycopg2.connect(**self.pg_config) as conn:
+                with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
+
                         # Check if table exists
                         table_exists = False
                         if append_data:
-                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
+                            cur.execute("SELECT to_regclass(%s);", (self.table_name,))
                             table_exists = cur.fetchone()[0] is not None
+
+                        table_ident = sql.Identifier(self.table_name)
 
                         # Table handling
                         if not append_data:
-                            # původní režim
+
                             cur.execute(
-                                sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};')
+                                sql.SQL("DROP TABLE IF EXISTS {}").format(table_ident)
                             )
+
                             cur.execute(
-                                sql.SQL(
-                                    f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                                sql.SQL("CREATE TABLE {} ({})").format(
+                                    table_ident,
+                                    sql.SQL(", ").join(sql.SQL(c) for c in sql_columns),
                                 )
                             )
 
                         else:
-                            # append režim
                             if not table_exists:
                                 cur.execute(
-                                    sql.SQL(
-                                        f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                                    sql.SQL("CREATE TABLE {} ({})").format(
+                                        table_ident,
+                                        sql.SQL(", ").join(sql.SQL(c) for c in sql_columns),
                                     )
                                 )
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
 
-                        with open(csv_path, 'r') as f:
-                            cur.copy_expert(
-                                sql.SQL(
-                                    f'COPY {self.table_name}({", ".join([c["name"] for c in columns])}) '
-                                    'FROM STDIN WITH CSV HEADER'
-                                ).as_string(conn),
-                                f,
-                            )
-
-                        # Update geom column from lat/lon
-                        cur.execute(
-                            sql.SQL(f"""
-                                UPDATE {self.table_name}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326);
-                                CREATE INDEX ON {self.table_name} USING GIST (geom);
-                            """)
+                        copy_query = sql.SQL(
+                            "COPY {} ({}) FROM STDIN WITH CSV HEADER"
+                        ).format(
+                            table_ident,
+                            sql.SQL(", ").join(
+                                sql.Identifier(c["name"]) for c in columns
+                            ),
                         )
 
-                self.logger.debug(f'Table "{self.table_name}" successfully imported.')
+                        with open(csv_path, "rb") as f:
+                            with cur.copy(copy_query) as copy:
+                                while data := f.read(8192):
+                                    copy.write(data)
 
-            except psycopg2.Error as e:
+                        # Update geom column
+                        cur.execute(
+                            sql.SQL(
+                                """
+                                UPDATE {}
+                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                                """
+                            ).format(table_ident)
+                        )
+
+                        # Create spatial index
+                        cur.execute(
+                            sql.SQL(
+                                "CREATE INDEX ON {} USING GIST (geom)"
+                            ).format(table_ident)
+                        )
+
+            except psycopg.Error as e:
                 raise RuntimeError(
                     f"""
                     PostgreSQL error while importing {asset_key}
                     Table: {self.table_name}
-                    SQLSTATE: {e.pgcode}
-                    Message: {e.pgerror}
+                    SQLSTATE: {e.sqlstate}
+                    Message: {e}
                     """
                 ) from e
 

@@ -3,7 +3,7 @@ import hashlib
 import requests
 import tempfile
 
-import psycopg2
+import psycopg
 import pytest
 
 from sdi.loader import InSituDataLoader
@@ -26,7 +26,7 @@ def file_md5(path):
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG_PG)
+        conn = psycopg.connect(**DB_CONFIG_PG)
         yield conn
         conn.close()
 
