@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 import pytest
 
 
@@ -14,7 +14,7 @@ DB_CONFIG = {
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg.connect(**DB_CONFIG)
         yield conn
         conn.close()
 
@@ -52,4 +52,4 @@ class TestPostGIS:
                         FROM test.fakesite_phmeasurements_2025_cybele;
                         """)
             count = cur.fetchone()[0]
-            assert count >= 0
+            assert count > 0
