@@ -83,17 +83,21 @@ class TestKafkaStreamHandler:
         :return: None
         :rtype: None
         """
+        # config 
+        test_config = {'kafka_group_id': 'test_group'}
         handler = KafkaStreamHandler(
             broker='localhost:9092',
             topics=['slope_stability'],
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
+            config=test_config,
         )
 
         assert handler.broker == 'localhost:9092'
         assert handler.topics == ['slope_stability']
         assert handler.logger == mock_logger
+        assert handler.config == test_config
         mock_kafka_consumer.assert_called_once()
 
     @patch('isu.streaming_data_handler.stream_handler.KafkaConsumer')
@@ -134,11 +138,14 @@ class TestKafkaStreamHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
+            config={}, 
         )
 
-        handler._process_message(
+        handler._execute_pipeline(
             payload=sample_payload,
-            topic='slope_stability',
+            source='slope_stability',
+            protocol='kafka',
+            dataset_id='test_kafka_pass_123'
         )
 
         # Assert QC check was called
@@ -191,11 +198,14 @@ class TestKafkaStreamHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
+            config={}, 
         )
 
-        handler._process_message(
+        handler._execute_pipeline(
             payload=sample_payload,
-            topic='slope_stability',
+            source='slope_stability',
+            protocol='kafka',
+            dataset_id='test_kafka_fail_456'
         )
 
         # Assert QC check was called
@@ -240,12 +250,15 @@ class TestStreamingDataHandler:
         :rtype: None
         """
         mock_start_consuming.side_effect = lambda: time.sleep(0.5)
+        
         handler = StreamingDataHandler(
-            broker='localhost:9092',
-            topics=['water_quality'],
+            source_type='kafka',
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
+            kafka_broker='localhost:9092',
+            kafka_topics=['water_quality'],
+            config={},
         )
 
         # Ensure no thread is active initially
@@ -257,10 +270,10 @@ class TestStreamingDataHandler:
         # Verify thread was created and started
         assert handler._thread is not None
         assert handler._thread.is_alive() is True
-        assert handler._thread.name == 'ISU-Streaming-Thread'
+        
+        assert handler._thread.name == 'ISU-Kafka-Thread'
 
         # Stop the facade
         handler.stop()
 
-        # Depending on timing, thread may still be joining, but stop logic should execute
-        mock_logger.info.assert_any_call('Stopping StreamingDataHandler...')
+        mock_logger.info.assert_any_call('Stopping StreamingDataHandler (kafka)...')

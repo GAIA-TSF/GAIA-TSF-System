@@ -1,31 +1,39 @@
 import threading
-from typing import Any, Callable, List
+from typing import Any, Callable, Dict, List, Optional
 
-from .stream_handler import KafkaStreamHandler
+from .stream_handler import (
+    KafkaStreamHandler,
+    KinesisStreamHandler,
+    SensorThingsAPIHandler
+)
 
 
 class StreamingDataHandler:
     """
-    Streaming Data Handler can subscribe to live datastreams,
+    Streaming Data Handler can subscribe to live datastreams (Kafka, Kinesis, OGC),
     validate timestamps and units, and apply initial QA/QC checks
     before routing the data to the central ETL Engine.
     """
 
     def __init__(
         self,
-        broker: str,
-        topics: List[str],
+        source_type: str,
         logger: Any,
         qc_layer: Any,
         etl_callback: Callable,
+        config: Optional[Dict[str, Any]] = None,
+        kafka_broker: Optional[str] = None,
+        kafka_topics: Optional[List[str]] = None,
+        kinesis_stream: Optional[str] = None,
+        kinesis_region: Optional[str] = None,
+        ogc_broker: Optional[str] = None,
+        ogc_datastream_id: Optional[str] = None,
     ):
         """
-        Initialize the StreamingDataHandler facade.
+        Initialize the StreamingDataHandler facade / factory.
 
-        :param broker: The Kafka broker address.
-        :type broker: str
-        :param topics: A list of Kafka topics to subscribe to.
-        :type topics: List[str]
+        :param source_type: The stream protocol to use ('kafka', 'kinesis', or 'sensorthings').
+        :type source_type: str
         :param logger: The injected unified logger instance.
         :type logger: Any
         :param qc_layer: The Quality Control Layer instance for data validation.
@@ -36,15 +44,53 @@ class StreamingDataHandler:
         self.logger = logger
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback
-
-        self._stream_processor = KafkaStreamHandler(
-            broker=broker,
-            topics=topics,
-            logger=self.logger,
-            qc_layer=self.qc_layer,
-            etl_callback=self.etl_callback,
-        )
+        self.source_type = source_type.lower()
+        self.config = config or {}
         self._thread = None
+
+        # ---------------------------------------------------------
+        # Factory Pattern: Instantiate the corresponding underlying stream processor
+        # based on source_type. Includes parameter validation to prevent 
+        # missing critical configurations.
+        # ---------------------------------------------------------
+        if self.source_type == 'kafka':
+            if not kafka_broker or not kafka_topics:
+                raise ValueError("kafka_broker and kafka_topics must be provided for Kafka.")
+            self._stream_processor = KafkaStreamHandler(
+                broker=kafka_broker,
+                topics=kafka_topics,
+                logger=self.logger,
+                qc_layer=self.qc_layer,
+                etl_callback=self.etl_callback,
+                config=self.config,
+            )
+
+        elif self.source_type == 'kinesis':
+            if not kinesis_stream or not kinesis_region:
+                raise ValueError("kinesis_stream and kinesis_region must be provided for Kinesis.")
+            self._stream_processor = KinesisStreamHandler(
+                stream_name=kinesis_stream,
+                region_name=kinesis_region,
+                logger=self.logger,
+                qc_layer=self.qc_layer,
+                etl_callback=self.etl_callback,
+                config=self.config,
+            )
+
+        elif self.source_type == 'sensorthings':
+            if not ogc_broker or not ogc_datastream_id:
+                raise ValueError("ogc_broker and ogc_datastream_id must be provided for SensorThings.")
+            self._stream_processor = SensorThingsAPIHandler(
+                broker_url=ogc_broker,
+                datastream_id=ogc_datastream_id,
+                logger=self.logger,
+                qc_layer=self.qc_layer,
+                etl_callback=self.etl_callback,
+                config=self.config,
+            )
+
+        else:
+            raise ValueError(f"Unsupported source_type: {self.source_type}. Valid options are 'kafka', 'kinesis', 'sensorthings'.")
 
     def start(self) -> None:
         """
@@ -55,14 +101,14 @@ class StreamingDataHandler:
         :rtype: None
         """
         if self._thread and self._thread.is_alive():
-            self.logger.warning('StreamingDataHandler is already running.')
+            self.logger.warning(f'StreamingDataHandler ({self.source_type}) is already running.')
             return
 
-        self.logger.info('Starting StreamingDataHandler thread...')
+        self.logger.info(f'Starting StreamingDataHandler thread for protocol: {self.source_type}...')
         self._thread = threading.Thread(
             target=self._stream_processor.start_consuming,
             daemon=True,
-            name='ISU-Streaming-Thread',
+            name=f'ISU-{self.source_type.capitalize()}-Thread',
         )
         self._thread.start()
 
@@ -73,10 +119,10 @@ class StreamingDataHandler:
         :return: None
         :rtype: None
         """
-        self.logger.info('Stopping StreamingDataHandler...')
+        self.logger.info(f'Stopping StreamingDataHandler ({self.source_type})...')
         self._stream_processor.stop()
 
         if self._thread:
             self._thread.join(timeout=3.0)
 
-        self.logger.info('StreamingDataHandler successfully stopped.')
+        self.logger.info(f'StreamingDataHandler ({self.source_type}) successfully stopped.')
