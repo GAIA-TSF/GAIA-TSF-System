@@ -1,17 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-# TBD: remove when root path defined
-# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from lib.base import BaseObject
-
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
+
+from lib.base import BaseObject, SubsystemId
 
 
 class DataAcquisitionGateway(BaseObject):
@@ -20,7 +14,7 @@ class DataAcquisitionGateway(BaseObject):
     """
 
     def __init__(self, backend: str = 'eodag'):
-        super().__init__()
+        super().__init__(SubsystemId.EOU)
 
         if backend == 'eodag':
             from subsystems.eou.data_acquisition_gateway.eodag_backend import (
@@ -51,6 +45,9 @@ class DataAcquisitionGateway(BaseObject):
         :return: a collection of EO products matching the criteria
         :rtype: SearchResult
         """
+        self.logger.info(
+            f'Search filter: {provider} | {start} | {end} | {geom} | {kwargs}'
+        )
         return self._backend.search(provider, start, end, geom, **kwargs)
 
     def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
