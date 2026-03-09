@@ -10,7 +10,7 @@ import uuid
 import boto3
 from abc import ABC, abstractmethod
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 # TBD: remove when root path defined
 # https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145

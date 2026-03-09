@@ -23,7 +23,7 @@ class DataAcquisitionGateway(BaseObject):
         super().__init__()
 
         if backend == 'eodag':
-            from eou.data_acquisition_gateway.eodag_backend import (
+            from subsystems.eou.data_acquisition_gateway.eodag_backend import (
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
