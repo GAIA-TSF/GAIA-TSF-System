@@ -1,4 +1,4 @@
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 
 class QualityControlLoggingLayer:

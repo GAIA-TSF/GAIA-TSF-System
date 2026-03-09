@@ -1,4 +1,4 @@
-from qcl import QualityControlLoggingLayer
+from subsystems.qcl import QualityControlLoggingLayer
 
 
 class TestSubsystem:

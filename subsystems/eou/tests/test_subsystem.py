@@ -1,4 +1,4 @@
-from eou import EarthObservationDataUploader
+from subsystems.eou import EarthObservationDataUploader
 
 
 class TestSubsystem:

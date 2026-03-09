@@ -8,7 +8,7 @@ import shutil
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from isu import InSituDataUploader
+from subsystems.isu import InSituDataUploader
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
