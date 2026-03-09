@@ -2,6 +2,7 @@ from insardev_pygmtsar import S1
 from insardev_toolkit import EOF, Tiles
 import xarray as xr
 import rioxarray
+import numpy as np
 
 from .base import BasePipeline
 
@@ -11,6 +12,10 @@ class Sentinel1Pipeline(BasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dem_da = None
 
     def _download_orbits(self, datadir):
         s1 = S1(datadir)
@@ -38,30 +43,89 @@ class Sentinel1Pipeline(BasePipeline):
         if da.ndim != 2:
             raise RuntimeError(f"Copernicus baseline: Expected 2D after squeeze, got dims={da.dims}, shape={da.shape}")
         if "lat" in da.dims and "lon" in da.dims:
-            da.transpose("lat", "lon")
+            da = da.transpose("lat", "lon")
         elif "y" in da.dims and "x" in da.dims:
             da = da.rename({"y": "lat", "x": "lon"})
-            da.transpose("lat", "lon")
+            da = da.transpose("lat", "lon")
         elif "latitude" in da.dims and "longitude" in da.dims:
             da = da.rename({"latitude": "lat", "longitude": "lon"})
-            da.transpose("lat", "lon")
+            da = da.transpose("lat", "lon")
         else:
             raise RuntimeError(
                 f"Copernicus baseline: Cannot normalise to (lat, lon). dims={da.dims}, shape={da.shape}"
             )
 
-        dem_da = da.rio.write_crs("EPSG:4326")
-        dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+        self.dem_da = da.rio.write_crs("EPSG:4326")
+        self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
 
-        return dem_da
+    def _lidar_infill(self, lidar_data):
+        use_lidar = lidar_data.is_file()
 
-    def _build_sbas_stack(self):
-        raise NotImplementedError()
+        if use_lidar:
+            print(f"[DEM] LiDAR DEM found at {lidar_data}. Merging LiDAR over Copernicus where finite...")
 
-    def _reframe_sbas(self):
-        raise NotImplementedError()
+            ds_lidar = xr.open_dataset(lidar_data)
+            print("[DEM] LiDAR variables:", list(ds_lidar.data_vars))
 
-    def run(self):
-        self._build_sbas_stack()
-        self._reframe_sbas
+            # Prefer variable named 'z', else first 2D var
+            if "z" in ds_lidar.data_vars and ds_lidar["z"].ndim >= 2:
+                dem_lidar = ds_lidar["z"]
+            else:
+                cand = [v for v in ds_lidar.data_vars if ds_lidar[v].ndim >= 2]
+                if not cand:
+                    ds_lidar.close()
+                    raise RuntimeError(f"LiDAR NetCDF has no 2D variables: {list(ds_lidar.data_vars)}")
+                dem_lidar = ds_lidar[cand[0]]
+
+            dem_lidar = dem_lidar.squeeze(drop=True)
+            if "band" in dem_lidar.dims:
+                dem_lidar = dem_lidar.isel(band=0, drop=True)
+
+            if dem_lidar.ndim != 2:
+                ds_lidar.close()
+                raise RuntimeError(f"LiDAR DEM is not 2D: dims={dem_lidar.dims}, shape={dem_lidar.shape}")
+
+            # Normalise LiDAR dims to lat/lon where possible
+            if "lat" in dem_lidar.dims and "lon" in dem_lidar.dims:
+                dem_lidar_rio = dem_lidar.transpose("lat", "lon")
+                dem_lidar_rio = dem_lidar_rio.rio.write_crs("EPSG:4326")
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+            elif "latitude" in dem_lidar.dims and "longitude" in dem_lidar.dims:
+                dem_lidar_rio = dem_lidar.rename({"latitude": "lat", "longitude": "lon"}).transpose("lat", "lon")
+                dem_lidar_rio = dem_lidar_rio.rio.write_crs("EPSG:4326")
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+            else:
+                # Fallback: assume 2D dims are y/x-like and mark CRS (best-effort)
+                y_dim, x_dim = dem_lidar.dims
+                dem_lidar_rio = dem_lidar.rio.write_crs("EPSG:4326")
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim=x_dim, y_dim=y_dim, inplace=False)
+
+            # Reproject LiDAR to match Copernicus grid
+            dem_lidar_on_cop = dem_lidar_rio.rio.reproject_match(self.dem_da)
+
+            # Force consistent dims/coords after reproject (avoids odd naming drift)
+            dem_lidar_on_cop = xr.DataArray(
+                data=dem_lidar_on_cop.values,
+                coords={"lat": self.dem_da["lat"].values, "lon": self.dem_da["lon"].values},
+                dims=("lat", "lon"),
+                name="dem_lidar_on_cop",
+            )
+
+            # LiDAR overrides Copernicus where LiDAR is finite
+            self.dem_da = xr.where(np.isfinite(dem_lidar_on_cop), dem_lidar_on_cop, self.dem_da)
+
+            ds_lidar.close()
+
+            # Restore rioxarray metadata after xr.where
+            self.dem_da = self.dem_da.rio.write_crs("EPSG:4326")
+            self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+
+            print("[DEM] LiDAR merge complete. Composite DEM shape:", self.dem_da.shape)
+        else:
+            print(f"[DEM] LiDAR DEM not found at {lidar_data}. Using Copernicus DEM only.")
+
+    def run(self, data_dir, roi_bbox, lidar_file):
+        self._download_orbits(data_dir)
+        self._download_dem_baseline(roi_bbox)
+        self._lidar_infill(lidar_file)
         # ...

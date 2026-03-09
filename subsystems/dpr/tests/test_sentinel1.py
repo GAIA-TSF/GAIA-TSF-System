@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 from shapely.wkt import loads
 from shapely.geometry import Polygon
+import numpy as np
 
 
 # to be removed when https://github.com/GAIA-TSF/GAIA-TSF-System/issues/97 is solved
@@ -26,12 +27,24 @@ def config():
             Path(__file__).parent.parent.parent.parent
             / 'tests'
             / 'projects'
-            / 'jagersfontein.yml'
+            / 'sibanye-td6.yml'
         )
     )
 
 
 class TestSentinel1Workflow:
+    def _get_bbox(self, config):
+        """Helper to extract bbox from config."""
+        aoi = loads(config['project']['aoi']['geom'])
+        min_lon, min_lat, max_lon, max_lat = aoi.bounds
+        return Polygon([
+            (min_lon, min_lat),
+            (max_lon, min_lat),
+            (max_lon, max_lat),
+            (min_lon, max_lat),
+            (min_lon, min_lat),
+        ])
+
     def test_config(self, config):
         """Test project configuration."""
         assert config.is_valid() is True
@@ -76,21 +89,31 @@ class TestSentinel1Workflow:
         assert len(eof_files) > 0
 
     def test_002_download_dem_baseline(self, pipeline, config):
-        aoi = loads(config['project']['aoi']['geom'])
-        min_lon, min_lat, max_lon, max_lat = aoi.bounds
-        bbox = Polygon([
-            (min_lon, min_lat),
-            (max_lon, min_lat),
-            (max_lon, max_lat),
-            (min_lon, max_lat),
-            (min_lon, min_lat),
-        ])
+        bbox = self._get_bbox(config)
+        pipeline._download_dem_baseline(bbox)
+        assert pipeline.dem_da is not None
+        assert pipeline.dem_da.rio.crs.to_epsg() == 4326
+        assert 'lat' in pipeline.dem_da.coords
+        assert 'lon' in pipeline.dem_da.coords
+        assert pipeline.dem_da.ndim == 2
 
-        result = pipeline._download_dem_baseline(bbox)
-        assert result.rio.crs.to_epsg() == 4326
-        assert "lat" in result.coords
-        assert "lon" in result.coords
-        assert result.ndim == 2
+    def test_003_lidar_infill(self, pipeline, config):
+        if pipeline.dem_da is None:
+            pipeline._download_dem_baseline(self._get_bbox(config))
+
+        base_dir = Path(config['project']['data_dir'])
+        lidar_dir = base_dir / 'lidar'
+        if lidar_dir.is_dir():
+            lidar_file = next(lidar_dir.glob('*lidar*.nc'), None)
+            if lidar_file is None:
+                raise FileNotFoundError(f'No lidar .nc file found in {lidar_dir}')
+            else:
+                baseline_snapshot = pipeline.dem_da.copy(deep=True)
+                pipeline._lidar_infill(lidar_file)
+                assert pipeline.dem_da is not None
+                assert not np.array_equal(pipeline.dem_da.values, baseline_snapshot.values)
+        else:
+            assert pipeline.dem_da is not None
 
     def test_run_workflow(self, pipeline, config):
         pass
