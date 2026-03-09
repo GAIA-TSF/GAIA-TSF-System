@@ -3,7 +3,7 @@ import boto3
 from botocore.exceptions import ClientError
 import json
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 LOCALSTACK = os.getenv('LOCALSTACK', '0') == '1'
 

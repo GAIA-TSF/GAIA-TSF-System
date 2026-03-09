@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from isu.parsers import ParsingEngine
+from subsystems.isu.parsers import ParsingEngine
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 

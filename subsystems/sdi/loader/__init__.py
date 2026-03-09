@@ -10,7 +10,7 @@ import uuid
 import boto3
 from abc import ABC, abstractmethod
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
 
