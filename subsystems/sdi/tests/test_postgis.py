@@ -2,12 +2,6 @@ import psycopg
 import pytest
 
 
-# TBD: remove when root path defined
-# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.config import SettingsReader
 
 
@@ -15,7 +9,7 @@ class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
         settings = SettingsReader()
-        conn = psycopg.connect(**DB_CONFIG)
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 

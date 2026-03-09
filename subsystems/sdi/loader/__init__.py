@@ -12,12 +12,6 @@ from abc import ABC, abstractmethod
 
 from subsystems.qcl.logger import Logger
 
-# TBD: remove when root path defined
-# https://github.com/GAIA-TSF/GAIA-TSF-System/issues/145
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from lib.base import BaseObject
 
 
