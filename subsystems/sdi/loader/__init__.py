@@ -3,8 +3,8 @@ import json
 import os
 import tempfile
 import shutil
-import psycopg2
-from psycopg2 import sql
+import psycopg
+from psycopg import sql
 import requests
 import uuid
 import boto3
@@ -188,7 +188,7 @@ class InSituDataLoader(SdiLoader):
             sql_columns.append('geom geometry(Point, 4326)')
 
             try:
-                with psycopg2.connect(**self.pg_config) as conn:
+                with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
                         # Drop and create table
                         cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
@@ -200,14 +200,20 @@ class InSituDataLoader(SdiLoader):
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
-                        with open(csv_path, 'r') as f:
-                            cur.copy_expert(
-                                sql.SQL(
-                                    f'COPY {self.table_name}({", ".join([c["name"] for c in columns])}) '
-                                    'FROM STDIN WITH CSV HEADER'
-                                ).as_string(conn),
-                                f,
-                            )
+
+                        query = sql.SQL(
+                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
+                        ).format(
+                            sql.Identifier(self.table_name),
+                            sql.SQL(', ').join(
+                                sql.Identifier(c['name']) for c in columns
+                            ),
+                        )
+
+                        with open(csv_path, 'rb') as f:
+                            with cur.copy(query) as copy:
+                                while data := f.read(8192):
+                                    copy.write(data)
 
                         # Update geom column from lat/lon
                         cur.execute(
@@ -220,13 +226,13 @@ class InSituDataLoader(SdiLoader):
 
                 self.logger.debug(f'Table "{self.table_name}" successfully imported.')
 
-            except psycopg2.Error as e:
+            except psycopg.Error as e:
                 raise RuntimeError(
                     f"""
                     PostgreSQL error while importing {asset_key}
                     Table: {self.table_name}
-                    SQLSTATE: {e.pgcode}
-                    Message: {e.pgerror}
+                    SQLSTATE: {e.sqlstate}
+                    Message: {e}
                     """
                 ) from e
 
