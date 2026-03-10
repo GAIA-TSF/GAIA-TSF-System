@@ -8,9 +8,20 @@ model:
   bidirectional: false
 
 tuning:
-  enabled: false
+  enabled: true
   hidden_sizes: [32, 64, 128]
   num_layers: [2, 3, 5]
+  dropout: [0.1, 0.2, 0.3]
+
+  learning_rate: [0.001, 0.0005]
+
+  folds: 3
+
+experiments:
+  # root_dir: /media/lukas/image2/GAIA_TSF/tsf_projects
+  root_dir: /Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_projects
+  name: simex2 
+  model_file: best_model.pt 
 
 validation:
   method: expanding
@@ -20,7 +31,7 @@ trainer:
   look_back: 5
   horizon: 5
   batch_size: 8
-  epochs: 50
+  epochs: 30
   learning_rate: 0.001
   weight_decay: 0.0
   early_stopping: false

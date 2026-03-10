@@ -1,3 +1,4 @@
+import os 
 import yaml
 import json
 import torch
@@ -14,6 +15,11 @@ from .validation import expanding_window_splits
 
 import argparse
 
+# config loading 
+def _load_config(path: str) -> dict:
+    with open(path, 'r', encoding='utf-8') as file:
+        return yaml.safe_load(file)
+    
 
 def _parse_arguments():
 
@@ -39,11 +45,21 @@ def _parse_arguments():
     return parser.parse_args()
     
     
-def run_validation(dataset_name, config_path):
+def run_validation(dataset_name, config_path, override_params=None, save_results=True):
 
-    print('Validation!')
-    with open(config_path) as f:
-        cfg = yaml.safe_load(f)
+    # print('Validation!')
+    # with open(config_path) as f:
+    #     cfg = yaml.safe_load(f)
+    
+    cfg = _load_config(config_path)
+
+    exp_dir = os.path.join(
+        cfg["experiments"]["root_dir"],
+        cfg["experiments"]["name"]
+    )
+
+    os.makedirs(exp_dir, exist_ok=True)
+    print("Validation experiment directory:", exp_dir) 
 
     trainer_cfg = cfg["trainer"]
     dataset_cfg = cfg["dataset"]
@@ -57,8 +73,20 @@ def run_validation(dataset_name, config_path):
         "cuda" if torch.cuda.is_available() else "cpu"
     )
 
+    if override_params:
+
+        for k, v in override_params.items():
+
+            if k in cfg["model"]:
+                cfg["model"][k] = v
+
+            if k in cfg["trainer"]:
+                cfg["trainer"][k] = v
+
+
     # ---------------- dataset ----------------
     if dataset_name == "synthetic":
+        
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg["length"],
             noise_std=dataset_cfg["noise_std"],
@@ -79,7 +107,7 @@ def run_validation(dataset_name, config_path):
         n,
         look_back,
         horizon,
-        folds=validation_cfg["folds"],
+        folds=cfg["validation"]["folds"],
     )
 
     learning = LearningModule()
@@ -136,13 +164,23 @@ def run_validation(dataset_name, config_path):
     
     # save results
     results = {
-        # "fold_losses": fold_results,
+        "Validation results": 'MSE loss',
         "mean": float(np.mean(fold_results)),
         "std": float(np.std(fold_results)),
     }
+ 
+    if save_results:
 
-    with open("validation_results.json", "w") as f:
-        json.dump(results, f, indent=2)
+        results_path = os.path.join(exp_dir, "validation_results.json")
+        summary_path = os.path.join(exp_dir, "validation_summary.json")
+
+        with open(results_path, "w") as f:
+            json.dump(fold_results, f, indent=2)
+
+        with open(summary_path, "w") as f:
+            json.dump(results, f, indent=2)
+
+        print("Saved validation results:", results_path)
 
     return fold_results
 

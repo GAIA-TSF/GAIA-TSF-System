@@ -28,9 +28,3 @@ def expanding_window_splits(n, look_back, horizon, folds=3):
 
     return splits
 
-# Example grid: 
-grid = [
-    {"hidden_size":32},
-    {"hidden_size":64},
-    {"hidden_size":128},
-]

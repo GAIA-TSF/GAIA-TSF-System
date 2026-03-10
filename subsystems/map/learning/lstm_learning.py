@@ -1,9 +1,11 @@
+import os
 import argparse
 import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
+from .trainer import Trainer
 
 from subsystems.map import dataset
 
@@ -162,24 +164,31 @@ def main():
     train_losses = []
     test_losses = []
 
-    # for epoch in range(trainer_cfg["epochs"]):
+    exp_dir = os.path.join(
+        config["experiments"]["root_dir"],
+        config["experiments"]["name"]
+    )   
 
-    #     train_loss = trainer.train_epoch(train_loader)
-    #     test_loss = trainer.validate_epoch(test_loader)
+    os.makedirs(exp_dir, exist_ok=True)
 
-    #     train_losses.append(train_loss)
-    #     test_losses.append(test_loss)
+    config_copy = os.path.join(exp_dir, "config_used.yaml")
 
-    #     if epoch == 0 or epoch % 10 == 0:
-    #         print(
-    #             f"Epoch {epoch:03d} | Train {train_loss:.4f} | Test {test_loss:.4f}"
-    #         )
-    
+    with open(config_copy, "w") as f:
+        yaml.dump(config, f)
+
+    model_path = os.path.join(
+        exp_dir,
+        config["experiments"]["model_file"]
+    )
+
     train_losses, test_losses = trainer.fit(
         train_loader,
         test_loader,
-        trainer_cfg["epochs"]
+        trainer_cfg["epochs"],
+        model_path=model_path
     )
+
+    print("Best model stored in:", model_path)
 
     # -----------------------------
     # Plot

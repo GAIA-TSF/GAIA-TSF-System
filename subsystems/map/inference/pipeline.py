@@ -1,4 +1,4 @@
-
+import os 
 import yaml
 import torch
 import numpy as np
@@ -42,19 +42,50 @@ def _build_indices(dataset, split_name, look_back, horizon):
 
     return indices
 
+def _load_experiment_config(cfg):
+
+    exp_dir = os.path.join(
+        cfg["experiments"]["root_dir"],
+        cfg["experiments"]["name"],
+    )
+
+    exp_config_path = os.path.join(exp_dir, "config_used.yaml")
+
+    if not os.path.exists(exp_config_path):
+        raise RuntimeError(
+            f"Experiment config not found: {exp_config_path}"
+        )
+
+    with open(exp_config_path, "r") as f:
+        return yaml.safe_load(f)
+
+
 
 # -------------------------------------------------
 # main experiment
 # -------------------------------------------------
 def run_lstm_experiment(dataset_name: str, config_path: str):
 
+    # cfg = _load_config(config_path)
+
+    # model_cfg = cfg["model"]
+    # trainer_cfg = cfg["trainer"]
+    # dataset_cfg = cfg["dataset"]
+    # monitor_cfg = cfg["monitoring"]
+    # infer_cfg = cfg["inference"]
+
     cfg = _load_config(config_path)
 
-    model_cfg = cfg["model"]
-    trainer_cfg = cfg["trainer"]
-    dataset_cfg = cfg["dataset"]
+    # load experiment config (contains tuned parameters)
+    exp_cfg = _load_experiment_config(cfg)
+
+    model_cfg = exp_cfg["model"]
+    trainer_cfg = exp_cfg["trainer"]
+    dataset_cfg = exp_cfg["dataset"]
+
     monitor_cfg = cfg["monitoring"]
     infer_cfg = cfg["inference"]
+
 
     device = _select_device(trainer_cfg["device"])
 
@@ -92,6 +123,15 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
     # ---------------- training ----------------
     learning = LearningModule()
 
+    # model = learning.create_forecasting_model(
+    #     input_size=model_cfg["input_size"],
+    #     hidden_size=model_cfg["hidden_size"],
+    #     num_layers=model_cfg["num_layers"],
+    #     horizon=horizon,
+    #     dropout=model_cfg["dropout"],
+    #     bidirectional=model_cfg["bidirectional"],
+    # )
+    
     model = learning.create_forecasting_model(
         input_size=model_cfg["input_size"],
         hidden_size=model_cfg["hidden_size"],
@@ -100,6 +140,20 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
         dropout=model_cfg["dropout"],
         bidirectional=model_cfg["bidirectional"],
     )
+    
+    # load trained model
+    exp_dir = os.path.join(
+        cfg["experiments"]["root_dir"],
+        cfg["experiments"]["name"]
+    )
+    
+    model_path = os.path.join(exp_dir, cfg["experiments"]["model_file"])
+
+    model.load_state_dict(torch.load(model_path, map_location=device))
+
+    model.eval()
+
+    print("Loaded trained model:", model_path)
 
     trainer = learning.create_trainer(
         model=model,

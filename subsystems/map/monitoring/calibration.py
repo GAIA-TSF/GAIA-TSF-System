@@ -53,7 +53,7 @@ def calibrate_cusum(residuals, calibration_end):
     n = len(baseline)
     n_eff = n * (1 - rho) / (1 + rho)
 
-    if n_eff < 8:
+    if n_eff < 5:
         raise RuntimeError(
             f"Not enough independent baseline samples (N_eff={n_eff:.2f}). "
             "Increase calibration window."

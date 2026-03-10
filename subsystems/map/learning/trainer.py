@@ -21,11 +21,10 @@ class Trainer:
         self._early_stopping = early_stopping
         self._patience = patience 
 
-    def fit(self, train_loader, val_loader, epochs):
-        """ Training loop helper. 
-        """
-        best_loss = float("inf")
-        patience_counter = 0
+
+    def fit(self, train_loader, val_loader, epochs, model_path=None):
+
+        best_val_loss = float("inf")
 
         train_losses = []
         val_losses = []
@@ -38,17 +37,23 @@ class Trainer:
             train_losses.append(train_loss)
             val_losses.append(val_loss)
 
-            if self._early_stopping:
+            # checkpoint
+            if model_path is not None and val_loss < best_val_loss:
 
-                if val_loss < best_loss:
-                    best_loss = val_loss
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
+                best_val_loss = val_loss
+                torch.save(self._model.state_dict(), model_path)
 
-                if patience_counter >= self._patience:
-                    print("Early stopping triggered")
-                    break
+                print(
+                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f} | BEST MODEL SAVED"
+                )
+
+            elif epoch % 10 == 0:
+
+                print(
+                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f}"
+                )
+        
+        print("Best validation loss:", best_val_loss) 
 
         return train_losses, val_losses
 
@@ -101,3 +106,11 @@ class Trainer:
                 total_loss += loss.item()
 
         return total_loss / len(dataloader)
+    
+    # save trained model 
+    def save_model(self, path: str):
+        torch.save(self._model.state_dict(), path)
+
+    def load_model(self, path: str):
+        self._model.load_state_dict(torch.load(path, map_location=self._device))
+
