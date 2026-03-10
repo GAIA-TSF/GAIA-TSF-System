@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 STAC_URL = 'http://stacapi:8000'
 

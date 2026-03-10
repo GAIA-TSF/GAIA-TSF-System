@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from sdi.loader import EarthObservationDataLoader
-from sdi.utils import SdiUtils
-from sdi.reader import SdiReader
+from subsystems.sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.utils import SdiUtils
+from subsystems.sdi.reader import SdiReader
 
 
 class TestEarthObservationDataReader:

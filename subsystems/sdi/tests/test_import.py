@@ -2,9 +2,9 @@ from pathlib import Path
 import requests
 import tempfile
 
-from sdi.loader import InSituDataLoader
-from sdi.loader import EarthObservationDataLoader
-from sdi.utils import SdiUtils
+from subsystems.sdi.loader import InSituDataLoader
+from subsystems.sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.utils import SdiUtils
 
 
 class TestInSituDataLoader:

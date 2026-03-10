@@ -1,5 +1,5 @@
 import hashlib
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 
 class SdiUtils:
