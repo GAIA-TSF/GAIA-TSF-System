@@ -5,6 +5,7 @@ import yaml
 from shapely import wkt
 from shapely.errors import ShapelyError
 
+from lib.exceptions import GaiaConfigError
 
 class ConfigReader(dict):
     def __init__(self, config_path: str):
@@ -146,7 +147,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
     def __init__(self, config_path: str):
         """Initialize project config reader.
 
-        Validity may be checked by is_valid() method.
+        Raise GaiaConfigError when project definition is not valid.
 
         :param str config_path: path to config file
         """
@@ -161,3 +162,5 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         })
 
         self.validate(dict(self))
+        if self.is_valid() is False:
+            raise GaiaConfigError(f"{config_path}: {';'.join(self.errors)}")
