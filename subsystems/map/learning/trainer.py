@@ -10,11 +10,47 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         loss_fn: torch.nn.Module,
         device: torch.device,
+        early_stopping=False, 
+        patience=20,
     ):
         self._model = model.to(device)
         self._optimizer = optimizer
         self._loss_fn = loss_fn
         self._device = device
+        
+        self._early_stopping = early_stopping
+        self._patience = patience 
+
+    def fit(self, train_loader, val_loader, epochs):
+        """ Training loop helper. 
+        """
+        best_loss = float("inf")
+        patience_counter = 0
+
+        train_losses = []
+        val_losses = []
+
+        for epoch in range(epochs):
+
+            train_loss = self.train_epoch(train_loader)
+            val_loss = self.validate_epoch(val_loader)
+
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            if self._early_stopping:
+
+                if val_loss < best_loss:
+                    best_loss = val_loss
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+
+                if patience_counter >= self._patience:
+                    print("Early stopping triggered")
+                    break
+
+        return train_losses, val_losses
 
     def train_epoch(
         self,

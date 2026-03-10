@@ -37,3 +37,17 @@ python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
 
 python3 -m subsystems.map.inference.lstm_inference --dataset mirmazloumi_2023
 ```
+
+Suggested workflow: 
+1. Train model
+```
+python3 -m subsystems.map.learning.learning_lstm --dataset synthetic
+```
+2. Validate model
+```
+python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
+```
+3. Run monitoring
+``` 
+python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
+```
