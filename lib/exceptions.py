@@ -1,6 +1,6 @@
 from subsystems.qcl.logger import Logger
 
-_logger = Logger('QCL')
+_logger = Logger(subsystem='QCL')
 
 class GaiaError(Exception):
     def __init__(self, msg: str):
@@ -10,5 +10,5 @@ class GaiaError(Exception):
         """
         _logger.critical(msg)
 
-class GaiaConfigError(Exception):
+class GaiaConfigError(GaiaError):
     pass
