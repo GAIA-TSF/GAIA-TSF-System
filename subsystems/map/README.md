@@ -47,3 +47,11 @@ python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
 ``` 
 python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
 ```
+
+TESTS:  
+Requirement ML_R_02: 
+```
+pytest subsystems/map/tests/test_training.py -v 
+pytest subsystems/map/tests/test_validation.py -v 
+pytest subsystems/map/tests/test_tuning.py -v
+```
