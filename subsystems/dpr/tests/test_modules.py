@@ -1,4 +1,4 @@
-from dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
 class TestModules:
