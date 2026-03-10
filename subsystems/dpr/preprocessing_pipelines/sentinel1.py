@@ -16,6 +16,8 @@ class Sentinel1Pipeline(BasePipeline):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dem_da = None
+        self.dem_masked = None
+        self.dem_cropped = None
 
     def _download_orbits(self, datadir):
         s1 = S1(datadir)
@@ -124,8 +126,34 @@ class Sentinel1Pipeline(BasePipeline):
         else:
             print(f"[DEM] LiDAR DEM not found at {lidar_data}. Using Copernicus DEM only.")
 
-    def run(self, data_dir, roi_bbox, lidar_file):
+    def _save_composite_dem(self, output_file):
+        self.dem_da = self.dem_da.load().squeeze(drop=True)
+        self.dem_da.name = "dem"
+        self.dem_da = self.dem_da.rio.write_crs("EPSG:4326")
+        self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+
+        xr.Dataset({"dem": self.dem_da}).to_netcdf(output_file)
+        print(f"[DEM] Composite DEM written to: {output_file}")
+
+        with xr.open_dataset(output_file) as ds_check:
+            if "dem" not in ds_check.data_vars:
+                raise RuntimeError(
+                    f"[DEM] Saved file does not contain variable 'dem'. Found: {list(ds_check.data_vars)}")
+            print("[DEM] Saved variables:", list(ds_check.data_vars))
+
+    def _clip_dem(self, aoi):
+        # TODO: Check if really needed
+        self.dem_masked = self.dem_da.rio.clip([aoi], self.dem_da.rio.crs, drop=False, invert=False)
+        self.dem_cropped = self.dem_da.rio.clip([aoi], self.dem_da.rio.crs, drop=True, invert=False)
+
+        print("Original DEM shape:", self.dem_da.shape)
+        print("Masked DEM shape  :", self.dem_masked.shape, "(same as original)")
+        print("Cropped DEM shape :", self.dem_cropped.shape, "(smaller)")
+
+    def run(self, data_dir, bbox, lidar_file, output_dem, aoi):
         self._download_orbits(data_dir)
-        self._download_dem_baseline(roi_bbox)
+        self._download_dem_baseline(bbox)
         self._lidar_infill(lidar_file)
+        self._save_composite_dem(output_dem)
+        self._clip_dem(aoi)
         # ...

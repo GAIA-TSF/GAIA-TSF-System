@@ -18,11 +18,13 @@ class BasePipeline(ABC):
         self._config = config
 
     @abstractmethod
-    def run(self, data_dir, roi_bbox, lidar_file) -> None:
+    def run(self, data_dir, bbox, lidar_file, output_dem, aoi) -> None:
         """Execute pipeline.
 
         param data_dir: directory with Sentinel-1 data
-        param roi_bbox: bounding box of ROI
+        param bbox: bounding box of AOI
         param lidar_file: input file with lidar data
+        param output_dem: path for resulting output DEM
+        param aoi: AOI geometry
         """
         pass

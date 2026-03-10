@@ -100,6 +100,7 @@ class TestSentinel1Workflow:
     def test_003_lidar_infill(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
+            assert pipeline.dem_da is not None
 
         base_dir = Path(config['project']['data_dir'])
         lidar_dir = base_dir / 'lidar'
@@ -114,6 +115,33 @@ class TestSentinel1Workflow:
                 assert not np.array_equal(pipeline.dem_da.values, baseline_snapshot.values)
         else:
             assert pipeline.dem_da is not None
+
+    def test_004_save_composite_dem(self, pipeline, config):
+        if pipeline.dem_da is None:
+            pipeline._download_dem_baseline(self._get_bbox(config))
+            assert pipeline.dem_da is not None
+
+        base_dir = Path(config['project']['data_dir'])
+        output_dem = base_dir / 'dem.nc'
+        pipeline._save_composite_dem(output_dem)
+        assert output_dem.exists()
+
+    def test_005_clip_dem(self, pipeline, config):
+        if pipeline.dem_da is None:
+            pipeline._download_dem_baseline(self._get_bbox(config))
+            assert pipeline.dem_da is not None
+
+        aoi = loads(config['project']['aoi']['geom'])
+        pipeline._clip_dem(aoi)
+        assert pipeline.dem_masked is not None
+        assert pipeline.dem_cropped is not None
+
+        # Check if AOI != BBOX, case of sibanye-td6
+        if len(aoi.exterior.coords) > 5:
+            assert pipeline.dem_cropped.size < pipeline.dem_masked.size
+
+        assert not np.isnan(pipeline.dem_masked.values).all()
+        assert not np.isnan(pipeline.dem_cropped.values).all()
 
     def test_run_workflow(self, pipeline, config):
         pass
