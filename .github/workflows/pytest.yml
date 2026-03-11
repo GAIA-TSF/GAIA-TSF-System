@@ -29,11 +29,11 @@ jobs:
 
       - name: Run ALE test suite
         run: |
-          cd subsystems
-          for i in $(ls ale/tests/test*py); do
+          for i in $(ls subsystems/ale/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   dag:
@@ -48,11 +48,11 @@ jobs:
 
       - name: Run DAG test suite
         run: |
-          cd subsystems
-          for i in $(ls dag/tests/test*py); do
+          for i in $(ls subsystems/dag/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   dpr:
@@ -67,11 +67,11 @@ jobs:
 
       - name: Run DPR test suite
         run: |
-          cd subsystems
-          for i in $(ls dpr/tests/test*py); do
+          for i in $(ls subsystems/dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   eou:
@@ -88,12 +88,12 @@ jobs:
         env:
           CDSE: ${{secrets.CDSE}}
         run: |
-          cd subsystems
           echo "$CDSE" > eou/tests/eodag_config.yml
-          for i in $(ls eou/tests/test*py); do
+          for i in $(ls subsystems/eou/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   isu:
@@ -108,11 +108,11 @@ jobs:
 
       - name: Run ISU test suite
         run: |
-          cd subsystems
-          for i in $(ls isu/tests/test*py); do
+          for i in $(ls subsystems/isu/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   map:
@@ -127,11 +127,11 @@ jobs:
 
       - name: Run MAP test suite
         run: |
-          cd subsystems
-          for i in $(ls map/tests/test*py); do
+          for i in $(ls subsystems/map/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   ntf:
@@ -146,11 +146,11 @@ jobs:
 
       - name: Run NTF test suite
         run: |
-          cd subsystems
-          for i in $(ls ntf/tests/test*py); do
+          for i in $(ls subsystems/ntf/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   qcl:
@@ -165,11 +165,11 @@ jobs:
 
       - name: Run QCL test suite
         run: |
-          cd subsystems
-          for i in $(ls qcl/tests/test*py); do
+          for i in $(ls subsystems/qcl/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   rep:
@@ -184,11 +184,11 @@ jobs:
 
       - name: Run REP test suite
         run: |
-          cd subsystems
-          for i in $(ls rep/tests/test*py); do
+          for i in $(ls subsystems/rep/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   sdi:
@@ -203,11 +203,11 @@ jobs:
 
       - name: Run SDI test suite
         run: |
-          cd subsystems
-          for i in $(ls sdi/tests/test*py); do
+          for i in $(ls subsystems/sdi/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
 
   vid:
@@ -222,9 +222,9 @@ jobs:
 
       - name: Run VID test suite
         run: |
-          cd subsystems
-          for i in $(ls vid/tests/test*py); do
+          for i in $(ls subsystems/vid/tests/test*py); do
             echo "*** running test suite: $i ***"
-            cd ../docker
+            cd docker
             docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
           done
