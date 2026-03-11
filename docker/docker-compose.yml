@@ -15,7 +15,7 @@ services:
     links:
       - pgstacdb
     volumes:
-      - ../subsystems:/opt/gaia_tsf
+      - ..:/opt/gaia_tsf
     networks:
       - gaia_net
     command: tail -f /dev/null
@@ -62,7 +62,7 @@ services:
       - "7432:5432"
     volumes:
       - pgstac_data:/var/lib/postgresql/data
-      - ../subsystems:/opt/gaia_tsf
+      - ..:/opt/gaia_tsf
     networks:
       - gaia_net
     # depends_on:

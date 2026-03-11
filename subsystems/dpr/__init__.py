@@ -1,8 +1,8 @@
-from dpr.preprocessing_pipelines import PreprocessingPipelines
-from dpr.data_analysis_pipelines import DataAnalysisPipelines
-from dpr.metadata_processor import MetadataProcessor
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
+from subsystems.dpr.metadata_processor import MetadataProcessor
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 
 class DataProcessing:
