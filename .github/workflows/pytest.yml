@@ -228,3 +228,22 @@ jobs:
             docker compose exec gaiatesting python3 -m pytest -v $i
             cd ..
           done
+
+  general:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run general tests
+        run: |
+          for i in $(ls tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
