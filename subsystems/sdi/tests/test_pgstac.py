@@ -1,7 +1,7 @@
 import psycopg
 import pytest
 
-from config import DB_CONFIG_STAC
+from config import DB_CONFIG
 
 
 class TestPGSTAC:

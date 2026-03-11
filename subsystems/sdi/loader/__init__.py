@@ -190,35 +190,35 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-
                         # Check if table exists
                         table_exists = False
                         if append_data:
-                            cur.execute("SELECT to_regclass(%s);", (self.table_name,))
+                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
                             table_exists = cur.fetchone()[0] is not None
 
                         table_ident = sql.Identifier(self.table_name)
 
                         # Table handling
                         if not append_data:
-
                             cur.execute(
-                                sql.SQL("DROP TABLE IF EXISTS {}").format(table_ident)
+                                sql.SQL('DROP TABLE IF EXISTS {}').format(table_ident)
                             )
 
                             cur.execute(
-                                sql.SQL("CREATE TABLE {} ({})").format(
+                                sql.SQL('CREATE TABLE {} ({})').format(
                                     table_ident,
-                                    sql.SQL(", ").join(sql.SQL(c) for c in sql_columns),
+                                    sql.SQL(', ').join(sql.SQL(c) for c in sql_columns),
                                 )
                             )
 
                         else:
                             if not table_exists:
                                 cur.execute(
-                                    sql.SQL("CREATE TABLE {} ({})").format(
+                                    sql.SQL('CREATE TABLE {} ({})').format(
                                         table_ident,
-                                        sql.SQL(", ").join(sql.SQL(c) for c in sql_columns),
+                                        sql.SQL(', ').join(
+                                            sql.SQL(c) for c in sql_columns
+                                        ),
                                     )
                                 )
 
@@ -240,15 +240,15 @@ class InSituDataLoader(SdiLoader):
                                     copy.write(data)
 
                         copy_query = sql.SQL(
-                            "COPY {} ({}) FROM STDIN WITH CSV HEADER"
+                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
                             table_ident,
-                            sql.SQL(", ").join(
-                                sql.Identifier(c["name"]) for c in columns
+                            sql.SQL(', ').join(
+                                sql.Identifier(c['name']) for c in columns
                             ),
                         )
 
-                        with open(csv_path, "rb") as f:
+                        with open(csv_path, 'rb') as f:
                             with cur.copy(copy_query) as copy:
                                 while data := f.read(8192):
                                     copy.write(data)
@@ -265,9 +265,9 @@ class InSituDataLoader(SdiLoader):
 
                         # Create spatial index
                         cur.execute(
-                            sql.SQL(
-                                "CREATE INDEX ON {} USING GIST (geom)"
-                            ).format(table_ident)
+                            sql.SQL('CREATE INDEX ON {} USING GIST (geom)').format(
+                                table_ident
+                            )
                         )
 
             except psycopg.Error as e:

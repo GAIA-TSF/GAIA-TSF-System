@@ -1,7 +1,7 @@
 import psycopg
 import pytest
 
-from config import DB_CONFIG_PG
+from config import DB_CONFIG
 
 
 class TestPostGIS:
