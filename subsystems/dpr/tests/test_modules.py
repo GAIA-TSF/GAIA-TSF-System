@@ -2,8 +2,8 @@ import json
 
 from pathlib import Path
 
-from dpr.metadata_processor import MetadataGenerator
-from dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.metadata_processor import MetadataGenerator
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
 class TestModules:
@@ -13,7 +13,7 @@ class TestModules:
         Check preprocessing pipelines metadata.
         """
         module = PreprocessingPipelines()
-        data = module.pipelines
+        data = module.metadata
         assert isinstance(data, dict) and all(
             isinstance(k, str)
             and isinstance(v, dict)

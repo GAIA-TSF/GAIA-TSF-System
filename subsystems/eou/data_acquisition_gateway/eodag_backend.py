@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
 
-from eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
+from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
 
 class EODAGDataAcquisitionBackend(DataAcquisitionBackend):

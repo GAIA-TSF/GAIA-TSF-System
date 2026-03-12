@@ -1,4 +1,4 @@
-from dpr import DataProcessing
+from subsystems.dpr import DataProcessing
 
 
 class TestSubsystem:
