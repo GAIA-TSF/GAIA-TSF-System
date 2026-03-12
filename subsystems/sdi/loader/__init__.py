@@ -44,9 +44,11 @@ class SdiLoader(ABC):
 
         self.logger = Logger(subsystem=self.id)
 
-    def import_zip(self, append_data=False):
+    def import_zip(self, append_data: bool = False):
         """
         Template method defining the full import workflow.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         self._extract_zip()
         self._load_stac_json()
@@ -136,9 +138,11 @@ class SdiLoader(ABC):
         self.logger.debug('STAC item successfully posted.')
 
     @abstractmethod
-    def _import_data(self):
+    def _import_data(self, append_data: bool = False):
         """
         Import content into SDI.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         pass
 
@@ -148,11 +152,13 @@ class InSituDataLoader(SdiLoader):
     Concrete implementation for CSV datasets described in STAC JSON.
     """
 
-    def _import_data(self, append_data=False):
+    def _import_data(self, append_data: bool = False):
         """
         Import all assets defined in STAC JSON into PostGIS.
         Dynamically creates tables based on 'table:columns' for each asset.
         'lat' and 'lon' columns are always used to build geometry.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
@@ -302,10 +308,12 @@ class EarthObservationDataLoader(SdiLoader):
     Handles uploading raster files to S3 and publishing STAC items.
     """
 
-    def _import_data(self, append_data=False):
+    def _import_data(self, append_data: bool = False):
         """
         Locate raster assets in STAC JSON, upload each to S3,
         and update asset href dynamically.
+
+        :param bool append_data: currently ignored
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
