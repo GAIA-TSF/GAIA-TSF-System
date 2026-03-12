@@ -1,13 +1,13 @@
 import psycopg
 import pytest
 
-from config import DB_CONFIG
+from config import DB_CONFIG_STAC
 
 
 class TestPGSTAC:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG)
+        conn = psycopg.connect(**DB_CONFIG_STAC)
         yield conn
         conn.close()
 

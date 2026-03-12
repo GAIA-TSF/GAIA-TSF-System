@@ -6,8 +6,8 @@ import tempfile
 import psycopg
 import pytest
 
-from sdi.loader import InSituDataLoader
-from sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.loader import InSituDataLoader
+from subsystems.sdi.loader import EarthObservationDataLoader
 
 from config import DB_CONFIG_PG
 
