@@ -73,6 +73,7 @@ class TestInferenceModule:
         assert np.isfinite(valid).all()
 
 
+
     def test_anomaly_detection(self):
 
         predictor = self.make_predictor(horizon=2)
