@@ -106,7 +106,7 @@ class SdiLoader(ABC):
         bbox = self.stac_json.get('bbox', [0, 0, 1, 1])
 
         # Create a new collection
-        collection_id = f'testcollection{uuid.uuid4().hex[:8]}'
+        collection_id = self.stac_json['collection']
         collection_payload = {
             'id': collection_id,
             'title': 'Test Collection',
@@ -169,6 +169,7 @@ class InSituDataLoader(SdiLoader):
                 continue
 
             # Determine table name from STAC id + asset key
+            self.schema_name = f'{self.stac_json["collection"]}'
             self.table_name = f'{self.stac_json["id"]}_{asset_key}'
 
             # Build SQL column definitions dynamically
@@ -190,11 +191,16 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
+
+                        # Create schema if it does not exist
+                        cur.execute(sql.SQL(f'CREATE SCHEMA IF NOT EXISTS {self.schema_name};'))
+                        conn.commit()
+
                         # Drop and create table
-                        cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.table_name};'))
+                        cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.schema_name}.{self.table_name};'))
                         cur.execute(
                             sql.SQL(
-                                f'CREATE TABLE {self.table_name} ({", ".join(sql_columns)});'
+                                f'CREATE TABLE {self.schema_name}.{self.table_name} ({", ".join(sql_columns)});'
                             )
                         )
 
@@ -204,7 +210,7 @@ class InSituDataLoader(SdiLoader):
                         query = sql.SQL(
                             'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
-                            sql.Identifier(self.table_name),
+                            sql.Identifier(self.schema_name, self.table_name),
                             sql.SQL(', ').join(
                                 sql.Identifier(c['name']) for c in columns
                             ),
@@ -218,13 +224,13 @@ class InSituDataLoader(SdiLoader):
                         # Update geom column from lat/lon
                         cur.execute(
                             sql.SQL(f"""
-                                UPDATE {self.table_name}
+                                UPDATE {self.schema_name}.{self.table_name}
                                 SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326);
-                                CREATE INDEX ON {self.table_name} USING GIST (geom);
+                                CREATE INDEX ON {self.schema_name}.{self.table_name} USING GIST (geom);
                             """)
                         )
 
-                self.logger.debug(f'Table "{self.table_name}" successfully imported.')
+                self.logger.debug(f'Table "{self.schema_name}.{self.table_name}" successfully imported.')
 
             except psycopg.Error as e:
                 raise RuntimeError(
