@@ -1,4 +1,4 @@
-from dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
 class TestModules:
@@ -8,7 +8,7 @@ class TestModules:
         Check preprocessing pipelines metadata.
         """
         module = PreprocessingPipelines()
-        data = module.pipelines
+        data = module.metadata
         assert isinstance(data, dict) and all(
             isinstance(k, str)
             and isinstance(v, dict)
