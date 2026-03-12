@@ -1,7 +1,6 @@
 import psycopg
 import pytest
 
-
 from lib.config import SettingsReader
 
 
