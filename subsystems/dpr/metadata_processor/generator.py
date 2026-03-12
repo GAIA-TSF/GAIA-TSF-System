@@ -185,7 +185,7 @@ class StacItemFactory:
         :return: STAC Item
         :rtype: dict
         """
-        item_id = os.path.splitext(os.path.basename(self.raster.path))[0]
+        item_id = self.raster.path.stem
         now = datetime.now(UTC).isoformat() + 'Z'
 
         bbox = self.raster.get_bbox_wgs84()
@@ -212,7 +212,7 @@ class StacItemFactory:
             'geometry': geometry,
             'assets': {
                 'data': {
-                    'href': os.path.abspath(self.raster.path),
+                    'href': self.raster.path.name,
                     'type': self.MIME_LOOKUP.get(
                         self.raster.driver, 'application/octet-stream'
                     ),

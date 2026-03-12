@@ -63,7 +63,7 @@
     },
     "assets": {
         "data": {
-            "href": "/home/martin/git/GAIA-TSF/GAIA-TSF-System/subsystems/eou/tests/sample_data/ENMAP01_sample.tif",
+            "href": "ENMAP01_sample.tif",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
