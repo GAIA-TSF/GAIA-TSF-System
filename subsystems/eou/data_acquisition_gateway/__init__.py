@@ -5,10 +5,10 @@ if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
 
-from lib.base import BaseObject, SubsystemId
+from lib.base import GaiaBase, SubsystemId
 
 
-class DataAcquisitionGateway(BaseObject):
+class DataAcquisitionGateway(GaiaBase):
     """Data Acquisition Gateway module serves as the automated
     ingestion engine for the sub-system.
     """

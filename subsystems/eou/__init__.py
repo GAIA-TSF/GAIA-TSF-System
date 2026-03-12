@@ -3,10 +3,10 @@ from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.eou.data_extraction import DataExtraction
 
 from subsystems.qcl.logger import Logger
-from lib.base import BaseObject, SubsystemId
+from lib.base import GaiaBase, SubsystemId
 
 
-class EarthObservationDataUploader(BaseObject):
+class EarthObservationDataUploader(GaiaBase):
     """Earth Observation Data Uploader sub-system is designed to
     manage the acquisition of satellite imagery from both public and
     restricted repositories."""

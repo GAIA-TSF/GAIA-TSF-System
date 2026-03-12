@@ -12,10 +12,10 @@ from abc import ABC, abstractmethod
 
 from subsystems.qcl.logger import Logger
 
-from lib.base import BaseObject
+from lib.base import GaiaBase
 
 
-class SdiLoader(ABC, BaseObject):
+class SdiLoader(ABC, GaiaBase):
     """
     Base class defining the workflow for loading
     a ZIP package into SDI.
@@ -23,7 +23,7 @@ class SdiLoader(ABC, BaseObject):
 
     def __init__(self, zip_path, pg_config=None, stac_api_url=None):
         ABC.__init__(self)
-        BaseObject.__init__(self)
+        GaiaBase.__init__(self)
 
         self.zip_path = zip_path
         # TBD: raise GaiaSettingsError

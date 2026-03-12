@@ -5,25 +5,39 @@ from subsystems.qcl.logger import Logger
 
 
 class SubsystemId(Enum):
-    ISU = 1
-    EOU = 2
+    """Subsystem ID.
+
+    - ALE	Alert & Decision Support Engine
+    - DAG	Data Aggregation
+    - DPR	Data Processor
+    - EOU	Earth Observation Data Uploader
+    - ISU	In-Situ Data Uploader
+    - MAP	Machine Learning & Predictive Analytics
+    - NTF	Notifications
+    - QCL	Quality Control and Logging Layer
+    - REP	Reporting & Compliance
+    - SDI	Spatial Data Infrastructure
+    - VID	Visualisation & Dashboard
+    """
+    ALE = 1
+    DAG = 2
     DPR = 3
-    SDI = 4
-    QCL = 5
-    DAG = 6
-    MAP = 7
-    ALE = 8
-    NTF = 9
-    REP = 10
+    EOU = 4
+    ISU = 5
+    MAP = 6
+    NTF = 7
+    QCL = 8
+    REP = 9
+    SDI = 10
     VID = 11
 
 
-class BaseObject:
+class GaiaBase:
     def __init__(self, sid: SubsystemId, project_file: str = None):
-        """Initialize base object.
+        """Initialize base GAIA-TSF object.
 
         Reads internal system settings and project configuration file
-        if defined.
+        if defined. Initialize logger.
 
         :param SubsystemId sid: subsystem id
         :param str project_file: path to project file to be read or None
