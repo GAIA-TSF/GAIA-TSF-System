@@ -18,7 +18,7 @@ class BasePipeline(ABC):
         self._config = config
 
     @abstractmethod
-    def run(self, data_dir, bbox, lidar_file, output_dem, aoi) -> None:
+    def run(self, data_dir, bbox, lidar_file, output_dem, aoi, output_landmask) -> None:
         """Execute pipeline.
 
         param data_dir: directory with Sentinel-1 data
@@ -26,5 +26,6 @@ class BasePipeline(ABC):
         param lidar_file: input file with lidar data
         param output_dem: path for resulting output DEM
         param aoi: AOI geometry
+        param output_landmask: path for output landmask
         """
         pass

@@ -15,13 +15,15 @@ class Sentinel1Pipeline(BasePipeline):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.s1 = None
         self.dem_da = None
         self.dem_masked = None
         self.dem_cropped = None
+        self.landmask_arr = None
 
     def _download_orbits(self, datadir):
-        s1 = S1(datadir)
-        EOF().download(datadir, s1.to_dataframe())
+        self.s1 = S1(datadir)
+        EOF().download(datadir, self.s1.to_dataframe())
 
     def _download_dem_baseline(self, roi_square):
         tiles = Tiles()
@@ -150,10 +152,32 @@ class Sentinel1Pipeline(BasePipeline):
         print("Masked DEM shape  :", self.dem_masked.shape, "(same as original)")
         print("Cropped DEM shape :", self.dem_cropped.shape, "(smaller)")
 
-    def run(self, data_dir, bbox, lidar_file, output_dem, aoi):
+    def _save_landmask(self, output_landmask):
+        # TODO: Check if really needed
+        self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype("uint8")
+        self.landmask_arr.name = "landmask"
+        self.landmask_arr = self.landmask_arr.rio.write_crs(self.dem_da.rio.crs)
+        self.landmask_arr = self.landmask_arr.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+
+        xr.Dataset({"landmask": self.landmask_arr}).to_netcdf(output_landmask)
+
+        print(f"[LANDMASK] AOI-based landmask saved to: {output_landmask}")
+        print("[LANDMASK] Convention: 1 = inside AOI (TSF polygon), 0 = outside within DEM area.")
+        print("[LANDMASK] Landmask dims:", self.landmask_arr.dims, self.landmask_arr.shape)
+
+    def _link_s1_with_dem(self, datadir, dem_file):
+        self.s1 = S1(datadir, DEM=str(dem_file))
+        self.s1.to_dataframe()
+
+    def _filter_scenes(self):
+        raise NotImplementedError
+
+    def run(self, data_dir, bbox, lidar_file, output_dem, aoi, output_landmask):
         self._download_orbits(data_dir)
         self._download_dem_baseline(bbox)
         self._lidar_infill(lidar_file)
         self._save_composite_dem(output_dem)
         self._clip_dem(aoi)
+        self._save_landmask(output_landmask)
+        self._link_s1_with_dem(data_dir, output_dem)
         # ...

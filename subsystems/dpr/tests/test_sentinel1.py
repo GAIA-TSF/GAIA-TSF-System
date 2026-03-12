@@ -85,6 +85,8 @@ class TestSentinel1Workflow:
     def test_001_download_orbits(self, pipeline, config):
         data_dir = config['project']['data_dir']
         pipeline._download_orbits(data_dir)
+        assert pipeline.s1 is not None
+        assert not pipeline.s1.df.empty
         eof_files = [f for f in os.listdir(data_dir) if f.endswith('.EOF')]
         assert len(eof_files) > 0
 
@@ -142,6 +144,35 @@ class TestSentinel1Workflow:
 
         assert not np.isnan(pipeline.dem_masked.values).all()
         assert not np.isnan(pipeline.dem_cropped.values).all()
+
+    def test_006_save_landmask(self, pipeline, config):
+        if pipeline.dem_da is None:
+            pipeline._download_dem_baseline(self._get_bbox(config))
+            assert pipeline.dem_da is not None
+        if pipeline.dem_masked is None:
+            aoi = loads(config['project']['aoi']['geom'])
+            pipeline._clip_dem(aoi)
+            assert pipeline.dem_masked is not None
+
+        base_dir = Path(config['project']['data_dir'])
+        output_landmask = base_dir / 'landmask.nc'
+        pipeline._save_landmask(output_landmask)
+        assert output_landmask.exists()
+
+    def test_007_link_s1_with_dem(self, pipeline, config):
+        if pipeline.dem_da is None:
+            pipeline._download_dem_baseline(self._get_bbox(config))
+            assert pipeline.dem_da is not None
+        base_dir = Path(config['project']['data_dir'])
+        dem = base_dir / 'dem.nc'
+        if not dem.exists():
+            pipeline._save_composite_dem(dem)
+            assert dem.exists()
+
+        pipeline._link_s1_with_dem(base_dir, dem)
+        assert pipeline.s1 is not None
+        assert pipeline.s1.DEM is not None
+        assert pipeline.s1.DEM == str(dem)
 
     def test_run_workflow(self, pipeline, config):
         pass
