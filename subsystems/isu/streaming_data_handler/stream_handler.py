@@ -13,8 +13,10 @@ try:
 except ImportError:
     KafkaConsumer = None
     # Dummy classes for safe exception catching if kafka is not installed
-    class KafkaError(Exception): pass
-    class NoBrokersAvailable(Exception): pass
+    class KafkaError(Exception): 
+        pass
+    class NoBrokersAvailable(Exception): # noqa: N818
+        pass
 
 try:
     import boto3
