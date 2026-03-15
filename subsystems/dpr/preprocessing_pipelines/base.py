@@ -18,14 +18,19 @@ class BasePipeline(ABC):
         self._config = config
 
     @abstractmethod
-    def run(self, data_dir, bbox, lidar_file, output_dem, aoi, output_landmask) -> None:
+    def run(self, aoi, start, end, direction, username, password, data_dir, bbox, lidar_file, output_dem, output_landmask) -> None:
         """Execute pipeline.
 
+        param aoi: AOI geometry
+        param start: start time for burst search
+        param end: end time for burst search
+        param direction: orbit direction
+        param username: ASF username
+        param password: ASF password
         param data_dir: directory with Sentinel-1 data
         param bbox: bounding box of AOI
         param lidar_file: input file with lidar data
         param output_dem: path for resulting output DEM
-        param aoi: AOI geometry
         param output_landmask: path for output landmask
         """
         pass

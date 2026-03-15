@@ -27,7 +27,7 @@ def config():
             Path(__file__).parent.parent.parent.parent
             / 'tests'
             / 'projects'
-            / 'sibanye-td6.yml'
+            / 'jagersfontein.yml'
         )
     )
 
@@ -82,7 +82,24 @@ class TestSentinel1Workflow:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()
 
-    def test_001_download_orbits(self, pipeline, config):
+    def test_001_search_bursts(self, pipeline, config):
+        aoi = loads(config['project']['aoi']['geom'])
+        pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
+        assert pipeline.bursts is not None
+        assert len(pipeline.bursts) > 0
+
+    def test_002_download_bursts(self, pipeline, config):
+        if pipeline.bursts is None:
+            aoi = loads(config['project']['aoi']['geom'])
+            pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
+            assert pipeline.bursts is not None
+            assert len(pipeline.bursts) > 0
+
+        data_dir = config['project']['data_dir']
+        pipeline._download_bursts('username', 'password', data_dir)
+        assert any(item.is_dir() and 'IW' in item.name for item in Path(data_dir).iterdir())
+
+    def test_003_download_orbits(self, pipeline, config):
         data_dir = config['project']['data_dir']
         pipeline._download_orbits(data_dir)
         assert pipeline.s1 is not None
@@ -90,7 +107,7 @@ class TestSentinel1Workflow:
         eof_files = [f for f in os.listdir(data_dir) if f.endswith('.EOF')]
         assert len(eof_files) > 0
 
-    def test_002_download_dem_baseline(self, pipeline, config):
+    def test_004_download_dem_baseline(self, pipeline, config):
         bbox = self._get_bbox(config)
         pipeline._download_dem_baseline(bbox)
         assert pipeline.dem_da is not None
@@ -99,7 +116,7 @@ class TestSentinel1Workflow:
         assert 'lon' in pipeline.dem_da.coords
         assert pipeline.dem_da.ndim == 2
 
-    def test_003_lidar_infill(self, pipeline, config):
+    def test_005_lidar_infill(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -118,7 +135,7 @@ class TestSentinel1Workflow:
         else:
             assert pipeline.dem_da is not None
 
-    def test_004_save_composite_dem(self, pipeline, config):
+    def test_006_save_composite_dem(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -128,7 +145,7 @@ class TestSentinel1Workflow:
         pipeline._save_composite_dem(output_dem)
         assert output_dem.exists()
 
-    def test_005_clip_dem(self, pipeline, config):
+    def test_007_clip_dem(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -145,7 +162,7 @@ class TestSentinel1Workflow:
         assert not np.isnan(pipeline.dem_masked.values).all()
         assert not np.isnan(pipeline.dem_cropped.values).all()
 
-    def test_006_save_landmask(self, pipeline, config):
+    def test_008_save_landmask(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -159,7 +176,7 @@ class TestSentinel1Workflow:
         pipeline._save_landmask(output_landmask)
         assert output_landmask.exists()
 
-    def test_007_link_s1_with_dem(self, pipeline, config):
+    def test_009_link_s1_with_dem(self, pipeline, config):
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None

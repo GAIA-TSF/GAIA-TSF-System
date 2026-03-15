@@ -1,5 +1,5 @@
 from insardev_pygmtsar import S1
-from insardev_toolkit import EOF, Tiles
+from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
 import rioxarray
 import numpy as np
@@ -15,11 +15,20 @@ class Sentinel1Pipeline(BasePipeline):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.bursts = None
         self.s1 = None
         self.dem_da = None
         self.dem_masked = None
         self.dem_cropped = None
         self.landmask_arr = None
+
+    def _search_bursts(self, aoi, start, end, direction):
+        self.bursts = ASF.search(aoi, startTime=start, stopTime=end, flightDirection=direction)
+
+    def _download_bursts(self, username, password, datadir):
+        burst_ids = self.bursts.fileID.tolist()
+        asf = ASF(username, password)
+        asf.download(datadir, burst_ids)
 
     def _download_orbits(self, datadir):
         self.s1 = S1(datadir)
@@ -172,7 +181,9 @@ class Sentinel1Pipeline(BasePipeline):
     def _filter_scenes(self):
         raise NotImplementedError
 
-    def run(self, data_dir, bbox, lidar_file, output_dem, aoi, output_landmask):
+    def run(self, aoi, start, end, direction, username, password, data_dir, bbox, lidar_file, output_dem, output_landmask):
+        self._search_bursts(aoi, start, end, direction)
+        self._download_bursts(username, password, data_dir)
         self._download_orbits(data_dir)
         self._download_dem_baseline(bbox)
         self._lidar_infill(lidar_file)
