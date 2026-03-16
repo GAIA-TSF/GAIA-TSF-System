@@ -9,7 +9,8 @@ from .trainer import Trainer
 
 from subsystems.map import dataset
 from subsystems.map.registry.model_registry import ModelRegistry 
-
+from subsystems.map.registry.experiment_tracker import ExperimentTracker
+from subsystems.map.registry.experiment_index import update_experiment_index 
 
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
@@ -171,6 +172,13 @@ def main():
         config['experiments']['name']
     )   
 
+    tracker = ExperimentTracker(exp_dir)
+
+    tracker.start(
+        dataset=args.dataset,
+        config=config
+    )
+
     registry_path = os.path.join(exp_dir, 'model_registry.json') 
     registry = ModelRegistry(registry_path)
 
@@ -195,6 +203,18 @@ def main():
 
     print('Best model stored in:', model_path) 
 
+    tracker.log_metrics(train_losses, test_losses)
+    tracker.log_artifact(model_path)
+
+    # update global experiment index
+    update_experiment_index(
+        config["experiments"]["root_dir"],
+        config["experiments"]["name"],
+        {
+            "best_test_loss": float(min(test_losses))
+        }
+    )
+
     # Register model in registry
     registry_entry = registry.register_model(
         model_file=config["experiments"]["model_file"],
@@ -214,6 +234,11 @@ def main():
     # -----------------------------
     # Plot
     # -----------------------------
+    plot_dir = os.path.join(exp_dir, "plots")
+    os.makedirs(plot_dir, exist_ok=True)
+
+    plot_path = os.path.join(plot_dir, "learning_curve.png")
+    
     plt.figure(figsize=(8, 4))
     plt.plot(train_losses, label='Train', color='blue')
     plt.plot(test_losses, label='Test', color='green')
@@ -223,7 +248,11 @@ def main():
     plt.title(f'LSTM Learning – {args.dataset}')
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    plt.savefig(plot_path)
+
+    tracker.log_artifact(plot_path)
+    tracker.finish() 
 
 
 if __name__ == '__main__':

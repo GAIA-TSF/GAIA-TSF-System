@@ -43,9 +43,14 @@ python3 -m subsystems.map.learning.lstm_learning --dataset synthetic
 python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
 ```
 
-5. Registering model 
+5. List models and register it
 ```
-Done automatically by lstm_learning.py 
+python3 -m subsystems.map.registry.list_experiments --root ./GAIA_TSF/tsf_experiments 
+
+python3 -m subsystems.map.registry.best_model --root 
+ ./GAIA_TSF/tsf_experiments --print-path 
+ 
+Registering is done automatically by lstm_learning.py 
 ```
 
 6. Run monitoring inference 
