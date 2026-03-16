@@ -52,6 +52,10 @@ TESTS:
 Requirement ML_R_02: 
 ```
 pytest subsystems/map/tests/test_training.py -v 
+
 pytest subsystems/map/tests/test_validation.py -v 
+
 pytest subsystems/map/tests/test_tuning.py -v
+
+pytest subsystems/map/tests/test_inference.py -v 
 ```
