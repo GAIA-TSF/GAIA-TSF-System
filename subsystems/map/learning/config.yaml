@@ -20,7 +20,7 @@ tuning:
 experiments:
   # root_dir: /media/lukas/image2/GAIA_TSF/tsf_projects
   root_dir: /Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_projects
-  name: simex2 
+  name: simex1 
   model_file: best_model.pt 
 
 validation:

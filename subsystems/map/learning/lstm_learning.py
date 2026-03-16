@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader, Subset
 from .trainer import Trainer
 
 from subsystems.map import dataset
+from subsystems.map.registry.model_registry import ModelRegistry 
+
 
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
@@ -64,7 +66,7 @@ def _build_indices(dataset, split_name, look_back, horizon):
         window_start = i
         window_end = i + look_back + horizon
 
-        if window_start >= split["start_index"] and window_end <= split["end_index"]:
+        if window_start >= split['start_index'] and window_end <= split['end_index']:
             indices.append(i)
 
     return indices
@@ -142,53 +144,72 @@ def main():
     learning = LearningModule()
 
     model = learning.create_forecasting_model(
-        input_size=model_cfg["input_size"],
-        hidden_size=model_cfg["hidden_size"],
-        num_layers=model_cfg["num_layers"],
+        input_size=model_cfg['input_size'],
+        hidden_size=model_cfg['hidden_size'],
+        num_layers=model_cfg['num_layers'],
         horizon=horizon,
-        dropout=model_cfg["dropout"],
-        bidirectional=model_cfg["bidirectional"],
+        dropout=model_cfg['dropout'],
+        bidirectional=model_cfg['bidirectional'],
     )
 
     trainer = learning.create_trainer(
         model=model,
-        learning_rate=trainer_cfg["learning_rate"],
+        learning_rate=trainer_cfg['learning_rate'],
         device=device,
     )
 
     # -----------------------------
     # Training
     # -----------------------------
-    print("Training starts")
+    print('Training starts')
 
     train_losses = []
     test_losses = []
 
     exp_dir = os.path.join(
-        config["experiments"]["root_dir"],
-        config["experiments"]["name"]
+        config['experiments']['root_dir'],
+        config['experiments']['name']
     )   
+
+    registry_path = os.path.join(exp_dir, 'model_registry.json') 
+    registry = ModelRegistry(registry_path)
 
     os.makedirs(exp_dir, exist_ok=True)
 
-    config_copy = os.path.join(exp_dir, "config_used.yaml")
+    config_copy = os.path.join(exp_dir, 'config_used.yaml')
 
-    with open(config_copy, "w") as f:
+    with open(config_copy, 'w') as f:
         yaml.dump(config, f)
 
     model_path = os.path.join(
         exp_dir,
-        config["experiments"]["model_file"]
+        config['experiments']['model_file']
     )
 
     train_losses, test_losses = trainer.fit(
         train_loader,
         test_loader,
-        trainer_cfg["epochs"],
+        trainer_cfg['epochs'],
         model_path=model_path
     )
 
-    print("Best model stored in:", model_path)
+    print('Best model stored in:', model_path) 
+
+    # Register model in registry
+    registry_entry = registry.register_model(
+        model_file=config["experiments"]["model_file"],
+        dataset=args.dataset,
+        parameters=config["model"],
+        monitoring_cfg=config.get("monitoring", {}),
+        metrics={
+            "final_train_loss": float(train_losses[-1]),
+            "final_test_loss": float(test_losses[-1]),
+            "best_test_loss": float(min(test_losses)),
+        },
+    )
+
+    print('Model registered:')
+    print(registry_entry)
 
     # -----------------------------
     # Plot

@@ -43,7 +43,12 @@ python3 -m subsystems.map.learning.lstm_learning --dataset synthetic
 python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
 ```
 
-5. Run monitoring inference 
+5. Registering model 
+```
+Done automatically by lstm_learning.py 
+```
+
+6. Run monitoring inference 
 ``` 
 python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
 ```
@@ -56,6 +61,13 @@ pytest subsystems/map/tests/test_training.py -v
 pytest subsystems/map/tests/test_validation.py -v 
 
 pytest subsystems/map/tests/test_tuning.py -v
+```
 
+Requirement ML_R_03: 
 pytest subsystems/map/tests/test_inference.py -v 
+```
+
+TODO: Requirement ML_R_06: model registry
+```
+
 ```
