@@ -1,7 +1,6 @@
 from enum import Enum
 
 from .config import SettingsReader, ProjectConfigReader
-from subsystems.qcl.logger import Logger
 
 
 class SubsystemId(Enum):
@@ -42,6 +41,8 @@ class GaiaBase:
         :param SubsystemId sid: subsystem id
         :param str project_file: path to project file to be read or None
         """
+        from subsystems.qcl.logger import Logger
+
         self.sid = sid
         # initialize internal settings
         self.settings = SettingsReader()
