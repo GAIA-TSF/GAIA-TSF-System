@@ -186,7 +186,7 @@ class StacItemFactory:
         :rtype: dict
         """
         item_id = self.raster.path.stem
-        now = datetime.now(UTC).isoformat() + 'Z'
+        now = datetime.now(UTC).isoformat()
 
         bbox = self.raster.get_bbox_wgs84()
         geometry = self._build_geometry(bbox)
