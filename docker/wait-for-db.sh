@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 until python3 -c "
-import psycopg2
+import psycopg
 import sys
 try:
-    conn = psycopg2.connect(host='pgstacdb', port=5432, dbname='stac', user='stac', password='stac')
+    conn = psycopg.connect(host='pgstacdb', port=5432, dbname='stac', user='stac', password='stac')
     conn.close()
 except Exception:
     sys.exit(1)

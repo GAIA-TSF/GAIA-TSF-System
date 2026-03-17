@@ -6,12 +6,9 @@ from shapely.wkt import loads
 from shapely.geometry import Polygon
 import numpy as np
 
-
-# to be removed when https://github.com/GAIA-TSF/GAIA-TSF-System/issues/97 is solved
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 from lib.config import ProjectConfigReader
-from eou.data_acquisition_gateway import DataAcquisitionGateway
-from dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
 @pytest.fixture(scope='class')

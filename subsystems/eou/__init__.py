@@ -1,8 +1,8 @@
-from eou.manual_file_loader import ManualFileLoader
-from eou.data_acquisition_gateway import DataAcquisitionGateway
-from eou.data_extraction import DataExtraction
+from subsystems.eou.manual_file_loader import ManualFileLoader
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
+from subsystems.eou.data_extraction import DataExtraction
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 
 class EarthObservationDataUploader:
