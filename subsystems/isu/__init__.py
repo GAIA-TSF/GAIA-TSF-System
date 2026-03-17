@@ -26,7 +26,7 @@ class InSituDataUploader(GaiaBase):
         :param processed_dir: The directory path where files are moved after processing.
         :type processed_dir: str
         """
-        super().__init__(SubsystemId.EOU)
+        super().__init__(SubsystemId.ISU)
         self.logger.debug('ISU Subsystem initializing...')
 
         self.input_dir = input_dir

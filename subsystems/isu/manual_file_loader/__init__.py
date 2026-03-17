@@ -8,3 +8,4 @@ class ManualFileLoader:
 
     def __init__(self):
         super().__init__(SubsystemId.ISU)
+        
