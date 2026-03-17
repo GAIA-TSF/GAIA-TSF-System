@@ -8,8 +8,7 @@ import pytest
 
 from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
-
-from config import DB_CONFIG_PG
+from lib.config import SettingsReader
 
 
 def file_md5(path):
@@ -26,7 +25,8 @@ def file_md5(path):
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_PG)
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 

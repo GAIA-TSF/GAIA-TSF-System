@@ -1,13 +1,14 @@
 import psycopg
 import pytest
 
-from config import DB_CONFIG_STAC
-
+from lib.config import SettingsReader
 
 class TestPGSTAC:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_STAC)
+        settings = SettingsReader()
+
+        conn = psycopg.connect(**settings['sdi']['stac']['db'])
         yield conn
         conn.close()
 

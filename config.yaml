@@ -15,7 +15,14 @@ sdi:
     dbname: 'geodata'
     user: 'postgres'
     password: 'fevcfQBu3b3CfxFU'
-  stac_url: 'http://stacapi:8000'
+  stac:
+    db:
+      host: 'pgstacdb'
+      port: 5432
+      dbname: 'stac'
+      user: 'stac'
+      password: 'stac'
+    url: 'http://stacapi:8000'
   allowed_raster_extensions:
     - '.tif'
     - '.zip'

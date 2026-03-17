@@ -26,7 +26,7 @@ class SdiLoader(ABC, GaiaBase):
         self.zip_path = zip_path
         # TBD: raise GaiaSettingsError
         self.pg_config = pg_config or self.settings['sdi']['db']
-        self.stac_api_url = stac_api_url or self.settings['sdi']['stac_url']
+        self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
 
         self.temp_dir = None
         self.json_file = None
