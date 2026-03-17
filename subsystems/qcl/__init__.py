@@ -1,14 +1,11 @@
-from subsystems.qcl.logger import Logger
+from lib.base import GaiaBase, SubsystemId
 
 
-class QualityControlLoggingLayer:
+class QualityControlLoggingLayer(GaiaBase):
     """The Quality Control Layer serves as the critical validation
     gatekeeper within the GAIA-TSF monitoring architecture, situated
     between the ingestion/ETL processes and the Spatial Data
     Infrastructure (SDI) storage."""
-
-    id = 'QCL'
-
     def __init__(self):
-        self.logger = Logger(subsystem=self.id)
-        self.logger.debug('initialized')
+        super().__init__(SubsystemId.QCL)
+
