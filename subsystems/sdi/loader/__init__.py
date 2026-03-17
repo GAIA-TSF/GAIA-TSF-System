@@ -11,8 +11,7 @@ from abc import ABC, abstractmethod
 
 from subsystems.qcl.logger import Logger
 
-from lib.base import GaiaBase
-
+from lib.base import GaiaBase, SubsystemId
 
 class SdiLoader(ABC, GaiaBase):
     """
@@ -22,7 +21,7 @@ class SdiLoader(ABC, GaiaBase):
 
     def __init__(self, zip_path, pg_config=None, stac_api_url=None):
         ABC.__init__(self)
-        GaiaBase.__init__(self)
+        GaiaBase.__init__(self, SubsystemId.SDI)
 
         self.zip_path = zip_path
         # TBD: raise GaiaSettingsError
