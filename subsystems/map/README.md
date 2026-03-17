@@ -20,20 +20,59 @@ python3 -m subsystems.map.scripts.visualize_insar_dataset \
     --anomaly-magnitude 5.0
 ```
 
-Learn LSTM recurrent model on the Mirmazloumi et al. (2023) and synthetic dataset of slope stability: 
-
+Workflow: 
+1. Train baseline model
 ```
-python3 -m subsystems.map.learning.lstm_learning \
-    --dataset synthetic
-
-python3 -m subsystems.map.learning.lstm_learning \
-    --dataset mirmazloumi_2023
+python3 -m subsystems.map.learning.lstm_learning --dataset synthetic
+```
+2. Validate model
+```
+python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
+```
+3. Run hyperparameters tuning
+```
+python3 -m subsystems.map.learning.tune_lstm \
+    --dataset synthetic \
+    --config subsystems/map/learning/config.yaml
 ```
 
-
-Run inference on synthetic dataset. 
+4. Train best model and validate 
 ```
+python3 -m subsystems.map.learning.lstm_learning --dataset synthetic
+
+python3 -m subsystems.map.learning.validate_lstm --dataset synthetic
+```
+
+5. List models and register it
+```
+python3 -m subsystems.map.registry.list_experiments --root ./GAIA_TSF/tsf_experiments 
+
+python3 -m subsystems.map.registry.best_model --root 
+ ./GAIA_TSF/tsf_experiments --print-path 
+ 
+Registering is done automatically by lstm_learning.py 
+```
+
+6. Run monitoring inference 
+``` 
 python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
+```
 
-python3 -m subsystems.map.inference.lstm_inference --dataset mirmazloumi_2023
+TESTS:  
+Requirement ML_R_02: 
+```
+pytest subsystems/map/tests/test_training.py -v 
+
+pytest subsystems/map/tests/test_validation.py -v 
+
+pytest subsystems/map/tests/test_tuning.py -v
+```
+
+Requirement ML_R_03: 
+pytest subsystems/map/tests/test_inference.py -v 
+```
+
+TODO: Requirement ML_R_06: model registry
+```
+
 ```

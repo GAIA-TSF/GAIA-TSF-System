@@ -10,11 +10,52 @@ class Trainer:
         optimizer: torch.optim.Optimizer,
         loss_fn: torch.nn.Module,
         device: torch.device,
+        early_stopping=False, 
+        patience=20,
     ):
         self._model = model.to(device)
         self._optimizer = optimizer
         self._loss_fn = loss_fn
         self._device = device
+        
+        self._early_stopping = early_stopping
+        self._patience = patience 
+
+
+    def fit(self, train_loader, val_loader, epochs, model_path=None):
+
+        best_val_loss = float("inf")
+
+        train_losses = []
+        val_losses = []
+
+        for epoch in range(epochs):
+
+            train_loss = self.train_epoch(train_loader)
+            val_loss = self.validate_epoch(val_loader)
+
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            # checkpoint
+            if model_path is not None and val_loss < best_val_loss:
+
+                best_val_loss = val_loss
+                torch.save(self._model.state_dict(), model_path)
+
+                print(
+                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f} | BEST MODEL SAVED"
+                )
+
+            elif epoch % 10 == 0:
+
+                print(
+                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f}"
+                )
+        
+        print("Best validation loss:", best_val_loss) 
+
+        return train_losses, val_losses
 
     def train_epoch(
         self,
@@ -64,3 +105,11 @@ class Trainer:
                 total_loss += loss.item()
 
         return total_loss / len(dataloader)
+    
+    # save trained model 
+    def save_model(self, path: str):
+        torch.save(self._model.state_dict(), path)
+
+    def load_model(self, path: str):
+        self._model.load_state_dict(torch.load(path, map_location=self._device))
+

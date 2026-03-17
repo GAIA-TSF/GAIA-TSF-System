@@ -1,17 +1,27 @@
+import os
 import argparse
 import yaml
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
+from .trainer import Trainer
+
+from subsystems.map import dataset
+from subsystems.map.registry.model_registry import ModelRegistry 
+from subsystems.map.registry.experiment_tracker import ExperimentTracker
+from subsystems.map.registry.experiment_index import update_experiment_index 
 
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
     create_mirmazloumi_2023_dataset,
 )
-from .lstm_model import LstmModel
-from .trainer import Trainer
+# from .lstm_model import LstmModel
+# from .trainer import Trainer
+from ..learning import LearningModule
 
 
+# argument parsing 
 def _parse_arguments():
     parser = argparse.ArgumentParser(
         description='Run LSTM learning experiment.',
@@ -34,7 +44,7 @@ def _parse_arguments():
 
     return parser.parse_args()
 
-
+# config loading 
 def _load_config(path: str) -> dict:
     with open(path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
@@ -47,18 +57,43 @@ def _select_device(device_config: str) -> torch.device:
         )
     return torch.device(device_config)
 
+# index builder (same as pipeline)
+def _build_indices(dataset, split_name, look_back, horizon):
 
+    split = dataset.split_info[split_name]
+    indices = []
+
+    for i in range(len(dataset)):
+        window_start = i
+        window_end = i + look_back + horizon
+
+        if window_start >= split['start_index'] and window_end <= split['end_index']:
+            indices.append(i)
+
+    return indices
+
+
+
+# -------------------------------------------------
+# main 
+# -------------------------------------------------
 def main():
     args = _parse_arguments()
     config = _load_config(args.config)
 
+    # set seed for reproducibility
+    torch.manual_seed(42)
+    np.random.seed(42) 
+
     model_cfg = config['model']
     trainer_cfg = config['trainer']
     dataset_cfg = config['dataset']
-    print(trainer_cfg)
+    # print(trainer_cfg)
 
     device = _select_device(trainer_cfg['device'])
-    print(device)
+    # print(device)
+    look_back = trainer_cfg['look_back']
+    horizon = trainer_cfg['horizon']
 
     # -----------------------------
     # Dataset selection
@@ -69,22 +104,20 @@ def main():
             noise_std=dataset_cfg['noise_std'],
             trend_amplitude=dataset_cfg['trend_amplitude'],
             anomaly_magnitude=dataset_cfg['anomaly_magnitude'],
-            look_back=trainer_cfg['look_back'],
-            horizon=trainer_cfg['horizon'],
+            look_back=look_back, 
+            horizon=horizon
         )
     else:
         dataset = create_mirmazloumi_2023_dataset(
-            look_back=trainer_cfg['look_back'],
-            horizon=trainer_cfg['horizon'],
+            look_back=look_back,
+            horizon=horizon, 
         )
-
+    
+    # Train/test split 
     split = dataset.split_info
     train_end = split['train']['end_index']
     test_start = split['test']['start_index']
     test_end = split['test']['end_index']
-
-    look_back = trainer_cfg['look_back']
-    horizon = trainer_cfg['horizon']
 
     train_indices = list(range(0, train_end - look_back - horizon))
     test_indices = list(
@@ -104,34 +137,25 @@ def main():
         Subset(dataset, test_indices),
         batch_size=trainer_cfg['batch_size'],
         shuffle=False,
-    )
+    )    
 
     # -----------------------------
-    # Model
+    # Learning module
     # -----------------------------
-    model = LstmModel(
+    learning = LearningModule()
+
+    model = learning.create_forecasting_model(
         input_size=model_cfg['input_size'],
         hidden_size=model_cfg['hidden_size'],
         num_layers=model_cfg['num_layers'],
-        output_size=model_cfg['output_size'],
-        horizon=model_cfg['horizon'],
-        mode=model_cfg['mode'],
+        horizon=horizon,
         dropout=model_cfg['dropout'],
         bidirectional=model_cfg['bidirectional'],
     )
 
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=trainer_cfg['learning_rate'],
-        weight_decay=trainer_cfg['weight_decay'],
-    )
-
-    loss_fn = torch.nn.MSELoss()
-
-    trainer = Trainer(
+    trainer = learning.create_trainer(
         model=model,
-        optimizer=optimizer,
-        loss_fn=loss_fn,
+        learning_rate=trainer_cfg['learning_rate'],
         device=device,
     )
 
@@ -139,24 +163,82 @@ def main():
     # Training
     # -----------------------------
     print('Training starts')
+
     train_losses = []
     test_losses = []
 
-    for epoch in range(trainer_cfg['epochs']):
-        train_loss = trainer.train_epoch(train_loader)
-        test_loss = trainer.validate_epoch(test_loader)
+    exp_dir = os.path.join(
+        config['experiments']['root_dir'],
+        config['experiments']['name']
+    )   
 
-        train_losses.append(train_loss)
-        test_losses.append(test_loss)
+    tracker = ExperimentTracker(exp_dir)
 
-        if epoch == 0 or epoch % 10 == 0:
-            print(
-                f'Epoch {epoch:03d} | Train: {train_loss:.4f} | Test: {test_loss:.4f}',
-            )
+    tracker.start(
+        dataset=args.dataset,
+        config=config
+    )
+
+    registry_path = os.path.join(exp_dir, 'model_registry.json') 
+    registry = ModelRegistry(registry_path)
+
+    os.makedirs(exp_dir, exist_ok=True)
+
+    config_copy = os.path.join(exp_dir, 'config_used.yaml')
+
+    with open(config_copy, 'w') as f:
+        yaml.dump(config, f)
+
+    model_path = os.path.join(
+        exp_dir,
+        config['experiments']['model_file']
+    )
+
+    train_losses, test_losses = trainer.fit(
+        train_loader,
+        test_loader,
+        trainer_cfg['epochs'],
+        model_path=model_path
+    )
+
+    print('Best model stored in:', model_path) 
+
+    tracker.log_metrics(train_losses, test_losses)
+    tracker.log_artifact(model_path)
+
+    # update global experiment index
+    update_experiment_index(
+        config["experiments"]["root_dir"],
+        config["experiments"]["name"],
+        {
+            "best_test_loss": float(min(test_losses))
+        }
+    )
+
+    # Register model in registry
+    registry_entry = registry.register_model(
+        model_file=config["experiments"]["model_file"],
+        dataset=args.dataset,
+        parameters=config["model"],
+        monitoring_cfg=config.get("monitoring", {}),
+        metrics={
+            "final_train_loss": float(train_losses[-1]),
+            "final_test_loss": float(test_losses[-1]),
+            "best_test_loss": float(min(test_losses)),
+        },
+    )
+
+    print('Model registered:')
+    print(registry_entry)
 
     # -----------------------------
     # Plot
     # -----------------------------
+    plot_dir = os.path.join(exp_dir, "plots")
+    os.makedirs(plot_dir, exist_ok=True)
+
+    plot_path = os.path.join(plot_dir, "learning_curve.png")
+    
     plt.figure(figsize=(8, 4))
     plt.plot(train_losses, label='Train', color='blue')
     plt.plot(test_losses, label='Test', color='green')
@@ -166,7 +248,11 @@ def main():
     plt.title(f'LSTM Learning – {args.dataset}')
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    plt.savefig(plot_path)
+
+    tracker.log_artifact(plot_path)
+    tracker.finish() 
 
 
 if __name__ == '__main__':

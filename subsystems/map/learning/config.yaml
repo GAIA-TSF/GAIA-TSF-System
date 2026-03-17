@@ -1,18 +1,37 @@
 model:
   input_size: 1
   hidden_size: 64
-  num_layers: 1
+  num_layers: 5
   output_size: 1
-  horizon: 5
   mode: forecasting  # forecasting | reconstruction
-  dropout: 0.0
+  dropout: 0.2
   bidirectional: false
 
+tuning:
+  enabled: true
+  hidden_sizes: [32, 64, 128]
+  num_layers: [2, 3, 5]
+  dropout: [0.1, 0.2, 0.3]
+
+  learning_rate: [0.001, 0.0005]
+
+  folds: 3
+
+experiments:
+  # root_dir: /media/lukas/image2/GAIA_TSF/tsf_projects
+  root_dir: /Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments
+  name: simex1 
+  model_file: best_model.pt 
+
+validation:
+  method: expanding
+  folds: 3 
+
 trainer:
-  look_back: 12
+  look_back: 5
   horizon: 5
   batch_size: 8
-  epochs: 200
+  epochs: 30
   learning_rate: 0.001
   weight_decay: 0.0
   early_stopping: false
@@ -21,8 +40,26 @@ trainer:
 
 dataset:
   type: synthetic  # synthetic | mirmazloumi_2023
-  length: 100
+  length: 200
   noise_std: 0.5
-  trend_amplitude: 10.0
-  anomaly_magnitude: 20.0
+  trend_amplitude: 0.0
+  anomaly_magnitude: 10.0
   split_ratio: 0.2  # fraction for test
+
+monitoring: 
+  # warmup = warmup_factor × look_back 
+  warmup_factor: 2  # multiples of model memory
+  # fraction of series used to learn normal behaviour  
+  calibration_fraction: 0.4   
+  # minimum consecutive exceedances
+  persistence: 3          
+  # false = baseline residual threshold 
+  use_model_uncertainty: true  
+
+inference: # slope instability 
+  mc_samples: 40
+  sigma_threshold: 2.5 
+
+# Early precursor detection	1.5–2.0
+# Balanced detection	2.5
+# Operational alarm	3.0

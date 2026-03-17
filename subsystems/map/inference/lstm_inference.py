@@ -1,50 +1,23 @@
 import argparse
-import yaml
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
-from torch.utils.data import DataLoader, Subset
 
-from ..dataset.insar import (
-    create_synthetic_insar_dataset,
-    create_mirmazloumi_2023_dataset,
-)
-from ..learning import LearningModule
-from . import InferenceModule
-
-"""
-Run prediction on synthetic dataset. 
-- train model quickly
-- run prediction
-- plot observed vs predicted vs anomaly score.
-
-Usage: 
-python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
-
-python3 -m subsystems.map.inference.lstm_inference --dataset mirmazloumi_2023
-
+""" 
+Entry point only. 
 """
 
-
-# ---------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------
 def _parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Run LSTM inference experiment.',
+        description="Run LSTM monitoring experiment"
     )
 
     parser.add_argument(
-        '--dataset',
-        type=str,
+        "--dataset",
         required=True,
-        choices=['synthetic', 'mirmazloumi_2023'],
+        choices=["synthetic", "mirmazloumi_2023"],
     )
 
     parser.add_argument(
-        '--config',
-        type=str,
-        default='subsystems/map/learning/config.yaml',
+        "--config",
+        default="subsystems/map/learning/config.yaml",
     )
 
     return parser.parse_args()
@@ -206,5 +179,5 @@ def main():
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
