@@ -144,4 +144,3 @@ class TestConfig:
 
         importer = InSituDataLoader(zip_path=exported_temp.name)
         importer.import_zip()
-

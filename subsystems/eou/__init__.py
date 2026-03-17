@@ -17,4 +17,3 @@ class EarthObservationDataUploader:
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()
-        self.data_extraction = DataExtraction()
