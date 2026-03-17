@@ -3,6 +3,8 @@ from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
 import rioxarray
 import numpy as np
+import pandas as pd
+import re
 
 from .base import BasePipeline
 
@@ -21,6 +23,7 @@ class Sentinel1Pipeline(BasePipeline):
         self.dem_masked = None
         self.dem_cropped = None
         self.landmask_arr = None
+        self.ref_date = None
 
     def _search_bursts(self, aoi, start, end, direction):
         self.bursts = ASF.search(aoi, startTime=start, stopTime=end, flightDirection=direction)
@@ -178,8 +181,15 @@ class Sentinel1Pipeline(BasePipeline):
         self.s1 = S1(datadir, DEM=str(dem_file))
         self.s1.to_dataframe()
 
-    def _filter_scenes(self):
-        raise NotImplementedError
+    def _infer_ref_date(self):
+        if self.bursts is not None and len(self.bursts) > 0:
+            acq_dates = pd.to_datetime(self.bursts['startTime'], utc=True)
+            self.ref_date = acq_dates.iloc[(acq_dates - acq_dates.median()).abs().idxmin()].strftime('%Y-%m-%d')
+        elif self.s1 is not None:
+            acq_dates = pd.to_datetime(self.s1.df['startTime'], utc=True)
+            self.ref_date = acq_dates.loc[(acq_dates - acq_dates.median()).abs().idxmin()].strftime('%Y-%m-%d')
+        else:
+            raise NameError("No data found to infer reference date. Need one of: bursts, or s1.")
 
     def run(self, aoi, start, end, direction, username, password, data_dir, bbox, lidar_file, output_dem, output_landmask):
         self._search_bursts(aoi, start, end, direction)
@@ -191,4 +201,5 @@ class Sentinel1Pipeline(BasePipeline):
         self._clip_dem(aoi)
         self._save_landmask(output_landmask)
         self._link_s1_with_dem(data_dir, output_dem)
+        self._infer_ref_date()
         # ...

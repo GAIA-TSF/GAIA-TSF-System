@@ -5,6 +5,7 @@ import os
 from shapely.wkt import loads
 from shapely.geometry import Polygon
 import numpy as np
+import re
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -187,6 +188,18 @@ class TestSentinel1Workflow:
         assert pipeline.s1 is not None
         assert pipeline.s1.DEM is not None
         assert pipeline.s1.DEM == str(dem)
+
+    def test_010_infer_ref_date(self, pipeline, config):
+        if pipeline.bursts is None:
+            aoi = loads(config['project']['aoi']['geom'])
+            pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
+            assert pipeline.bursts is not None
+            assert len(pipeline.bursts) > 0
+
+        pipeline._infer_ref_date()
+        assert pipeline.ref_date is not None
+        assert isinstance(pipeline.ref_date, str)
+        assert re.match(r"^\d{4}-\d{2}-\d{2}$", pipeline.ref_date)
 
     def test_run_workflow(self, pipeline, config):
         pass
