@@ -44,13 +44,15 @@ class SdiLoader(ABC):
 
         self.logger = Logger(subsystem=self.id)
 
-    def import_zip(self):
+    def import_zip(self, append_data: bool = False):
         """
         Template method defining the full import workflow.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         self._extract_zip()
         self._load_stac_json()
-        self._import_data()
+        self._import_data(append_data)
         self._update_stac_json()
         self._post_to_stac()
         # TODO maybe return back cleanup
@@ -136,9 +138,11 @@ class SdiLoader(ABC):
         self.logger.debug('STAC item successfully posted.')
 
     @abstractmethod
-    def _import_data(self):
+    def _import_data(self, append_data: bool = False):
         """
         Import content into SDI.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         pass
 
@@ -148,11 +152,13 @@ class InSituDataLoader(SdiLoader):
     Concrete implementation for CSV datasets described in STAC JSON.
     """
 
-    def _import_data(self):
+    def _import_data(self, append_data: bool = False):
         """
         Import all assets defined in STAC JSON into PostGIS.
         Dynamically creates tables based on 'table:columns' for each asset.
         'lat' and 'lon' columns are always used to build geometry.
+
+        :param bool append_data: True to append data otherwise overwrite
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
@@ -201,8 +207,37 @@ class InSituDataLoader(SdiLoader):
                         cur.execute(
                             sql.SQL(
                                 f'CREATE TABLE {self.schema_name}.{self.table_name} ({", ".join(sql_columns)});'
+                        # Check if table exists
+                        table_exists = False
+                        if append_data:
+                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
+                            table_exists = cur.fetchone()[0] is not None
+
+                        table_ident = sql.Identifier(self.schema_name, self.table_name)
+
+                        # Table handling
+                        if not append_data:
+                            cur.execute(
+                                sql.SQL('DROP TABLE IF EXISTS {}').format(table_ident)
                             )
-                        )
+
+                            cur.execute(
+                                sql.SQL('CREATE TABLE {} ({})').format(
+                                    table_ident,
+                                    sql.SQL(', ').join(sql.SQL(c) for c in sql_columns),
+                                )
+                            )
+
+                        else:
+                            if not table_exists:
+                                cur.execute(
+                                    sql.SQL('CREATE TABLE {} ({})').format(
+                                        table_ident,
+                                        sql.SQL(', ').join(
+                                            sql.SQL(c) for c in sql_columns
+                                        ),
+                                    )
+                                )
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
@@ -221,7 +256,21 @@ class InSituDataLoader(SdiLoader):
                                 while data := f.read(8192):
                                     copy.write(data)
 
-                        # Update geom column from lat/lon
+                        copy_query = sql.SQL(
+                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
+                        ).format(
+                            table_ident,
+                            sql.SQL(', ').join(
+                                sql.Identifier(c['name']) for c in columns
+                            ),
+                        )
+
+                        with open(csv_path, 'rb') as f:
+                            with cur.copy(copy_query) as copy:
+                                while data := f.read(8192):
+                                    copy.write(data)
+
+                        # Update geom column
                         cur.execute(
                             sql.SQL(f"""
                                 UPDATE {self.schema_name}.{self.table_name}
@@ -231,6 +280,20 @@ class InSituDataLoader(SdiLoader):
                         )
 
                 self.logger.debug(f'Table "{self.schema_name}.{self.table_name}" successfully imported.')
+                            sql.SQL(
+                                """
+                                UPDATE {}
+                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                                """
+                            ).format(table_ident)
+                        )
+
+                        # Create spatial index
+                        cur.execute(
+                            sql.SQL('CREATE INDEX ON {} USING GIST (geom)').format(
+                                table_ident
+                            )
+                        )
 
             except psycopg.Error as e:
                 raise RuntimeError(
@@ -264,10 +327,12 @@ class EarthObservationDataLoader(SdiLoader):
     Handles uploading raster files to S3 and publishing STAC items.
     """
 
-    def _import_data(self):
+    def _import_data(self, append_data: bool = False):
         """
         Locate raster assets in STAC JSON, upload each to S3,
         and update asset href dynamically.
+
+        :param bool append_data: currently ignored
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
