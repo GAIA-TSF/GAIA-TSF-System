@@ -24,22 +24,22 @@ def _load_config(path: str) -> dict:
 def _parse_arguments():
 
     parser = argparse.ArgumentParser(
-        description="Run LSTM time-series validation"
+        description='Run LSTM time-series validation'
     )
 
     parser.add_argument(
-        "--dataset",
+        '--dataset',
         type=str,
         required=True,
-        choices=["synthetic", "mirmazloumi_2023"],
-        help="Dataset type",
+        choices=['synthetic', 'mirmazloumi_2023'],
+        help='Dataset type',
     )
 
     parser.add_argument(
-        "--config",
+        '--config',
         type=str,
-        default="subsystems/map/learning/config.yaml",
-        help="Path to config file",
+        default='subsystems/map/learning/config.yaml',
+        help='Path to config file',
     )
 
     return parser.parse_args()
@@ -54,44 +54,44 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
     cfg = _load_config(config_path)
 
     exp_dir = os.path.join(
-        cfg["experiments"]["root_dir"],
-        cfg["experiments"]["name"]
+        cfg['experiments']['root_dir'],
+        cfg['experiments']['name']
     )
 
     os.makedirs(exp_dir, exist_ok=True)
-    print("Validation experiment directory:", exp_dir) 
+    print('Validation experiment directory:', exp_dir) 
 
-    trainer_cfg = cfg["trainer"]
-    dataset_cfg = cfg["dataset"]
-    model_cfg = cfg["model"]
-    # validation_cfg = cfg["validation"] TODO: check if to use it? 
+    trainer_cfg = cfg['trainer']
+    dataset_cfg = cfg['dataset']
+    model_cfg = cfg['model']
+    # validation_cfg = cfg['validation'] TODO: check if to use it? 
 
-    look_back = trainer_cfg["look_back"]
-    horizon = trainer_cfg["horizon"]
+    look_back = trainer_cfg['look_back']
+    horizon = trainer_cfg['horizon']
 
     device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
+        'cuda' if torch.cuda.is_available() else 'cpu'
     )
 
     if override_params:
 
         for k, v in override_params.items():
 
-            if k in cfg["model"]:
-                cfg["model"][k] = v
+            if k in cfg['model']:
+                cfg['model'][k] = v
 
-            if k in cfg["trainer"]:
-                cfg["trainer"][k] = v
+            if k in cfg['trainer']:
+                cfg['trainer'][k] = v
 
 
-    # ---------------- dataset ----------------
-    if dataset_name == "synthetic":
+    # ============= dataset =============
+    if dataset_name == 'synthetic':
         
         dataset = create_synthetic_insar_dataset(
-            length=dataset_cfg["length"],
-            noise_std=dataset_cfg["noise_std"],
-            trend_amplitude=dataset_cfg["trend_amplitude"],
-            anomaly_magnitude=dataset_cfg["anomaly_magnitude"],
+            length=dataset_cfg['length'],
+            noise_std=dataset_cfg['noise_std'],
+            trend_amplitude=dataset_cfg['trend_amplitude'],
+            anomaly_magnitude=dataset_cfg['anomaly_magnitude'],
             look_back=look_back,
             horizon=horizon,
         )
@@ -107,7 +107,7 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
         n,
         look_back,
         horizon,
-        folds=cfg["validation"]["folds"],
+        folds=cfg['validation']['folds'],
     )
 
     learning = LearningModule()
@@ -116,71 +116,71 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
 
     for fold, (train_idx, test_idx) in enumerate(splits):
 
-        print(f"\nFold {fold+1}")
+        print(f'\nFold {fold+1}')
 
         train_loader = DataLoader(
             Subset(dataset, list(train_idx)),
-            batch_size=trainer_cfg["batch_size"],
+            batch_size=trainer_cfg['batch_size'],
             shuffle=True,
         )
 
         test_loader = DataLoader(
             Subset(dataset, list(test_idx)),
-            batch_size=trainer_cfg["batch_size"],
+            batch_size=trainer_cfg['batch_size'],
             shuffle=False,
         )
 
         model = learning.create_forecasting_model(
-            input_size=model_cfg["input_size"],
-            hidden_size=model_cfg["hidden_size"],
-            num_layers=model_cfg["num_layers"],
+            input_size=model_cfg['input_size'],
+            hidden_size=model_cfg['hidden_size'],
+            num_layers=model_cfg['num_layers'],
             horizon=horizon,
-            dropout=model_cfg["dropout"],
-            bidirectional=model_cfg["bidirectional"],
+            dropout=model_cfg['dropout'],
+            bidirectional=model_cfg['bidirectional'],
         )
 
         trainer = learning.create_trainer(
             model=model,
-            learning_rate=trainer_cfg["learning_rate"],
+            learning_rate=trainer_cfg['learning_rate'],
             device=device,
         )
 
-        for epoch in range(trainer_cfg["epochs"]):
+        for epoch in range(trainer_cfg['epochs']):
 
             trainer.train_epoch(train_loader)
 
         val_loss = trainer.validate_epoch(test_loader)
 
-        print(f"Validation loss: {val_loss:.4f}")
+        print(f'Validation loss: {val_loss:.4f}')
 
         fold_results.append(val_loss)
 
-    print("\nValidation summary")
+    print('\nValidation summary')
 
-    print("Mean loss:", np.mean(fold_results))
-    print("Std loss:", np.std(fold_results))
+    print('Mean loss:', np.mean(fold_results))
+    print('Std loss:', np.std(fold_results))
     
-    # print("\nDetailed fold losses:", fold_results)
+    # print('\nDetailed fold losses:', fold_results)
     
     # save results
     results = {
-        "Validation results": 'MSE loss',
-        "mean": float(np.mean(fold_results)),
-        "std": float(np.std(fold_results)),
+        'Validation results': 'MSE loss',
+        'mean': float(np.mean(fold_results)),
+        'std': float(np.std(fold_results)),
     }
  
     if save_results:
 
-        results_path = os.path.join(exp_dir, "validation_results.json")
-        summary_path = os.path.join(exp_dir, "validation_summary.json")
+        results_path = os.path.join(exp_dir, 'validation_results.json')
+        summary_path = os.path.join(exp_dir, 'validation_summary.json')
 
-        with open(results_path, "w") as f:
+        with open(results_path, 'w') as f:
             json.dump(fold_results, f, indent=2)
 
-        with open(summary_path, "w") as f:
+        with open(summary_path, 'w') as f:
             json.dump(results, f, indent=2)
 
-        print("Saved validation results:", results_path)
+        print('Saved validation results:', results_path)
 
     return fold_results
 
@@ -195,5 +195,5 @@ def main():
     )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

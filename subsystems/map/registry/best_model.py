@@ -6,11 +6,11 @@ import argparse
 
 def load_index(root_dir):
 
-    index_file = os.path.join(root_dir, "experiments_index.json")
+    index_file = os.path.join(root_dir, 'experiments_index.json')
 
     if not os.path.exists(index_file):
         raise RuntimeError(
-            f"No experiment index found: {index_file}"
+            f'No experiment index found: {index_file}'
         )
 
     with open(index_file) as f:
@@ -20,11 +20,11 @@ def load_index(root_dir):
 def find_best_experiment(experiments):
 
     if len(experiments) == 0:
-        raise RuntimeError("No experiments registered")
+        raise RuntimeError('No experiments registered')
 
     best = min(
         experiments,
-        key=lambda x: x["best_test_loss"]
+        key=lambda x: x['best_test_loss']
     )
 
     return best
@@ -33,20 +33,20 @@ def find_best_experiment(experiments):
 def main():
 
     parser = argparse.ArgumentParser(
-        description="Return best trained model"
+        description='Return best trained model'
     )
 
     parser.add_argument(
-        "--root",
+        '--root',
         type=str,
-        default="tsf_experiments",
-        help="Experiment root directory"
+        default='tsf_experiments',
+        help='Experiment root directory'
     )
 
     parser.add_argument(
-        "--print-path",
-        action="store_true",
-        help="Print full model path"
+        '--print-path',
+        action='store_true',
+        help='Print full model path'
     )
 
     args = parser.parse_args()
@@ -56,21 +56,21 @@ def main():
     best = find_best_experiment(experiments)
 
     print()
-    print("Best experiment")
-    print("----------------------------")
-    print("Name:", best["experiment"])
-    print("Best test loss:", best["best_test_loss"])
+    print('Best experiment')
+    print('----------------------------')
+    print('Name:', best['experiment'])
+    print('Best test loss:', best['best_test_loss'])
 
     if args.print_path:
 
         model_path = os.path.join(
             args.root,
-            best["experiment"],
-            "best_model.pt"
+            best['experiment'],
+            'best_model.pt'
         )
 
-        print("Model path:", model_path)
+        print('Model path:', model_path)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

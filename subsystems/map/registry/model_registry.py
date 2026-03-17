@@ -13,7 +13,7 @@ class ModelRegistry:
                     exist_ok=True) 
 
         if not os.path.exists(registry_path):
-            with open(registry_path, "w") as f:
+            with open(registry_path, 'w') as f:
                 json.dump([], f)
 
     def register_model(
@@ -23,28 +23,28 @@ class ModelRegistry:
         parameters,
         monitoring_cfg,
         metrics,
-        version="1.0",
+        version='1.0',
     ):
 
         with open(self.registry_path) as f:
             registry = json.load(f)
 
-        model_id = f"model_{len(registry)+1}"
+        model_id = f'model_{len(registry)+1}'
 
         entry = {
-            "model_id": model_id,
-            "version": version,
-            "model_file": model_file,
-            "dataset": dataset,
-            "parameters": parameters,
-            "monitoring": monitoring_cfg,
-            "metrics": metrics,
-            "timestamp": datetime.utcnow().isoformat(),
+            'model_id': model_id,
+            'version': version,
+            'model_file': model_file,
+            'dataset': dataset,
+            'parameters': parameters,
+            'monitoring': monitoring_cfg,
+            'metrics': metrics,
+            'timestamp': datetime.utcnow().isoformat(),
         }
 
         registry.append(entry)
 
-        with open(self.registry_path, "w") as f:
+        with open(self.registry_path, 'w') as f:
             json.dump(registry, f, indent=2)
 
         return entry
@@ -56,22 +56,22 @@ class ModelRegistry:
         Returns model_path and registry metadata.
         """
 
-        registry_file = os.path.join(exp_dir, "model_registry.json")
+        registry_file = os.path.join(exp_dir, 'model_registry.json')
 
         if not os.path.exists(registry_file):
             raise RuntimeError(
-                f"No model registry found in {exp_dir}"
+                f'No model registry found in {exp_dir}'
             )
 
         with open(registry_file) as f:
             registry = json.load(f)
 
         if len(registry) == 0:
-            raise RuntimeError("Model registry is empty")
+            raise RuntimeError('Model registry is empty')
 
         latest = registry[-1]
 
-        model_path = os.path.join(exp_dir, latest["model_file"])
+        model_path = os.path.join(exp_dir, latest['model_file'])
 
         return model_path, latest
     

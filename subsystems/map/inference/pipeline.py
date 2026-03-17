@@ -18,10 +18,7 @@ Core ML orchestration.
 """
 
 
-# ==========================================
-# HELPERS
-# ==========================================
-
+# ============= HELPERS =============
 def _load_config(path):
     with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
@@ -63,9 +60,8 @@ def _load_experiment_config(cfg):
         return yaml.safe_load(f)
 
 
-# ==========================================
-# MAIN EXPERIMENT
-# ==========================================
+
+# ============= MAIN EXPERIMENT =============
 def run_lstm_experiment(dataset_name: str, config_path: str):
 
     # cfg = _load_config(config_path)
@@ -95,9 +91,8 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
     horizon = trainer_cfg['horizon']
 
 
-    # ==========================================
-    # DATASET 
-    # ==========================================
+
+    # ============= DATASET =============
     if dataset_name == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
@@ -125,19 +120,9 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
         shuffle=False,
     )
 
-    # ==========================================
-    # TRAINING
-    # ==========================================
-    learning = LearningModule()
 
-    # model = learning.create_forecasting_model(
-    #     input_size=model_cfg['input_size'],
-    #     hidden_size=model_cfg['hidden_size'],
-    #     num_layers=model_cfg['num_layers'],
-    #     horizon=horizon,
-    #     dropout=model_cfg['dropout'],
-    #     bidirectional=model_cfg['bidirectional'],
-    # )
+    # ============= TRAINING =============
+    learning = LearningModule()
     
     model = learning.create_forecasting_model(
         input_size=model_cfg['input_size'],
@@ -176,27 +161,8 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
             print(f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}')
 
 
-    # ==========================================
-    # INFERENCE
-    # ==========================================
 
-    # predictor = inference.create_predictor(
-    #     model=model,
-    #     device=device,
-    #     look_back=look_back,
-    #     horizon=horizon,
-    #     mc_samples=infer_cfg['mc_samples'],
-    #     sigma_threshold=infer_cfg['sigma_threshold'],
-    #     warmup_factor=monitor_cfg['warmup_factor'],
-    #     calibration_fraction=monitor_cfg['calibration_fraction'],
-    #     persistence=monitor_cfg['persistence'],
-    #     use_model_uncertainty=monitor_cfg['use_model_uncertainty'],
-    # )
-
-    # ==========================================
-    # LOAD LATEST TRAINED MODEL FROM REGISTRY
-    # ==========================================
-
+    # ============= INFERENCE =============
     exp_dir = os.path.join(
         cfg['experiments']['root_dir'],
         cfg['experiments']['name']

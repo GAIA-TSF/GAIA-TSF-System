@@ -24,7 +24,7 @@ class TestLSTMTraining:
             num_layers=1,
             output_size=1,
             horizon=3,
-            mode="forecasting",
+            mode='forecasting',
         )
 
         x = torch.randn(4, 5, 1)  # batch, look_back, features
@@ -44,7 +44,7 @@ class TestLSTMTraining:
             num_layers=1,
             output_size=1,
             horizon=2,
-            mode="forecasting",
+            mode='forecasting',
         )
 
         optimizer = torch.optim.Adam(model.parameters())
@@ -54,7 +54,7 @@ class TestLSTMTraining:
             model=model,
             optimizer=optimizer,
             loss_fn=loss_fn,
-            device=torch.device("cpu"),
+            device=torch.device('cpu'),
         )
 
         inputs = torch.randn(10, 5, 1)

@@ -24,7 +24,7 @@ class Trainer:
 
     def fit(self, train_loader, val_loader, epochs, model_path=None):
 
-        best_val_loss = float("inf")
+        best_val_loss = float('inf')
 
         train_losses = []
         val_losses = []
@@ -44,16 +44,16 @@ class Trainer:
                 torch.save(self._model.state_dict(), model_path)
 
                 print(
-                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f} | BEST MODEL SAVED"
+                    f'Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f} | BEST MODEL SAVED'
                 )
 
             elif epoch % 10 == 0:
 
                 print(
-                    f"Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f}"
+                    f'Epoch {epoch:03d} | Train {train_loss:.4f} | Val {val_loss:.4f}'
                 )
         
-        print("Best validation loss:", best_val_loss) 
+        print('Best validation loss:', best_val_loss) 
 
         return train_losses, val_losses
 

@@ -34,4 +34,3 @@ class TestTimeSeriesValidation:
         train_idx, test_idx = splits[0]
 
         assert max(train_idx) < min(test_idx)
-

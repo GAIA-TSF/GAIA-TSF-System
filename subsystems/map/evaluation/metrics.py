@@ -1,5 +1,8 @@
 import numpy as np 
 
+"""Evaluation metrics for regression tasks. 
+"""
+
 def rmse(y, y_pred):
     return np.sqrt(np.mean((y - y_pred) ** 2))
 

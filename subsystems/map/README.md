@@ -12,10 +12,6 @@ Prepare and plot Mirmazloumi et al. (2023) and synthetic data of slope stability
 
 ```
 python3 -m subsystems.map.scripts.visualize_insar_dataset \
-    --dataset mirmazloumi_2023
-
-
-python3 -m subsystems.map.scripts.visualize_insar_dataset \
     --dataset synthetic \
     --anomaly-magnitude 5.0
 ```

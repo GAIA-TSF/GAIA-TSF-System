@@ -7,7 +7,6 @@ This class runs sliding-window inference and reconstructs
 a continuous prediction series.
 """
 
-# print("Loaded predictor with MC Dropout")
 
 class Predictor:
     """
@@ -63,10 +62,10 @@ class Predictor:
 
         self._monitor_start = monitor_start
 
-        print("[Monitoring]")
-        print(f" Warmup end:       {warmup}")
-        print(f" Calibration end:  {monitor_start}")
-        print(f" Monitoring start: {monitor_start}")
+        print('[Monitoring]')
+        print(f' Warmup end:       {warmup}')
+        print(f' Calibration end:  {monitor_start}')
+        print(f' Monitoring start: {monitor_start}')
     
     def _fit_baseline(self, residuals):
 
@@ -77,7 +76,7 @@ class Predictor:
 
         self._baseline_sigma = np.nanstd(baseline)
 
-        print(f"[Baseline] residual σ = {self._baseline_sigma:.4f}")
+        print(f'[Baseline] residual σ = {self._baseline_sigma:.4f}')
 
 
 
@@ -122,10 +121,6 @@ class Predictor:
             std_forecast = np.maximum(std_forecast, noise_floor)
 
             idx = i + self._look_back
-
-            # old 
-            # mean_pred[pred_index : pred_index + self._horizon] = mean_forecast
-            # std_pred[pred_index : pred_index + self._horizon] = std_forecast
 
             # average overlapping predictions with accumulation 
             counts = np.zeros(len(displacement))
@@ -185,7 +180,7 @@ class Predictor:
 
         else:
             if self._baseline_sigma is None:
-                raise RuntimeError("Baseline sigma not initialized")
+                raise RuntimeError('Baseline sigma not initialized')
             threshold = np.full_like(
                 residuals,
                 self._sigma_threshold * self._baseline_sigma,

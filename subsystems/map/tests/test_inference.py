@@ -24,12 +24,12 @@ class TestInferenceModule:
             num_layers=1,
             output_size=1,
             horizon=horizon,
-            mode="forecasting",
+            mode='forecasting',
         )
 
         predictor = Predictor(
             model=model,
-            device=torch.device("cpu"),
+            device=torch.device('cpu'),
             look_back=5,
             horizon=horizon,
             mc_samples=1,

@@ -21,9 +21,9 @@ class CUSUMDetector:
     
     velocity residual
         │
-        ├── CUSUM+  → acceleration
-        ├── CUSUM−  → deceleration
-        └── VAR     → oscillation
+        ├── CUSUM+  acceleration
+        ├── CUSUM−  deceleration
+        └── VAR     oscillation
     """
 
     def __init__(self, k: float, h: float):
@@ -89,10 +89,10 @@ class CUSUMDetector:
                 s_neg[t] = s_neg[t-1]
                 continue
 
-            # upward drift → failure acceleration
+            # upward drift: failure acceleration
             s_pos[t] = max(0, s_pos[t-1] + z[t] - self.k)
 
-            # downward drift → stabilization
+            # downward drift: stabilization
             s_neg[t] = max(0, s_neg[t-1] - z[t] - self.k)
 
             if s_pos[t] > self.h:

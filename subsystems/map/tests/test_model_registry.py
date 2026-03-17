@@ -20,7 +20,7 @@ class TestModelRegistry:
 
         with tempfile.TemporaryDirectory() as tmp:
 
-            registry_path = Path(tmp) / "model_registry.json"
+            registry_path = Path(tmp) / 'model_registry.json'
 
             registry = ModelRegistry(registry_path)
 
@@ -39,32 +39,32 @@ class TestModelRegistry:
 
         with tempfile.TemporaryDirectory() as tmp:
 
-            registry_path = Path(tmp) / "model_registry.json"
+            registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
             entry = registry.register_model(
-                model_file="best_model.pt",
-                dataset="synthetic",
+                model_file='best_model.pt',
+                dataset='synthetic',
                 parameters={
-                    "hidden_size": 64,
-                    "num_layers": 2,
-                    "dropout": 0.1
+                    'hidden_size': 64,
+                    'num_layers': 2,
+                    'dropout': 0.1
                 },
                 monitoring_cfg={
-                    "sigma_threshold": 2.5,
-                    "persistence": 3
+                    'sigma_threshold': 2.5,
+                    'persistence': 3
                 },
                 metrics={
-                    "final_train_loss": 2.5,
-                    "final_test_loss": 3.1
+                    'final_train_loss': 2.5,
+                    'final_test_loss': 3.1
                 }
             )
 
-            assert entry["model_file"] == "best_model.pt"
-            assert entry["dataset"] == "synthetic"
-            assert "metrics" in entry
-            assert "parameters" in entry
-            assert "timestamp" in entry
+            assert entry['model_file'] == 'best_model.pt'
+            assert entry['dataset'] == 'synthetic'
+            assert 'metrics' in entry
+            assert 'parameters' in entry
+            assert 'timestamp' in entry
 
     def test_registry_persistence(self):
         """
@@ -73,31 +73,31 @@ class TestModelRegistry:
 
         with tempfile.TemporaryDirectory() as tmp:
 
-            registry_path = Path(tmp) / "model_registry.json"
+            registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
             registry.register_model(
-                model_file="model1.pt",
-                dataset="synthetic",
-                parameters={"hidden_size": 32},
+                model_file='model1.pt',
+                dataset='synthetic',
+                parameters={'hidden_size': 32},
                 monitoring_cfg={},
-                metrics={"final_test_loss": 3.0}
+                metrics={'final_test_loss': 3.0}
             )
 
             registry.register_model(
-                model_file="model2.pt",
-                dataset="synthetic",
-                parameters={"hidden_size": 64},
+                model_file='model2.pt',
+                dataset='synthetic',
+                parameters={'hidden_size': 64},
                 monitoring_cfg={},
-                metrics={"final_test_loss": 2.5}
+                metrics={'final_test_loss': 2.5}
             )
 
             with open(registry_path) as f:
                 data = json.load(f)
 
             assert len(data) == 2
-            assert data[0]["model_file"] == "model1.pt"
-            assert data[1]["model_file"] == "model2.pt"
+            assert data[0]['model_file'] == 'model1.pt'
+            assert data[1]['model_file'] == 'model2.pt'
 
     def test_load_latest_model(self):
         """
@@ -106,20 +106,20 @@ class TestModelRegistry:
 
         with tempfile.TemporaryDirectory() as tmp:
 
-            registry_path = Path(tmp) / "model_registry.json"
+            registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
             registry.register_model(
-                model_file="model1.pt",
-                dataset="synthetic",
+                model_file='model1.pt',
+                dataset='synthetic',
                 parameters={},
                 monitoring_cfg={},
                 metrics={}
             )
 
             registry.register_model(
-                model_file="model2.pt",
-                dataset="synthetic",
+                model_file='model2.pt',
+                dataset='synthetic',
                 parameters={},
                 monitoring_cfg={},
                 metrics={}
@@ -127,4 +127,4 @@ class TestModelRegistry:
 
             model_path, metadata = ModelRegistry.load_latest_model(tmp)
 
-            assert metadata["model_file"] == "model2.pt"
+            assert metadata['model_file'] == 'model2.pt'

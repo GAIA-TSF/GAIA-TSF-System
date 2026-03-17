@@ -71,10 +71,7 @@ def _build_indices(dataset, split_name, look_back, horizon):
     return indices
 
 
-
-# -------------------------------------------------
-# main 
-# -------------------------------------------------
+# ============= MAIN ============= 
 def main():
     args = _parse_arguments()
     config = _load_config(args.config)
@@ -93,9 +90,8 @@ def main():
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
-    # -----------------------------
-    # Dataset selection
-    # -----------------------------
+    
+    # ============= Dataset selection =============    
     if args.dataset == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
@@ -137,9 +133,7 @@ def main():
         shuffle=False,
     )    
 
-    # -----------------------------
-    # Learning module
-    # -----------------------------
+    # ============= Learning module =============
     learning = LearningModule()
 
     model = learning.create_forecasting_model(
@@ -157,9 +151,7 @@ def main():
         device=device,
     )
 
-    # -----------------------------
-    # Training
-    # -----------------------------
+    # ============= Training =============
     print('Training starts')
 
     train_losses = []
@@ -206,36 +198,34 @@ def main():
 
     # update global experiment index
     update_experiment_index(
-        config["experiments"]["root_dir"],
-        config["experiments"]["name"],
+        config['experiments']['root_dir'],
+        config['experiments']['name'],
         {
-            "best_test_loss": float(min(test_losses))
+            'best_test_loss': float(min(test_losses))
         }
     )
 
     # Register model in registry
     registry_entry = registry.register_model(
-        model_file=config["experiments"]["model_file"],
+        model_file=config['experiments']['model_file'],
         dataset=args.dataset,
-        parameters=config["model"],
-        monitoring_cfg=config.get("monitoring", {}),
+        parameters=config['model'],
+        monitoring_cfg=config.get('monitoring', {}),
         metrics={
-            "final_train_loss": float(train_losses[-1]),
-            "final_test_loss": float(test_losses[-1]),
-            "best_test_loss": float(min(test_losses)),
+            'final_train_loss': float(train_losses[-1]),
+            'final_test_loss': float(test_losses[-1]),
+            'best_test_loss': float(min(test_losses)),
         },
     )
 
     print('Model registered:')
     print(registry_entry)
 
-    # -----------------------------
-    # Plot
-    # -----------------------------
-    plot_dir = os.path.join(exp_dir, "plots")
+    # ============= Plot =============
+    plot_dir = os.path.join(exp_dir, 'plots')
     os.makedirs(plot_dir, exist_ok=True)
 
-    plot_path = os.path.join(plot_dir, "learning_curve.png")
+    plot_path = os.path.join(plot_dir, 'learning_curve.png')
     
     plt.figure(figsize=(8, 4))
     plt.plot(train_losses, label='Train', color='blue')
@@ -246,7 +236,6 @@ def main():
     plt.title(f'LSTM Learning – {args.dataset}')
     plt.grid(True)
     plt.tight_layout()
-    # plt.show()
     plt.savefig(plot_path)
 
     tracker.log_artifact(plot_path)

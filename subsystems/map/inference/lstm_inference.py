@@ -20,14 +20,14 @@ def _parse_arguments():
     )
 
     parser.add_argument(
-        "--dataset",
+        '--dataset',
         required=True,
-        choices=["synthetic", "mirmazloumi_2023"],
+        choices=['synthetic', 'mirmazloumi_2023'],
     )
 
     parser.add_argument(
-        "--config",
-        default="subsystems/map/learning/config.yaml",
+        '--config',
+        default='subsystems/map/learning/config.yaml',
     )
 
     return parser.parse_args()
@@ -46,9 +46,8 @@ def _select_device(device_config: str) -> torch.device:
     return torch.device(device_config)
 
 
-# ---------------------------------------------------------------------
-# Window-safe split builder (important!)
-# ---------------------------------------------------------------------
+
+# ============= Window-safe split builder (important!) =============
 def _build_indices(dataset, split_name, look_back, horizon):
     split = dataset.split_info[split_name]
 
@@ -63,9 +62,8 @@ def _build_indices(dataset, split_name, look_back, horizon):
     return indices
 
 
-# ---------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------
+
+# ============= Main =============
 def main():
     args = _parse_arguments()
     config = _load_config(args.config)
@@ -79,9 +77,8 @@ def main():
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
-    # -----------------------------
-    # Dataset
-    # -----------------------------
+    
+    # ============= Dataset =============
     if args.dataset == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
@@ -97,9 +94,8 @@ def main():
             horizon=horizon,
         )
 
-    # -----------------------------
-    # Build dataloaders
-    # -----------------------------
+    
+    # ============= Build dataloaders =============
     train_indices = _build_indices(dataset, 'train', look_back, horizon)
     test_indices = _build_indices(dataset, 'test', look_back, horizon)
 
@@ -115,9 +111,7 @@ def main():
         shuffle=False,
     )
 
-    # -----------------------------
-    # Model + training
-    # -----------------------------
+    # ============= Model + training =============
     learning = LearningModule()
 
     model = learning.create_forecasting_model(
@@ -150,9 +144,8 @@ def main():
                     f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}'
                 )
 
-    # -----------------------------
-    # Inference
-    # -----------------------------
+    
+    # ============= Inference =============
     inference = InferenceModule()
 
     predictor = inference.create_predictor(
@@ -169,9 +162,7 @@ def main():
     residuals = predictor.compute_residuals(displacement, prediction)
     score = predictor.anomaly_score(residuals)
 
-    # -----------------------------
-    # Plot
-    # -----------------------------
+    # ============= Plot =============
     plt.figure(figsize=(10, 6))
 
     plt.subplot(2, 1, 1)
