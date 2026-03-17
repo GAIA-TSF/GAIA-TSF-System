@@ -3,8 +3,13 @@ import hashlib
 import requests
 import tempfile
 
-from sdi.loader import InSituDataLoader
-from sdi.loader import EarthObservationDataLoader
+import psycopg
+import pytest
+
+from subsystems.sdi.loader import InSituDataLoader
+from subsystems.sdi.loader import EarthObservationDataLoader
+
+from config import DB_CONFIG_PG
 
 
 def file_md5(path):
@@ -19,6 +24,12 @@ def file_md5(path):
 
 
 class TestInSituDataLoader:
+    @pytest.fixture(scope='module')
+    def db_connection(self):
+        conn = psycopg.connect(**DB_CONFIG_PG)
+        yield conn
+        conn.close()
+
     def test_import(self):
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
@@ -28,6 +39,25 @@ class TestInSituDataLoader:
         importer = InSituDataLoader(zip_path=zip_path)
 
         importer.import_zip()
+
+    def test_import_append_data(self, db_connection):
+        base_dir = Path(__file__).parent
+        zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
+
+        assert zip_path.exists()
+
+        importer = InSituDataLoader(zip_path=zip_path)
+
+        importer.import_zip(append_data=True)
+        importer.import_zip(append_data=True)
+
+        with db_connection.cursor() as cur:
+            cur.execute("""
+                        SELECT COUNT(*)
+                        FROM prague.measurement_ph_202602_data;
+                        """)
+            count = cur.fetchone()[0]
+            assert count > 20
 
 
 class TestEarthObservationDataLoader:

@@ -2,7 +2,7 @@ import os
 import shutil
 
 # Import QCL Logger
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 from .parsers import ParsingEngine
 from .scheduler import Scheduler
 

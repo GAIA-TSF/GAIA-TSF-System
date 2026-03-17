@@ -2,13 +2,16 @@
   "type": "Feature",
   "stac_version": "1.0.0",
   "stac_extensions": [
-    "https://stac-extensions.github.io/table/v1.2.0/schema.json"
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/projection/v1.0.0/schema.json"
   ],
-  "id": "measurement_prague_001",
+  "id": "measurement_ph_202602",
+  "collection": "prague",
   "properties": {
     "datetime": "2026-02-10T00:00:00Z",
     "start_datetime": "2026-02-01T00:00:00Z",
-    "end_datetime": "2026-02-20T00:00:00Z"
+    "end_datetime": "2026-02-20T00:00:00Z",
+    "proj:epsg": 4326
   },
   "geometry": {
     "type": "Polygon",

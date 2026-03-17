@@ -1,7 +1,7 @@
 import os
 import requests
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 STAC_URL = os.environ.get(
     'STAC_URL', 'http://ip-172-31-19-31.eu-central-1.compute.internal:8080'
