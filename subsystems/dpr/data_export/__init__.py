@@ -1,7 +1,7 @@
 import zipfile
 
 
-class DataExtractor:
+class DataExporter:
     """Data Extraction module acts as the central logic module for
     ingestion. It receives inputs from individual subsystems and performing the
     necessary extraction and preparation steps before handing the data off to
