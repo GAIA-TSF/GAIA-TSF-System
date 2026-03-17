@@ -5,9 +5,9 @@ import shutil
 from subsystems.qcl.logger import Logger
 from .parsers import ParsingEngine
 from .scheduler import Scheduler
+from lib.base import GaiaBase, SubsystemId
 
-
-class InSituDataUploader:
+class InSituDataUploader(GaiaBase):
     """
     In-Situ Data Uploader sub-system is responsible for collecting
     and securely transmitting field-acquired data.
@@ -26,7 +26,7 @@ class InSituDataUploader:
         :param processed_dir: The directory path where files are moved after processing.
         :type processed_dir: str
         """
-        self.logger = Logger(subsystem=self.id)
+        super().__init__(SubsystemId.EOU)
         self.logger.debug('ISU Subsystem initializing...')
 
         self.input_dir = input_dir

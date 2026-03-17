@@ -1,3 +1,6 @@
+from lib.base import GaiaBase, SubsystemId
+
+
 class DataExtraction:
     """Data Extraction module performs the core processing logic:
     structural validation, metadata extraction, unit harmonization,
@@ -7,4 +10,4 @@ class DataExtraction:
     """
 
     def __init__(self):
-        pass
+        super().__init__(SubsystemId.ISU)
