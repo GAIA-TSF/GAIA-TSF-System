@@ -54,7 +54,7 @@ class TestInSituDataLoader:
         with db_connection.cursor() as cur:
             cur.execute("""
                         SELECT COUNT(*)
-                        FROM public.measurement_prague_001_data;
+                        FROM prague.measurement_ph_202602_data;
                         """)
             count = cur.fetchone()[0]
             assert count > 20
