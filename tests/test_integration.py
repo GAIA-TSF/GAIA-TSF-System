@@ -121,7 +121,6 @@ class TestConfig:
         isu = InSituDataUploader(input_dir=str(test_data), processed_dir=str(tmp_path))
 
         isu.scheduler = MagicMock()
-        isu._scan_and_process_files()
         isu.start()
 
         generate_metadata_and_import(tmp_path, metadata_temp.name, exported_temp.name)
