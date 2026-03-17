@@ -1,11 +1,8 @@
-from subsystems.qcl.logger import Logger
-
+from lib.base import GaiaBase, SubsystemId
 
 class SpatialDataInfrastructure:
     """SpatialDataInfrastructure sub-system"""
 
-    id = 'SDI'
-
     def __init__(self):
-        self.logger = Logger(subsystem=self.id)
+        super().__init__(SubsystemId.SDI)
         self.logger.debug('initialized')
