@@ -1,0 +1,74 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "stac_extensions": [
+        "https://stac-extensions.github.io/projection/v1.0.0/schema.json",
+        "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
+    ],
+    "id": "ENMAP01_sample",
+    "properties": {
+        "datetime": "2026-02-23T17:03:27.550659Z",
+        "proj:epsg": 32629,
+        "proj:shape": [
+            100,
+            100
+        ],
+        "proj:transform": [
+            524985.0,
+            30.0,
+            0.0,
+            4234305.0,
+            0.0,
+            -30.0
+        ],
+        "raster:bands": [
+            {
+                "data_type": "Int16",
+                "nodata": -32768.0
+            }
+        ]
+    },
+    "bbox": [
+        38.22929864948399,
+        -8.714532929182132,
+        38.25642425706489,
+        -8.680138334673904
+    ],
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    38.22929864948399,
+                    -8.714532929182132
+                ],
+                [
+                    38.22929864948399,
+                    -8.680138334673904
+                ],
+                [
+                    38.25642425706489,
+                    -8.680138334673904
+                ],
+                [
+                    38.25642425706489,
+                    -8.714532929182132
+                ],
+                [
+                    38.22929864948399,
+                    -8.714532929182132
+                ]
+            ]
+        ]
+    },
+    "assets": {
+        "data": {
+            "href": "ENMAP01_sample.tif",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ]
+        }
+    },
+    "links": []
+}
