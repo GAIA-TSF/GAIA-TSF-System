@@ -1,7 +1,7 @@
 # from .predictor import Predictor
 
 from subsystems.map.inference.predictor import Predictor
-from subsystems.map.dataset.insar import create_synthetic_insar_dataset
+
 
 """
 

@@ -63,7 +63,7 @@ class Predictor:
 
         self._monitor_start = monitor_start
 
-        print(f"[Monitoring]")
+        print("[Monitoring]")
         print(f" Warmup end:       {warmup}")
         print(f" Calibration end:  {monitor_start}")
         print(f" Monitoring start: {monitor_start}")
@@ -174,7 +174,7 @@ class Predictor:
 
     def detect_anomaly(self, residuals, std_pred):
 
-        D = np.abs(residuals)
+        dd = np.abs(residuals)
 
         # threshold selection
         if self._use_model_uncertainty:
@@ -191,13 +191,13 @@ class Predictor:
                 self._sigma_threshold * self._baseline_sigma,
             )
 
-        anomaly_mask = D > threshold
+        anomaly_mask = dd > threshold
 
         # disable detection before monitoring
         # anomaly_mask[:self._monitor_start] = False
 
         # keep NaNs from breaking persistence 
-        anomaly_mask[np.isnan(D)] = False
+        anomaly_mask[np.isnan(dd)] = False
 
         # persistence rule
         for i in range(len(anomaly_mask)):
@@ -206,4 +206,4 @@ class Predictor:
                 if np.sum(window) < self._persistence:
                     anomaly_mask[i] = False
 
-        return D, threshold, anomaly_mask
+        return dd, threshold, anomaly_mask

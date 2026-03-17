@@ -76,8 +76,8 @@ class CUSUMDetector:
 
         return S, alarms
         """
-        S_pos = np.zeros_like(z)  # acceleration
-        S_neg = np.zeros_like(z)  # deceleration
+        s_pos = np.zeros_like(z)  # acceleration
+        s_neg = np.zeros_like(z)  # deceleration
 
         alarm_acc = np.zeros_like(z, dtype=bool)
         alarm_dec = np.zeros_like(z, dtype=bool)
@@ -85,20 +85,20 @@ class CUSUMDetector:
         for t in range(1, len(z)):
 
             if np.isnan(z[t]):
-                S_pos[t] = S_pos[t-1]
-                S_neg[t] = S_neg[t-1]
+                s_pos[t] = s_pos[t-1]
+                s_neg[t] = s_neg[t-1]
                 continue
 
             # upward drift → failure acceleration
-            S_pos[t] = max(0, S_pos[t-1] + z[t] - self.k)
+            s_pos[t] = max(0, s_pos[t-1] + z[t] - self.k)
 
             # downward drift → stabilization
-            S_neg[t] = max(0, S_neg[t-1] - z[t] - self.k)
+            s_neg[t] = max(0, s_neg[t-1] - z[t] - self.k)
 
-            if S_pos[t] > self.h:
+            if s_pos[t] > self.h:
                 alarm_acc[t] = True
 
-            if S_neg[t] > self.h:
+            if s_neg[t] > self.h:
                 alarm_dec[t] = True
 
-        return S_pos, S_neg, alarm_acc, alarm_dec 
+        return s_pos, s_neg, alarm_acc, alarm_dec 

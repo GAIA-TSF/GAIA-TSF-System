@@ -1,9 +1,9 @@
 
 import numpy as np
 
-def resolve_regime(S_pos, S_neg, persistence, h):
+def resolve_regime(s_pos, s_neg, persistence, h):
 
-    n = len(S_pos)
+    n = len(s_pos)
 
     acc = np.zeros(n, dtype=bool)
     dec = np.zeros(n, dtype=bool)
@@ -17,11 +17,11 @@ def resolve_regime(S_pos, S_neg, persistence, h):
             continue
 
         # choose dominant cumulative energy
-        if S_pos[t] > S_neg[t]:
-            if S_pos[t] > h:
+        if s_pos[t] > s_neg[t]:
+            if s_pos[t] > h:
                 acc[t] = True
         else:
-            if S_neg[t] > h:
+            if s_neg[t] > h:
                 dec[t] = True
 
     return acc, dec, osc

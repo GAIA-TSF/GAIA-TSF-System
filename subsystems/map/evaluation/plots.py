@@ -1,6 +1,5 @@
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 
 def _draw_monitoring_regions(ax, time, mon):
@@ -63,28 +62,28 @@ def plot_results(time, obs, pred, std, mon):
     # Align detector index with time axis
     # acceleration / decelerration / oscillation 
     # cusum_time = time[:len(mon["S_acc"])]
-    start = mon["monitor_start"]
+    # start = mon["monitor_start"]
     
     # CUSUM already aligned to full timeline
-    ax3.plot(time, mon["S_acc"], color="red", label="Acceleration CUSUM")
-    ax3.plot(time, mon["S_dec"], color="green", label="Deceleration CUSUM")
+    ax3.plot(time, mon["s_acc"], color="red", label="Acceleration CUSUM")
+    ax3.plot(time, mon["s_dec"], color="green", label="Deceleration CUSUM")
 
     ax3.scatter(
         time[mon["alarm_acc"]],
-        mon["S_acc"][mon["alarm_acc"]],
+        mon["s_acc"][mon["alarm_acc"]],
         color="red",
     )
 
     ax3.scatter(
         time[mon["alarm_dec"]],
-        mon["S_dec"][mon["alarm_dec"]],
+        mon["s_dec"][mon["alarm_dec"]],
         color="green",
     )
 
     if "alarm_osc" in mon:
         ax3.scatter(
             time[mon["alarm_osc"]],
-            mon["S_acc"][mon["alarm_osc"]],
+            mon["s_acc"][mon["alarm_osc"]],
             color="orange",
             label="Oscillation",
         )

@@ -1,11 +1,9 @@
 import numpy as np
 
-from subsystems.map.monitoring import oscillation
 from subsystems.map.monitoring.calibration import calibrate_cusum
 from subsystems.map.monitoring.cusum import CUSUMDetector
 # from subsystems.map.monitoring.oscillation import OscillationDetector
 from subsystems.map.monitoring.regime import resolve_regime 
-from subsystems.map.monitoring.bayesian_cp import BayesianChangePointDetector 
 
 """
 1.  Residual anomaly: Short-term magnitude violation
@@ -14,7 +12,7 @@ from subsystems.map.monitoring.bayesian_cp import BayesianChangePointDetector
 
 3. Bayesian CP: Probabilistic regime shift detection 
 
-if risk > 0.6 and S_acc rising:
+if risk > 0.6 and s_acc rising:
     risk_level = HIGH
 elif risk > 0.3:
     risk_level = MEDIUM
@@ -186,11 +184,11 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     pers = persistence(z, win=monitor_cfg.get("persist_win", 25))
 
     cusum = CUSUMDetector(k, h)
-    S_pos, S_neg, raw_acc, raw_dec = cusum.run(z[calibration_end:])
+    s_pos, s_neg, raw_acc, raw_dec = cusum.run(z[calibration_end:])
 
     # classify regimes
     danger_acc, danger_dec, oscillation = resolve_regime(
-        S_pos, S_neg, pers[calibration_end:], h
+        s_pos, s_neg, pers[calibration_end:], h
     )
 
     # osc = OscillationDetector()
@@ -202,15 +200,15 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     # var_full[calibration_end:] = var
 
     # place into full timeline
-    S_acc = np.zeros_like(residuals)
-    S_dec = np.zeros_like(residuals)
+    s_acc = np.zeros_like(residuals)
+    s_dec = np.zeros_like(residuals)
 
     alarm_acc_full = np.zeros_like(residuals, dtype=bool)
     alarm_dec_full = np.zeros_like(residuals, dtype=bool)
     alarm_osc_full = np.zeros_like(residuals, dtype=bool)
 
-    S_acc[calibration_end:] = S_pos
-    S_dec[calibration_end:] = S_neg 
+    s_acc[calibration_end:] = s_pos
+    s_dec[calibration_end:] = s_neg 
 
     alarm_acc_full[calibration_end:] = danger_acc
     alarm_dec_full[calibration_end:] = danger_dec
@@ -219,7 +217,7 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     # --------------------------------------------------
     # 4) Model-based anomaly magnitude (optional)
     # --------------------------------------------------
-    D, threshold, anomaly_mask = predictor.detect_anomaly(residuals, std_pred)
+    d, threshold, anomaly_mask = predictor.detect_anomaly(residuals, std_pred)
 
     # also ignore pre-monitoring anomalies
     anomaly_mask[:calibration_end] = False
@@ -263,16 +261,16 @@ def run_monitoring(residuals, std_pred, predictor, monitor_cfg):
     # --------------------------------------------------
     monitoring = {
     # model residual anomaly
-    "D": D,
+    "D": d,
     "threshold": threshold,
     "anomaly_mask": anomaly_mask,
 
     # acceleration
-    "S_acc": S_acc,
+    "s_acc": s_acc,
     "alarm_acc": alarm_acc_full,
 
     # deceleration
-    "S_dec": S_dec,
+    "s_dec": s_dec,
     "alarm_dec": alarm_dec_full,
 
     # oscillation

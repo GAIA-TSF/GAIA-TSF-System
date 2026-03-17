@@ -6,7 +6,6 @@ import json
 import numpy as np
 
 from .validate_lstm import run_validation
-from .trainer import Trainer
 
 # experiment folder
 def _create_experiment_dir(cfg):
@@ -114,7 +113,7 @@ def grid_search(dataset_name, config_path, tuning_cfg):
 
             best_loss = mean_loss
             best_params = params
-            model_path = os.path.join(exp_dir, cfg["experiments"]["model_file"])
+            # model_path = os.path.join(exp_dir, cfg["experiments"]["model_file"])
 
 
     print("\nBest configuration")

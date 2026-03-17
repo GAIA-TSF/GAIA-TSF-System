@@ -5,9 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
-from .trainer import Trainer
 
-from subsystems.map import dataset
 from subsystems.map.registry.model_registry import ModelRegistry 
 from subsystems.map.registry.experiment_tracker import ExperimentTracker
 from subsystems.map.registry.experiment_index import update_experiment_index 

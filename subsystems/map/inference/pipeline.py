@@ -1,7 +1,6 @@
 import os 
 import yaml
 import torch
-import numpy as np
 
 from torch.utils.data import DataLoader, Subset
 
@@ -13,7 +12,6 @@ from subsystems.map.monitoring.runner import run_monitoring
 from subsystems.map.evaluation.plots import plot_results
 from subsystems.map.registry.model_registry import ModelRegistry
 
-from subsystems.map import inference
 
 """
 Core ML orchestration. 

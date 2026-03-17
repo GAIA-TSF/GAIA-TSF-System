@@ -34,8 +34,8 @@ class BayesianChangePointDetector:
     def run(self, signal):
 
         n = len(signal)
-        R = np.zeros((n+1, n+1))
-        R[0,0] = 1
+        rr = np.zeros((n+1, n+1))
+        rr[0,0] = 1
 
         mu = np.zeros((n+1, n+1))
         kappa = np.zeros((n+1, n+1))
@@ -59,14 +59,14 @@ class BayesianChangePointDetector:
                     x, mu[r,t-1], kappa[r,t-1], alpha[r,t-1], beta[r,t-1]
                 )
 
-            growth = R[t-1,:t] * pred_prob * (1 - self.hazard)
-            cp = np.sum(R[t-1,:t] * pred_prob * self.hazard)
+            growth = rr[t-1,:t] * pred_prob * (1 - self.hazard)
+            cp = np.sum(rr[t-1,:t] * pred_prob * self.hazard)
 
-            R[t,1:t+1] = growth
-            R[t,0] = cp
-            R[t,:t+1] /= np.sum(R[t,:t+1])
+            rr[t,1:t+1] = growth
+            rr[t,0] = cp
+            rr[t,:t+1] /= np.sum(rr[t,:t+1])
 
-            cp_prob[t] = R[t,0]
+            cp_prob[t] = rr[t,0]
 
             # update posterior
             for r in range(t):

@@ -64,7 +64,7 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
     trainer_cfg = cfg["trainer"]
     dataset_cfg = cfg["dataset"]
     model_cfg = cfg["model"]
-    validation_cfg = cfg["validation"]
+    # validation_cfg = cfg["validation"] TODO: check if to use it? 
 
     look_back = trainer_cfg["look_back"]
     horizon = trainer_cfg["horizon"]
