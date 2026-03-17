@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
 
-import os
 import json
 from datetime import datetime, UTC
 from pathlib import Path

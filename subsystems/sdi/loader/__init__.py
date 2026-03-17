@@ -6,7 +6,6 @@ import shutil
 import psycopg
 from psycopg import sql
 import requests
-import uuid
 import boto3
 from abc import ABC, abstractmethod
 
@@ -198,9 +197,10 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-
                         # Create schema if it does not exist
-                        cur.execute(sql.SQL(f'CREATE SCHEMA IF NOT EXISTS {self.schema_name};'))
+                        cur.execute(
+                            sql.SQL(f'CREATE SCHEMA IF NOT EXISTS {self.schema_name};')
+                        )
                         conn.commit()
 
                         table_ident = sql.Identifier(self.schema_name, self.table_name)
@@ -219,7 +219,10 @@ class InSituDataLoader(SdiLoader):
                             )
 
                         else:
-                            cur.execute('SELECT to_regclass(%s);', (self.schema_name + "." + self.table_name,))
+                            cur.execute(
+                                'SELECT to_regclass(%s);',
+                                (self.schema_name + '.' + self.table_name,),
+                            )
                             table_exists = cur.fetchone()[0] is not None
 
                             if not table_exists:
@@ -279,7 +282,9 @@ class InSituDataLoader(SdiLoader):
                             )
                         )
 
-                        self.logger.debug(f'Table "{self.schema_name}.{self.table_name}" successfully imported.')
+                        self.logger.debug(
+                            f'Table "{self.schema_name}.{self.table_name}" successfully imported.'
+                        )
 
             except psycopg.Error as e:
                 raise RuntimeError(
