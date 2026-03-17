@@ -12,11 +12,14 @@ try:
     from kafka.errors import KafkaError, NoBrokersAvailable
 except ImportError:
     KafkaConsumer = None
+
     # Dummy classes for safe exception catching if kafka is not installed
-    class KafkaError(Exception): 
+    class KafkaError(Exception):
         pass
-    class NoBrokersAvailable(Exception): # noqa: N818
+
+    class NoBrokersAvailable(Exception):  # noqa: N818
         pass
+
 
 try:
     import boto3
@@ -37,7 +40,13 @@ class BaseStreamHandler(ABC):
     Provides shared initialization, state management, and the central ETL routing pipeline.
     """
 
-    def __init__(self, logger: Any, qc_layer: Any, etl_callback: Callable, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        logger: Any,
+        qc_layer: Any,
+        etl_callback: Callable,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         self.logger = logger
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback
@@ -54,15 +63,17 @@ class BaseStreamHandler(ABC):
         """Stops the streaming loop and performs cleanup."""
         self._is_running = False
 
-    def _execute_pipeline(self, payload: Dict[str, Any], source: str, protocol: str, dataset_id: str) -> None:
+    def _execute_pipeline(
+        self, payload: Dict[str, Any], source: str, protocol: str, dataset_id: str
+    ) -> None:
         """
-        Unified processing pipeline: Converts payload to DataFrame, applies QC checks, 
+        Unified processing pipeline: Converts payload to DataFrame, applies QC checks,
         and routes to the downstream ETL engine.
         """
         try:
             # 1. Structural Validation (Fast Fail)
             if not isinstance(payload, dict):
-                raise TypeError(f"Payload must be a dictionary, got {type(payload)}")
+                raise TypeError(f'Payload must be a dictionary, got {type(payload)}')
 
             # 2. DataFrame Conversion
             df = pd.DataFrame([payload])
@@ -100,18 +111,33 @@ class BaseStreamHandler(ABC):
             self.logger.info(f'[{dataset_id}] Passed QC and routed to ETL.')
 
         except TypeError as e:
-            self.logger.error(f'[{dataset_id}] Type Error: {e}. Dropping invalid payload.')
+            self.logger.error(
+                f'[{dataset_id}] Type Error: {e}. Dropping invalid payload.'
+            )
         except ValueError as e:
-            self.logger.error(f'[{dataset_id}] Value Error (e.g., Pandas conversion failed): {e}')
+            self.logger.error(
+                f'[{dataset_id}] Value Error (e.g., Pandas conversion failed): {e}'
+            )
         except Exception as e:
             # Safety net for unexpected pipeline crashes
-            self.logger.critical(f'[{dataset_id}] UNEXPECTED error in processing pipeline: {e}', exc_info=True)
+            self.logger.critical(
+                f'[{dataset_id}] UNEXPECTED error in processing pipeline: {e}',
+                exc_info=True,
+            )
 
 
 class KafkaStreamHandler(BaseStreamHandler):
     """Handles high-frequency real-time sensor feeds from Apache Kafka."""
 
-    def __init__(self, broker: str, topics: List[str], logger: Any, qc_layer: Any, etl_callback: Callable, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        broker: str,
+        topics: List[str],
+        logger: Any,
+        qc_layer: Any,
+        etl_callback: Callable,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(logger, qc_layer, etl_callback, config)
         self.broker = broker
         self.topics = topics
@@ -122,7 +148,7 @@ class KafkaStreamHandler(BaseStreamHandler):
         if KafkaConsumer is None:
             self.logger.error('kafka-python is not installed. Aborting Kafka init.')
             return
-        
+
         group_id = self.config.get('kafka_group_id', 'gaia_tsf_isu_streaming_group')
         offset_reset = self.config.get('kafka_auto_offset_reset', 'latest')
 
@@ -140,7 +166,9 @@ class KafkaStreamHandler(BaseStreamHandler):
         except KafkaError as e:
             self.logger.error(f'Kafka configuration or initialization error: {e}')
         except Exception as e:
-            self.logger.critical(f'Unexpected error initializing Kafka: {e}', exc_info=True)
+            self.logger.critical(
+                f'Unexpected error initializing Kafka: {e}', exc_info=True
+            )
 
     def start_consuming(self) -> None:
         if not self._consumer:
@@ -159,19 +187,21 @@ class KafkaStreamHandler(BaseStreamHandler):
                     for message in messages:
                         dataset_id = f'kafka_{uuid.uuid4().hex[:8]}'
                         self._execute_pipeline(
-                            payload=message.value, 
-                            source=message.topic, 
-                            protocol='kafka', 
-                            dataset_id=dataset_id
+                            payload=message.value,
+                            source=message.topic,
+                            protocol='kafka',
+                            dataset_id=dataset_id,
                         )
             # Catching deserialization errors (JSON decode fails inside value_deserializer)
             except json.JSONDecodeError as e:
                 self.logger.error(f'Kafka Deserialization Error - Malformed JSON: {e}')
             except KafkaError as e:
                 self.logger.error(f'Kafka Polling Error: {e}')
-                time.sleep(error_backoff) # Backoff before retrying
+                time.sleep(error_backoff)  # Backoff before retrying
             except Exception as e:
-                self.logger.critical(f'Unexpected error during Kafka consumption: {e}', exc_info=True)
+                self.logger.critical(
+                    f'Unexpected error during Kafka consumption: {e}', exc_info=True
+                )
                 time.sleep(error_backoff)
 
     def stop(self) -> None:
@@ -184,7 +214,15 @@ class KafkaStreamHandler(BaseStreamHandler):
 class KinesisStreamHandler(BaseStreamHandler):
     """Handles real-time sensor feeds from AWS Kinesis Streams."""
 
-    def __init__(self, stream_name: str, region_name: str, logger: Any, qc_layer: Any, etl_callback: Callable, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        stream_name: str,
+        region_name: str,
+        logger: Any,
+        qc_layer: Any,
+        etl_callback: Callable,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(logger, qc_layer, etl_callback, config)
         self.stream_name = stream_name
         self.region_name = region_name
@@ -196,26 +234,28 @@ class KinesisStreamHandler(BaseStreamHandler):
         if boto3 is None:
             self.logger.error('boto3 is not installed. Aborting Kinesis init.')
             return
-            
+
         try:
             self._kinesis_client = boto3.client('kinesis', region_name=self.region_name)
             response = self._kinesis_client.describe_stream(StreamName=self.stream_name)
             shard_id = response['StreamDescription']['Shards'][0]['ShardId']
             iterator_type = self.config.get('kinesis_iterator_type', 'LATEST')
             iter_response = self._kinesis_client.get_shard_iterator(
-                StreamName=self.stream_name, 
-                ShardId=shard_id, 
-                ShardIteratorType=iterator_type
+                StreamName=self.stream_name,
+                ShardId=shard_id,
+                ShardIteratorType=iterator_type,
             )
             self._shard_iterator = iter_response['ShardIterator']
-            
+
         except botocore.exceptions.ClientError as e:
-            error_msg = e.response.get("Error", {}).get("Message", str(e))
+            error_msg = e.response.get('Error', {}).get('Message', str(e))
             self.logger.error(f'AWS ClientError during Kinesis init: {error_msg}')
         except botocore.exceptions.BotoCoreError as e:
             self.logger.error(f'AWS BotoCore Error (e.g., missing credentials): {e}')
         except Exception as e:
-            self.logger.critical(f'Unexpected error initializing Kinesis: {e}', exc_info=True)
+            self.logger.critical(
+                f'Unexpected error initializing Kinesis: {e}', exc_info=True
+            )
 
     def start_consuming(self) -> None:
         if not self._kinesis_client or not self._shard_iterator:
@@ -241,32 +281,42 @@ class KinesisStreamHandler(BaseStreamHandler):
                         payload = json.loads(record['Data'].decode('utf-8'))
                         dataset_id = f'kinesis_{uuid.uuid4().hex[:8]}'
                         self._execute_pipeline(
-                            payload=payload, 
-                            source=self.stream_name, 
-                            protocol='kinesis', 
-                            dataset_id=dataset_id
+                            payload=payload,
+                            source=self.stream_name,
+                            protocol='kinesis',
+                            dataset_id=dataset_id,
                         )
                     except json.JSONDecodeError as e:
-                        self.logger.error(f'Kinesis record dropped - Invalid JSON format: {e}')
+                        self.logger.error(
+                            f'Kinesis record dropped - Invalid JSON format: {e}'
+                        )
                     except UnicodeDecodeError as e:
-                        self.logger.error(f'Kinesis record dropped - Invalid UTF-8 encoding: {e}')
-                
+                        self.logger.error(
+                            f'Kinesis record dropped - Invalid UTF-8 encoding: {e}'
+                        )
+
                 time.sleep(loop_sleep)  # Respect API rate limits
-                
+
             except botocore.exceptions.ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code')
                 if error_code == 'ProvisionedThroughputExceededException':
-                    self.logger.warning('Kinesis throughput exceeded. Throttling back for 5 seconds...')
+                    self.logger.warning(
+                        'Kinesis throughput exceeded. Throttling back for 5 seconds...'
+                    )
                     time.sleep(throttle_backoff)  # Exponential backoff recommended here
                 elif error_code == 'ExpiredIteratorException':
-                    self.logger.error('Kinesis Shard Iterator expired. Re-initialization needed.')
+                    self.logger.error(
+                        'Kinesis Shard Iterator expired. Re-initialization needed.'
+                    )
                     # Note: In production, trigger a re-init of the iterator here
-                    self._is_running = False 
+                    self._is_running = False
                 else:
                     self.logger.error(f'Kinesis ClientError: {e}')
                     time.sleep(error_backoff)
             except Exception as e:
-                self.logger.critical(f'Unexpected error during Kinesis consumption: {e}', exc_info=True)
+                self.logger.critical(
+                    f'Unexpected error during Kinesis consumption: {e}', exc_info=True
+                )
                 time.sleep(error_backoff)
 
     def stop(self) -> None:
@@ -277,7 +327,15 @@ class KinesisStreamHandler(BaseStreamHandler):
 class SensorThingsAPIHandler(BaseStreamHandler):
     """Handles OGC SensorThings API data via MQTT extension."""
 
-    def __init__(self, broker_url: str, datastream_id: str, logger: Any, qc_layer: Any, etl_callback: Callable, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        broker_url: str,
+        datastream_id: str,
+        logger: Any,
+        qc_layer: Any,
+        etl_callback: Callable,
+        config: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(logger, qc_layer, etl_callback, config)
         self.broker_url = broker_url
         self.datastream_id = datastream_id
@@ -288,7 +346,7 @@ class SensorThingsAPIHandler(BaseStreamHandler):
         if mqtt is None:
             self.logger.error('paho-mqtt is not installed. Aborting MQTT init.')
             return
-            
+
         try:
             self._client = mqtt.Client()
             self._client.on_connect = self._on_connect
@@ -298,19 +356,19 @@ class SensorThingsAPIHandler(BaseStreamHandler):
 
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            topic = f"v1.0/Datastreams({self.datastream_id})/Observations"
+            topic = f'v1.0/Datastreams({self.datastream_id})/Observations'
             client.subscribe(topic)
             self.logger.info(f'MQTT Connected successfully. Subscribed to {topic}')
         else:
             # Standard MQTT connection return codes
             reasons = {
-                1: "Incorrect protocol version",
-                2: "Invalid client identifier",
-                3: "Server unavailable",
-                4: "Bad username or password",
-                5: "Not authorized"
+                1: 'Incorrect protocol version',
+                2: 'Invalid client identifier',
+                3: 'Server unavailable',
+                4: 'Bad username or password',
+                5: 'Not authorized',
             }
-            reason = reasons.get(rc, "Unknown reason")
+            reason = reasons.get(rc, 'Unknown reason')
             self.logger.error(f'MQTT Connection failed with code {rc}: {reason}')
 
     def _on_message(self, client, userdata, msg):
@@ -318,22 +376,24 @@ class SensorThingsAPIHandler(BaseStreamHandler):
             payload = json.loads(msg.payload.decode('utf-8'))
             dataset_id = f'ogc_{uuid.uuid4().hex[:8]}'
             self._execute_pipeline(
-                payload=payload, 
-                source=f'Datastream_{self.datastream_id}', 
-                protocol='sensorthings', 
-                dataset_id=dataset_id
+                payload=payload,
+                source=f'Datastream_{self.datastream_id}',
+                protocol='sensorthings',
+                dataset_id=dataset_id,
             )
         except json.JSONDecodeError as e:
             self.logger.error(f'MQTT message dropped - Invalid JSON: {e}')
         except UnicodeDecodeError as e:
             self.logger.error(f'MQTT message dropped - Invalid UTF-8: {e}')
         except Exception as e:
-            self.logger.critical(f'Unexpected error processing MQTT message: {e}', exc_info=True)
+            self.logger.critical(
+                f'Unexpected error processing MQTT message: {e}', exc_info=True
+            )
 
     def start_consuming(self) -> None:
         if not self._client:
             return
-            
+
         self._is_running = True
         default_port = self.config.get('mqtt_default_port', 1883)
         keepalive = self.config.get('mqtt_keepalive_sec', 60)
@@ -344,16 +404,18 @@ class SensorThingsAPIHandler(BaseStreamHandler):
             host = parts[0]
             port = int(parts[1]) if len(parts) > 1 else default_port
         except ValueError as e:
-            self.logger.error(f'Invalid MQTT broker URL format "{self.broker_url}": {e}')
+            self.logger.error(
+                f'Invalid MQTT broker URL format "{self.broker_url}": {e}'
+            )
             return
-            
+
         try:
             self._client.connect(host, port, keepalive)
             self._client.loop_start()  # Run network loop in a background thread
-            
+
             while self._is_running:
-                time.sleep(loop_sleep) # Keep main thread alive
-                
+                time.sleep(loop_sleep)  # Keep main thread alive
+
         except ConnectionRefusedError:
             self.logger.error(f'Connection refused by MQTT broker at {host}:{port}')
         except Exception as e:

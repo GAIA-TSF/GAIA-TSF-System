@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .stream_handler import (
     KafkaStreamHandler,
     KinesisStreamHandler,
-    SensorThingsAPIHandler
+    SensorThingsAPIHandler,
 )
 
 
@@ -50,12 +50,14 @@ class StreamingDataHandler:
 
         # ---------------------------------------------------------
         # Factory Pattern: Instantiate the corresponding underlying stream processor
-        # based on source_type. Includes parameter validation to prevent 
+        # based on source_type. Includes parameter validation to prevent
         # missing critical configurations.
         # ---------------------------------------------------------
         if self.source_type == 'kafka':
             if not kafka_broker or not kafka_topics:
-                raise ValueError("kafka_broker and kafka_topics must be provided for Kafka.")
+                raise ValueError(
+                    'kafka_broker and kafka_topics must be provided for Kafka.'
+                )
             self._stream_processor = KafkaStreamHandler(
                 broker=kafka_broker,
                 topics=kafka_topics,
@@ -67,7 +69,9 @@ class StreamingDataHandler:
 
         elif self.source_type == 'kinesis':
             if not kinesis_stream or not kinesis_region:
-                raise ValueError("kinesis_stream and kinesis_region must be provided for Kinesis.")
+                raise ValueError(
+                    'kinesis_stream and kinesis_region must be provided for Kinesis.'
+                )
             self._stream_processor = KinesisStreamHandler(
                 stream_name=kinesis_stream,
                 region_name=kinesis_region,
@@ -79,7 +83,9 @@ class StreamingDataHandler:
 
         elif self.source_type == 'sensorthings':
             if not ogc_broker or not ogc_datastream_id:
-                raise ValueError("ogc_broker and ogc_datastream_id must be provided for SensorThings.")
+                raise ValueError(
+                    'ogc_broker and ogc_datastream_id must be provided for SensorThings.'
+                )
             self._stream_processor = SensorThingsAPIHandler(
                 broker_url=ogc_broker,
                 datastream_id=ogc_datastream_id,
@@ -90,7 +96,9 @@ class StreamingDataHandler:
             )
 
         else:
-            raise ValueError(f"Unsupported source_type: {self.source_type}. Valid options are 'kafka', 'kinesis', 'sensorthings'.")
+            raise ValueError(
+                f"Unsupported source_type: {self.source_type}. Valid options are 'kafka', 'kinesis', 'sensorthings'."
+            )
 
     def start(self) -> None:
         """
@@ -101,10 +109,14 @@ class StreamingDataHandler:
         :rtype: None
         """
         if self._thread and self._thread.is_alive():
-            self.logger.warning(f'StreamingDataHandler ({self.source_type}) is already running.')
+            self.logger.warning(
+                f'StreamingDataHandler ({self.source_type}) is already running.'
+            )
             return
 
-        self.logger.info(f'Starting StreamingDataHandler thread for protocol: {self.source_type}...')
+        self.logger.info(
+            f'Starting StreamingDataHandler thread for protocol: {self.source_type}...'
+        )
         self._thread = threading.Thread(
             target=self._stream_processor.start_consuming,
             daemon=True,
@@ -125,4 +137,6 @@ class StreamingDataHandler:
         if self._thread:
             self._thread.join(timeout=3.0)
 
-        self.logger.info(f'StreamingDataHandler ({self.source_type}) successfully stopped.')
+        self.logger.info(
+            f'StreamingDataHandler ({self.source_type}) successfully stopped.'
+        )
