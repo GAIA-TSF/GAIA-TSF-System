@@ -49,7 +49,9 @@ python3 -m subsystems.map.registry.list_experiments --root ./GAIA_TSF/tsf_experi
 
 python3 -m subsystems.map.registry.best_model --root 
  ./GAIA_TSF/tsf_experiments --print-path 
- 
+
+python3 -m subsystems.map.registry.compare_experiments
+
 Registering is done automatically by lstm_learning.py 
 ```
 
@@ -72,7 +74,7 @@ Requirement ML_R_03:
 pytest subsystems/map/tests/test_inference.py -v 
 ```
 
-TODO: Requirement ML_R_06: model registry
+Requirement ML_R_06: model registry
 ```
-
+pytest subsystems/map/tests/test_model_registry.py -v 
 ```
