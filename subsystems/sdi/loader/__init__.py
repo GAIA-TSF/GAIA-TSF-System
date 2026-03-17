@@ -53,8 +53,9 @@ class SdiLoader(ABC):
         self._extract_zip()
         self._load_stac_json()
         self._import_data(append_data)
-        self._update_stac_json()
-        self._post_to_stac()
+        if not append_data:
+            self._update_stac_json()
+            self._post_to_stac()
         # TODO maybe return back cleanup
 
     def _extract_zip(self):
@@ -202,17 +203,6 @@ class InSituDataLoader(SdiLoader):
                         cur.execute(sql.SQL(f'CREATE SCHEMA IF NOT EXISTS {self.schema_name};'))
                         conn.commit()
 
-                        # Drop and create table
-                        cur.execute(sql.SQL(f'DROP TABLE IF EXISTS {self.schema_name}.{self.table_name};'))
-                        cur.execute(
-                            sql.SQL(
-                                f'CREATE TABLE {self.schema_name}.{self.table_name} ({", ".join(sql_columns)});'
-                        # Check if table exists
-                        table_exists = False
-                        if append_data:
-                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
-                            table_exists = cur.fetchone()[0] is not None
-
                         table_ident = sql.Identifier(self.schema_name, self.table_name)
 
                         # Table handling
@@ -229,6 +219,9 @@ class InSituDataLoader(SdiLoader):
                             )
 
                         else:
+                            cur.execute('SELECT to_regclass(%s);', (self.schema_name + "." + self.table_name,))
+                            table_exists = cur.fetchone()[0] is not None
+
                             if not table_exists:
                                 cur.execute(
                                     sql.SQL('CREATE TABLE {} ({})').format(
@@ -245,7 +238,7 @@ class InSituDataLoader(SdiLoader):
                         query = sql.SQL(
                             'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
-                            sql.Identifier(self.schema_name, self.table_name),
+                            table_ident,
                             sql.SQL(', ').join(
                                 sql.Identifier(c['name']) for c in columns
                             ),
@@ -271,22 +264,13 @@ class InSituDataLoader(SdiLoader):
                                     copy.write(data)
 
                         # Update geom column
-                        cur.execute(
-                            sql.SQL(f"""
-                                UPDATE {self.schema_name}.{self.table_name}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326);
-                                CREATE INDEX ON {self.schema_name}.{self.table_name} USING GIST (geom);
-                            """)
-                        )
 
-                self.logger.debug(f'Table "{self.schema_name}.{self.table_name}" successfully imported.')
-                            sql.SQL(
-                                """
-                                UPDATE {}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                                """
-                            ).format(table_ident)
-                        )
+                        sql.SQL(
+                            """
+                            UPDATE {}
+                            SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                            """
+                        ).format(table_ident)
 
                         # Create spatial index
                         cur.execute(
@@ -294,6 +278,8 @@ class InSituDataLoader(SdiLoader):
                                 table_ident
                             )
                         )
+
+                        self.logger.debug(f'Table "{self.schema_name}.{self.table_name}" successfully imported.')
 
             except psycopg.Error as e:
                 raise RuntimeError(
