@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
 
-import os
 import json
 from datetime import datetime, UTC
 from pathlib import Path
@@ -186,7 +185,7 @@ class StacItemFactory:
         :rtype: dict
         """
         item_id = self.raster.path.stem
-        now = datetime.now(UTC).isoformat() + 'Z'
+        now = datetime.now(UTC).isoformat()
 
         bbox = self.raster.get_bbox_wgs84()
         geometry = self._build_geometry(bbox)

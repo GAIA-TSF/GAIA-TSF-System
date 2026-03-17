@@ -6,7 +6,6 @@ import shutil
 import psycopg
 from psycopg import sql
 import requests
-import uuid
 import boto3
 from abc import ABC, abstractmethod
 
@@ -53,8 +52,9 @@ class SdiLoader(ABC):
         self._extract_zip()
         self._load_stac_json()
         self._import_data(append_data)
-        self._update_stac_json()
-        self._post_to_stac()
+        if not append_data:
+            self._update_stac_json()
+            self._post_to_stac()
         # TODO maybe return back cleanup
 
     def _extract_zip(self):
@@ -108,7 +108,7 @@ class SdiLoader(ABC):
         bbox = self.stac_json.get('bbox', [0, 0, 1, 1])
 
         # Create a new collection
-        collection_id = f'testcollection{uuid.uuid4().hex[:8]}'
+        collection_id = self.stac_json['collection']
         collection_payload = {
             'id': collection_id,
             'title': 'Test Collection',
@@ -175,6 +175,7 @@ class InSituDataLoader(SdiLoader):
                 continue
 
             # Determine table name from STAC id + asset key
+            self.schema_name = f'{self.stac_json["collection"]}'
             self.table_name = f'{self.stac_json["id"]}_{asset_key}'
 
             # Build SQL column definitions dynamically
@@ -196,13 +197,13 @@ class InSituDataLoader(SdiLoader):
             try:
                 with psycopg.connect(**self.pg_config) as conn:
                     with conn.cursor() as cur:
-                        # Check if table exists
-                        table_exists = False
-                        if append_data:
-                            cur.execute('SELECT to_regclass(%s);', (self.table_name,))
-                            table_exists = cur.fetchone()[0] is not None
+                        # Create schema if it does not exist
+                        cur.execute(
+                            sql.SQL(f'CREATE SCHEMA IF NOT EXISTS {self.schema_name};')
+                        )
+                        conn.commit()
 
-                        table_ident = sql.Identifier(self.table_name)
+                        table_ident = sql.Identifier(self.schema_name, self.table_name)
 
                         # Table handling
                         if not append_data:
@@ -218,6 +219,12 @@ class InSituDataLoader(SdiLoader):
                             )
 
                         else:
+                            cur.execute(
+                                'SELECT to_regclass(%s);',
+                                (self.schema_name + '.' + self.table_name,),
+                            )
+                            table_exists = cur.fetchone()[0] is not None
+
                             if not table_exists:
                                 cur.execute(
                                     sql.SQL('CREATE TABLE {} ({})').format(
@@ -234,7 +241,7 @@ class InSituDataLoader(SdiLoader):
                         query = sql.SQL(
                             'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
-                            sql.Identifier(self.table_name),
+                            table_ident,
                             sql.SQL(', ').join(
                                 sql.Identifier(c['name']) for c in columns
                             ),
@@ -260,20 +267,23 @@ class InSituDataLoader(SdiLoader):
                                     copy.write(data)
 
                         # Update geom column
-                        cur.execute(
-                            sql.SQL(
-                                """
-                                UPDATE {}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                                """
-                            ).format(table_ident)
-                        )
+
+                        sql.SQL(
+                            """
+                            UPDATE {}
+                            SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                            """
+                        ).format(table_ident)
 
                         # Create spatial index
                         cur.execute(
                             sql.SQL('CREATE INDEX ON {} USING GIST (geom)').format(
                                 table_ident
                             )
+                        )
+
+                        self.logger.debug(
+                            f'Table "{self.schema_name}.{self.table_name}" successfully imported.'
                         )
 
             except psycopg.Error as e:
