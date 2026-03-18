@@ -4,6 +4,7 @@ import yaml
 
 from shapely import wkt
 from shapely.errors import ShapelyError
+from pathlib import Path
 
 
 class ConfigReader(dict):
@@ -143,7 +144,7 @@ class YamlValidator:
         return len(self.errors) < 1
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str | Path):
         """Initialize project config reader.
 
         Validity may be checked by is_valid() method.
