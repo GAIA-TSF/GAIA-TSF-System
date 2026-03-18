@@ -1,0 +1,61 @@
+{
+  "type": "Feature",
+  "stac_version": "1.0.0",
+  "stac_extensions": [
+    "https://stac-extensions.github.io/table/v1.2.0/schema.json",
+    "https://stac-extensions.github.io/projection/v1.0.0/schema.json"
+  ],
+  "id": "measurement_ph_202602",
+  "collection": "prague",
+  "properties": {
+    "datetime": "2026-02-10T00:00:00Z",
+    "start_datetime": "2026-02-01T00:00:00Z",
+    "end_datetime": "2026-02-20T00:00:00Z",
+    "proj:epsg": 4326
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [14.41200, 50.08200],
+        [14.44000, 50.08200],
+        [14.44000, 50.09200],
+        [14.41200, 50.09200],
+        [14.41200, 50.08200]
+      ]
+    ]
+  },
+  "bbox": [
+    14.41200,
+    50.08200,
+    14.44000,
+    50.09200
+  ],
+  "assets": {
+    "data": {
+      "href": "isu_sample_data.csv",
+      "type": "application/x-postgresql",
+      "title": "Measurement data stored in PostGIS",
+      "roles": ["data"],
+      "table:columns": [
+        {
+          "name": "lon",
+          "type": "number"
+        },
+        {
+          "name": "lat",
+          "type": "number"
+        },
+        {
+          "name": "ph",
+          "type": "number"
+        },
+        {
+          "name": "timestamp",
+          "type": "datetime"
+        }
+      ]
+    }
+  },
+  "links": []
+}

@@ -1,4 +1,4 @@
-FROM ghcr.io/stac-utils/pgstac:v0.9.9
+FROM python:3.14-trixie
 
 USER root
 
@@ -14,4 +14,4 @@ WORKDIR /opt/gaia_tsf
 COPY requirements.txt /tmp
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-USER postgres
+# USER postgres

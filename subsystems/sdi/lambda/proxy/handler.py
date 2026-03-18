@@ -3,7 +3,7 @@ import boto3
 from botocore.exceptions import ClientError
 import json
 
-from qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
 LOCALSTACK = os.getenv('LOCALSTACK', '0') == '1'
 
@@ -18,7 +18,6 @@ if LOCALSTACK:
 else:
     s3 = boto3.client('s3')
 
-s3 = boto3.client('s3')
 id = 'SDI'
 logger = Logger(subsystem=id)
 
