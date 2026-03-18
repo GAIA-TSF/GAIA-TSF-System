@@ -22,19 +22,18 @@ def load_index(root_dir):
 def print_table(experiments):
 
     print()
-    print('Registered Experiments')
-    print('-' * 50)
-    print(f'{'Experiment':20s} {'Best Test Loss':15s}')
-    print('-' * 50)
+    print("Registered Experiments")
+    print("-" * 50)
+    print(f"{'Experiment':20s} {'Best Test Loss':15s}")
+    print("-" * 50)
 
     for exp in experiments:
         print(
-            f'{exp['experiment']:20s} '
-            f'{exp['best_test_loss']:.4f}'
+            f"{exp['experiment']:20s} "
+            f"{exp['best_test_loss']:.4f}"
         )
 
-    print('-' * 50)
-
+    print("-" * 50) 
 
 def main():
 

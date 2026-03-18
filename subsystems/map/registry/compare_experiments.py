@@ -64,12 +64,12 @@ def print_table(rows):
     print('-' * 75)
 
     header = (
-        f'{'Experiment':15s}'
-        f'{'Loss':10s}'
-        f'{'Hidden':10s}'
-        f'{'Layers':10s}'
-        f'{'Dropout':10s}'
-        f'{'LR':10s}'
+        f"{'Experiment':15s} "
+        f"{'Loss':10s} "
+        f"{'Hidden':10s} "
+        f"{'Layers':10s} "
+        f"{'Dropout':10s} "
+        f"{'LR':10s}"
     )
 
     print(header)
@@ -78,12 +78,12 @@ def print_table(rows):
     for r in rows:
 
         print(
-            f'{r['experiment']:15s}'
-            f'{r['loss']:<10.4f}'
-            f'{str(r['hidden_size']):10s}'
-            f'{str(r['layers']):10s}'
-            f'{str(r['dropout']):10s}'
-            f'{str(r['lr']):10s}'
+            f"{r['experiment']:15s} "
+            f"{r['loss']:<10.4f} "
+            f"{str(r['hidden_size']):10s} "
+            f"{str(r['layers']):10s} "
+            f"{str(r['dropout']):10s} "
+            f"{str(r['lr']):10s}"
         )
 
     print('-' * 75)
@@ -98,7 +98,7 @@ def main():
     parser.add_argument(
         '--root',
         type=str,
-        default='tsf_projects',
+        default='tsf_experiments',
         help='Experiment root directory',
     )
 

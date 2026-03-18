@@ -46,12 +46,13 @@ python3 -m subsystems.map.registry.list_experiments --root ./GAIA_TSF/tsf_experi
 python3 -m subsystems.map.registry.best_model --root 
  ./GAIA_TSF/tsf_experiments --print-path 
 
-python3 -m subsystems.map.registry.compare_experiments
+python3 -m subsystems.map.registry.compare_experiments --root ./GAIA_TSF/tsf_experiments 
 
 Registering is done automatically by lstm_learning.py 
 ```
 
 6. Run monitoring inference 
+TODO: remote learning, use trained model. 
 ``` 
 python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
 ```

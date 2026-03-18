@@ -79,7 +79,6 @@ class Predictor:
         print(f'[Baseline] residual σ = {self._baseline_sigma:.4f}')
 
 
-
     def predict_series(
         self,
         displacement: np.ndarray,
@@ -140,6 +139,30 @@ class Predictor:
 
         return mean_pred, std_pred
 
+    def anomaly_score(self, residuals):
+        residuals = np.asarray(residuals)
+
+        # === calibration phase ===  
+        n_calib = int(len(residuals) * self.calibration_fraction)
+        calib_res = residuals[:n_calib]
+
+        mean = np.mean(calib_res)
+        std = np.std(calib_res) + 1e-8
+
+        z = (residuals - mean) / std
+
+        # optional persistence smoothing
+        if self.persistence > 1:
+            z_smoothed = np.convolve(
+                np.abs(z),
+                np.ones(self.persistence) / self.persistence,
+                mode='same'
+            )
+        else:
+            z_smoothed = np.abs(z)
+
+        return z_smoothed
+
     @staticmethod
     def compute_residuals(
         observations: np.ndarray,
@@ -169,7 +192,11 @@ class Predictor:
 
     def detect_anomaly(self, residuals, std_pred):
 
-        dd = np.abs(residuals)
+        dd = np.abs(residuals) 
+
+        # reduce horizon dimension
+        if dd.ndim > 1:
+            dd = np.mean(dd, axis=0)  
 
         # threshold selection
         if self._use_model_uncertainty:
@@ -185,6 +212,9 @@ class Predictor:
                 residuals,
                 self._sigma_threshold * self._baseline_sigma,
             )
+
+        if threshold.ndim > 1:
+            threshold = np.mean(threshold, axis=0) 
 
         anomaly_mask = dd > threshold
 

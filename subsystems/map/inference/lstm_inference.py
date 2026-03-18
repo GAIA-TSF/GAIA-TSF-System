@@ -1,14 +1,17 @@
+import os 
 import argparse
 import yaml 
 import numpy as np 
 import torch 
 from torch.utils.data import DataLoader, Subset
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+
+from subsystems.map.monitoring.runner import run_monitoring 
 
 from ..dataset.insar import create_synthetic_insar_dataset, create_mirmazloumi_2023_dataset
-from .learning import LearningModule
-from .inference import InferenceModule
-
+from ..learning import LearningModule
+from ..inference import InferenceModule
+from ..evaluation.plots import plot_results
 
 """ 
 Entry point only. 
@@ -62,7 +65,6 @@ def _build_indices(dataset, split_name, look_back, horizon):
     return indices
 
 
-
 # ============= Main =============
 def main():
     args = _parse_arguments()
@@ -71,12 +73,20 @@ def main():
     model_cfg = config['model']
     trainer_cfg = config['trainer']
     dataset_cfg = config['dataset']
+    inference_cfg = config['inference']
+    monitoring_cfg = config['monitoring']
 
     device = _select_device(trainer_cfg['device'])
 
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
+    mc_samples = inference_cfg['mc_samples']
+    sigma_threshold = inference_cfg['sigma_threshold']
+    warmup_factor = monitoring_cfg['warmup_factor']
+    calibration_fraction = monitoring_cfg['calibration_fraction']
+    persistence = monitoring_cfg['persistence'] 
+    use_model_uncertainty = monitoring_cfg['use_model_uncertainty'] 
     
     # ============= Dataset =============
     if args.dataset == 'synthetic':
@@ -111,7 +121,7 @@ def main():
         shuffle=False,
     )
 
-    # ============= Model + training =============
+    # ============= Model =============
     learning = LearningModule()
 
     model = learning.create_forecasting_model(
@@ -123,27 +133,18 @@ def main():
         bidirectional=model_cfg['bidirectional'],
     )
 
-    trainer = learning.create_trainer(
-        model=model,
-        learning_rate=trainer_cfg['learning_rate'],
-        device=device,
+    # ============= load trained weights =============
+    exp_dir = config['experiments']['root_dir']
+    model_path = os.path.join(
+        exp_dir,
+        config['experiments']['name'], 
+        config['experiments']['model_file']
     )
+    print(f'Loading model from: {model_path}')
+    model.load_state_dict(torch.load(model_path, map_location=device))
 
-    print('Training model before inference...')
-    for epoch in range(trainer_cfg['epochs']):
-        train_loss = trainer.train_epoch(train_loader)
-        test_loss = trainer.validate_epoch(test_loader)
-
-        if epoch == 0 or epoch % 20 == 0:
-            if np.isnan(test_loss):
-                print(
-                    f'Epoch {epoch:03d} | train {train_loss:.4f} | no validation windows'
-                )
-            else:
-                print(
-                    f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}'
-                )
-
+    model.to(device)
+    model.eval()
     
     # ============= Inference =============
     inference = InferenceModule()
@@ -153,31 +154,39 @@ def main():
         device=device,
         look_back=look_back,
         horizon=horizon,
+        mc_samples=mc_samples,
+        sigma_threshold=sigma_threshold,
+        warmup_factor=warmup_factor,
+        calibration_fraction=calibration_fraction,
+        persistence=persistence,
+        use_model_uncertainty=use_model_uncertainty
     )
 
     displacement = dataset.displacement
     time_days = dataset.time_days
 
-    prediction = predictor.predict_series(displacement)
-    residuals = predictor.compute_residuals(displacement, prediction)
-    score = predictor.anomaly_score(residuals)
+    mean_pred, std_pred = predictor.predict_series(displacement)
+    residuals = predictor.compute_residuals(displacement, mean_pred)
+
+    mon = run_monitoring(residuals, std_pred, predictor, monitoring_cfg)
 
     # ============= Plot =============
-    plt.figure(figsize=(10, 6))
-
-    plt.subplot(2, 1, 1)
-    plt.plot(time_days, displacement, marker='.', label='Observed', color='black')
-    plt.plot(time_days, prediction, marker='.', label='Predicted', color='blue')
-    plt.legend()
+    # plt.figure(figsize=(10, 6))
+    # plt.subplot(2, 1, 1)
+    # plt.plot(time_days, displacement, marker='.', label='Observed', color='black')
+    # prediction_plot = prediction[0] 
+    # plt.plot(time_days, prediction_plot, marker='.', label='Predicted', color='blue')
+    # plt.legend()
     plt.title('Prediction vs Observation')
 
-    plt.subplot(2, 1, 2)
-    plt.plot(time_days, score, label='Anomaly score', color='red')
-    plt.legend()
-    plt.title('Residual-based anomaly magnitude')
+    # plt.subplot(2, 1, 2)
+    # plt.plot(time_days, score, label='Anomaly score', color='red')
+    # plt.legend()
+    # plt.title('Residual-based anomaly magnitude')
+    # plt.tight_layout()
+    # plt.show()
 
-    plt.tight_layout()
-    plt.show()
+    plot_results(time_days, displacement, mean_pred, std_pred, mon) 
 
 
 if __name__ == "__main__":
