@@ -10,3 +10,4 @@ pandas==3.0.1 # isu
 openpyxl==3.1.5 # isu
 pyyaml==6.0.3 # lib.config
 shapely==2.1.2 # lib.config
+torch==2.10.0  # map
