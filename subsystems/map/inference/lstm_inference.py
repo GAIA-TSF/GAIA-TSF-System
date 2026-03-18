@@ -177,7 +177,7 @@ def main():
     # prediction_plot = prediction[0] 
     # plt.plot(time_days, prediction_plot, marker='.', label='Predicted', color='blue')
     # plt.legend()
-    plt.title('Prediction vs Observation')
+    # plt.title('Prediction vs Observation')
 
     # plt.subplot(2, 1, 2)
     # plt.plot(time_days, score, label='Anomaly score', color='red')
