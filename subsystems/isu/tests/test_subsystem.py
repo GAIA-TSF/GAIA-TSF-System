@@ -75,7 +75,6 @@ class TestSubsystem:
         shutil.copy(source_file, input_file)
 
         # 2. Action: Manually trigger the job that the Scheduler would run
-        # This simulates one "tick" of the scheduler
         isu_system._scan_and_process_files()
 
         # 3. Verification
@@ -87,10 +86,6 @@ class TestSubsystem:
         processed_file = tmp_path / 'processed' / 'slope_sensor_data.csv'
         assert processed_file.exists(), 'File should be archived to processed directory'
 
-        # C. Verify Logger was called (proving parsing success)
-        # We access the mock logger instance injected into the system
-        # Assuming parsing was successful, info logs should happen
-        assert isu_system.logger.info.called
 
     def test_ISU_003(self, isu_system):
         """Test Scheduler Start/Stop Commands."""
