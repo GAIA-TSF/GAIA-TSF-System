@@ -97,3 +97,17 @@ class TestEarthObservationDataLoader:
         assert md5_input == md5_downloaded, (
             'Downloaded file does not match the original GeoTIFF'
         )
+
+    def test_failing_import(self):
+        base_dir = Path(__file__).parent
+        zip_path = base_dir / 'assets' / 'eou_sample_data_bad_metadata.zip'
+        assert zip_path.exists()
+
+        importer = EarthObservationDataLoader(zip_path=zip_path)
+
+        # Expecting expection
+        with pytest.raises(ValueError) as excinfo:
+            importer.import_zip()
+
+        # Checking text of the exception
+        assert 'Missing required fields' in str(excinfo.value)
