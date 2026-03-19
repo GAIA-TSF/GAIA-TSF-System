@@ -3,11 +3,11 @@ import argparse
 import yaml 
 import numpy as np 
 import torch 
-from torch.utils.data import DataLoader, Subset
-import matplotlib.pyplot as plt
 
+# import matplotlib.pyplot as plt
+from subsystems.map.utils.utils import _load_config, _select_device
+from subsystems.map.utils.builders import create_dataloaders, create_model
 from subsystems.map.monitoring.runner import run_monitoring 
-
 from ..dataset.insar import create_synthetic_insar_dataset, create_mirmazloumi_2023_dataset
 from ..learning import LearningModule
 from ..inference import InferenceModule
@@ -34,20 +34,6 @@ def _parse_arguments():
     )
 
     return parser.parse_args()
-
-
-def _load_config(path: str) -> dict:
-    with open(path, 'r', encoding='utf-8') as file:
-        return yaml.safe_load(file)
-
-
-def _select_device(device_config: str) -> torch.device:
-    if device_config == 'auto':
-        return torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu',
-        )
-    return torch.device(device_config)
-
 
 
 # ============= Window-safe split builder (important!) =============
@@ -109,29 +95,17 @@ def main():
     train_indices = _build_indices(dataset, 'train', look_back, horizon)
     test_indices = _build_indices(dataset, 'test', look_back, horizon)
 
-    train_loader = DataLoader(
-        Subset(dataset, train_indices),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=True,
+    train_loader, test_loader = create_dataloaders(
+        dataset,
+        train_indices,
+        test_indices,
+        trainer_cfg['batch_size']
     )
 
-    test_loader = DataLoader(
-        Subset(dataset, test_indices),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=False,
-    )
 
     # ============= Model =============
     learning = LearningModule()
-
-    model = learning.create_forecasting_model(
-        input_size=model_cfg['input_size'],
-        hidden_size=model_cfg['hidden_size'],
-        num_layers=model_cfg['num_layers'],
-        horizon=horizon,
-        dropout=model_cfg['dropout'],
-        bidirectional=model_cfg['bidirectional'],
-    )
+    model = create_model(learning, model_cfg, horizon) 
 
     # ============= load trained weights =============
     exp_dir = config['experiments']['root_dir']
@@ -146,10 +120,8 @@ def main():
     model.to(device)
     model.eval()
     
-    # ============= Inference =============
-    inference = InferenceModule()
-
-    predictor = inference.create_predictor(
+    # ============= Inference =============    
+    predictor = InferenceModule.create_predictor(
         model=model,
         device=device,
         look_back=look_back,
@@ -186,7 +158,7 @@ def main():
     # plt.tight_layout()
     # plt.show()
 
-    plot_results(time_days, displacement, mean_pred, std_pred, mon) 
+    plot_results(time_days, displacement, mean_pred, mon) 
 
 
 if __name__ == "__main__":

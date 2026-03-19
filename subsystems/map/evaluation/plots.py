@@ -21,7 +21,7 @@ def _draw_monitoring_regions(ax, time, mon):
     ax.axvspan(time[calib], time[-1], color='green', alpha=0.05, label='Monitoring')
 
 
-def plot_results(time, obs, pred, std, mon):
+def plot_results(time, obs, pred, mon):
 
     plt.figure(figsize=(11, 9))
 

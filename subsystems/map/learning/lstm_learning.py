@@ -6,9 +6,15 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Subset
 
+from subsystems.map.utils.utils import _load_config, _select_device
+from subsystems.map.utils.builders import create_dataloaders, create_model 
 from subsystems.map.registry.model_registry import ModelRegistry 
 from subsystems.map.registry.experiment_tracker import ExperimentTracker
 from subsystems.map.registry.experiment_index import update_experiment_index 
+
+from subsystems.map.utils.builders import create_dataloaders, create_model
+
+
 
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
@@ -42,18 +48,6 @@ def _parse_arguments():
 
     return parser.parse_args()
 
-# config loading 
-def _load_config(path: str) -> dict:
-    with open(path, 'r', encoding='utf-8') as file:
-        return yaml.safe_load(file)
-
-
-def _select_device(device_config: str) -> torch.device:
-    if device_config == 'auto':
-        return torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu',
-        )
-    return torch.device(device_config)
 
 # index builder (same as pipeline)
 def _build_indices(dataset, split_name, look_back, horizon):
@@ -121,30 +115,18 @@ def main():
         ),
     )
 
-    train_loader = DataLoader(
-        Subset(dataset, train_indices),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=True,
+    train_loader, test_loader = create_dataloaders(
+        dataset,
+        train_indices,
+        test_indices,
+        trainer_cfg['batch_size']
     )
-
-    test_loader = DataLoader(
-        Subset(dataset, test_indices),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=False,
-    )    
 
     # ============= Learning module =============
     learning = LearningModule()
 
-    model = learning.create_forecasting_model(
-        input_size=model_cfg['input_size'],
-        hidden_size=model_cfg['hidden_size'],
-        num_layers=model_cfg['num_layers'],
-        horizon=horizon,
-        dropout=model_cfg['dropout'],
-        bidirectional=model_cfg['bidirectional'],
-    )
-
+    model = create_model(learning, model_cfg, horizon)
+    
     trainer = learning.create_trainer(
         model=model,
         learning_rate=trainer_cfg['learning_rate'],
@@ -153,9 +135,6 @@ def main():
 
     # ============= Training =============
     print('Training starts')
-
-    train_losses = []
-    test_losses = []
 
     exp_dir = os.path.join(
         config['experiments']['root_dir'],

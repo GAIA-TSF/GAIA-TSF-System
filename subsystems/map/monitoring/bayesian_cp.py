@@ -17,7 +17,8 @@ class BayesianChangePointDetector:
         self.alpha0 = 1
         self.beta0 = 1
 
-    def student_t_pdf(self, x, mu, kappa, alpha, beta):
+    @staticmethod 
+    def student_t_pdf(x, mu, kappa, alpha, beta):
         
         kappa = max(kappa, 1e-6)
         alpha = max(alpha, 1e-6)

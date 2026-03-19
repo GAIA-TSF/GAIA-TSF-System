@@ -3,22 +3,20 @@ import yaml
 import json
 import torch
 import numpy as np
-from torch.utils.data import DataLoader, Subset
-
+from torch.utils.data import Subset
+from subsystems.map.utils.builders import create_dataloaders, create_model
+from subsystems.map.utils.utils import _load_config
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
     create_mirmazloumi_2023_dataset,
 )
-
+from subsystems.map.utils.builders import create_dataloaders, create_model
 from ..learning import LearningModule
 from .validation import expanding_window_splits
 
 import argparse
 
-# config loading 
-def _load_config(path: str) -> dict:
-    with open(path, 'r', encoding='utf-8') as file:
-        return yaml.safe_load(file)
+from subsystems.map import learning
     
 
 def _parse_arguments():
@@ -109,7 +107,7 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
         horizon,
         folds=cfg['validation']['folds'],
     )
-
+    
     learning = LearningModule()
 
     fold_results = []
@@ -118,26 +116,14 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
 
         print(f'\nFold {fold+1}')
 
-        train_loader = DataLoader(
-            Subset(dataset, list(train_idx)),
-            batch_size=trainer_cfg['batch_size'],
-            shuffle=True,
+        train_loader, test_loader = create_dataloaders(
+            dataset,
+            train_idx,
+            test_idx,
+            trainer_cfg['batch_size']
         )
 
-        test_loader = DataLoader(
-            Subset(dataset, list(test_idx)),
-            batch_size=trainer_cfg['batch_size'],
-            shuffle=False,
-        )
-
-        model = learning.create_forecasting_model(
-            input_size=model_cfg['input_size'],
-            hidden_size=model_cfg['hidden_size'],
-            num_layers=model_cfg['num_layers'],
-            horizon=horizon,
-            dropout=model_cfg['dropout'],
-            bidirectional=model_cfg['bidirectional'],
-        )
+        model = create_model(learning, model_cfg, horizon)
 
         trainer = learning.create_trainer(
             model=model,

@@ -2,8 +2,8 @@ import os
 import yaml
 import torch
 
-from torch.utils.data import DataLoader, Subset
-
+from subsystems.map.utils.utils import _load_config, _select_device
+from subsystems.map.utils.builders import create_dataloaders, create_model
 from ..dataset.insar import create_synthetic_insar_dataset, create_mirmazloumi_2023_dataset
 from ..learning import LearningModule
 from . import InferenceModule
@@ -16,19 +16,6 @@ from subsystems.map.registry.model_registry import ModelRegistry
 """
 Core ML orchestration. 
 """
-
-
-# ============= HELPERS =============
-def _load_config(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
-
-
-def _select_device(device_config):
-    if device_config == 'auto':
-        return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    return torch.device(device_config)
-
 
 def _build_indices(dataset, split_name, look_back, horizon):
     split = dataset.split_info[split_name]
@@ -108,28 +95,20 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
             horizon=horizon,
         )
 
-    train_loader = DataLoader(
-        Subset(dataset, _build_indices(dataset, 'train', look_back, horizon)),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=True,
-    )
-
-    test_loader = DataLoader(
-        Subset(dataset, _build_indices(dataset, 'test', look_back, horizon)),
-        batch_size=trainer_cfg['batch_size'],
-        shuffle=False,
+    train_loader, test_loader = create_dataloaders(
+        dataset,
+        train_indices,
+        test_indices,
+        trainer_cfg['batch_size']
     )
 
 
     # ============= TRAINING =============
     learning = LearningModule()
     
-    model = learning.create_forecasting_model(
-        input_size=model_cfg['input_size'],
-        hidden_size=model_cfg['hidden_size'],
-        num_layers=model_cfg['num_layers'],
-        horizon=horizon,
-        dropout=model_cfg['dropout'],
+    model = create_model(learning, model_cfg, horizon) 
+
+    # ============= TRAINING =============
         bidirectional=model_cfg['bidirectional'],
     )
     

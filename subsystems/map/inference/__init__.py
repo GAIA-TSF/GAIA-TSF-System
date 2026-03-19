@@ -18,8 +18,8 @@ The decision threshold will belong to xAI / Early Alert detector later.
 class InferenceModule:
     """MAP inference module."""
 
+    @staticmethod 
     def create_predictor(
-        self,
         model,
         device,
 

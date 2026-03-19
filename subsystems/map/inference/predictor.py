@@ -27,11 +27,11 @@ class Predictor:
             persistence: int,
             use_model_uncertainty: bool,
         ):
-            self._model = model.to(device)
-            self._device = device
+            self.model = model.to(device)
+            self.device = device
 
-            self._look_back = look_back
-            self._horizon = horizon
+            self.look_back = look_back
+            self.horizon = horizon
 
             self._mc_samples = mc_samples
             self._sigma_threshold = sigma_threshold
@@ -49,13 +49,13 @@ class Predictor:
 
     # Enable MC dropout during inference
     def _enable_dropout(self):
-        for module in self._model.modules():
+        for module in self.model.modules():
             if isinstance(module, nn.Dropout):
                 module.train()
 
     def _compute_monitoring_regions(self, series_length):
 
-        warmup = self._warmup_factor * self._look_back
+        warmup = self._warmup_factor * self.look_back
         calibration = int(self._calibration_fraction * series_length)
 
         monitor_start = warmup + calibration
@@ -69,7 +69,7 @@ class Predictor:
     
     def _fit_baseline(self, residuals):
 
-        warmup = self._warmup_factor * self._look_back
+        warmup = self._warmup_factor * self.look_back
         calib_end = self._monitor_start
 
         baseline = residuals[warmup:calib_end]
@@ -88,15 +88,15 @@ class Predictor:
         mean_pred = np.full(len(displacement), np.nan)
         std_pred = np.full(len(displacement), np.nan)
 
-        for i in range(len(displacement) - self._look_back - self._horizon):
+        for i in range(len(displacement) - self.look_back - self.horizon):
 
-            window = displacement[i : i + self._look_back]
+            window = displacement[i : i + self.look_back]
 
             inputs = (
                 torch.tensor(window, dtype=torch.float32)
                 .unsqueeze(0)
                 .unsqueeze(-1)
-                .to(self._device)
+                .to(self.device)
             )
 
             # Monte Carlo sampling
@@ -105,7 +105,7 @@ class Predictor:
             for _ in range(self._mc_samples):
                 self._enable_dropout()
                 with torch.no_grad():
-                    forecast = self._model(inputs).cpu().numpy().flatten()
+                    forecast = self.model(inputs).cpu().numpy().flatten()
                 samples.append(forecast)
 
             samples = np.stack(samples)
@@ -119,14 +119,14 @@ class Predictor:
             noise_floor = 0.35  # ~ measurement noise of InSAR-like signal
             std_forecast = np.maximum(std_forecast, noise_floor)
 
-            idx = i + self._look_back
+            idx = i + self.look_back
 
             # average overlapping predictions with accumulation 
             counts = np.zeros(len(displacement))
             mean_sum = np.zeros(len(displacement))
             var_sum = np.zeros(len(displacement)) 
 
-            for j in range(self._horizon):
+            for j in range(self.horizon):
                 t = idx + j
                 if t < len(displacement):
                     mean_sum[t] += mean_forecast[j]
@@ -143,7 +143,7 @@ class Predictor:
         residuals = np.asarray(residuals)
 
         # === calibration phase ===  
-        n_calib = int(len(residuals) * self.calibration_fraction)
+        n_calib = int(len(residuals) * self._calibration_fraction)
         calib_res = residuals[:n_calib]
 
         mean = np.mean(calib_res)
@@ -152,12 +152,12 @@ class Predictor:
         z = (residuals - mean) / std
 
         # optional persistence smoothing
-        if self.persistence > 1:
+        if self._persistence > 1:
             z_smoothed = np.convolve(
                 np.abs(z),
-                np.ones(self.persistence) / self.persistence,
+                np.ones(self._persistence) / self._persistence,
                 mode='same'
-            )
+            ) 
         else:
             z_smoothed = np.abs(z)
 

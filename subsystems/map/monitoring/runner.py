@@ -74,7 +74,7 @@ def _compute_monitoring_regions(n_residuals, predictor, monitor_cfg):
 
 
     # ============= 1) WARMUP: model stabilization period =============
-    model_memory = predictor._look_back + predictor._horizon
+    model_memory = predictor.look_back + predictor.horizon
     warmup_end = int(model_memory * monitor_cfg['warmup_factor'])
 
     warmup_end = min(warmup_end, n_residuals // 2)

@@ -13,8 +13,8 @@ class LearningModule:
     paradigms.
     """
 
+    @staticmethod
     def create_forecasting_model(
-        self,
         input_size: int,
         hidden_size: int,
         num_layers: int,
@@ -32,9 +32,8 @@ class LearningModule:
             dropout=dropout,
             bidirectional=bidirectional,
         )
-
+    @staticmethod 
     def create_reconstruction_model(
-        self,
         input_size: int,
         hidden_size: int,
         num_layers: int,

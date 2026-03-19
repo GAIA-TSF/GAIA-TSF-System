@@ -4,7 +4,7 @@ import yaml
 import itertools
 import json
 import numpy as np
-
+from subsystems.map.utils.utils import _load_config
 from .validate_lstm import run_validation
 
 # experiment folder
@@ -43,12 +43,6 @@ def _parse_arguments():
 
     return parser.parse_args()
 
-
-# ============= CONFIG LOADER =============
-def _load_config(path):
-
-    with open(path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
 
 
 # ============= GRID SEARCH =============
