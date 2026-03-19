@@ -1,4 +1,5 @@
 import hashlib
+import requests
 from subsystems.qcl.logger import Logger
 
 
@@ -17,3 +18,12 @@ class SdiUtils:
             for chunk in iter(lambda: f.read(4096), b''):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
+
+    def delete_item_and_collection(self, stac_url, collection_id, item_id):
+        requests.delete(
+            f'{stac_url}/collections/{collection_id}/items/{item_id}',
+        )
+
+        requests.delete(
+            f'{stac_url}/collections/{collection_id}',
+        )
