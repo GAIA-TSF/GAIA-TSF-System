@@ -1,21 +1,16 @@
-from eou.manual_file_loader import ManualFileLoader
-from eou.data_acquisition_gateway import DataAcquisitionGateway
-from eou.data_extraction import DataExtraction
+from subsystems.eou.manual_file_loader import ManualFileLoader
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 
-from qcl.logger import Logger
+from lib.base import GaiaBase, SubsystemId
 
 
-class EarthObservationDataUploader:
+class EarthObservationDataUploader(GaiaBase):
     """Earth Observation Data Uploader sub-system is designed to
     manage the acquisition of satellite imagery from both public and
     restricted repositories."""
 
-    id = 'EOU'
-
     def __init__(self):
-        self.logger = Logger(subsystem=self.id)
-        self.logger.debug('initialized')
+        super().__init__(SubsystemId.EOU)
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()
-        self.data_extraction = DataExtraction()

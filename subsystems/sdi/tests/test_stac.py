@@ -1,16 +1,22 @@
 import requests
 import uuid
+import pytest
 
-STAC_URL = 'http://stacapi:8000'  # Service in docker compose + port in container
+from lib.config import SettingsReader
 
 
 class TestSTAC:
-    def test_stac_alive(self):
+    @pytest.fixture(scope='class')
+    def stac_url(self):
+        settings = SettingsReader()
+        return settings['sdi']['stac']['url']
+
+    def test_stac_alive(self, stac_url):
         """STAC API is running on /"""
-        r = requests.get(STAC_URL)
+        r = requests.get(stac_url)
         assert r.status_code == 200
 
-    def test_create_collection_and_item(self):
+    def test_create_collection_and_item(self, stac_url):
         # create a new collection
         collection_id = f'testcollection{uuid.uuid4().hex[:8]}'
         collection_payload = {
@@ -26,11 +32,11 @@ class TestSTAC:
             'license': 'proprietary',
         }
 
-        r = requests.post(f'{STAC_URL}/collections', json=collection_payload)
+        r = requests.post(f'{stac_url}/collections', json=collection_payload)
         assert r.status_code in (200, 201), f'Failed to create collection: {r.text}'
 
         # verify the collection exists
-        r = requests.get(f'{STAC_URL}/collections/{collection_id}')
+        r = requests.get(f'{stac_url}/collections/{collection_id}')
         assert r.status_code == 200, f'Collection not found: {r.text}'
         data = r.json()
         assert data['id'] == collection_id
@@ -48,12 +54,12 @@ class TestSTAC:
         }
 
         r = requests.post(
-            f'{STAC_URL}/collections/{collection_id}/items', json=item_payload
+            f'{stac_url}/collections/{collection_id}/items', json=item_payload
         )
         assert r.status_code in (200, 201), f'Failed to create item: {r.text}'
 
         # verify the item is available
-        r = requests.get(f'{STAC_URL}/collections/{collection_id}/items/{item_id}')
+        r = requests.get(f'{stac_url}/collections/{collection_id}/items/{item_id}')
         assert r.status_code == 200, f'Item not found: {r.text}'
         item_data = r.json()
         assert item_data['id'] == item_id

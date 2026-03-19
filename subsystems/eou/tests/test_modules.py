@@ -4,7 +4,7 @@ from osgeo import gdal
 
 gdal.UseExceptions()
 
-from eou.data_acquisition_gateway import DataAcquisitionGateway
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
 def load_geom(file_path):
@@ -46,7 +46,7 @@ class TestModules:
 
         Performs file validity test.
         """
-        from eou.manual_file_loader import ManualFileLoader
+        from subsystems.eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
         result = module.check_file_validity(self._get_data_path('ENMAP01_sample.tif'))
@@ -78,8 +78,6 @@ class TestModules:
 
         Test download capability using default backend (eodag).
         """
-        config_file = 'eou/tests/eodag_config.yml'
-
         module = DataAcquisitionGateway()
 
         results = module.search(
@@ -89,7 +87,6 @@ class TestModules:
 
         assert len(results) > 0
 
-        module.set_config(config_file)
         ql_path = None
         try:
             ql_path = module.download(results[0], quicklook=True)

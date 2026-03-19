@@ -1,20 +1,14 @@
-import psycopg2
+import psycopg
 import pytest
 
-
-DB_CONFIG = {
-    'host': 'postgis',
-    'port': 5432,
-    'dbname': 'geodata',
-    'user': 'postgres',
-    'password': 'fevcfQBu3b3CfxFU',
-}
+from lib.config import SettingsReader
 
 
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG)
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 
@@ -52,4 +46,4 @@ class TestPostGIS:
                         FROM test.fakesite_phmeasurements_2025_cybele;
                         """)
             count = cur.fetchone()[0]
-            assert count >= 0
+            assert count > 0

@@ -1,43 +1,81 @@
 from pathlib import Path
-import hashlib
 import requests
 import tempfile
 
-from sdi.loader import InSituDataLoader
-from sdi.loader import EarthObservationDataLoader
+import psycopg
+import pytest
 
+from subsystems.sdi.loader import InSituDataLoader
+from subsystems.sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.utils import SdiUtils
 
-def file_md5(path):
-    """
-    Compute MD5 hash of a file.
-    """
-    hash_md5 = hashlib.md5()
-    with open(path, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b''):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+from lib.config import SettingsReader
+
+from .config import INSITU_COLLECTION, INSITU_ITEM_ID
+from .config import EO_COLLECTION, EO_ITEM_ID
 
 
 class TestInSituDataLoader:
+    @pytest.fixture(scope='module')
+    def db_connection(self):
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
+        yield conn
+        conn.close()
+
     def test_import(self):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
 
         assert zip_path.exists()
 
         importer = InSituDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
 
         importer.import_zip()
+
+    def test_import_append_data(self, db_connection):
+        utils = SdiUtils()
+
+        base_dir = Path(__file__).parent
+        zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
+
+        assert zip_path.exists()
+
+        importer = InSituDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
+
+        importer.import_zip(append_data=True)
+        importer.import_zip(append_data=True)
+
+        with db_connection.cursor() as cur:
+            cur.execute("""
+                        SELECT COUNT(*)
+                        FROM prague.measurement_ph_202602_data;
+                        """)
+            count = cur.fetchone()[0]
+            assert count > 20
 
 
 class TestEarthObservationDataLoader:
     def test_import_via_stac(self):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'eou_sample_data.zip'
         assert zip_path.exists()
 
         # Run the import: uploads raster to S3 and updates STAC
         importer = EarthObservationDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, EO_COLLECTION, EO_ITEM_ID
+        )
         importer.import_zip()
 
         # STAC query: search by bbox and datetime
@@ -71,8 +109,8 @@ class TestEarthObservationDataLoader:
 
         # Compare MD5 hash of downloaded file and input GeoTIFF
 
-        md5_input = file_md5(importer.raster_files[0])
-        md5_downloaded = file_md5(temp_file.name)
+        md5_input = utils.file_md5(importer.raster_files[0])
+        md5_downloaded = utils.file_md5(temp_file.name)
         assert md5_input == md5_downloaded, (
             'Downloaded file does not match the original GeoTIFF'
         )

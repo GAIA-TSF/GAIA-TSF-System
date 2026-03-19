@@ -88,7 +88,7 @@ docker compose up --build
 Run tests for the testfile wished:
 
 ```sh
-docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystem/tests/testfile.py -v
+docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
 ```
 
 ## Recommended code subsystem layout
@@ -140,8 +140,6 @@ eou/
 ├── __init__.py     # defines EarthObservationDataUploader class
 ├── data_acquisition_gateway
 │   └── __init__.py # defines DataAcquisitionGateway class
-├── data_extraction
-│   └── __init__.py # defines DataExtraction class
 ├── manual_file_loader
 │   └── __init__.py # defines ManualFileLoader
 ├── README.md

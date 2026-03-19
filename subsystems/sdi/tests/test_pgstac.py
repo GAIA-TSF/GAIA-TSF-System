@@ -1,20 +1,15 @@
-import psycopg2
+import psycopg
 import pytest
 
-
-DB_CONFIG = {
-    'host': 'pgstacdb',
-    'port': 5432,
-    'dbname': 'stac',
-    'user': 'stac',
-    'password': 'stac',
-}
+from lib.config import SettingsReader
 
 
 class TestPGSTAC:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg2.connect(**DB_CONFIG)
+        settings = SettingsReader()
+
+        conn = psycopg.connect(**settings['sdi']['stac']['db'])
         yield conn
         conn.close()
 
