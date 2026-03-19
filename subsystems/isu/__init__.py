@@ -3,8 +3,8 @@ import shutil
 
 # Import QCL Logger
 from subsystems.qcl.logger import Logger
-from .parsers import ParsingEngine
-from .scheduler import Scheduler
+from .etl_engine.parsers import ParsingEngine
+from .bulk_upload_scheduler.scheduler import Scheduler
 
 
 class InSituDataUploader:
