@@ -95,12 +95,15 @@ class SdiLoader(ABC):
         """
         headers = {'Content-Type': 'application/json'}
 
-        if ('properties' not in self.stac_json
-            or not 'datetime' in self.stac_json['properties']
-            or not 'bbox' in self.stac_json
-            or not 'collection' in self.stac_json
+        if (
+            'properties' not in self.stac_json
+            or 'datetime' not in self.stac_json['properties']
+            or 'bbox' not in self.stac_json
+            or 'collection' not in self.stac_json
         ):
-            raise ValueError(f'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection')
+            raise ValueError(
+                'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection'
+            )
 
         # Temporal interval from JSON
         start_dt = self.stac_json['properties'].get(
