@@ -15,6 +15,7 @@ class DataProcessing(GaiaBase):
     sensors—are accurately described, geometrically and atmospherically
     corrected, and derived into meaningful indicators before storage.
     """
+
     def __init__(self):
         super().__init__(SubsystemId.DPR)
 

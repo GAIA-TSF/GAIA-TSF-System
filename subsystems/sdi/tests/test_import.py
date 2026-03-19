@@ -9,8 +9,8 @@ from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 
-from lib.base import SubsystemId
 from lib.config import SettingsReader
+
 
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')

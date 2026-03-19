@@ -1,6 +1,7 @@
 from lib.base import GaiaBase, SubsystemId
 
-class SpatialDataInfrastructure:
+
+class SpatialDataInfrastructure(GaiaBase):
     """SpatialDataInfrastructure sub-system"""
 
     def __init__(self):

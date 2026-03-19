@@ -87,7 +87,6 @@ class TestSubsystem:
         processed_file = tmp_path / 'processed' / 'slope_sensor_data.csv'
         assert processed_file.exists(), 'File should be archived to processed directory'
 
-
     def test_ISU_003(self, isu_system):
         """Test Scheduler Start/Stop Commands."""
         # Test Start

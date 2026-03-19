@@ -8,12 +8,14 @@ from .stream_handler import (
 )
 from lib.base import GaiaBase, SubsystemId
 
+
 class StreamingDataHandler(GaiaBase):
     """
     Streaming Data Handler can subscribe to live datastreams (Kafka, Kinesis, OGC),
     validate timestamps and units, and apply initial QA/QC checks
     before routing the data to the central ETL Engine.
     """
+
     def __init__(
         self,
         source_type: str,

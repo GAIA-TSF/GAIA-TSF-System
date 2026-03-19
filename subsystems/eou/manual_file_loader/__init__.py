@@ -38,7 +38,7 @@ class ManualFileLoader(GaiaBase):
         :return: result dictionary
         :rtype: dict
         """
-        self.logger.info(f"Performing file validity check for {file_path}")
+        self.logger.info(f'Performing file validity check for {file_path}')
         result = {'path': str(file_path), 'valid': True, 'errors': [], 'warnings': []}
 
         if not Path(file_path).exists():
@@ -105,8 +105,10 @@ class ManualFileLoader(GaiaBase):
 
         if result['errors']:
             result['valid'] = False
-            self.logger.info(f"File validity check failed: {';'.join(result['errors'])}")
+            self.logger.info(
+                f'File validity check failed: {";".join(result["errors"])}'
+            )
         else:
-            self.logger.info("File validity check: no issues detected")
+            self.logger.info('File validity check: no issues detected')
 
         return result

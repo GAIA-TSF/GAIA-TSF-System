@@ -5,7 +5,6 @@ from pathlib import Path
 
 from shapely import wkt
 from shapely.errors import ShapelyError
-from pathlib import Path
 
 
 class ConfigReader(dict):

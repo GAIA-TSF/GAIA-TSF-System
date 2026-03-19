@@ -3,6 +3,7 @@ import pytest
 
 from lib.config import SettingsReader
 
+
 class TestPGSTAC:
     @pytest.fixture(scope='module')
     def db_connection(self):

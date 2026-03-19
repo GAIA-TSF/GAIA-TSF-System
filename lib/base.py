@@ -18,6 +18,7 @@ class SubsystemId(Enum):
     - SDI	Spatial Data Infrastructure
     - VID	Visualisation & Dashboard
     """
+
     ALE = 1
     DAG = 2
     DPR = 3
@@ -41,7 +42,7 @@ class GaiaBase:
         :param SubsystemId sid: subsystem id
         :param str project_file: path to project file to be read or None
         """
-        from subsystems.qcl.logger import Logger # avoid circular import
+        from subsystems.qcl.logger import Logger  # avoid circular import
 
         self.sid = sid
         # initialize internal settings

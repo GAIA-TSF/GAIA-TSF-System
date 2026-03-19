@@ -2,7 +2,6 @@ from subsystems.eou.manual_file_loader import ManualFileLoader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.eou.data_extraction import DataExtraction
 
-from subsystems.qcl.logger import Logger
 from lib.base import GaiaBase, SubsystemId
 
 

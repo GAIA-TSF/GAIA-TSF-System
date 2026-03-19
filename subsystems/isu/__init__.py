@@ -1,17 +1,17 @@
 import os
 import shutil
 
-# Import QCL Logger
-from subsystems.qcl.logger import Logger
 from .parsers import ParsingEngine
 from .scheduler import Scheduler
 from lib.base import GaiaBase, SubsystemId
+
 
 class InSituDataUploader(GaiaBase):
     """
     In-Situ Data Uploader sub-system is responsible for collecting
     and securely transmitting field-acquired data.
     """
+
     def __init__(
         self, input_dir: str = 'data/input', processed_dir: str = 'data/processed'
     ):

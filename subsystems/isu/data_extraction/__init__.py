@@ -1,7 +1,7 @@
 from lib.base import GaiaBase, SubsystemId
 
 
-class DataExtraction:
+class DataExtraction(GaiaBase):
     """Data Extraction module performs the core processing logic:
     structural validation, metadata extraction, unit harmonization,
     timestamp normalization, quality checks, and transformation into

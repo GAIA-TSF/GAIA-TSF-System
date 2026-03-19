@@ -4,6 +4,7 @@ import pytest
 
 from lib.config import SettingsReader
 
+
 class TestSTAC:
     @pytest.fixture(scope='class')
     def stac_url(self):

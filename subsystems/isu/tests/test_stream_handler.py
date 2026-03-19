@@ -486,4 +486,3 @@ class TestStreamingDataHandler:
 
         # Stop the facade
         handler.stop()
-
