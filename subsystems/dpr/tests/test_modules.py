@@ -6,6 +6,7 @@ from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from lib.exceptions import GaiaUnsupportedDataError
 
+
 class TestModules:
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
@@ -58,7 +59,7 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         with open(
-                Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
+            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
             'r',
         ) as f:
             json_dict = json.load(f)

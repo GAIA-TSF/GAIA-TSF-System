@@ -8,6 +8,7 @@ from .stream_handler import (
 )
 from lib.exceptions import GaiaUnsupportedDataError, GaiaConfigError
 
+
 class StreamingDataHandler:
     """
     Streaming Data Handler can subscribe to live datastreams (Kafka, Kinesis, OGC),

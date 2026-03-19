@@ -9,6 +9,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 from osgeo import gdal, osr
+
 gdal.UseExceptions()
 
 from lib.exceptions import GaiaUnsupportedDataError
@@ -241,7 +242,7 @@ class MetadataGenerator:
     """
     The automatic generation of metadata during ingestion.
 
-    
+
     :raises GaiaUnsupportedDataError: If the file cannot be opened.
     """
 
