@@ -111,7 +111,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 5s
-      timeout: 3s
+      timeout: 11s
       retries: 101
       start_period: 10s
     ports:
