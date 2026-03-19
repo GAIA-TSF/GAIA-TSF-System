@@ -6,7 +6,7 @@ from .stream_handler import (
     KinesisStreamHandler,
     SensorThingsAPIHandler,
 )
-
+from lib.exceptions import GaiaUnsupportedDataError, GaiaConfigError
 
 class StreamingDataHandler:
     """
@@ -55,7 +55,7 @@ class StreamingDataHandler:
         # ---------------------------------------------------------
         if self.source_type == 'kafka':
             if not kafka_broker or not kafka_topics:
-                raise ValueError(
+                raise GaiaConfigError(
                     'kafka_broker and kafka_topics must be provided for Kafka.'
                 )
             self._stream_processor = KafkaStreamHandler(
@@ -69,7 +69,7 @@ class StreamingDataHandler:
 
         elif self.source_type == 'kinesis':
             if not kinesis_stream or not kinesis_region:
-                raise ValueError(
+                raise GaiaConfigError(
                     'kinesis_stream and kinesis_region must be provided for Kinesis.'
                 )
             self._stream_processor = KinesisStreamHandler(
@@ -83,7 +83,7 @@ class StreamingDataHandler:
 
         elif self.source_type == 'sensorthings':
             if not ogc_broker or not ogc_datastream_id:
-                raise ValueError(
+                raise GaiaConfigError(
                     'ogc_broker and ogc_datastream_id must be provided for SensorThings.'
                 )
             self._stream_processor = SensorThingsAPIHandler(
@@ -96,7 +96,7 @@ class StreamingDataHandler:
             )
 
         else:
-            raise ValueError(
+            raise GaiaUnsupportedDataError(
                 f"Unsupported source_type: {self.source_type}. Valid options are 'kafka', 'kinesis', 'sensorthings'."
             )
 

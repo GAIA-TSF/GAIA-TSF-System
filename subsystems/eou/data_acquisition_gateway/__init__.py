@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
 
+from lib.exceptions import GaiaUnsupportedDataError
 
 class DataAcquisitionGateway:
     """Data Acquisition Gateway module serves as the automated
@@ -17,7 +18,7 @@ class DataAcquisitionGateway:
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
+            raise GaiaUnsupportedDataError(f'Unsupported data acquisition backend: {backend}')
 
         self._backend = DataAcquisitionBackend()
 

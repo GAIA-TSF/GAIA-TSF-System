@@ -18,3 +18,7 @@ class GaiaConfigError(GaiaError):
 class GaiaUnsupportedDataError(GaiaError):
     """Unsupported data source or operation.
     """
+
+class GaiaReadDataError(GaiaError):
+    """Read / Parse data error.
+    """

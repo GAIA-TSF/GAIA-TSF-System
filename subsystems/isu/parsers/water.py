@@ -4,7 +4,7 @@ import io
 import os
 
 from .base import BaseParser
-from lib.exceptions import GaiaUnsupportedDataError
+from lib.exceptions import GaiaUnsupportedDataError, GaiaReadDataError
 
 class WaterQualityParser(BaseParser):
     """
@@ -88,4 +88,4 @@ class WaterQualityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise ValueError(f'Water Quality parser failed: {str(e)}')
+            raise GaiaReadDataError(f'Water Quality parser failed: {str(e)}')

@@ -2,8 +2,9 @@ from typing import Dict, Any
 import pandas as pd
 import io
 import os
-from .base import BaseParser
 
+from .base import BaseParser
+from lib.exceptions import GaiaUnsupportedDataError, GaiaReadDataError
 
 class SlopeStabilityParser(BaseParser):
     """
@@ -81,7 +82,7 @@ class SlopeStabilityParser(BaseParser):
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
-                raise ValueError(f'Unsupported format: {ext}')
+                raise GaiaUnsupportedDataError(f'Unsupported format: {ext}')
 
             # Clean headers
             df.columns = [str(c).strip().lower() for c in df.columns]
@@ -95,4 +96,4 @@ class SlopeStabilityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise ValueError(f'Slope parser failed to process {filename}: {str(e)}')
+            raise GaiaReadDataError(f'Slope parser failed to process {filename}: {str(e)}')
