@@ -11,7 +11,7 @@ from pathlib import Path
 from osgeo import gdal, osr
 gdal.UseExceptions()
 
-from lib.exceptions import GaiaUnsupportedError
+from lib.exceptions import GaiaUnsupportedDataError
 
 
 class RasterDataset:
@@ -242,7 +242,7 @@ class MetadataGenerator:
     The automatic generation of metadata during ingestion.
 
     
-    :raises GaiaUnsupportedError: If the file cannot be opened.
+    :raises GaiaUnsupportedDataError: If the file cannot be opened.
     """
 
     def __init__(self, data_source: str):
@@ -260,7 +260,7 @@ class MetadataGenerator:
             pass
         else:
             # TODO: replace by GAIA-TSF exception
-            raise GaiaUnsupportedError(f'Unsupported datasource {data_source}')
+            raise GaiaUnsupportedDataError(f'Unsupported datasource {data_source}')
 
     @property
     def stac(self) -> StacItemFactory:

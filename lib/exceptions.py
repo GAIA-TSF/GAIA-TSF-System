@@ -15,6 +15,6 @@ class GaiaConfigError(GaiaError):
     """
     pass
 
-class GaiaUnsupportedError(GaiaError):
+class GaiaUnsupportedDataError(GaiaError):
     """Unsupported data source or operation.
     """

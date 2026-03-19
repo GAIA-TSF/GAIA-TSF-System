@@ -4,7 +4,7 @@ from pathlib import Path
 
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-from lib.exceptions import GaiaUnsupportedError
+from lib.exceptions import GaiaUnsupportedDataError
 
 class TestModules:
     def test_PreprocessingPipelines_001(self):
@@ -67,9 +67,9 @@ class TestModules:
     def test_MetadataProcessor_002(self):
         """Test MetadataProcessor module.
 
-        Check GaiaUnsupportedError for unsupported data source.
+        Check GaiaUnsupportedDataError for unsupported data source.
         """
-        with pytest.raises(GaiaUnsupportedError):
+        with pytest.raises(GaiaUnsupportedDataError):
             MetadataGenerator(
                 Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json'
             )
