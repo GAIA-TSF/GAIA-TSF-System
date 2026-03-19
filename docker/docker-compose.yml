@@ -57,7 +57,7 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 10s
       timeout: 5s
-      retries: 80
+      retries: 100
     ports:
       - "7432:5432"
     volumes:
