@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 from lib.exceptions import GaiaUnsupportedDataError
 
+
 class DataAcquisitionGateway:
     """Data Acquisition Gateway module serves as the automated
     ingestion engine for the sub-system.
@@ -18,7 +19,9 @@ class DataAcquisitionGateway:
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            raise GaiaUnsupportedDataError(f'Unsupported data acquisition backend: {backend}')
+            raise GaiaUnsupportedDataError(
+                f'Unsupported data acquisition backend: {backend}'
+            )
 
         self._backend = DataAcquisitionBackend()
 

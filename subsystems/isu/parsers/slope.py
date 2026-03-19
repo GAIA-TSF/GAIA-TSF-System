@@ -6,6 +6,7 @@ import os
 from .base import BaseParser
 from lib.exceptions import GaiaUnsupportedDataError, GaiaReadDataError
 
+
 class SlopeStabilityParser(BaseParser):
     """
     Parser for Slope Stability data (GNSS, InSAR, Inclinometers).
@@ -96,4 +97,6 @@ class SlopeStabilityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise GaiaReadDataError(f'Slope parser failed to process {filename}: {str(e)}')
+            raise GaiaReadDataError(
+                f'Slope parser failed to process {filename}: {str(e)}'
+            )

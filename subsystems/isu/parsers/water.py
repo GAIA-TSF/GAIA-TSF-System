@@ -6,6 +6,7 @@ import os
 from .base import BaseParser
 from lib.exceptions import GaiaUnsupportedDataError, GaiaReadDataError
 
+
 class WaterQualityParser(BaseParser):
     """
     Parser for Water Quality data (Sondes, Lab samples).
