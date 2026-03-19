@@ -17,5 +17,5 @@ class DataAcquisitionBackend(ABC):
         pass
 
     @abstractmethod
-    def set_config(self, config_file: str) -> None:
+    def set_config(self, config_file: dict) -> None:
         pass

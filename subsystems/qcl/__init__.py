@@ -1,10 +1,12 @@
 from typing import Any, Dict
-from .logger import Logger as Logger
 
+from .logger import Logger as Logger
 from .layer import QualityControlLoggingLayer
 
+from lib.base import GaiaBase, SubsystemId
 
-class QCLayer:
+
+class QCLayer(GaiaBase):
     """
     GAIA-TSF Unified Quality Control Gateway.
 
@@ -18,7 +20,7 @@ class QCLayer:
         Initializes the QC Layer by setting up the underlying rule repositories,
         catalogs, and loggers invisibly to the end user.
         """
-
+        super().__init__(SubsystemId.QCL)
         self._engine = QualityControlLoggingLayer()
 
     def check(
