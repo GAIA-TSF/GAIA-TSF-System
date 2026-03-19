@@ -6,9 +6,10 @@ from .stream_handler import (
     KinesisStreamHandler,
     SensorThingsAPIHandler,
 )
+from lib.base import GaiaBase, SubsystemId
 
 
-class StreamingDataHandler:
+class StreamingDataHandler(GaiaBase):
     """
     Streaming Data Handler can subscribe to live datastreams (Kafka, Kinesis, OGC),
     validate timestamps and units, and apply initial QA/QC checks
@@ -18,7 +19,6 @@ class StreamingDataHandler:
     def __init__(
         self,
         source_type: str,
-        logger: Any,
         qc_layer: Any,
         etl_callback: Callable,
         config: Optional[Dict[str, Any]] = None,
@@ -34,14 +34,12 @@ class StreamingDataHandler:
 
         :param source_type: The stream protocol to use ('kafka', 'kinesis', or 'sensorthings').
         :type source_type: str
-        :param logger: The injected unified logger instance.
-        :type logger: Any
         :param qc_layer: The Quality Control Layer instance for data validation.
         :type qc_layer: Any
         :param etl_callback: The callback function to route validated data to the ETL engine.
         :type etl_callback: Callable
         """
-        self.logger = logger
+        super().__init__(SubsystemId.ISU)
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback
         self.source_type = source_type.lower()

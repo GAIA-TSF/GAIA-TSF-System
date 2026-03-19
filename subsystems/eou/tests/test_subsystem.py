@@ -1,4 +1,5 @@
 from subsystems.eou import EarthObservationDataUploader
+from lib.base import SubsystemId
 
 
 class TestSubsystem:
@@ -8,4 +9,4 @@ class TestSubsystem:
         Example of unit test.
         """
         subsystem = EarthObservationDataUploader()
-        assert subsystem.id == 'EOU'
+        assert subsystem.sid == SubsystemId.EOU

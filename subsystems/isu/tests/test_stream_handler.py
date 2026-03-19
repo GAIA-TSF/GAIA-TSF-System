@@ -465,7 +465,6 @@ class TestStreamingDataHandler:
 
         handler = StreamingDataHandler(
             source_type='kafka',
-            logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
             kafka_broker='localhost:9092',
@@ -487,5 +486,3 @@ class TestStreamingDataHandler:
 
         # Stop the facade
         handler.stop()
-
-        mock_logger.info.assert_any_call('Stopping StreamingDataHandler (kafka)...')

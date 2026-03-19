@@ -9,15 +9,17 @@ from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 
-from config import DB_CONFIG_PG
-from config import INSITU_COLLECTION, INSITU_ITEM_ID
-from config import EO_COLLECTION, EO_ITEM_ID
+from lib.config import SettingsReader
+
+from .config import INSITU_COLLECTION, INSITU_ITEM_ID
+from .config import EO_COLLECTION, EO_ITEM_ID
 
 
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_PG)
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 
