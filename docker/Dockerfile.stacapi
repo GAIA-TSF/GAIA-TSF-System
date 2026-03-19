@@ -5,7 +5,7 @@ FROM ghcr.io/stac-utils/stac-fastapi:latest
 RUN apt-get update && apt-get install -y libpq-dev gcc curl
 RUN pip install --no-cache-dir psycopg[binary] psycopg_pool
 RUN rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir psycopg[binary] psycopg2-binary psycopg_pool
+# RUN pip install --no-cache-dir psycopg[binary] psycopg2-binary psycopg_pool
 
 COPY wait-for-db.sh /usr/local/bin/wait-for-db.sh
 RUN chmod +x /usr/local/bin/wait-for-db.sh
