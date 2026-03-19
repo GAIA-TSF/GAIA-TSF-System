@@ -12,4 +12,4 @@ project:
             27.518359 -25.703505,
             27.517803 -25.695036
           ))
-    data_dir: .subsystems/data/sibanye-td5
+    data_dir: ./subsystems/data/sibanye-td5
