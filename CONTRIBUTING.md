@@ -140,8 +140,6 @@ eou/
 ├── __init__.py     # defines EarthObservationDataUploader class
 ├── data_acquisition_gateway
 │   └── __init__.py # defines DataAcquisitionGateway class
-├── data_extraction
-│   └── __init__.py # defines DataExtraction class
 ├── manual_file_loader
 │   └── __init__.py # defines ManualFileLoader
 ├── README.md

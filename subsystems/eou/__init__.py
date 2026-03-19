@@ -1,6 +1,5 @@
 from subsystems.eou.manual_file_loader import ManualFileLoader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from subsystems.eou.data_extraction import DataExtraction
 
 from lib.base import GaiaBase, SubsystemId
 
@@ -15,4 +14,3 @@ class EarthObservationDataUploader(GaiaBase):
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()
-        self.data_extraction = DataExtraction()
