@@ -3,8 +3,6 @@ boto3==1.42.60  # eou
 # numpy==2.0.2  # eou
 gdal==3.10.3  # eou, dpr
 requests==2.32.5  # eou, sdi
-psycopg==3.3.3  # sdi
-psycopg_pool==3.3.0  # sdi
 eodag==3.10.1 # eou
 pandas==3.0.1 # isu
 openpyxl==3.1.5 # isu
