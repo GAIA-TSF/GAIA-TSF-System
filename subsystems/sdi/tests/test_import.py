@@ -1,5 +1,4 @@
 from pathlib import Path
-import hashlib
 import requests
 import tempfile
 
@@ -8,20 +7,9 @@ import pytest
 
 from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.utils import SdiUtils
 
 from config import DB_CONFIG_PG
-
-
-def file_md5(path):
-    """
-    Compute MD5 hash of a file.
-    """
-    hash_md5 = hashlib.md5()
-    with open(path, 'rb') as f:
-        for chunk in iter(lambda: f.read(4096), b''):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
-
 
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
@@ -101,8 +89,10 @@ class TestEarthObservationDataLoader:
 
         # Compare MD5 hash of downloaded file and input GeoTIFF
 
-        md5_input = file_md5(importer.raster_files[0])
-        md5_downloaded = file_md5(temp_file.name)
+        utils = SdiUtils()
+
+        md5_input = utils.file_md5(importer.raster_files[0])
+        md5_downloaded = utils.file_md5(temp_file.name)
         assert md5_input == md5_downloaded, (
             'Downloaded file does not match the original GeoTIFF'
         )
