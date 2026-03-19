@@ -1,10 +1,10 @@
 import json
-
+import pytest
 from pathlib import Path
 
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-
+from lib.exceptions import GaiaUnsupportedError
 
 class TestModules:
     def test_PreprocessingPipelines_001(self):
@@ -58,8 +58,18 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         with open(
-            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
+                Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
             'r',
         ) as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataProcessor_002(self):
+        """Test MetadataProcessor module.
+
+        Check GaiaUnsupportedError for unsupported data source.
+        """
+        with pytest.raises(GaiaUnsupportedError):
+            MetadataGenerator(
+                Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json'
+            )

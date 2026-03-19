@@ -11,4 +11,10 @@ class GaiaError(Exception):
         _logger.critical(msg)
 
 class GaiaConfigError(GaiaError):
+    """Configuration error.
+    """
     pass
+
+class GaiaUnsupportedError(GaiaError):
+    """Unsupported data source or operation.
+    """

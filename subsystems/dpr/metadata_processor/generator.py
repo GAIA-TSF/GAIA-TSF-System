@@ -9,8 +9,9 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 from osgeo import gdal, osr
-
 gdal.UseExceptions()
+
+from lib.exceptions import GaiaUnsupportedError
 
 
 class RasterDataset:
@@ -18,8 +19,6 @@ class RasterDataset:
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
     :param str path: Path to the raster data source
-
-    :raises RuntimeError: If the file cannot be opened.
     """
 
     def __init__(self, path: str):
@@ -241,6 +240,9 @@ class StacItemFactory:
 class MetadataGenerator:
     """
     The automatic generation of metadata during ingestion.
+
+    
+    :raises GaiaUnsupportedError: If the file cannot be opened.
     """
 
     def __init__(self, data_source: str):
@@ -258,7 +260,7 @@ class MetadataGenerator:
             pass
         else:
             # TODO: replace by GAIA-TSF exception
-            raise RuntimeError('Unsupported datasource')
+            raise GaiaUnsupportedError(f'Unsupported datasource {data_source}')
 
     @property
     def stac(self) -> StacItemFactory:
