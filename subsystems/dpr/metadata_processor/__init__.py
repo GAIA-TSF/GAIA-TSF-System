@@ -1,3 +1,6 @@
+from .generator import MetadataGenerator
+
+
 class MetadataProcessor:
     """The Metadata Processor acts as the governance layer, providing
     templates and validation rules to ensure all datasets comply with
@@ -8,4 +11,4 @@ class MetadataProcessor:
     """
 
     def __init__(self):
-        pass
+        self.generator = MetadataGenerator()
