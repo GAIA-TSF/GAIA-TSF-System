@@ -34,13 +34,15 @@ class TestSentinel1Workflow:
         """Helper to extract bbox from config."""
         aoi = loads(config['project']['aoi']['geom'])
         min_lon, min_lat, max_lon, max_lat = aoi.bounds
-        return Polygon([
-            (min_lon, min_lat),
-            (max_lon, min_lat),
-            (max_lon, max_lat),
-            (min_lon, max_lat),
-            (min_lon, min_lat),
-        ])
+        return Polygon(
+            [
+                (min_lon, min_lat),
+                (max_lon, min_lat),
+                (max_lon, max_lat),
+                (min_lon, max_lat),
+                (min_lon, min_lat),
+            ]
+        )
 
     def test_config(self, config):
         """Test project configuration."""
@@ -94,7 +96,9 @@ class TestSentinel1Workflow:
 
         data_dir = config['project']['data_dir']
         pipeline._download_bursts('username', 'password', data_dir)
-        assert any(item.is_dir() and 'IW' in item.name for item in Path(data_dir).iterdir())
+        assert any(
+            item.is_dir() and 'IW' in item.name for item in Path(data_dir).iterdir()
+        )
 
     def test_003_download_orbits(self, pipeline, config):
         data_dir = config['project']['data_dir']
@@ -128,7 +132,9 @@ class TestSentinel1Workflow:
                 baseline_snapshot = pipeline.dem_da.copy(deep=True)
                 pipeline._lidar_infill(lidar_file)
                 assert pipeline.dem_da is not None
-                assert not np.array_equal(pipeline.dem_da.values, baseline_snapshot.values)
+                assert not np.array_equal(
+                    pipeline.dem_da.values, baseline_snapshot.values
+                )
         else:
             assert pipeline.dem_da is not None
 
@@ -198,7 +204,7 @@ class TestSentinel1Workflow:
         pipeline._infer_ref_date()
         assert pipeline.ref_date is not None
         assert isinstance(pipeline.ref_date, str)
-        assert re.match(r"^\d{4}-\d{2}-\d{2}$", pipeline.ref_date)
+        assert re.match(r'^\d{4}-\d{2}-\d{2}$', pipeline.ref_date)
 
     def test_run_workflow(self, pipeline, config):
         pass

@@ -1,10 +1,8 @@
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
-import rioxarray
 import numpy as np
 import pandas as pd
-import re
 
 from .base import BasePipeline
 
@@ -26,7 +24,9 @@ class Sentinel1Pipeline(BasePipeline):
         self.ref_date = None
 
     def _search_bursts(self, aoi, start, end, direction):
-        self.bursts = ASF.search(aoi, startTime=start, stopTime=end, flightDirection=direction)
+        self.bursts = ASF.search(
+            aoi, startTime=start, stopTime=end, flightDirection=direction
+        )
 
     def _download_bursts(self, username, password, datadir):
         burst_ids = self.bursts.fileID.tolist()
@@ -44,77 +44,95 @@ class Sentinel1Pipeline(BasePipeline):
         if isinstance(dem_raw, xr.Dataset):
             candidates = [v for v in dem_raw.data_vars if dem_raw[v].ndim >= 2]
             if not candidates:
-                raise RuntimeError("DEM Dataset has no 2D variables.")
+                raise RuntimeError('DEM Dataset has no 2D variables.')
             da = dem_raw[candidates[0]]
         elif isinstance(dem_raw, xr.DataArray):
             da = dem_raw
         else:
-            raise TypeError(f"Unsupported DEM object type: {type(dem_raw)}")
+            raise TypeError(f'Unsupported DEM object type: {type(dem_raw)}')
 
         da = da.squeeze(drop=True)
-        if "band" in da.dims:
+        if 'band' in da.dims:
             da = da.isel(band=0, drop=True)
 
         da = da.squeeze(drop=True)
         if da.ndim != 2:
-            raise RuntimeError(f"Copernicus baseline: Expected 2D after squeeze, got dims={da.dims}, shape={da.shape}")
-        if "lat" in da.dims and "lon" in da.dims:
-            da = da.transpose("lat", "lon")
-        elif "y" in da.dims and "x" in da.dims:
-            da = da.rename({"y": "lat", "x": "lon"})
-            da = da.transpose("lat", "lon")
-        elif "latitude" in da.dims and "longitude" in da.dims:
-            da = da.rename({"latitude": "lat", "longitude": "lon"})
-            da = da.transpose("lat", "lon")
+            raise RuntimeError(
+                f'Copernicus baseline: Expected 2D after squeeze, got dims={da.dims}, shape={da.shape}'
+            )
+        if 'lat' in da.dims and 'lon' in da.dims:
+            da = da.transpose('lat', 'lon')
+        elif 'y' in da.dims and 'x' in da.dims:
+            da = da.rename({'y': 'lat', 'x': 'lon'})
+            da = da.transpose('lat', 'lon')
+        elif 'latitude' in da.dims and 'longitude' in da.dims:
+            da = da.rename({'latitude': 'lat', 'longitude': 'lon'})
+            da = da.transpose('lat', 'lon')
         else:
             raise RuntimeError(
-                f"Copernicus baseline: Cannot normalise to (lat, lon). dims={da.dims}, shape={da.shape}"
+                f'Copernicus baseline: Cannot normalise to (lat, lon). dims={da.dims}, shape={da.shape}'
             )
 
-        self.dem_da = da.rio.write_crs("EPSG:4326")
-        self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+        self.dem_da = da.rio.write_crs('EPSG:4326')
+        self.dem_da = self.dem_da.rio.set_spatial_dims(
+            x_dim='lon', y_dim='lat', inplace=False
+        )
 
     def _lidar_infill(self, lidar_data):
         use_lidar = lidar_data.is_file()
 
         if use_lidar:
-            print(f"[DEM] LiDAR DEM found at {lidar_data}. Merging LiDAR over Copernicus where finite...")
+            print(
+                f'[DEM] LiDAR DEM found at {lidar_data}. Merging LiDAR over Copernicus where finite...'
+            )
 
             ds_lidar = xr.open_dataset(lidar_data)
-            print("[DEM] LiDAR variables:", list(ds_lidar.data_vars))
+            print('[DEM] LiDAR variables:', list(ds_lidar.data_vars))
 
             # Prefer variable named 'z', else first 2D var
-            if "z" in ds_lidar.data_vars and ds_lidar["z"].ndim >= 2:
-                dem_lidar = ds_lidar["z"]
+            if 'z' in ds_lidar.data_vars and ds_lidar['z'].ndim >= 2:
+                dem_lidar = ds_lidar['z']
             else:
                 cand = [v for v in ds_lidar.data_vars if ds_lidar[v].ndim >= 2]
                 if not cand:
                     ds_lidar.close()
-                    raise RuntimeError(f"LiDAR NetCDF has no 2D variables: {list(ds_lidar.data_vars)}")
+                    raise RuntimeError(
+                        f'LiDAR NetCDF has no 2D variables: {list(ds_lidar.data_vars)}'
+                    )
                 dem_lidar = ds_lidar[cand[0]]
 
             dem_lidar = dem_lidar.squeeze(drop=True)
-            if "band" in dem_lidar.dims:
+            if 'band' in dem_lidar.dims:
                 dem_lidar = dem_lidar.isel(band=0, drop=True)
 
             if dem_lidar.ndim != 2:
                 ds_lidar.close()
-                raise RuntimeError(f"LiDAR DEM is not 2D: dims={dem_lidar.dims}, shape={dem_lidar.shape}")
+                raise RuntimeError(
+                    f'LiDAR DEM is not 2D: dims={dem_lidar.dims}, shape={dem_lidar.shape}'
+                )
 
             # Normalise LiDAR dims to lat/lon where possible
-            if "lat" in dem_lidar.dims and "lon" in dem_lidar.dims:
-                dem_lidar_rio = dem_lidar.transpose("lat", "lon")
-                dem_lidar_rio = dem_lidar_rio.rio.write_crs("EPSG:4326")
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
-            elif "latitude" in dem_lidar.dims and "longitude" in dem_lidar.dims:
-                dem_lidar_rio = dem_lidar.rename({"latitude": "lat", "longitude": "lon"}).transpose("lat", "lon")
-                dem_lidar_rio = dem_lidar_rio.rio.write_crs("EPSG:4326")
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+            if 'lat' in dem_lidar.dims and 'lon' in dem_lidar.dims:
+                dem_lidar_rio = dem_lidar.transpose('lat', 'lon')
+                dem_lidar_rio = dem_lidar_rio.rio.write_crs('EPSG:4326')
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
+                    x_dim='lon', y_dim='lat', inplace=False
+                )
+            elif 'latitude' in dem_lidar.dims and 'longitude' in dem_lidar.dims:
+                dem_lidar_rio = dem_lidar.rename(
+                    {'latitude': 'lat', 'longitude': 'lon'}
+                ).transpose('lat', 'lon')
+                dem_lidar_rio = dem_lidar_rio.rio.write_crs('EPSG:4326')
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
+                    x_dim='lon', y_dim='lat', inplace=False
+                )
             else:
                 # Fallback: assume 2D dims are y/x-like and mark CRS (best-effort)
                 y_dim, x_dim = dem_lidar.dims
-                dem_lidar_rio = dem_lidar.rio.write_crs("EPSG:4326")
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(x_dim=x_dim, y_dim=y_dim, inplace=False)
+                dem_lidar_rio = dem_lidar.rio.write_crs('EPSG:4326')
+                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
+                    x_dim=x_dim, y_dim=y_dim, inplace=False
+                )
 
             # Reproject LiDAR to match Copernicus grid
             dem_lidar_on_cop = dem_lidar_rio.rio.reproject_match(self.dem_da)
@@ -122,60 +140,82 @@ class Sentinel1Pipeline(BasePipeline):
             # Force consistent dims/coords after reproject (avoids odd naming drift)
             dem_lidar_on_cop = xr.DataArray(
                 data=dem_lidar_on_cop.values,
-                coords={"lat": self.dem_da["lat"].values, "lon": self.dem_da["lon"].values},
-                dims=("lat", "lon"),
-                name="dem_lidar_on_cop",
+                coords={
+                    'lat': self.dem_da['lat'].values,
+                    'lon': self.dem_da['lon'].values,
+                },
+                dims=('lat', 'lon'),
+                name='dem_lidar_on_cop',
             )
 
             # LiDAR overrides Copernicus where LiDAR is finite
-            self.dem_da = xr.where(np.isfinite(dem_lidar_on_cop), dem_lidar_on_cop, self.dem_da)
+            self.dem_da = xr.where(
+                np.isfinite(dem_lidar_on_cop), dem_lidar_on_cop, self.dem_da
+            )
 
             ds_lidar.close()
 
             # Restore rioxarray metadata after xr.where
-            self.dem_da = self.dem_da.rio.write_crs("EPSG:4326")
-            self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+            self.dem_da = self.dem_da.rio.write_crs('EPSG:4326')
+            self.dem_da = self.dem_da.rio.set_spatial_dims(
+                x_dim='lon', y_dim='lat', inplace=False
+            )
 
-            print("[DEM] LiDAR merge complete. Composite DEM shape:", self.dem_da.shape)
+            print('[DEM] LiDAR merge complete. Composite DEM shape:', self.dem_da.shape)
         else:
-            print(f"[DEM] LiDAR DEM not found at {lidar_data}. Using Copernicus DEM only.")
+            print(
+                f'[DEM] LiDAR DEM not found at {lidar_data}. Using Copernicus DEM only.'
+            )
 
     def _save_composite_dem(self, output_file):
         self.dem_da = self.dem_da.load().squeeze(drop=True)
-        self.dem_da.name = "dem"
-        self.dem_da = self.dem_da.rio.write_crs("EPSG:4326")
-        self.dem_da = self.dem_da.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+        self.dem_da.name = 'dem'
+        self.dem_da = self.dem_da.rio.write_crs('EPSG:4326')
+        self.dem_da = self.dem_da.rio.set_spatial_dims(
+            x_dim='lon', y_dim='lat', inplace=False
+        )
 
-        xr.Dataset({"dem": self.dem_da}).to_netcdf(output_file)
-        print(f"[DEM] Composite DEM written to: {output_file}")
+        xr.Dataset({'dem': self.dem_da}).to_netcdf(output_file)
+        print(f'[DEM] Composite DEM written to: {output_file}')
 
         with xr.open_dataset(output_file) as ds_check:
-            if "dem" not in ds_check.data_vars:
+            if 'dem' not in ds_check.data_vars:
                 raise RuntimeError(
-                    f"[DEM] Saved file does not contain variable 'dem'. Found: {list(ds_check.data_vars)}")
-            print("[DEM] Saved variables:", list(ds_check.data_vars))
+                    f"[DEM] Saved file does not contain variable 'dem'. Found: {list(ds_check.data_vars)}"
+                )
+            print('[DEM] Saved variables:', list(ds_check.data_vars))
 
     def _clip_dem(self, aoi):
         # TODO: Check if really needed
-        self.dem_masked = self.dem_da.rio.clip([aoi], self.dem_da.rio.crs, drop=False, invert=False)
-        self.dem_cropped = self.dem_da.rio.clip([aoi], self.dem_da.rio.crs, drop=True, invert=False)
+        self.dem_masked = self.dem_da.rio.clip(
+            [aoi], self.dem_da.rio.crs, drop=False, invert=False
+        )
+        self.dem_cropped = self.dem_da.rio.clip(
+            [aoi], self.dem_da.rio.crs, drop=True, invert=False
+        )
 
-        print("Original DEM shape:", self.dem_da.shape)
-        print("Masked DEM shape  :", self.dem_masked.shape, "(same as original)")
-        print("Cropped DEM shape :", self.dem_cropped.shape, "(smaller)")
+        print('Original DEM shape:', self.dem_da.shape)
+        print('Masked DEM shape  :', self.dem_masked.shape, '(same as original)')
+        print('Cropped DEM shape :', self.dem_cropped.shape, '(smaller)')
 
     def _save_landmask(self, output_landmask):
         # TODO: Check if really needed
-        self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype("uint8")
-        self.landmask_arr.name = "landmask"
+        self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype('uint8')
+        self.landmask_arr.name = 'landmask'
         self.landmask_arr = self.landmask_arr.rio.write_crs(self.dem_da.rio.crs)
-        self.landmask_arr = self.landmask_arr.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=False)
+        self.landmask_arr = self.landmask_arr.rio.set_spatial_dims(
+            x_dim='lon', y_dim='lat', inplace=False
+        )
 
-        xr.Dataset({"landmask": self.landmask_arr}).to_netcdf(output_landmask)
+        xr.Dataset({'landmask': self.landmask_arr}).to_netcdf(output_landmask)
 
-        print(f"[LANDMASK] AOI-based landmask saved to: {output_landmask}")
-        print("[LANDMASK] Convention: 1 = inside AOI (TSF polygon), 0 = outside within DEM area.")
-        print("[LANDMASK] Landmask dims:", self.landmask_arr.dims, self.landmask_arr.shape)
+        print(f'[LANDMASK] AOI-based landmask saved to: {output_landmask}')
+        print(
+            '[LANDMASK] Convention: 1 = inside AOI (TSF polygon), 0 = outside within DEM area.'
+        )
+        print(
+            '[LANDMASK] Landmask dims:', self.landmask_arr.dims, self.landmask_arr.shape
+        )
 
     def _link_s1_with_dem(self, datadir, dem_file):
         self.s1 = S1(datadir, DEM=str(dem_file))
@@ -184,14 +224,33 @@ class Sentinel1Pipeline(BasePipeline):
     def _infer_ref_date(self):
         if self.bursts is not None and len(self.bursts) > 0:
             acq_dates = pd.to_datetime(self.bursts['startTime'], utc=True)
-            self.ref_date = acq_dates.iloc[(acq_dates - acq_dates.median()).abs().idxmin()].strftime('%Y-%m-%d')
+            self.ref_date = acq_dates.iloc[
+                (acq_dates - acq_dates.median()).abs().idxmin()
+            ].strftime('%Y-%m-%d')
         elif self.s1 is not None:
             acq_dates = pd.to_datetime(self.s1.df['startTime'], utc=True)
-            self.ref_date = acq_dates.loc[(acq_dates - acq_dates.median()).abs().idxmin()].strftime('%Y-%m-%d')
+            self.ref_date = acq_dates.loc[
+                (acq_dates - acq_dates.median()).abs().idxmin()
+            ].strftime('%Y-%m-%d')
         else:
-            raise NameError("No data found to infer reference date. Need one of: bursts, or s1.")
+            raise NameError(
+                'No data found to infer reference date. Need one of: bursts, or s1.'
+            )
 
-    def run(self, aoi, start, end, direction, username, password, data_dir, bbox, lidar_file, output_dem, output_landmask):
+    def run(
+        self,
+        aoi,
+        start,
+        end,
+        direction,
+        username,
+        password,
+        data_dir,
+        bbox,
+        lidar_file,
+        output_dem,
+        output_landmask,
+    ):
         self._search_bursts(aoi, start, end, direction)
         self._download_bursts(username, password, data_dir)
         self._download_orbits(data_dir)
