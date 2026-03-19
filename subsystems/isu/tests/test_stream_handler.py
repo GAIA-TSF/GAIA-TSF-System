@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from isu.streaming_data_handler.stream_handler import (
     KafkaStreamHandler,
     KinesisStreamHandler,
-    SensorThingsAPIHandler
+    SensorThingsAPIHandler,
 )
 from isu.streaming_data_handler import StreamingDataHandler
 
@@ -87,7 +87,7 @@ class TestKafkaStreamHandler:
         :return: None
         :rtype: None
         """
-        # config 
+        # config
         test_config = {'kafka_group_id': 'test_group'}
         handler = KafkaStreamHandler(
             broker='localhost:9092',
@@ -142,14 +142,14 @@ class TestKafkaStreamHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
-            config={}, 
+            config={},
         )
 
         handler._execute_pipeline(
             payload=sample_payload,
             source='slope_stability',
             protocol='kafka',
-            dataset_id='test_kafka_pass_123'
+            dataset_id='test_kafka_pass_123',
         )
 
         # Assert QC check was called
@@ -202,14 +202,14 @@ class TestKafkaStreamHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
-            config={}, 
+            config={},
         )
 
         handler._execute_pipeline(
             payload=sample_payload,
             source='slope_stability',
             protocol='kafka',
-            dataset_id='test_kafka_fail_456'
+            dataset_id='test_kafka_fail_456',
         )
 
         # Assert QC check was called
@@ -218,6 +218,7 @@ class TestKafkaStreamHandler:
         # Assert ETL callback was NEVER called because QC failed
         mock_etl_callback.assert_not_called()
         mock_logger.warning.assert_called()
+
 
 class TestKinesisStreamHandler:
     """
@@ -311,14 +312,14 @@ class TestKinesisStreamHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
-            config={}, 
+            config={},
         )
 
         handler._execute_pipeline(
             payload=sample_payload,
             source='tsf_stream',
             protocol='kinesis',
-            dataset_id='test_kinesis_fail_001'
+            dataset_id='test_kinesis_fail_001',
         )
 
         # Assert QC check was called
@@ -410,14 +411,14 @@ class TestSensorThingsAPIHandler:
             logger=mock_logger,
             qc_layer=mock_qc_layer,
             etl_callback=mock_etl_callback,
-            config={}, 
+            config={},
         )
 
         handler._execute_pipeline(
             payload=sample_payload,
             source='Datastream_99',
             protocol='sensorthings',
-            dataset_id='test_ogc_pass_777'
+            dataset_id='test_ogc_pass_777',
         )
 
         # Assert QC check was called
@@ -425,6 +426,7 @@ class TestSensorThingsAPIHandler:
 
         # Assert ETL callback was executed since QC passed
         mock_etl_callback.assert_called_once()
+
 
 class TestStreamingDataHandler:
     """
@@ -460,7 +462,7 @@ class TestStreamingDataHandler:
         :rtype: None
         """
         mock_start_consuming.side_effect = lambda: time.sleep(0.5)
-        
+
         handler = StreamingDataHandler(
             source_type='kafka',
             logger=mock_logger,
@@ -480,7 +482,7 @@ class TestStreamingDataHandler:
         # Verify thread was created and started
         assert handler._thread is not None
         assert handler._thread.is_alive() is True
-        
+
         assert handler._thread.name == 'ISU-Kafka-Thread'
 
         # Stop the facade
