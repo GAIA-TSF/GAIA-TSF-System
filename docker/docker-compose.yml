@@ -55,9 +55,9 @@ services:
     #       memory: 100G
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
-      interval: 10s
+      interval: 11s
       timeout: 5s
-      retries: 100
+      retries: 101
     ports:
       - "7432:5432"
     volumes:
