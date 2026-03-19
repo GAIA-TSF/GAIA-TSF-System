@@ -11,6 +11,7 @@ from subsystems.sdi.utils import SdiUtils
 
 from config import DB_CONFIG_PG
 
+
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
     def db_connection(self):
