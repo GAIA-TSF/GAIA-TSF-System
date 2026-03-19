@@ -9,32 +9,47 @@ from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 
-from config import DB_CONFIG_PG
+from lib.config import SettingsReader
+
+from .config import INSITU_COLLECTION, INSITU_ITEM_ID
+from .config import EO_COLLECTION, EO_ITEM_ID
+
 
 class TestInSituDataLoader:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_PG)
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 
     def test_import(self):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
 
         assert zip_path.exists()
 
         importer = InSituDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
 
         importer.import_zip()
 
     def test_import_append_data(self, db_connection):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
 
         assert zip_path.exists()
 
         importer = InSituDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
 
         importer.import_zip(append_data=True)
         importer.import_zip(append_data=True)
@@ -50,12 +65,17 @@ class TestInSituDataLoader:
 
 class TestEarthObservationDataLoader:
     def test_import_via_stac(self):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'eou_sample_data.zip'
         assert zip_path.exists()
 
         # Run the import: uploads raster to S3 and updates STAC
         importer = EarthObservationDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, EO_COLLECTION, EO_ITEM_ID
+        )
         importer.import_zip()
 
         # STAC query: search by bbox and datetime
@@ -88,8 +108,6 @@ class TestEarthObservationDataLoader:
                 f.write(chunk)
 
         # Compare MD5 hash of downloaded file and input GeoTIFF
-
-        utils = SdiUtils()
 
         md5_input = utils.file_md5(importer.raster_files[0])
         md5_downloaded = utils.file_md5(temp_file.name)

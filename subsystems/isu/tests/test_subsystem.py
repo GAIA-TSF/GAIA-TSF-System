@@ -9,6 +9,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from subsystems.isu import InSituDataUploader
+from lib.base import SubsystemId
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
@@ -23,7 +24,7 @@ class TestSubsystem:
         """
         Mock the QCL Logger class.
         """
-        with patch('isu.Logger') as mock_cls:
+        with patch('subsystems.qcl.logger.Logger') as mock_cls:
             # Configure the mock instance that will be returned
             mock_instance = mock_cls.return_value
             yield mock_instance
@@ -52,7 +53,7 @@ class TestSubsystem:
     def test_ISU_001(self, isu_system):
         """Test ISU Subsystem Initialization."""
         # Verify Identity
-        assert getattr(isu_system, 'id', None) == 'ISU'
+        assert getattr(isu_system, 'sid', None) == SubsystemId.ISU
 
         # Verify Components
         assert isu_system.parsing_engine is not None
@@ -85,7 +86,6 @@ class TestSubsystem:
         # B. Check File Lifecycle: File should APPEAR in processed
         processed_file = tmp_path / 'processed' / 'slope_sensor_data.csv'
         assert processed_file.exists(), 'File should be archived to processed directory'
-
 
     def test_ISU_003(self, isu_system):
         """Test Scheduler Start/Stop Commands."""
