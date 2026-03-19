@@ -18,7 +18,20 @@ class BasePipeline(ABC):
         self._config = config
 
     @abstractmethod
-    def run(self, aoi, start, end, direction, username, password, data_dir, bbox, lidar_file, output_dem, output_landmask) -> None:
+    def run(
+        self,
+        aoi,
+        start,
+        end,
+        direction,
+        username,
+        password,
+        data_dir,
+        bbox,
+        lidar_file,
+        output_dem,
+        output_landmask,
+    ) -> None:
         """Execute pipeline.
 
         param aoi: AOI geometry
