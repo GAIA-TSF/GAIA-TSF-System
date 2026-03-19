@@ -22,7 +22,6 @@ class TestInSituDataLoader:
         conn.close()
 
     def test_import(self):
-
         utils = SdiUtils()
 
         base_dir = Path(__file__).parent
@@ -31,12 +30,13 @@ class TestInSituDataLoader:
         assert zip_path.exists()
 
         importer = InSituDataLoader(zip_path=zip_path)
-        utils.delete_item_and_collection(importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
 
         importer.import_zip()
 
     def test_import_append_data(self, db_connection):
-
         utils = SdiUtils()
 
         base_dir = Path(__file__).parent
@@ -45,7 +45,9 @@ class TestInSituDataLoader:
         assert zip_path.exists()
 
         importer = InSituDataLoader(zip_path=zip_path)
-        utils.delete_item_and_collection(importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, INSITU_COLLECTION, INSITU_ITEM_ID
+        )
 
         importer.import_zip(append_data=True)
         importer.import_zip(append_data=True)
@@ -61,7 +63,6 @@ class TestInSituDataLoader:
 
 class TestEarthObservationDataLoader:
     def test_import_via_stac(self):
-
         utils = SdiUtils()
 
         base_dir = Path(__file__).parent
@@ -70,7 +71,9 @@ class TestEarthObservationDataLoader:
 
         # Run the import: uploads raster to S3 and updates STAC
         importer = EarthObservationDataLoader(zip_path=zip_path)
-        utils.delete_item_and_collection(importer.stac_api_url, EO_COLLECTION, EO_ITEM_ID)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, EO_COLLECTION, EO_ITEM_ID
+        )
         importer.import_zip()
 
         # STAC query: search by bbox and datetime

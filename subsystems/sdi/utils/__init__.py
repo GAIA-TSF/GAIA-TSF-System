@@ -21,9 +21,9 @@ class SdiUtils:
 
     def delete_item_and_collection(self, stac_url, collection_id, item_id):
         requests.delete(
-            f"{stac_url}/collections/{collection_id}/items/{item_id}",
+            f'{stac_url}/collections/{collection_id}/items/{item_id}',
         )
 
         requests.delete(
-            f"{stac_url}/collections/{collection_id}",
+            f'{stac_url}/collections/{collection_id}',
         )
