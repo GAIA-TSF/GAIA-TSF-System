@@ -5,4 +5,3 @@ class SpatialDataInfrastructure:
 
     def __init__(self):
         super().__init__(SubsystemId.SDI)
-        self.logger.debug('initialized')

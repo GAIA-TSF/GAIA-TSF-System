@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Tuple
 
 from .logger import Logger
 
+from lib.base import GaiaBase, SubsystemId
 
 class RuleRepository:
     """
@@ -205,18 +206,14 @@ class QcCatalog:
         raise ValueError(f'No QC Controller found for {data_type}')
 
 
-class QualityControlLoggingLayer:
+class QualityControlLoggingLayer(GaiaBase):
     """
     The Quality Control Layer serves as the critical validation gatekeeper within
     the GAIA-TSF monitoring architecture, situated between the ingestion/ETL
     processes and the Spatial Data Infrastructure (SDI) storage.
     """
-
-    id = 'QCL'
-
     def __init__(self):
-        self.logger = Logger(subsystem=self.id)
-        self.logger.debug('initialized')
+        super().__init__(SubsystemId.QCL)
 
         self._rule_repo = RuleRepository()
         self._lineage_logger = DataLineageLogger(self.logger)

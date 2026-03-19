@@ -9,6 +9,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from subsystems.isu import InSituDataUploader
+from lib.base import SubsystemId
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
@@ -52,7 +53,7 @@ class TestSubsystem:
     def test_ISU_001(self, isu_system):
         """Test ISU Subsystem Initialization."""
         # Verify Identity
-        assert getattr(isu_system, 'id', None) == 'ISU'
+        assert getattr(isu_system, 'sid', None) == SubsystemId.ISU
 
         # Verify Components
         assert isu_system.parsing_engine is not None

@@ -41,7 +41,7 @@ class GaiaBase:
         :param SubsystemId sid: subsystem id
         :param str project_file: path to project file to be read or None
         """
-        from subsystems.qcl.logger import Logger
+        from subsystems.qcl.logger import Logger # avoid circular import
 
         self.sid = sid
         # initialize internal settings

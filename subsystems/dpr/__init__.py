@@ -17,7 +17,6 @@ class DataProcessing(GaiaBase):
     """
     def __init__(self):
         super().__init__(SubsystemId.DPR)
-        self.logger.debug('initialized')
 
         self.preprocessing_pipelines = PreprocessingPipelines()
         self.data_analysis_pipelines = DataAnalysisPipelines()

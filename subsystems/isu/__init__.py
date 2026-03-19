@@ -12,9 +12,6 @@ class InSituDataUploader(GaiaBase):
     In-Situ Data Uploader sub-system is responsible for collecting
     and securely transmitting field-acquired data.
     """
-
-    id = 'ISU'
-
     def __init__(
         self, input_dir: str = 'data/input', processed_dir: str = 'data/processed'
     ):
@@ -27,7 +24,6 @@ class InSituDataUploader(GaiaBase):
         :type processed_dir: str
         """
         super().__init__(SubsystemId.ISU)
-        self.logger.debug('ISU Subsystem initializing...')
 
         self.input_dir = input_dir
         self.processed_dir = processed_dir
