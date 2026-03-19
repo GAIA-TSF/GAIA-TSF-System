@@ -4,6 +4,7 @@ import yaml
 
 from shapely import wkt
 from shapely.errors import ShapelyError
+from pathlib import Path
 
 from lib.exceptions import GaiaConfigError
 
@@ -144,7 +145,7 @@ class YamlValidator:
         return len(self.errors) < 1
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str | Path):
         """Initialize project config reader.
 
         Raise GaiaConfigError when project definition is not valid.
