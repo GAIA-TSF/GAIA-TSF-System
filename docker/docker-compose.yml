@@ -49,10 +49,10 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       oom_kill_disable: true
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 100G
+    deploy:
+      resources:
+        limits:
+          memory: 5G
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 11s
