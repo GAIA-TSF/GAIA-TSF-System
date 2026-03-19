@@ -113,7 +113,7 @@ services:
       interval: 5s
       timeout: 11s
       retries: 101
-      start_period: 10s
+      start_period: 20s
     ports:
       - "9080:8000"
     networks:
