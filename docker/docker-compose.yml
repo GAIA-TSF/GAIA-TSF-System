@@ -112,7 +112,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 40
       # start_period: 10s
     ports:
       - "9080:8000"
