@@ -1,6 +1,5 @@
 from subsystems.eou.manual_file_loader import ManualFileLoader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from subsystems.eou.data_extraction import DataExtraction
 
 from subsystems.qcl.logger import Logger
 
@@ -18,4 +17,3 @@ class EarthObservationDataUploader:
 
         self.manual_file_loader = ManualFileLoader()
         self.data_acquisition_gateway = DataAcquisitionGateway()
-        self.data_extraction = DataExtraction()
