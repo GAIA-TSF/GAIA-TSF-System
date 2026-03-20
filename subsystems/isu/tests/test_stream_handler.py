@@ -3,12 +3,12 @@ import pandas as pd
 import time
 from unittest.mock import MagicMock, patch
 
-from isu.streaming_data_handler.stream_handler import (
+from subsystems.isu.streaming_data_handler.stream_handler import (
     KafkaStreamHandler,
     KinesisStreamHandler,
     SensorThingsAPIHandler,
 )
-from isu.streaming_data_handler import StreamingDataHandler
+from subsystems.isu.streaming_data_handler import StreamingDataHandler
 
 
 @pytest.fixture
