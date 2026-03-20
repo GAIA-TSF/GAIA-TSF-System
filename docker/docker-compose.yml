@@ -56,7 +56,7 @@ services:
       interval: 31s
       timeout: 31s
       retries: 173
-      start_period: 20s
+      # start_period: 20s
     ports:
       - "7432:5432"
     volumes:
