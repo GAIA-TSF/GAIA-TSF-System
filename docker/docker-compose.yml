@@ -34,9 +34,10 @@ services:
       - gaia_net
 
   pgstacdb:
-    build:
-      context: .
-      dockerfile: Dockerfile.pgstacdb
+    image: ghcr.io/stac-utils/pgstac:v0.9.10
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.pgstacdb
     container_name: pgstacdb
     restart: unless-stopped
     environment:
