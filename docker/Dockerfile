@@ -1,6 +1,4 @@
-FROM python:3.14-trixie
-
-# USER root
+FROM python:3.14-slim-trixie
 
 RUN apt-get update
 RUN apt-get install -y gdal-bin libgdal-dev
@@ -13,5 +11,3 @@ WORKDIR /opt/gaia_tsf
 
 COPY requirements.txt /tmp
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
-
-# USER postgres
