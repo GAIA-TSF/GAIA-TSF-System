@@ -7,6 +7,6 @@ psycopg==3.2.13  # sdi
 eodag==3.10.1 # eou
 pandas==3.0.1 # isu
 openpyxl==3.1.5 # isu
-kafka-python==2.3.0  # isu
+# kafka-python==2.3.0  # isu
 pyyaml==6.0.3 # lib.config, eou
 shapely==2.1.2 # lib.config
