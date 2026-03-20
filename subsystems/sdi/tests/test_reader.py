@@ -1,5 +1,3 @@
-import pytest
-
 from pathlib import Path
 
 from subsystems.sdi.loader import EarthObservationDataLoader
@@ -10,7 +8,6 @@ from config import EO_COLLECTION, EO_ITEM_ID
 
 
 class TestEarthObservationDataReader:
-    @pytest.mark.skip(reason='Broken until #185 is solved')
     def test_import_via_stac(self):
         utils = SdiUtils()
 
