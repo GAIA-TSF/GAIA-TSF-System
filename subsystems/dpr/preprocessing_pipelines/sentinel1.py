@@ -1,8 +1,10 @@
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
+import rioxarray # noqa: F401
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from .base import BasePipeline
 
@@ -194,10 +196,6 @@ class Sentinel1Pipeline(BasePipeline):
             [aoi], self.dem_da.rio.crs, drop=True, invert=False
         )
 
-        print('Original DEM shape:', self.dem_da.shape)
-        print('Masked DEM shape  :', self.dem_masked.shape, '(same as original)')
-        print('Cropped DEM shape :', self.dem_cropped.shape, '(smaller)')
-
     def _save_landmask(self, output_landmask):
         # TODO: Check if really needed
         self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype('uint8')
@@ -237,6 +235,29 @@ class Sentinel1Pipeline(BasePipeline):
                 'No data found to infer reference date. Need one of: bursts, or s1.'
             )
 
+    def _transform_to_zarr(self, dem_file, datadir, zarrdir):
+        dem_path = Path(dem_file)
+        if dem_path.is_file():
+            ds = xr.open_dataset(str(dem_path))
+            da = ds["dem"]
+            da = da.copy()
+            da.name = "dem"
+            ds.close()
+
+            dem_onevar = dem_path.with_name(dem_path.stem + "_onevar.nc")
+            da.to_netcdf(str(dem_onevar))
+
+            if datadir.is_dir() and zarrdir.is_dir():
+                if self.ref_date is not None:
+                    self.s1 = S1(datadir, DEM=str(dem_onevar))
+                    self.s1.transform(zarrdir, ref=self.ref_date, n_jobs=1)
+                else:
+                    raise NameError('No reference date found. Run _infer_ref_date() first.')
+            else:
+                raise NameError('datadir or zarrdir or both do not exist.')
+        else:
+            raise FileNotFoundError(dem_path)
+
     def run(
         self,
         aoi,
@@ -250,6 +271,7 @@ class Sentinel1Pipeline(BasePipeline):
         lidar_file,
         output_dem,
         output_landmask,
+        zarrdir,
     ):
         self._search_bursts(aoi, start, end, direction)
         self._download_bursts(username, password, data_dir)
@@ -261,4 +283,5 @@ class Sentinel1Pipeline(BasePipeline):
         self._save_landmask(output_landmask)
         self._link_s1_with_dem(data_dir, output_dem)
         self._infer_ref_date()
+        self._transform_to_zarr(output_dem, data_dir, zarrdir)
         # ...

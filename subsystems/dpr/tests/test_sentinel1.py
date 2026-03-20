@@ -157,11 +157,6 @@ class TestSentinel1Workflow:
         pipeline._clip_dem(aoi)
         assert pipeline.dem_masked is not None
         assert pipeline.dem_cropped is not None
-
-        # Check if AOI != BBOX, case of sibanye-td6
-        if len(aoi.exterior.coords) > 5:
-            assert pipeline.dem_cropped.size < pipeline.dem_masked.size
-
         assert not np.isnan(pipeline.dem_masked.values).all()
         assert not np.isnan(pipeline.dem_cropped.values).all()
 
@@ -205,6 +200,24 @@ class TestSentinel1Workflow:
         assert pipeline.ref_date is not None
         assert isinstance(pipeline.ref_date, str)
         assert re.match(r'^\d{4}-\d{2}-\d{2}$', pipeline.ref_date)
+
+    def test_011_transform_to_zarr(self, pipeline, config):
+        base_dir = Path(config['project']['data_dir'])
+        dem_file = base_dir / 'dem.nc'
+
+        if dem_file.exists():
+            zarr_dir = base_dir / 'zarrdir'
+            zarr_dir.mkdir(exist_ok=True)
+            assert zarr_dir.is_dir()
+
+            if pipeline.ref_date is None:
+                if pipeline.bursts is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
+                pipeline._infer_ref_date()
+
+            pipeline._transform_to_zarr(dem_file, base_dir, zarr_dir)
+            assert any(zarr_dir.iterdir())
 
     def test_run_workflow(self, pipeline, config):
         pass

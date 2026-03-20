@@ -31,6 +31,7 @@ class BasePipeline(ABC):
         lidar_file,
         output_dem,
         output_landmask,
+        zarrdir,
     ) -> None:
         """Execute pipeline.
 
@@ -45,5 +46,6 @@ class BasePipeline(ABC):
         param lidar_file: input file with lidar data
         param output_dem: path for resulting output DEM
         param output_landmask: path for output landmask
+        param zarrdir: directory for output zarr
         """
         pass
