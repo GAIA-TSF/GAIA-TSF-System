@@ -11,8 +11,8 @@ from subsystems.sdi.utils import SdiUtils
 
 from lib.config import SettingsReader
 
-from .config import INSITU_COLLECTION, INSITU_ITEM_ID
-from .config import EO_COLLECTION, EO_ITEM_ID
+from config import INSITU_COLLECTION, INSITU_ITEM_ID
+from config import EO_COLLECTION, EO_ITEM_ID
 
 
 class TestInSituDataLoader:
