@@ -6,6 +6,7 @@ from subsystems.sdi.reader import SdiReader
 
 from config import EO_COLLECTION, EO_ITEM_ID
 
+
 class TestEarthObservationDataReader:
     def test_import_via_stac(self):
         utils = SdiUtils()
