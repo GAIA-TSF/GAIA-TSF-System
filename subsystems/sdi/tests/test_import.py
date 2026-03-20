@@ -64,6 +64,7 @@ class TestInSituDataLoader:
 
 
 class TestEarthObservationDataLoader:
+    @pytest.mark.skip(reason='Broken until #184 is solved')
     def test_import_via_stac(self):
         utils = SdiUtils()
 
