@@ -82,12 +82,14 @@ class TestSentinel1Workflow:
                 Path(data_path).unlink()
 
     def test_001_search_bursts(self, pipeline, config):
+        """Test Sentinel-1 BURST data search using ASF."""
         aoi = loads(config['project']['aoi']['geom'])
         pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
         assert pipeline.bursts is not None
         assert len(pipeline.bursts) > 0
 
     def test_002_download_bursts(self, pipeline, config):
+        """Test Sentinel-1 BURST data download using ASF."""
         if pipeline.bursts is None:
             aoi = loads(config['project']['aoi']['geom'])
             pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
@@ -101,6 +103,7 @@ class TestSentinel1Workflow:
         )
 
     def test_003_download_orbits(self, pipeline, config):
+        """Test downloading orbit files for Sentinel-1 BURST data."""
         data_dir = config['project']['data_dir']
         pipeline._download_orbits(data_dir)
         assert pipeline.s1 is not None
@@ -109,6 +112,7 @@ class TestSentinel1Workflow:
         assert len(eof_files) > 0
 
     def test_004_download_dem_baseline(self, pipeline, config):
+        """Test downloading DEM baseline."""
         bbox = self._get_bbox(config)
         pipeline._download_dem_baseline(bbox)
         assert pipeline.dem_da is not None
@@ -118,6 +122,7 @@ class TestSentinel1Workflow:
         assert pipeline.dem_da.ndim == 2
 
     def test_005_lidar_infill(self, pipeline, config):
+        """Test infilling DEM with LiDAR data."""
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -139,6 +144,7 @@ class TestSentinel1Workflow:
             assert pipeline.dem_da is not None
 
     def test_006_save_composite_dem(self, pipeline, config):
+        """Test saving DEM to disk."""
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -149,6 +155,7 @@ class TestSentinel1Workflow:
         assert output_dem.exists()
 
     def test_007_clip_dem(self, pipeline, config):
+        """Test clipping DEM."""
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -161,6 +168,7 @@ class TestSentinel1Workflow:
         assert not np.isnan(pipeline.dem_cropped.values).all()
 
     def test_008_save_landmask(self, pipeline, config):
+        """Test saving landmask based on DEM to disk."""
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -175,6 +183,7 @@ class TestSentinel1Workflow:
         assert output_landmask.exists()
 
     def test_009_link_s1_with_dem(self, pipeline, config):
+        """Test linking Sentinel-1 BURST data with DEM."""
         if pipeline.dem_da is None:
             pipeline._download_dem_baseline(self._get_bbox(config))
             assert pipeline.dem_da is not None
@@ -190,6 +199,7 @@ class TestSentinel1Workflow:
         assert pipeline.s1.DEM == str(dem)
 
     def test_010_infer_ref_date(self, pipeline, config):
+        """Test finding reference date from Sentinel-1 BURST data."""
         if pipeline.bursts is None:
             aoi = loads(config['project']['aoi']['geom'])
             pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
@@ -202,6 +212,7 @@ class TestSentinel1Workflow:
         assert re.match(r'^\d{4}-\d{2}-\d{2}$', pipeline.ref_date)
 
     def test_011_transform_to_zarr(self, pipeline, config):
+        """Test transforming Sentinel-1 BURST data to georeferenced zarr format."""
         base_dir = Path(config['project']['data_dir'])
         dem_file = base_dir / 'dem.nc'
 

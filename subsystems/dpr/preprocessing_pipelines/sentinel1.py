@@ -26,20 +26,45 @@ class Sentinel1Pipeline(BasePipeline):
         self.ref_date = None
 
     def _search_bursts(self, aoi, start, end, direction):
+        """Search Sentinel-1 BURST data intersecting with chosen AOI using ASF.
+
+        :param str aoi: WKT string representing the area of interest.
+        :param str start: Start time for search in 'yyyy-mm-dd' format.
+        :param str end: End time for search in 'yyyy-mm-dd' format.
+        :param str direction: Flight direction of Sentinel-1 satellites ('A' - ascending, 'D' - descending).
+        :return: None
+        """
         self.bursts = ASF.search(
             aoi, startTime=start, stopTime=end, flightDirection=direction
         )
 
     def _download_bursts(self, username, password, datadir):
+        """Download searched Sentinel-1 BURST data using ASF.
+
+        :param str username: Username for ASF.
+        :param str password: Password for ASF.
+        :param str datadir: Directory path to save the data.
+        :return: None
+        """
         burst_ids = self.bursts.fileID.tolist()
         asf = ASF(username, password)
         asf.download(datadir, burst_ids)
 
     def _download_orbits(self, datadir):
+        """Download precise orbit files for Sentinel-1 BURST data.
+
+        :param str datadir: Path to directory with downloaded BURST data
+        :return: None.
+        """
         self.s1 = S1(datadir)
         EOF().download(datadir, self.s1.to_dataframe())
 
     def _download_dem_baseline(self, roi_square):
+        """Download DEM baseline for AOI.
+
+        :param Polygon roi_square: Bounding box of the area of interest as a Shapely Polygon.
+        :return: None
+        """
         tiles = Tiles()
         dem_raw = tiles.download_dem(roi_square, skip_exist=False)
 
@@ -81,6 +106,11 @@ class Sentinel1Pipeline(BasePipeline):
         )
 
     def _lidar_infill(self, lidar_data):
+        """Infill DEM with more precise LiDAR data.
+
+        :param Path lidar_data: Path to LiDAR data.
+        :return: None
+        """
         use_lidar = lidar_data.is_file()
 
         if use_lidar:
@@ -170,6 +200,11 @@ class Sentinel1Pipeline(BasePipeline):
             )
 
     def _save_composite_dem(self, output_file):
+        """Save a composite DEM to disk.
+
+        :param Path output_file: Path to output file.
+        :return: None
+        """
         self.dem_da = self.dem_da.load().squeeze(drop=True)
         self.dem_da.name = 'dem'
         self.dem_da = self.dem_da.rio.write_crs('EPSG:4326')
@@ -188,6 +223,11 @@ class Sentinel1Pipeline(BasePipeline):
             print('[DEM] Saved variables:', list(ds_check.data_vars))
 
     def _clip_dem(self, aoi):
+        """Clip DEM to AOI.
+
+        :param str aoi: WKT string representing the area of interest.
+        :return: None
+        """
         # TODO: Check if really needed
         self.dem_masked = self.dem_da.rio.clip(
             [aoi], self.dem_da.rio.crs, drop=False, invert=False
@@ -197,6 +237,11 @@ class Sentinel1Pipeline(BasePipeline):
         )
 
     def _save_landmask(self, output_landmask):
+        """Save landmask based on DEM to disk.
+
+        :param Path output_landmask: Path to output landmask file.
+        :return: None
+        """
         # TODO: Check if really needed
         self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype('uint8')
         self.landmask_arr.name = 'landmask'
@@ -216,10 +261,18 @@ class Sentinel1Pipeline(BasePipeline):
         )
 
     def _link_s1_with_dem(self, datadir, dem_file):
+        """Link Sentinel-1 BURST data with DEM.
+
+        :param str datadir: Path to directory with BURST data.
+        """
         self.s1 = S1(datadir, DEM=str(dem_file))
         self.s1.to_dataframe()
 
     def _infer_ref_date(self):
+        """Find the reference date from Sentinel-1 BURST data.
+
+        :return: None
+        """
         if self.bursts is not None and len(self.bursts) > 0:
             acq_dates = pd.to_datetime(self.bursts['startTime'], utc=True)
             self.ref_date = acq_dates.iloc[
@@ -236,6 +289,14 @@ class Sentinel1Pipeline(BasePipeline):
             )
 
     def _transform_to_zarr(self, dem_file, datadir, zarrdir):
+        """Transform Sentinel-1 BURST data to georeferenced zarr format. GMTSAR tool needs to be installed!
+        See: https://github.com/gmtsar/gmtsar/wiki
+
+        :param Path dem_file: Path to Sentinel-1 BURST data.
+        :param Path|str datadir: Path to directory with BURST data.
+        :param Path zarrdir: Path to output zarr directory.
+        :return: None
+        """
         dem_path = Path(dem_file)
         if dem_path.is_file():
             ds = xr.open_dataset(str(dem_path))
