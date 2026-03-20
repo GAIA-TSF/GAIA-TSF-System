@@ -94,11 +94,11 @@ services:
       dockerfile: Dockerfile.stacapi
     container_name: stacapi
     restart: unless-stopped
-    depends_on:
-      pgstacdb:
-        condition: service_healthy
-    links:
-      - pgstacdb
+    # depends_on:
+    #   pgstacdb:
+    #     condition: service_healthy
+    # links:
+    #   - pgstacdb
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
