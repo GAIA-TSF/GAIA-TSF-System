@@ -1,0 +1,28 @@
+qcl:
+  logger:
+    level: DEBUG
+eou:
+  eodag:
+    cop_dataspace:
+      auth:
+        credentials:
+          username: "gaia.tsf.project@gmail.com"
+          password: ""
+sdi:
+  db:
+    host: 'postgis'
+    port: 5432
+    dbname: 'geodata'
+    user: 'postgres'
+    password: 'fevcfQBu3b3CfxFU'
+  stac:
+    db:
+      host: 'pgstacdb'
+      port: 5432
+      dbname: 'stac'
+      user: 'stac'
+      password: 'stac'
+    url: 'http://stacapi:8000'
+  allowed_raster_extensions:
+    - '.tif'
+    - '.zip'
