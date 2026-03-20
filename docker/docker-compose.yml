@@ -6,8 +6,8 @@ services:
     container_name: gaiatesting
     restart: unless-stopped
     depends_on:
-      pgstacdb:
-        condition: service_healthy
+      # pgstacdb:
+      #   condition: service_healthy
       stacapi:
         condition: service_healthy
     links:
