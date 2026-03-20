@@ -94,9 +94,11 @@ class TestEarthObservationDataLoader:
         assert items, 'STAC query returned no items'
 
         # Find the asset B01
-        stac_item = items[0]
-        asset = stac_item['assets']['B01']
-        asset_url = asset['href']
+        for stac_item in items:
+            if 'B01' in stac_item['assets']:
+                asset = stac_item['assets']['B01']
+                asset_url = asset['href']
+
         assert asset_url, 'STAC asset does not contain href'
 
         # Download the file from STAC asset URL
