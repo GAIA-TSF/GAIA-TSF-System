@@ -6,8 +6,6 @@ services:
     container_name: gaiatesting
     restart: unless-stopped
     depends_on:
-      # pgstacdb:
-      #   condition: service_healthy
       stacapi:
         condition: service_healthy
     links:
@@ -35,9 +33,6 @@ services:
 
   pgstacdb:
     image: ghcr.io/stac-utils/pgstac:v0.9.10
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.pgstacdb
     container_name: pgstacdb
     restart: unless-stopped
     environment:
@@ -48,10 +43,6 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       oom_kill_disable: true
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 15G
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 31s
@@ -65,11 +56,6 @@ services:
       - ..:/opt/gaia_tsf
     networks:
       - gaia_net
-    # depends_on:
-    #   localstack:
-    #     condition: service_healthy
-    # links:
-    #   - localstack
 
   localstack:
     image: localstack/localstack:4.13.0
@@ -78,13 +64,6 @@ services:
     environment:
       - SERVICES=s3
       - DEBUG=1
-    #   - POSTGRES_USER=stac
-    #   - POSTGRES_PASSWORD=stac
-    # healthcheck:
-    #   test: [ "CMD-SHELL", "pg_isready -U stac" ]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 10
     networks:
       - gaia_net
 
@@ -94,11 +73,6 @@ services:
       dockerfile: Dockerfile.stacapi
     container_name: stacapi
     restart: unless-stopped
-    # depends_on:
-    #   pgstacdb:
-    #     condition: service_healthy
-    # links:
-    #   - pgstacdb
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
