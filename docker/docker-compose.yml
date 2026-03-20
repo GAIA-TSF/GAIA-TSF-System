@@ -45,10 +45,9 @@ services:
       oom_kill_disable: true
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
-      interval: 31s
-      timeout: 31s
-      retries: 1730
-      start_period: 20s
+      interval: 5s
+      timeout: 5s
+      retries: 10
     ports:
       - "7432:5432"
     volumes:
@@ -84,10 +83,10 @@ services:
       DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 31s
-      timeout: 31s
-      retries: 1010
-      start_period: 30s
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     ports:
       - "9080:8000"
     networks:
