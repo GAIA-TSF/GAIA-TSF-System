@@ -56,7 +56,7 @@ services:
       interval: 31s
       timeout: 31s
       retries: 173
-      # start_period: 20s
+      start_period: 20s
     ports:
       - "7432:5432"
     volumes:
@@ -109,8 +109,8 @@ services:
       DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 13s
-      timeout: 13s
+      interval: 31s
+      timeout: 31s
       retries: 101
       start_period: 30s
     ports:
