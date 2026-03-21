@@ -4,15 +4,22 @@ from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 from subsystems.sdi.reader import SdiReader
 
+from config import EO_COLLECTION, EO_ITEM_ID
+
 
 class TestEarthObservationDataReader:
     def test_import_via_stac(self):
+        utils = SdiUtils()
+
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'eou_sample_data.zip'
         assert zip_path.exists()
 
         # Run the import: uploads raster to S3 and updates STAC
         importer = EarthObservationDataLoader(zip_path=zip_path)
+        utils.delete_item_and_collection(
+            importer.stac_api_url, EO_COLLECTION, EO_ITEM_ID
+        )
         importer.import_zip()
 
         # Prepare STAC query parameters

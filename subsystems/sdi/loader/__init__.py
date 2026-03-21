@@ -11,29 +11,23 @@ from abc import ABC, abstractmethod
 
 from subsystems.qcl.logger import Logger
 
-ALLOWED_RASTER_EXTENSIONS = {'.tif', '.zip'}
-
-DB_CONFIG = {
-    'host': 'postgis',
-    'port': 5432,
-    'dbname': 'geodata',
-    'user': 'postgres',
-    'password': 'fevcfQBu3b3CfxFU',
-}
-
-STAC_URL = 'http://stacapi:8000'
+from lib.base import GaiaBase, SubsystemId
 
 
-class SdiLoader(ABC):
+class SdiLoader(ABC, GaiaBase):
     """
     Base class defining the workflow for loading
     a ZIP package into SDI.
     """
 
     def __init__(self, zip_path, pg_config=None, stac_api_url=None):
+        ABC.__init__(self)
+        GaiaBase.__init__(self, SubsystemId.SDI)
+
         self.zip_path = zip_path
-        self.pg_config = pg_config or DB_CONFIG
-        self.stac_api_url = stac_api_url or STAC_URL
+        # TBD: raise GaiaSettingsError
+        self.pg_config = pg_config or self.settings['sdi']['db']
+        self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
 
         self.temp_dir = None
         self.json_file = None
