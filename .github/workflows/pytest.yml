@@ -1,0 +1,252 @@
+name: pytest
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'subsystems/**'
+      - 'docker/**'
+      - '.github/workflows/pytest.yml'
+      - "!**.md"
+  pull_request:
+    paths:
+      - 'subsystems/**'
+      - 'docker/**'
+      - '.github/workflows/pytest.yml'
+      - "!**.md"
+
+jobs:
+  ale:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run ALE test suite
+        run: |
+          for i in $(ls subsystems/ale/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  dag:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run DAG test suite
+        run: |
+          for i in $(ls subsystems/dag/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  dpr:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run DPR test suite
+        env:
+          CDSE: ${{secrets.CDSE}}
+        run: |
+          echo "$CDSE" > config.yaml
+          for i in $(ls subsystems/dpr/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  eou:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run EOU test suite
+        env:
+          CDSE: ${{secrets.CDSE}}
+        run: |
+          echo "$CDSE" > config.yaml
+          for i in $(ls subsystems/eou/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  isu:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run ISU test suite
+        run: |
+          for i in $(ls subsystems/isu/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  map:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run MAP test suite
+        run: |
+          for i in $(ls subsystems/map/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  ntf:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run NTF test suite
+        run: |
+          for i in $(ls subsystems/ntf/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  qcl:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run QCL test suite
+        run: |
+          for i in $(ls subsystems/qcl/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  rep:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run REP test suite
+        run: |
+          for i in $(ls subsystems/rep/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  sdi:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run SDI test suite
+        run: |
+          for i in $(ls subsystems/sdi/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  vid:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run VID test suite
+        run: |
+          for i in $(ls subsystems/vid/tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
+
+  general:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build docker
+        run: |
+          cd docker
+          docker compose up --build --wait --detach
+
+      - name: Run general tests
+        run: |
+          for i in $(ls tests/test*py); do
+            echo "*** running test suite: $i ***"
+            cd docker
+            docker compose exec gaiatesting python3 -m pytest -v $i
+            cd ..
+          done
