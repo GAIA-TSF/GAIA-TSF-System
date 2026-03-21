@@ -2,7 +2,7 @@
 FROM ghcr.io/stac-utils/stac-fastapi:latest
 
 # Dependencies for psycopg3
-RUN apt-get update && apt-get install -y libpq-dev gcc
+RUN apt-get update && apt-get install -y libpq-dev gcc curl
 RUN pip install --no-cache-dir psycopg[binary] psycopg_pool
 RUN rm -rf /var/lib/apt/lists/*
 
