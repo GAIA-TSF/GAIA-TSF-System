@@ -1,3 +1,4 @@
+from insardev import Stack
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
@@ -5,6 +6,8 @@ import rioxarray # noqa: F401
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import geopandas as gpd
+from dask.distributed import Client
 
 from .base import BasePipeline
 
@@ -24,6 +27,19 @@ class Sentinel1Pipeline(BasePipeline):
         self.dem_cropped = None
         self.landmask_arr = None
         self.ref_date = None
+        self.centroid_utm = None
+        self.aoi_utm = None
+        self.centroid_utm_off = None
+        self.client = None
+        self.stack = None
+
+    def __del__(self):
+        try:
+            if hasattr(self, 'client'):
+                if self.client.status != "closed":
+                    self.client.close()
+        except Exception:
+            pass
 
     def _search_bursts(self, aoi, start, end, direction):
         """Search Sentinel-1 BURST data intersecting with chosen AOI using ASF.
@@ -318,6 +334,28 @@ class Sentinel1Pipeline(BasePipeline):
                 raise NameError('datadir or zarrdir or both do not exist.')
         else:
             raise FileNotFoundError(dem_path)
+
+    def _get_geometries(self, aoi, utm):
+        """Get AOI and centroid geometries in UTM coordinates.
+
+        :param str aoi: WKT string representing the area of interest.
+        :param str utm: EPSG code of the UTM coordinate system (example: 'EPSG:32735').
+        :return: None
+        """
+        aoi_geom = gpd.GeoDataFrame(index=[0], crs="EPSG:4326", geometry=[aoi])
+        centroid = aoi_geom.geometry.representative_point()
+        self.centroid_utm = centroid.to_crs(utm)
+        self.aoi_utm = aoi_geom.to_crs(utm)
+        self.centroid_utm_off = self.centroid_utm.translate(xoff=15, yoff=15)
+
+    def _stack_bursts(self, zarrdir):
+        """Load georeferenced BURST data into stack.
+
+        :param str zarrdir: Path to zarr directory with georeferenced BURST data.
+        :return: None
+        """
+        self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+        self.stack = Stack().load(zarrdir)
 
     def run(
         self,

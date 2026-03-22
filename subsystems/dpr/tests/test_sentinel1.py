@@ -230,5 +230,21 @@ class TestSentinel1Workflow:
             pipeline._transform_to_zarr(dem_file, base_dir, zarr_dir)
             assert any(zarr_dir.iterdir())
 
+    def test_012_get_geometries(self, pipeline, config):
+        """Test getting AOI and centroid geometries in UTM coordinates."""
+        aoi = loads(config['project']['aoi']['geom'])
+        pipeline._get_geometries(aoi, 'EPSG:32735')
+        assert pipeline.centroid_utm is not None
+        assert pipeline.aoi_utm is not None
+        assert pipeline.centroid_utm_off is not None
+
+    def test_013_stack_bursts(self, pipeline, config):
+        """Test loading georeferenced BURST data into stack."""
+        base_dir = Path(config['project']['data_dir'])
+        zarr_dir = base_dir / 'zarrdir'
+        pipeline._stack_bursts(str(zarr_dir))
+        assert pipeline.stack is not None
+        assert len(pipeline.stack) > 0
+
     def test_run_workflow(self, pipeline, config):
         pass
