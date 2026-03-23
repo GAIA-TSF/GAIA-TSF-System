@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
-    from subsystem.qcl.logger imprt Logger
+    from subsystem.qcl.logger import Logger
     
 import json
 from datetime import datetime, UTC
