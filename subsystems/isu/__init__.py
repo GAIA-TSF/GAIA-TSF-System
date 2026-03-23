@@ -32,8 +32,8 @@ class InSituDataUploader(GaiaBase):
 
         self.logger.info("Initializing ISU Subsystem driven by GaiaBase...")
 
-        # 2. Automatically retrieve configurations via GaiaBase settings
-        isu_config = self.settings.get('isu', {}) if self.settings else {}
+        # 2. Configurations are now handled internally by sub-modules via GaiaBase
+        
 
         # 3. Initialize the core hub: ETL Engine
         # The engine serves as the central processing unit for all three data streams

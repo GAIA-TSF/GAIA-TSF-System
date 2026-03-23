@@ -147,7 +147,7 @@ class TestSensorThingsAPIHandler:
         """
         Verify MQTT client setup for SensorThings API ingestion.
         """
-        handler = SensorThingsAPIHandler(
+        _ = SensorThingsAPIHandler(
             broker_url='mqtt', datastream_id='99', logger=mock_logger,
             qc_layer=mock_qc_layer, etl_callback=mock_etl_callback, config={}
         )
