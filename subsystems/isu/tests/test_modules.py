@@ -8,6 +8,7 @@ from subsystems.isu.etl_engine.parsers import ParsingEngine
 
 TEST_DATA_DIR = Path(__file__).parent / 'test_data'
 
+
 @pytest.fixture
 def mock_qcl_logger():
     """Create a mock logger to simulate the system logger."""
@@ -26,7 +27,7 @@ class TestParsingEngine:
         p = TEST_DATA_DIR / 'slope_sensor_data.csv'
         # 防呆保护：如果测试文件不存在则跳过，防止报错
         if not p.exists():
-            pytest.skip("Test data file not found.")
+            pytest.skip('Test data file not found.')
 
         content = p.read_bytes()
         result = engine.route_and_parse(content, p.name)
@@ -40,7 +41,7 @@ class TestParsingEngine:
         """Test if Excel (.xlsx) files are correctly identified and parsed."""
         p = TEST_DATA_DIR / 'water_quality_data.xlsx'
         if not p.exists():
-            pytest.skip("Test data file not found.")
+            pytest.skip('Test data file not found.')
 
         content = p.read_bytes()
         result = engine.route_and_parse(content, p.name)
@@ -53,7 +54,7 @@ class TestParsingEngine:
         p = TEST_DATA_DIR / 'unsupported_data.txt'
         if not p.exists():
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text("random text")
+            p.write_text('random text')
 
         content = p.read_bytes()
         result = engine.route_and_parse(content, p.name)

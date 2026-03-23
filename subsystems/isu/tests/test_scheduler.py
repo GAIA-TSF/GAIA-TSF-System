@@ -37,6 +37,6 @@ class TestScheduler:
         sched = Scheduler(interval_seconds=1, logger=mock_qcl_logger)
         sched.start(lambda: None)
         sched.start(lambda: None)
-        
+
         mock_qcl_logger.warning.assert_called_with('Scheduler is already running.')
         sched.stop()
