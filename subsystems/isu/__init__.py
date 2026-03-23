@@ -1,142 +1,86 @@
-import os
-import shutil
+from typing import Optional
 
-# Import QCL Logger
 from lib.base import GaiaBase, SubsystemId
-from .etl_engine.parsers import ParsingEngine
-from .bulk_upload_scheduler.scheduler import Scheduler
+
+# Import the four core modules
+from .etl_engine.pipeline import ETLEngine
+from .manual_file_loader import ManualFileLoader
+from .bulk_upload_scheduler import BulkUploadScheduler
+from .streaming_data_handler import StreamingDataHandler
 
 
 class InSituDataUploader(GaiaBase):
     """
-    In-Situ Data Uploader sub-system is responsible for collecting
-    and securely transmitting field-acquired data.
+    GAIA-TSF Prototype: In-Situ Data Uploader (ISU) Subsystem.
+
+    Acts as the **Facade** for the ISU module. It is responsible for initializing 
+    and managing data ingestion through three concurrent methods: manual upload, 
+    scheduled background bulk scanning, and real-time streaming. All ingested 
+    data is routed to the central ETL Engine for unified processing.
+
+    :param project_file: Optional path to a specific project configuration file.
+                         Inherited and handled by GaiaBase.
+    :type project_file: Optional[str]
     """
 
-    def __init__(
-        self, input_dir: str = 'data/input', processed_dir: str = 'data/processed'
-    ):
+    def __init__(self, project_file: Optional[str] = None):
         """
-        Initialize the InSituDataUploader subsystem.
-
-        :param input_dir: The directory path to monitor for incoming data files.
-        :type input_dir: str
-        :param processed_dir: The directory path where files are moved after processing.
-        :type processed_dir: str
+        Initialize the InSituDataUploader subsystem and its sub-components.
         """
-        super().__init__(SubsystemId.ISU)
+        # 1. Initialize the base class and strictly bind the ISU subsystem identity
+        super().__init__(SubsystemId.ISU, project_file=project_file)
 
-        self.input_dir = input_dir
-        self.processed_dir = processed_dir
+        self.logger.info("Initializing ISU Subsystem driven by GaiaBase...")
 
-        # Initialize sub-components
-        self.parsing_engine = ParsingEngine(logger=self.logger)
-        self.scheduler = Scheduler(interval_seconds=10)
+        # 2. Automatically retrieve configurations via GaiaBase settings
+        isu_config = self.settings.get('isu', {}) if self.settings else {}
 
-        self._ensure_directories()
-        self.logger.debug('ISU Subsystem components initialized.')
+        # 3. Initialize the core hub: ETL Engine
+        # The engine serves as the central processing unit for all three data streams
+        self.etl_engine = ETLEngine(project_file=project_file)
 
-    def _ensure_directories(self):
+        # 4. Initialize the three parallel ingestion entries
+        # The ETL Engine (or its callback) is injected into each loader/handler
+        self.manual_loader = ManualFileLoader(
+            etl_engine=self.etl_engine,
+            project_file=project_file
+        )
+
+        self.bulk_scheduler = BulkUploadScheduler(
+            etl_engine=self.etl_engine,
+            project_file=project_file
+        )
+
+        self.stream_handler = StreamingDataHandler(
+            etl_callback=self.etl_engine.process_data,
+            project_file=project_file
+        )
+
+        self.logger.debug("ISU Subsystem components initialized.")
+
+    def start(self) -> None:
         """
-        Verify the existence of required directories and create them if they are missing.
-
-        :raises OSError: If directory creation fails due to permissions or OS errors.
+        Start all automated data ingestion background tasks.
+        
+        This triggers both the scheduled bulk file scanner and the 
+        real-time streaming listener.
+        
         :return: None
+        :rtype: None
         """
-        for path in [self.input_dir, self.processed_dir]:
-            if not os.path.exists(path):
-                os.makedirs(path)
-                self.logger.info(f'Created directory: {path}')
+        self.logger.info("Starting all ISU background tasks...")
+        self.bulk_scheduler.start()
+        self.stream_handler.start()
 
-    def start(self):
+    def stop(self) -> None:
         """
-        Start the ISU Subsystem and begin the scheduled file monitoring.
-
-        :return: None
-        """
-        self.logger.info(f'Starting ISU Subsystem (monitoring {self.input_dir})...')
-        self.scheduler.start(self._scan_and_process_files)
-
-    def stop(self):
-        """
-        Gracefully stop the ISU Subsystem and halt scheduled tasks.
-
-        :return: None
-        """
-        self.scheduler.stop()
-        self.logger.info('ISU Subsystem stopped.')
-
-    def _scan_and_process_files(self):
-        """
-        Scan the input directory for existing files and trigger the processing pipeline.
+        Gracefully stop all active data ingestion tasks.
+        
+        Ensures that schedulers are halted and stream connections are closed properly.
 
         :return: None
+        :rtype: None
         """
-        self.logger.debug('Scanning for files...')
-        try:
-            files = [
-                f
-                for f in os.listdir(self.input_dir)
-                if os.path.isfile(os.path.join(self.input_dir, f))
-            ]
-        except OSError as e:
-            self.logger.error(f'Failed to access input directory {self.input_dir}: {e}')
-            return
-
-        if not files:
-            return
-
-        self.logger.info(f'Found {len(files)} files. Processing...')
-
-        for filename in files:
-            file_path = os.path.join(self.input_dir, filename)
-            self._process_single_file(file_path, filename)
-
-    def _process_single_file(self, file_path: str, filename: str):
-        """
-        Read a single file from disk and route it through the parsing engine.
-
-        :param file_path: The absolute or relative path to the file.
-        :type file_path: str
-        :param filename: The name of the file being processed.
-        :type filename: str
-        :return: None
-        """
-        try:
-            with open(file_path, 'rb') as f:
-                content = f.read()
-
-            result = self.parsing_engine.route_and_parse(content, filename)
-            status = result.get('status')
-
-            if status == 'success':
-                parser_name = result.get('parser_applied')
-                row_count = result.get('row_count')
-                self.logger.info(
-                    f'Successfully parsed {filename} via {parser_name} ({row_count} rows).'
-                )
-                self._archive_file(filename)
-            elif status == 'quarantine':
-                self.logger.warning(f'Quarantine {filename}: {result.get("reason")}')
-                self._archive_file(filename)
-            else:
-                self.logger.error(f'Failed to parse {filename}: {result.get("error")}')
-
-        except (OSError, IOError) as e:
-            self.logger.error(f'File access error on {filename}: {str(e)}')
-
-    def _archive_file(self, filename: str):
-        """
-        Move a file from the input directory to the processed directory.
-
-        :param filename: The name of the file to archive.
-        :type filename: str
-        :return: None
-        """
-        src_path = os.path.join(self.input_dir, filename)
-        dst_path = os.path.join(self.processed_dir, filename)
-        try:
-            shutil.move(src_path, dst_path)
-            self.logger.debug(f'Archived {filename}')
-        except (OSError, shutil.Error) as e:
-            self.logger.error(f'Failed to move file {filename}: {e}')
+        self.logger.info("Stopping all ISU background tasks...")
+        self.bulk_scheduler.stop()
+        self.stream_handler.stop()
