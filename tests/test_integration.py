@@ -31,7 +31,6 @@ def create_sdi_package(product_path, metadata_path, output_file_path):
 
 
 class TestConfig:
-    @pytest.mark.skip(reason='Broken until #163 is solved')
     def test_integration_EOU_001(self, tmp_path):
         """Test full-system integration for manual data from EOU -> DPR -> SDI."""
         metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
