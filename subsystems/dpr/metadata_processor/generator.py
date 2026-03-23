@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
-
+    from subsystem.qcl.logger imprt Logger
+    
 import json
 from datetime import datetime, UTC
 from pathlib import Path
@@ -13,6 +14,7 @@ from osgeo import gdal, osr
 gdal.UseExceptions()
 
 from lib.base import GaiaBase, SubsystemId
+
 
 class RasterDataset:
     """
