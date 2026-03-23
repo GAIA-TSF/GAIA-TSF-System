@@ -242,9 +242,42 @@ class TestSentinel1Workflow:
         """Test loading georeferenced BURST data into stack."""
         base_dir = Path(config['project']['data_dir'])
         zarr_dir = base_dir / 'zarrdir'
-        pipeline._stack_bursts(str(zarr_dir))
-        assert pipeline.stack is not None
-        assert len(pipeline.stack) > 0
+        with pipeline:
+            pipeline._stack_bursts(str(zarr_dir))
+            assert pipeline.stack is not None
+            assert len(pipeline.stack) > 0
+
+    def test_014_crop_bursts(self, pipeline, config):
+        """Test cropping stacked BURST data by AOI."""
+        with pipeline:
+            if pipeline.aoi_utm is None:
+                aoi = loads(config['project']['aoi']['geom'])
+                pipeline._get_geometries(aoi, 'EPSG:32735')
+            if pipeline.stack is None:
+                base_dir = Path(config['project']['data_dir'])
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+
+            pipeline._crop_bursts()
+            assert pipeline.stack is not None
+            assert len(pipeline.stack) > 0
+            # TODO: How to check if it was actually cropped?
+
+    def test_015_compute_baseline(self, pipeline, config):
+        """Test computing temporal/perpendicular baseline from BURST data."""
+        with pipeline:
+            if pipeline.stack is None:
+                if pipeline.aoi_utm is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._get_geometries(aoi, 'EPSG:32735')
+                base_dir = Path(config['project']['data_dir'])
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+                pipeline._crop_bursts()
+
+            pipeline._compute_baseline(24)
+            assert pipeline.baseline is not None
+            assert len(pipeline.baseline) > 0
 
     def test_run_workflow(self, pipeline, config):
         pass

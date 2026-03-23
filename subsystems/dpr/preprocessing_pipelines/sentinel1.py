@@ -32,6 +32,7 @@ class Sentinel1Pipeline(BasePipeline):
         self.centroid_utm_off = None
         self.client = None
         self.stack = None
+        self.baseline = None
 
     def __del__(self):
         try:
@@ -40,6 +41,13 @@ class Sentinel1Pipeline(BasePipeline):
                     self.client.close()
         except Exception:
             pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if hasattr(self, 'client') and self.client and self.client.status != "closed":
+            self.client.close()
 
     def _search_bursts(self, aoi, start, end, direction):
         """Search Sentinel-1 BURST data intersecting with chosen AOI using ASF.
@@ -356,6 +364,36 @@ class Sentinel1Pipeline(BasePipeline):
         """
         self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
         self.stack = Stack().load(zarrdir)
+
+    def _crop_bursts(self):
+        """Crop stacked BURST data by AOI.
+
+        :return: None
+        """
+        if self.aoi_utm is None:
+            raise NameError('self.aoi_utm is None. Run _get_geometries method first.')
+        if self.stack is None:
+            raise NameError('self.stack is None. Run _stack_bursts method first.')
+        if self.client is None or self.client.status == "closed":
+            self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+
+        buf_m = 200
+        bounds = self.aoi_utm.buffer(buf_m).total_bounds
+        self.stack = self.stack.sel(x=slice(bounds[0], bounds[2]), y=slice(bounds[1], bounds[3]))
+
+    def _compute_baseline(self, days):
+        """Compute temporal/perpendicular baseline from stacked BURST data.
+
+        :param int days: Maximum number of days between two Sentinel-1 data acquisitions for creating interferometric pairs.
+        :return: None
+        """
+        if self.stack is None:
+            raise NameError('self.stack is None. Run _stack_bursts and _crop_bursts methods first.')
+        if self.client is None or self.client.status == "closed":
+            self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+        self.baseline = self.stack.baseline(days=days)
+
+
 
     def run(
         self,
