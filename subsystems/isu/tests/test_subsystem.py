@@ -3,7 +3,6 @@ Integration tests for the In-Situ Data Uploader (ISU) Subsystem.
 Tests how the Facade, Scheduler, and ETL Engine work together.
 """
 
-import os
 import shutil
 import pytest
 from pathlib import Path
@@ -27,7 +26,7 @@ class TestSubsystem:
             'isu': {
                 'input_dir': 'temp_input',
                 'processed_dir': 'temp_processed',
-                'stream_source_type': 'none' 
+                'stream_source_type': 'none',
             }
         }
 
@@ -48,7 +47,7 @@ class TestSubsystem:
             # Update the paths in the initialized bulk_scheduler to use the exact tmp_path
             isu.bulk_scheduler.input_dir = str(input_dir)
             isu.bulk_scheduler.processed_dir = str(processed_dir)
-            
+
             # Mock the scheduler thread to prevent infinite loops during test
             isu.bulk_scheduler.scheduler = MagicMock()
             isu.stream_handler.start = MagicMock()
@@ -79,10 +78,10 @@ class TestSubsystem:
         source_file = TEST_DATA_DIR / 'slope_sensor_data.csv'
         input_dir = tmp_path / 'temp_input'
         input_file = input_dir / 'slope_sensor_data.csv'
-        
+
         if not source_file.exists():
             source_file.parent.mkdir(parents=True, exist_ok=True)
-            source_file.write_text("dummy,data\n1,2")
+            source_file.write_text('dummy,data\n1,2')
 
         shutil.copy(source_file, input_file)
 

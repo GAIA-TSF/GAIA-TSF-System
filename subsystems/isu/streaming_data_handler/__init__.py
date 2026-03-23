@@ -20,13 +20,13 @@ class StreamingDataHandler(GaiaBase):
         self,
         etl_callback: Callable,
         qc_layer: Any = None,
-        project_file: Optional[str] = None
+        project_file: Optional[str] = None,
     ):
         """
         Initialize the StreamingDataHandler facade / factory.
         """
         super().__init__(SubsystemId.ISU, project_file=project_file)
-        
+
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback
         self._thread = None
@@ -39,9 +39,11 @@ class StreamingDataHandler(GaiaBase):
             kafka_broker = self.config.get('kafka_broker')
             kafka_topics = self.config.get('kafka_topics')
             if not kafka_broker or not kafka_topics:
-                self.logger.error('Missing kafka_broker or kafka_topics in settings. Kafka streaming will be DISABLED.')
-                return  
-            
+                self.logger.error(
+                    'Missing kafka_broker or kafka_topics in settings. Kafka streaming will be DISABLED.'
+                )
+                return
+
             self._stream_processor = KafkaStreamHandler(
                 broker=kafka_broker,
                 topics=kafka_topics,
@@ -55,9 +57,11 @@ class StreamingDataHandler(GaiaBase):
             kinesis_stream = self.config.get('kinesis_stream')
             kinesis_region = self.config.get('kinesis_region')
             if not kinesis_stream or not kinesis_region:
-                self.logger.error('Missing kinesis_stream or kinesis_region in settings. Kinesis streaming will be DISABLED.')
-                return  
-            
+                self.logger.error(
+                    'Missing kinesis_stream or kinesis_region in settings. Kinesis streaming will be DISABLED.'
+                )
+                return
+
             self._stream_processor = KinesisStreamHandler(
                 stream_name=kinesis_stream,
                 region_name=kinesis_region,
@@ -71,9 +75,11 @@ class StreamingDataHandler(GaiaBase):
             ogc_broker = self.config.get('ogc_broker')
             ogc_datastream_id = self.config.get('ogc_datastream_id')
             if not ogc_broker or not ogc_datastream_id:
-                self.logger.error('Missing ogc_broker or ogc_datastream_id in settings. SensorThings streaming will be DISABLED.')
-                return  
-            
+                self.logger.error(
+                    'Missing ogc_broker or ogc_datastream_id in settings. SensorThings streaming will be DISABLED.'
+                )
+                return
+
             self._stream_processor = SensorThingsAPIHandler(
                 broker_url=ogc_broker,
                 datastream_id=ogc_datastream_id,
@@ -84,7 +90,9 @@ class StreamingDataHandler(GaiaBase):
             )
 
         else:
-            self.logger.error(f"Unsupported source_type: {self.source_type}. Streaming will be DISABLED.")
+            self.logger.error(
+                f'Unsupported source_type: {self.source_type}. Streaming will be DISABLED.'
+            )
             return
 
     def start(self) -> None:
@@ -96,7 +104,9 @@ class StreamingDataHandler(GaiaBase):
         :rtype: None
         """
         if not self._stream_processor:
-            self.logger.warning(f"StreamingDataHandler ({self.source_type}) is disabled. Skipping start.")
+            self.logger.warning(
+                f'StreamingDataHandler ({self.source_type}) is disabled. Skipping start.'
+            )
             return
 
         if self._thread and self._thread.is_alive():

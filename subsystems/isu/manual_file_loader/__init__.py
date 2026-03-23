@@ -9,8 +9,8 @@ class ManualFileLoader(GaiaBase):
     GAIA-TSF ISU: Manual File Loader Module.
 
     Handles sensor data files manually uploaded via the system interface or API.
-    Once file content is received, it is dispatched directly to the central 
-    ETL Engine for parsing and standardization. Supports reading from local 
+    Once file content is received, it is dispatched directly to the central
+    ETL Engine for parsing and standardization. Supports reading from local
     filesystem paths or processing raw byte streams from API endpoints.
 
     :param etl_engine: The central ETL Engine instance for data parsing.
@@ -38,11 +38,11 @@ class ManualFileLoader(GaiaBase):
         :rtype: bool
         """
         if not os.path.exists(file_path):
-            self.logger.error(f"Manual upload failed: File not found at {file_path}")
+            self.logger.error(f'Manual upload failed: File not found at {file_path}')
             return False
 
         filename = os.path.basename(file_path)
-        self.logger.info(f"Manually loading file: {filename}")
+        self.logger.info(f'Manually loading file: {filename}')
 
         try:
             with open(file_path, 'rb') as f:
@@ -51,7 +51,9 @@ class ManualFileLoader(GaiaBase):
             return self.load_from_bytes(content, filename)
 
         except (OSError, IOError) as e:
-            self.logger.error(f"File access error during manual load of {filename}: {str(e)}")
+            self.logger.error(
+                f'File access error during manual load of {filename}: {str(e)}'
+            )
             return False
 
     def load_from_bytes(self, content: bytes, filename: str) -> bool:
@@ -67,25 +69,27 @@ class ManualFileLoader(GaiaBase):
         :rtype: bool
         """
         self.logger.debug(
-            f"Routing manually uploaded bytes ({len(content)} bytes) "
-            f"for {filename} to ETL Engine."
+            f'Routing manually uploaded bytes ({len(content)} bytes) '
+            f'for {filename} to ETL Engine.'
         )
 
         try:
-            df_result = self.etl_engine.process_file(file_content=content, filename=filename)
+            df_result = self.etl_engine.process_file(
+                file_content=content, filename=filename
+            )
 
             if df_result is not None:
-                self.logger.info(f"Manual upload of {filename} processed successfully.")
+                self.logger.info(f'Manual upload of {filename} processed successfully.')
                 return True
             else:
                 self.logger.warning(
-                    f"Manual upload of {filename} was rejected or quarantined by ETL Engine."
+                    f'Manual upload of {filename} was rejected or quarantined by ETL Engine.'
                 )
                 return False
 
         except Exception as e:
             self.logger.critical(
-                f"Unexpected error processing manual upload {filename}: {str(e)}", 
-                exc_info=True
+                f'Unexpected error processing manual upload {filename}: {str(e)}',
+                exc_info=True,
             )
             return False

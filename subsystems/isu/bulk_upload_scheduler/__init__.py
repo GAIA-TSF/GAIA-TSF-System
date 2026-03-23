@@ -12,9 +12,9 @@ class BulkUploadScheduler(GaiaBase):
     """
     GAIA-TSF ISU: Bulk Upload Scheduler Module.
 
-    Monitors a designated local input directory (or mounted FTP directory) 
-    periodically in the background. Upon detecting new sensor data files, 
-    it reads and dispatches them to the ETL Engine. Once processed, 
+    Monitors a designated local input directory (or mounted FTP directory)
+    periodically in the background. Upon detecting new sensor data files,
+    it reads and dispatches them to the ETL Engine. Once processed,
     files are securely moved to an archive (processed) directory.
 
     :param etl_engine: The central ETL Engine instance for data parsing.
@@ -37,7 +37,7 @@ class BulkUploadScheduler(GaiaBase):
         self.input_dir = isu_config.get('input_dir', 'data/input')
         self.processed_dir = isu_config.get('processed_dir', 'data/processed')
         interval = isu_config.get('bulk_scan_interval_sec', 10)
-        
+
         # Pass the auto-generated logger to the underlying thread scheduler
         self.scheduler = Scheduler(interval_seconds=interval, logger=self.logger)
 
@@ -64,7 +64,9 @@ class BulkUploadScheduler(GaiaBase):
         :return: None
         :rtype: None
         """
-        self.logger.info(f'Bulk Upload Scheduler starting (monitoring {self.input_dir})...')
+        self.logger.info(
+            f'Bulk Upload Scheduler starting (monitoring {self.input_dir})...'
+        )
         self.scheduler.start(self._scan_and_process_files)
 
     def stop(self) -> None:
@@ -87,7 +89,8 @@ class BulkUploadScheduler(GaiaBase):
         self.logger.debug('Bulk scanner checking for new files...')
         try:
             files = [
-                f for f in os.listdir(self.input_dir)
+                f
+                for f in os.listdir(self.input_dir)
                 if os.path.isfile(os.path.join(self.input_dir, f))
             ]
         except OSError as e:
@@ -119,19 +122,27 @@ class BulkUploadScheduler(GaiaBase):
                 content = f.read()
 
             # Dispatch the file content to the ETL Engine
-            df_result = self.etl_engine.process_file(file_content=content, filename=filename)
+            df_result = self.etl_engine.process_file(
+                file_content=content, filename=filename
+            )
 
             if df_result is not None:
-                self.logger.debug(f'File {filename} successfully processed by ETL Engine.')
+                self.logger.debug(
+                    f'File {filename} successfully processed by ETL Engine.'
+                )
                 self._archive_file(filename)
             else:
-                self.logger.warning(f'File {filename} rejected or quarantined by ETL Engine.')
-                self._archive_file(filename) 
+                self.logger.warning(
+                    f'File {filename} rejected or quarantined by ETL Engine.'
+                )
+                self._archive_file(filename)
 
         except (OSError, IOError) as e:
             self.logger.error(f'File access error on {filename}: {str(e)}')
         except Exception as e:
-            self.logger.critical(f'Unexpected error processing {filename}: {str(e)}', exc_info=True)
+            self.logger.critical(
+                f'Unexpected error processing {filename}: {str(e)}', exc_info=True
+            )
 
     def _archive_file(self, filename: str) -> None:
         """
