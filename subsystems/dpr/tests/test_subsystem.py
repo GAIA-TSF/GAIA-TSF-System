@@ -1,7 +1,6 @@
-import pytest
-
 from subsystems.dpr import DataProcessing
 from lib.base import SubsystemId
+
 
 class TestSubsystem:
     def test_DPR_001(self):

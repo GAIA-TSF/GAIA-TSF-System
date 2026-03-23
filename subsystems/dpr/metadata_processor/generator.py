@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
     from subsystem.qcl.logger import Logger
-    
+
 import json
 from datetime import datetime, UTC
 from pathlib import Path
@@ -155,7 +155,7 @@ class StacItemFactory:
     def __init__(self, raster: RasterDataset, logger: Logger):
         """
         Initialize StacItemFactory.
-        
+
         :param RasterDataset raster: RasterDataset instance
         :param Logger logger: specified logger to be used
         """
@@ -227,7 +227,7 @@ class StacItemFactory:
             },
             'links': [],
         }
-        self.logger.debug(f"STAC item created: {stac_item}")
+        self.logger.debug(f'STAC item created: {stac_item}')
 
         return stac_item
 
@@ -243,20 +243,20 @@ class StacItemFactory:
         item = self.create_item()
         with open(output_path, 'w') as f:
             json.dump(item, f, indent=4)
-        self.logger.info(f"STAC item saved: {output_path}")
-        
+        self.logger.info(f'STAC item saved: {output_path}')
+
         return output_path
 
-        
+
 class MetadataGenerator(GaiaBase):
     """
     The automatic generation of metadata during ingestion.
     """
+
     def __init__(self):
-        """Initialize metadata generator.
-        """
+        """Initialize metadata generator."""
         super().__init__(SubsystemId.DPR)
-        
+
     def set_datasource(self, data_source: str):
         """Set the data source for which metadata should be generated.
 
@@ -265,7 +265,7 @@ class MetadataGenerator(GaiaBase):
         # TODO: allowed file extensions should be part of internal settings (see #89)
         # TODO: do we want to rely on file extension only?
         if Path(data_source).suffix in ('.tif', '.jp2'):
-            self.logger.info(f"Metadata generator datasource: {data_source}")
+            self.logger.info(f'Metadata generator datasource: {data_source}')
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif Path(data_source).suffix in ('.csv',):
