@@ -89,6 +89,16 @@ class SdiLoader(ABC, GaiaBase):
         """
         headers = {'Content-Type': 'application/json'}
 
+        if (
+            'properties' not in self.stac_json
+            or 'datetime' not in self.stac_json['properties']
+            or 'bbox' not in self.stac_json
+            or 'collection' not in self.stac_json
+        ):
+            raise ValueError(
+                'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection'
+            )
+
         # Temporal interval from JSON
         start_dt = self.stac_json['properties'].get(
             'start_datetime', self.stac_json['properties'].get('datetime')
