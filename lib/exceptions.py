@@ -1,10 +1,6 @@
-try:
-    # TODO
-    from subsystems.qcl.logger import Logger
+from subsystems.qcl.logger import Logger
 
-    _logger = Logger(subsystem='QCL')
-except ImportError:
-    _logger = None
+_logger = Logger(subsystem='QCL')
 
 
 class GaiaError(Exception):
