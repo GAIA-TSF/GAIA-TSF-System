@@ -1,10 +1,12 @@
-import pytest
 from pathlib import Path
 import os
+import re
+
 from shapely.wkt import loads
 from shapely.geometry import Polygon
 import numpy as np
-import re
+import pytest
+
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
