@@ -7,8 +7,7 @@ QCL_I_2  → VID: Health status events are pushed to the VID dashboard.
 """
 
 import pandas as pd
-import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from subsystems.qcl import QCLayer
 
@@ -21,7 +20,6 @@ _FAIL_DF = pd.DataFrame({'ph': [7.0, 15.5]}, index=[1, 2])  # pH > 14
 
 
 class TestActiveOutputInterfaces:
-
     # ------------------------------------------------------------------
     # QCL_I_1 – SDI
     # ------------------------------------------------------------------
