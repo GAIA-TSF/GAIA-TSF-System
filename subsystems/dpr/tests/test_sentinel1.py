@@ -65,13 +65,10 @@ class TestSentinel1Workflow:
         )
         assert len(results) > 0
 
-        config_eodag = str(
-            Path(__file__).parent.parent.parent / 'eou' / 'tests' / 'eodag_config.yml'
-        )
-        module.set_config(config_eodag)
-
-        output_directory = config['project']['data_dir']
+        output_directory = config['project']['data_dir'] # TODO -> GaiaBase
         data_path = None
+        ql_path = None
+
         try:
             data_path = module.download(
                 results[0], quicklook=False, output_dir=output_directory

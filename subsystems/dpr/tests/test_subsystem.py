@@ -1,4 +1,5 @@
 from subsystems.dpr import DataProcessing
+from lib.base import SubsystemId
 
 
 class TestSubsystem:
@@ -8,4 +9,4 @@ class TestSubsystem:
         Example of unit test.
         """
         subsystem = DataProcessing()
-        assert subsystem.id == 'DPR'
+        assert subsystem.sid == SubsystemId.DPR

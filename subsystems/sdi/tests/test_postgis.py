@@ -1,13 +1,14 @@
 import psycopg
 import pytest
 
-from config import DB_CONFIG_PG
+from lib.config import SettingsReader
 
 
 class TestPostGIS:
     @pytest.fixture(scope='module')
     def db_connection(self):
-        conn = psycopg.connect(**DB_CONFIG_PG)
+        settings = SettingsReader()
+        conn = psycopg.connect(**settings['sdi']['db'])
         yield conn
         conn.close()
 
