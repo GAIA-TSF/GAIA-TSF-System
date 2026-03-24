@@ -2,7 +2,7 @@ from insardev import Stack
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
-import rioxarray # noqa: F401
+import rioxarray  # noqa: F401
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -37,7 +37,7 @@ class Sentinel1Pipeline(BasePipeline):
     def __del__(self):
         try:
             if hasattr(self, 'client'):
-                if self.client.status != "closed":
+                if self.client.status != 'closed':
                     self.client.close()
         except Exception:
             pass
@@ -46,7 +46,7 @@ class Sentinel1Pipeline(BasePipeline):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if hasattr(self, 'client') and self.client and self.client.status != "closed":
+        if hasattr(self, 'client') and self.client and self.client.status != 'closed':
             self.client.close()
 
     def _search_bursts(self, aoi, start, end, direction):
@@ -324,12 +324,12 @@ class Sentinel1Pipeline(BasePipeline):
         dem_path = Path(dem_file)
         if dem_path.is_file():
             ds = xr.open_dataset(str(dem_path))
-            da = ds["dem"]
+            da = ds['dem']
             da = da.copy()
-            da.name = "dem"
+            da.name = 'dem'
             ds.close()
 
-            dem_onevar = dem_path.with_name(dem_path.stem + "_onevar.nc")
+            dem_onevar = dem_path.with_name(dem_path.stem + '_onevar.nc')
             da.to_netcdf(str(dem_onevar))
 
             if datadir.is_dir() and zarrdir.is_dir():
@@ -337,7 +337,9 @@ class Sentinel1Pipeline(BasePipeline):
                     self.s1 = S1(datadir, DEM=str(dem_onevar))
                     self.s1.transform(zarrdir, ref=self.ref_date, n_jobs=1)
                 else:
-                    raise NameError('No reference date found. Run _infer_ref_date() first.')
+                    raise NameError(
+                        'No reference date found. Run _infer_ref_date() first.'
+                    )
             else:
                 raise NameError('datadir or zarrdir or both do not exist.')
         else:
@@ -350,7 +352,7 @@ class Sentinel1Pipeline(BasePipeline):
         :param str utm: EPSG code of the UTM coordinate system (example: 'EPSG:32735').
         :return: None
         """
-        aoi_geom = gpd.GeoDataFrame(index=[0], crs="EPSG:4326", geometry=[aoi])
+        aoi_geom = gpd.GeoDataFrame(index=[0], crs='EPSG:4326', geometry=[aoi])
         centroid = aoi_geom.geometry.representative_point()
         self.centroid_utm = centroid.to_crs(utm)
         self.aoi_utm = aoi_geom.to_crs(utm)
@@ -362,7 +364,12 @@ class Sentinel1Pipeline(BasePipeline):
         :param str zarrdir: Path to zarr directory with georeferenced BURST data.
         :return: None
         """
-        self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+        self.client = Client(
+            silence_logs='CRITICAL',
+            n_workers=2,
+            threads_per_worker=2,
+            memory_limit='6GB',
+        )
         self.stack = Stack().load(zarrdir)
 
     def _crop_bursts(self):
@@ -374,12 +381,19 @@ class Sentinel1Pipeline(BasePipeline):
             raise NameError('self.aoi_utm is None. Run _get_geometries method first.')
         if self.stack is None:
             raise NameError('self.stack is None. Run _stack_bursts method first.')
-        if self.client is None or self.client.status == "closed":
-            self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
 
         buf_m = 200
         bounds = self.aoi_utm.buffer(buf_m).total_bounds
-        self.stack = self.stack.sel(x=slice(bounds[0], bounds[2]), y=slice(bounds[1], bounds[3]))
+        self.stack = self.stack.sel(
+            x=slice(bounds[0], bounds[2]), y=slice(bounds[1], bounds[3])
+        )
 
     def _compute_baseline(self, days):
         """Compute temporal/perpendicular baseline from stacked BURST data.
@@ -388,12 +402,17 @@ class Sentinel1Pipeline(BasePipeline):
         :return: None
         """
         if self.stack is None:
-            raise NameError('self.stack is None. Run _stack_bursts and _crop_bursts methods first.')
-        if self.client is None or self.client.status == "closed":
-            self.client = Client(silence_logs='CRITICAL', n_workers=2, threads_per_worker=2, memory_limit='6GB')
+            raise NameError(
+                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
+            )
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
         self.baseline = self.stack.baseline(days=days)
-
-
 
     def run(
         self,
