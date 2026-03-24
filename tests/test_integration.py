@@ -15,7 +15,8 @@ from subsystems.sdi.loader import EarthObservationDataLoader, InSituDataLoader
 
 
 def generate_eou_metadata_and_import(product_path, metadata_path, output_file_path):
-    module = MetadataGenerator(product_path)
+    module = MetadataGenerator()
+    module.set_datasource(product_path)
     module.stac.create_item()
     module.stac.save(metadata_path)
 
