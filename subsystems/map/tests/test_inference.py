@@ -69,7 +69,7 @@ class TestInferenceModule:
 
         # ignore warmup region where prediction is undefined
         # assert np.isfinite(residuals[predictor._look_back:]).all()
-        valid = residuals[predictor._look_back : -predictor._horizon + 1]
+        valid = residuals[predictor.look_back : -predictor.horizon + 1]
         assert np.isfinite(valid).all()
 
 

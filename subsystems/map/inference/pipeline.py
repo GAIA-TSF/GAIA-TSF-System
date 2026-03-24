@@ -109,9 +109,6 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
     model = create_model(learning, model_cfg, horizon) 
 
     # ============= TRAINING =============
-        bidirectional=model_cfg['bidirectional'],
-    )
-    
     # load trained model
     exp_dir = os.path.join(
         cfg['experiments']['root_dir'],
