@@ -25,7 +25,9 @@ class SdiOutputDispatcher:
         :param sdi_service: SDI service instance exposing ``store_qc_result()``.
         """
         if sdi_service is None:
-            self._logger.warning('[QCL_I_1] No SDI service configured. Skipping QC result storage.')
+            self._logger.warning(
+                '[QCL_I_1] No SDI service configured. Skipping QC result storage.'
+            )
             return
         sdi_service.store_qc_result(qc_result)
         self._logger.info(
@@ -58,7 +60,9 @@ class NotificationDispatcher:
         :param notification_service: NTF service instance exposing ``send_alert()``.
         """
         if notification_service is None:
-            self._logger.warning('[QC_IR_04] No notification service configured. Skipping alert.')
+            self._logger.warning(
+                '[QC_IR_04] No notification service configured. Skipping alert.'
+            )
             return
         if status == 'Fail':
             notification_service.send_alert(
@@ -89,7 +93,9 @@ class VidOutputDispatcher:
         :param vid_service: VID service instance exposing ``push_status()``.
         """
         if vid_service is None:
-            self._logger.warning('[QCL_I_2] No VID service configured. Skipping dashboard update.')
+            self._logger.warning(
+                '[QCL_I_2] No VID service configured. Skipping dashboard update.'
+            )
             return
         status_event = {
             'dataset_id': qc_result.get('dataset_id'),
