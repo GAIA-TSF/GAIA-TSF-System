@@ -2,6 +2,7 @@ from subsystems.qcl.logger import Logger
 
 _logger = Logger(subsystem='QCL')
 
+
 class GaiaError(Exception):
     def __init__(self, msg: str):
         """Initialize generic GaiaError.
@@ -10,15 +11,16 @@ class GaiaError(Exception):
         """
         _logger.critical(msg)
 
+
 class GaiaConfigError(GaiaError):
-    """Configuration error.
-    """
+    """Configuration error."""
+
     pass
 
+
 class GaiaUnsupportedDataError(GaiaError):
-    """Unsupported data source or operation.
-    """
+    """Unsupported data source or operation."""
+
 
 class GaiaReadDataError(GaiaError):
-    """Read / Parse data error.
-    """
+    """Read / Parse data error."""
