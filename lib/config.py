@@ -8,6 +8,7 @@ from shapely.errors import ShapelyError
 
 from lib.exceptions import GaiaConfigError
 
+
 class ConfigReader(dict):
     def __init__(self, config_path: str):
         """Initialize config reader.
@@ -140,7 +141,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         self.validate(dict(self))
         if self.is_valid() is False:
-            raise GaiaConfigError(f"{config_path}: {';'.join(self.errors)}")
+            raise GaiaConfigError(f'{config_path}: {";".join(self.errors)}')
 
 
 class SettingsReader(ConfigReader):
