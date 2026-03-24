@@ -11,17 +11,40 @@ class QCLayer(GaiaBase):
     GAIA-TSF Unified Quality Control Gateway.
 
     This class serves as the public-facing interface (Facade) for the
-    Quality Control subsystem. It safely encapsulates the complex rule
-    routing and lineage logging mechanisms.
+    Quality Control subsystem. It encapsulates rule routing, lineage logging,
+    and all active output dispatching.
+
+    Active output interfaces:
+    - **QCL_I_1 → SDI**: Quality metrics and results are pushed to SDI after
+      every validation cycle via ``sdi_service.store_qc_result()``.
+    - **QC_IR_04 → NTF**: Failures and warnings actively trigger the Notification
+      Service via ``notification_service.send_alert()``.
+    - **QCL_I_2 → VID**: System health status is pushed to the Visualisation
+      Dashboard via ``vid_service.push_status()`` after every validation cycle.
+
+    :param sdi_service: Optional SDI service instance (QCL_I_1).
+    :type sdi_service: Any
+    :param notification_service: Optional Notification Service instance (QC_IR_04).
+    :type notification_service: Any
+    :param vid_service: Optional VID dashboard service instance (QCL_I_2).
+    :type vid_service: Any
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        sdi_service: Any = None,
+        notification_service: Any = None,
+        vid_service: Any = None,
+    ):
         """
-        Initializes the QC Layer by setting up the underlying rule repositories,
-        catalogs, and loggers invisibly to the end user.
+        Initializes the QC Layer and wires active output services.
         """
         super().__init__(SubsystemId.QCL)
-        self._engine = QualityControlLoggingLayer()
+        self._engine = QualityControlLoggingLayer(
+            sdi_service=sdi_service,
+            notification_service=notification_service,
+            vid_service=vid_service,
+        )
 
     def check(
         self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str
