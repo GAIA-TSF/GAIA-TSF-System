@@ -7,6 +7,103 @@ from .logger import Logger
 from lib.base import GaiaBase, SubsystemId
 
 
+class SdiOutputDispatcher:
+    """
+    QCL_I_1: Actively pushes QC results and quality metrics to SDI after each
+    validation cycle. SDI receives a structured record for auditability and
+    traceability.
+    """
+
+    def __init__(self, logger_instance: Logger):
+        self._logger = logger_instance
+
+    def dispatch(self, qc_result: Dict[str, Any], sdi_service: Any) -> None:
+        """
+        Push the QC result record to SDI.
+
+        :param qc_result: Full QC result dict (dataset_id, final_status, metrics, errors).
+        :param sdi_service: SDI service instance exposing ``store_qc_result()``.
+        """
+        if sdi_service is None:
+            self._logger.warning('[QCL_I_1] No SDI service configured. Skipping QC result storage.')
+            return
+        sdi_service.store_qc_result(qc_result)
+        self._logger.info(
+            f'[QCL_I_1] QC result for {qc_result.get("dataset_id")} stored in SDI.'
+        )
+
+
+class NotificationDispatcher:
+    """
+    QC_IR_04: Actively triggers the Notification Service (NTF) when QC detects
+    failures or warnings. Fires on every Fail or Warn — does not wait to be asked.
+    """
+
+    def __init__(self, logger_instance: Logger):
+        self._logger = logger_instance
+
+    def dispatch(
+        self,
+        dataset_id: str,
+        status: str,
+        errors: List[str],
+        notification_service: Any,
+    ) -> None:
+        """
+        Send an alert via NTF for Fail or Warn outcomes.
+
+        :param dataset_id: Unique identifier of the dataset that triggered the alert.
+        :param status: QC outcome — ``'Fail'`` or ``'Warn'``.
+        :param errors: List of error/warning messages to include in the alert.
+        :param notification_service: NTF service instance exposing ``send_alert()``.
+        """
+        if notification_service is None:
+            self._logger.warning('[QC_IR_04] No notification service configured. Skipping alert.')
+            return
+        if status == 'Fail':
+            notification_service.send_alert(
+                dataset_id=dataset_id, errors=errors, severity='critical'
+            )
+            self._logger.info(f'[QC_IR_04] Critical alert sent for {dataset_id}.')
+        elif status == 'Warn':
+            notification_service.send_alert(
+                dataset_id=dataset_id, errors=errors, severity='warning'
+            )
+            self._logger.info(f'[QC_IR_04] Warning alert sent for {dataset_id}.')
+
+
+class VidOutputDispatcher:
+    """
+    QCL_I_2: Actively pushes system health status and QC events to the VID
+    (Visualisation Dashboard) after every validation cycle.
+    """
+
+    def __init__(self, logger_instance: Logger):
+        self._logger = logger_instance
+
+    def dispatch(self, qc_result: Dict[str, Any], vid_service: Any) -> None:
+        """
+        Push a health status event to the VID dashboard.
+
+        :param qc_result: Full QC result dict to derive the status event from.
+        :param vid_service: VID service instance exposing ``push_status()``.
+        """
+        if vid_service is None:
+            self._logger.warning('[QCL_I_2] No VID service configured. Skipping dashboard update.')
+            return
+        status_event = {
+            'dataset_id': qc_result.get('dataset_id'),
+            'status': qc_result.get('final_status'),
+            'metrics': qc_result.get('metrics'),
+            'errors': qc_result.get('errors'),
+            'timestamp': datetime.datetime.now().isoformat(),
+        }
+        vid_service.push_status(status_event)
+        self._logger.info(
+            f'[QCL_I_2] Health status for {qc_result.get("dataset_id")} pushed to VID.'
+        )
+
+
 class RuleRepository:
     """
     Rule Repository module to define thresholds specific to each data type.
@@ -214,7 +311,12 @@ class QualityControlLoggingLayer(GaiaBase):
     processes and the Spatial Data Infrastructure (SDI) storage.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        sdi_service: Any = None,
+        notification_service: Any = None,
+        vid_service: Any = None,
+    ):
         super().__init__(SubsystemId.QCL)
 
         self._rule_repo = RuleRepository()
@@ -235,6 +337,16 @@ class QualityControlLoggingLayer(GaiaBase):
             self.logger,
         )
 
+        # Active output dispatchers (QCL_I_1, QC_IR_04, QCL_I_2)
+        self._sdi_dispatcher = SdiOutputDispatcher(self.logger)
+        self._notification_dispatcher = NotificationDispatcher(self.logger)
+        self._vid_dispatcher = VidOutputDispatcher(self.logger)
+
+        # Injected downstream service references
+        self._sdi_service = sdi_service
+        self._notification_service = notification_service
+        self._vid_service = vid_service
+
     def process_incoming_data(
         self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Dict[str, Any]:
@@ -249,16 +361,30 @@ class QualityControlLoggingLayer(GaiaBase):
         # Always log lineage
         self._lineage_logger.log(dataset_id, actions, status)
 
-        # Trigger notification on critical failure
+        # Trigger notification on critical failure (legacy internal log)
         if status == 'Fail':
             self._notifier.send_alert(dataset_id, errors)
 
-        return {
+        qc_result = {
             'dataset_id': dataset_id,
             'final_status': status,
             'metrics': metrics,
             'errors': errors,
         }
+
+        # --- Active outputs ---
+        # QCL_I_1: Push QC result to SDI
+        self._sdi_dispatcher.dispatch(qc_result, self._sdi_service)
+
+        # QC_IR_04: Trigger NTF alert on Fail or Warn
+        self._notification_dispatcher.dispatch(
+            dataset_id, status, errors, self._notification_service
+        )
+
+        # QCL_I_2: Push health status to VID dashboard
+        self._vid_dispatcher.dispatch(qc_result, self._vid_service)
+
+        return qc_result
 
     def manual_review(
         self, dataset_id: str, action: str, new_status: str = None
