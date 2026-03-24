@@ -71,7 +71,8 @@ class TestModules:
 
         Check GaiaUnsupportedDataError for unsupported data source.
         """
+        module = MetadataGenerator()
         with pytest.raises(GaiaUnsupportedDataError):
-            MetadataGenerator(
+            module.set_datasource(
                 Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json'
             )
