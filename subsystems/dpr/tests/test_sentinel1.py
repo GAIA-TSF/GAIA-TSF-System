@@ -67,7 +67,6 @@ class TestSentinel1Workflow:
 
         output_directory = config['project']['data_dir'] # TODO -> GaiaBase
         data_path = None
-        ql_path = None
 
         try:
             data_path = module.download(
