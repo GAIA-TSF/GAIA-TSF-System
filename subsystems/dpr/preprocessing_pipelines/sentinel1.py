@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from insardev import Stack
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
@@ -5,7 +7,6 @@ import xarray as xr
 import rioxarray  # noqa: F401
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import geopandas as gpd
 from dask.distributed import Client
 
