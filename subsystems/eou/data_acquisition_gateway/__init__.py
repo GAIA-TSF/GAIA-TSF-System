@@ -6,14 +6,17 @@ if TYPE_CHECKING:
     from eodag_cube.api.product._product import EOProduct
 
 from lib.exceptions import GaiaUnsupportedDataError
+from lib.base import GaiaBase, SubsystemId
 
 
-class DataAcquisitionGateway:
+class DataAcquisitionGateway(GaiaBase):
     """Data Acquisition Gateway module serves as the automated
     ingestion engine for the sub-system.
     """
 
     def __init__(self, backend: str = 'eodag'):
+        super().__init__(SubsystemId.EOU)
+
         if backend == 'eodag':
             from subsystems.eou.data_acquisition_gateway.eodag_backend import (
                 EODAGDataAcquisitionBackend as DataAcquisitionBackend,
@@ -24,6 +27,8 @@ class DataAcquisitionGateway:
             )
 
         self._backend = DataAcquisitionBackend()
+        # TBD: raise GaiaSettingsError
+        self._backend.set_config(self.settings['eou']['eodag'])
 
     def search(
         self, provider: str, start: str, end: str, geom: str, **kwargs
@@ -43,6 +48,9 @@ class DataAcquisitionGateway:
         :return: a collection of EO products matching the criteria
         :rtype: SearchResult
         """
+        self.logger.info(
+            f'Search filter: {provider} | {start} | {end} | {geom} | {kwargs}'
+        )
         return self._backend.search(provider, start, end, geom, **kwargs)
 
     def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
@@ -55,11 +63,3 @@ class DataAcquisitionGateway:
         :rtype: str
         """
         return self._backend.download(product, quicklook=quicklook, **kwargs)
-
-    def set_config(self, config_file: str) -> None:
-        """Set configuration options for data acquisition backend.
-
-        :param str config_file: Configuration file path
-        :return: None
-        """
-        self._backend.set_config(config_file)

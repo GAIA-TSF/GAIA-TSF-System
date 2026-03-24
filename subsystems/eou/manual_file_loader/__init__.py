@@ -5,8 +5,10 @@ from osgeo import gdal, osr
 
 gdal.UseExceptions()
 
+from lib.base import GaiaBase, SubsystemId
 
-class ManualFileLoader:
+
+class ManualFileLoader(GaiaBase):
     """Manual File Loader module for handling data from restricted
     sources or specific datasets that are not available through
     standard APIs. It provides an interface for operators to upload
@@ -14,7 +16,7 @@ class ManualFileLoader:
     """
 
     def __init__(self):
-        pass
+        super().__init__(SubsystemId.EOU)
 
     def check_file_validity(self, file_path: str) -> dict:
         """Open file using GDAL library and perform file validity
@@ -36,6 +38,7 @@ class ManualFileLoader:
         :return: result dictionary
         :rtype: dict
         """
+        self.logger.info(f'Performing file validity check for {file_path}')
         result = {'path': str(file_path), 'valid': True, 'errors': [], 'warnings': []}
 
         if not Path(file_path).exists():
@@ -102,5 +105,10 @@ class ManualFileLoader:
 
         if result['errors']:
             result['valid'] = False
+            self.logger.info(
+                f'File validity check failed: {";".join(result["errors"])}'
+            )
+        else:
+            self.logger.info('File validity check: no issues detected')
 
         return result

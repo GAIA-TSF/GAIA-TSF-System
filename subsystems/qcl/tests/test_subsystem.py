@@ -1,7 +1,9 @@
 import pytest
 import pandas as pd
-from qcl.layer import QualityControlLoggingLayer
-from qcl import QCLayer
+from subsystems.qcl.layer import QualityControlLoggingLayer
+from subsystems.qcl import QCLayer
+
+from lib.base import SubsystemId
 
 
 class TestSubsystem:
@@ -10,7 +12,7 @@ class TestSubsystem:
         Example of unit test.
         """
         subsystem = QualityControlLoggingLayer()
-        assert subsystem.id == 'QCL'
+        assert subsystem.sid == SubsystemId.QCL
 
     # 1.Test Cases for insitu
     def test_in_situ_pass(self):

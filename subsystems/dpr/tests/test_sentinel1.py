@@ -33,11 +33,6 @@ class TestSentinel1Workflow:
 
         assert len(results) > 0
 
-        config_eodag = str(
-            Path(__file__).parent.parent.parent / 'eou' / 'tests' / 'eodag_config.yml'
-        )
-        module.set_config(config_eodag)
-
         ql_path = None
         try:
             ql_path = module.download(results[0], quicklook=True)

@@ -1,10 +1,10 @@
 from typing import Any, Dict, List
 
 import yaml
+from pathlib import Path
 
 from shapely import wkt
 from shapely.errors import ShapelyError
-from pathlib import Path
 
 from lib.exceptions import GaiaConfigError
 
@@ -17,7 +17,7 @@ class ConfigReader(dict):
         self.config_path = config_path
         super().__init__()
 
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, 'r', encoding='utf-8') as f:
             _config = yaml.safe_load(f)
             self.update(_config)
 
@@ -40,19 +40,12 @@ class YamlValidator:
         """
         self.errors = []
         self._validate_recursive(
-            schema=self.required_options,
-            data=config,
-            path="",
-            errors=self.errors
+            schema=self.required_options, data=config, path='', errors=self.errors
         )
         return self.errors
 
     def _validate_recursive(
-        self,
-        schema: Dict[str, Any],
-        data: Dict[str, Any],
-        path: str,
-        errors: List[str]
+        self, schema: Dict[str, Any], data: Dict[str, Any], path: str, errors: List[str]
     ):
         """
         Recursively validate a configuration dictionary against a required schema.
@@ -83,7 +76,7 @@ class YamlValidator:
         :rtype: None
         """
         for key, opt in schema.items():
-            current_path = f"{path}.{key}" if path else key
+            current_path = f'{path}.{key}' if path else key
 
             # check key
             if key not in data:
@@ -95,27 +88,16 @@ class YamlValidator:
             # if nested structure is required
             if isinstance(opt, dict):
                 if not isinstance(value, dict):
-                    errors.append(
-                        f"Key '{current_path}' must be a dictionary."
-                    )
+                    errors.append(f"Key '{current_path}' must be a dictionary.")
                 else:
-                    self._validate_recursive(
-                        opt,
-                        value,
-                        current_path,
-                        errors
-                    )
+                    self._validate_recursive(opt, value, current_path, errors)
 
             # opt == None -> only check existence
             if value is None:
-                errors.append(
-                    f"Key '{current_path}' must not be None."
-                )
-            if key == "geom":
+                errors.append(f"Key '{current_path}' must not be None.")
+            if key == 'geom':
                 if self._is_valid_wkt(value) is False:
-                    errors.append(
-                        f"Geometry in '{current_path}' is not valid."
-                    )
+                    errors.append(f"Geometry in '{current_path}' is not valid.")
 
     @staticmethod
     def _is_valid_wkt(wkt_string: str) -> bool:
@@ -144,6 +126,7 @@ class YamlValidator:
         """
         return len(self.errors) < 1
 
+
 class ProjectConfigReader(ConfigReader, YamlValidator):
     def __init__(self, config_path: str | Path):
         """Initialize project config reader.
@@ -153,15 +136,15 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         :param str config_path: path to config file
         """
         ConfigReader.__init__(self, config_path)
-        YamlValidator.__init__(self, {
-            'project': {
-                'name': None,
-                'aoi': {
-                    'geom': None
-                }
-            }
-        })
+        YamlValidator.__init__(self, {'project': {'name': None, 'aoi': {'geom': None}}})
 
         self.validate(dict(self))
         if self.is_valid() is False:
             raise GaiaConfigError(f"{config_path}: {';'.join(self.errors)}")
+
+
+class SettingsReader(ConfigReader):
+    """Get internal system settings."""
+
+    def __init__(self):
+        super().__init__(Path(__file__).parent.parent / 'config.yaml')

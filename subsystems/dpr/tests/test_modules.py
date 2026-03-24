@@ -49,7 +49,8 @@ class TestModules:
                 del item_dict['properties']['datetime']
             return item_dict
 
-        module = MetadataGenerator(
+        module = MetadataGenerator()
+        module.set_datasource(
             Path(__file__).parent.parent.parent
             / 'eou'
             / 'tests'
