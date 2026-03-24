@@ -1,9 +1,11 @@
 try:
     # TODO
     from subsystems.qcl.logger import Logger
+
     _logger = Logger(subsystem='QCL')
 except ImportError:
     _logger = None
+
 
 class GaiaError(Exception):
     def __init__(self, msg: str):
