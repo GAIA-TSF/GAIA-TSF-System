@@ -65,7 +65,7 @@ class TestSentinel1Workflow:
         )
         assert len(results) > 0
 
-        output_directory = config['project']['data_dir'] # TODO -> GaiaBase
+        output_directory = config['project']['data_dir']  # TODO -> GaiaBase
         data_path = None
 
         try:
