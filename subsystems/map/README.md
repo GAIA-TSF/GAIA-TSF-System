@@ -52,7 +52,7 @@ Registering is done automatically by lstm_learning.py
 ```
 
 6. Run monitoring inference 
-TODO: remote learning, use trained model. 
+TODO: remove learning, use trained model. 
 ``` 
 python3 -m subsystems.map.inference.lstm_inference --dataset synthetic
 ```

@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------
+# Project paths
+# ---------------------------------------------------------------------
+project:
+  root_dir: /Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_demo
+
+data:
+  raw:
+    shapefiles: amd_data/shapefiles
+    rasters: amd_data/sentinel2_scenes
+
+  processed:
+    features: amd_results/features
+    models: amd_results/models
+    outputs: amd_results/maps
+
+# ---------------------------------------------------------------------
+# Data source
+# ---------------------------------------------------------------------
+github:
+  repo: rawmatcop/amd
+  commit: 8170d47ecd42b61173b23172debe42172b198897
+  subdir: shapefiles
+
+# ---------------------------------------------------------------------
+# Attributes
+# ---------------------------------------------------------------------
+fields:
+  class_name: Name
