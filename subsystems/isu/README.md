@@ -74,3 +74,5 @@ isu:
 Automated Testing
 To run the tests, execute the following command in your terminal:
 python -m pytest subsystems/isu/tests/ -v -p no:cacheprovider --basetemp=test_tmp
+
+![In-Situ Data Uploader Architecture](../../images/isu_subsystem.png)
