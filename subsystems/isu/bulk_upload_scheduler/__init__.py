@@ -27,7 +27,7 @@ class BulkUploadScheduler(GaiaBase):
         """
         Initialize the Bulk Upload Scheduler using GaiaBase.
         """
-        # Step 1: Initialize base class and register as an ISU (In-Situ Unit) component
+        # Step 1: Initialize base class and register as an ISU component
         super().__init__(SubsystemId.ISU, project_file=project_file)
 
         self.etl_engine = etl_engine
