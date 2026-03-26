@@ -1,9 +1,9 @@
-
-import yaml 
+import yaml
 import torch
 
 """Utils for MAp module. 
 """
+
 
 def _load_config(path: str) -> dict:
     with open(path, 'r', encoding='utf-8') as file:

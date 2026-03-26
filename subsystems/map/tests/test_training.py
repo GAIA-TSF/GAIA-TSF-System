@@ -1,7 +1,7 @@
-import sys 
+import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[3])) 
+sys.path.append(str(Path(__file__).resolve().parents[3]))
 
 import torch
 from subsystems.map.learning.lstm_model import LstmModel
@@ -68,4 +68,4 @@ class TestLSTMTraining:
 
         loss = trainer.train_epoch(loader)
 
-        assert loss >= 0 
+        assert loss >= 0

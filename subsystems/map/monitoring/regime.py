@@ -1,8 +1,7 @@
-
 import numpy as np
 
-def resolve_regime(s_pos, s_neg, persistence, h):
 
+def resolve_regime(s_pos, s_neg, persistence, h):
     n = len(s_pos)
 
     acc = np.zeros(n, dtype=bool)
@@ -10,7 +9,6 @@ def resolve_regime(s_pos, s_neg, persistence, h):
     osc = np.zeros(n, dtype=bool)
 
     for t in range(n):
-
         # oscillatory = never a regime
         if persistence[t] < 0.35:
             osc[t] = True

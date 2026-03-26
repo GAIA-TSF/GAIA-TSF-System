@@ -1,4 +1,4 @@
-import os 
+import os
 import argparse
 import yaml
 import itertools
@@ -7,9 +7,9 @@ import numpy as np
 from subsystems.map.utils.utils import _load_config
 from .validate_lstm import run_validation
 
+
 # experiment folder
 def _create_experiment_dir(cfg):
-
     root = cfg['experiments']['root_dir']
     name = cfg['experiments']['name']
 
@@ -19,12 +19,10 @@ def _create_experiment_dir(cfg):
 
     return exp_dir
 
+
 # ============= ARGUMENT PARSING =============
 def _parse_arguments():
-
-    parser = argparse.ArgumentParser(
-        description='Run LSTM hyperparameter tuning'
-    )
+    parser = argparse.ArgumentParser(description='Run LSTM hyperparameter tuning')
 
     parser.add_argument(
         '--dataset',
@@ -44,16 +42,11 @@ def _parse_arguments():
     return parser.parse_args()
 
 
-
 # ============= GRID SEARCH =============
 def grid_search(dataset_name, config_path, tuning_cfg):
-
     cfg = _load_config(config_path)
 
-    exp_dir = os.path.join(
-        cfg['experiments']['root_dir'],
-        cfg['experiments']['name']
-    )
+    exp_dir = os.path.join(cfg['experiments']['root_dir'], cfg['experiments']['name'])
 
     os.makedirs(exp_dir, exist_ok=True)
 
@@ -74,7 +67,6 @@ def grid_search(dataset_name, config_path, tuning_cfg):
     results = []
 
     for combo in itertools.product(*param_values):
-
         params = dict(zip(param_names, combo))
 
         print('\nTesting configuration')
@@ -84,7 +76,7 @@ def grid_search(dataset_name, config_path, tuning_cfg):
             dataset_name,
             config_path,
             override_params=params,
-            save_results=False, 
+            save_results=False,
         )
 
         mean_loss = np.mean(fold_losses)
@@ -98,11 +90,9 @@ def grid_search(dataset_name, config_path, tuning_cfg):
         )
 
         if mean_loss < best_loss:
-
             best_loss = mean_loss
             best_params = params
             # model_path = os.path.join(exp_dir, cfg['experiments']['model_file'])
-
 
     print('\nBest configuration')
     print(best_params)
@@ -111,7 +101,7 @@ def grid_search(dataset_name, config_path, tuning_cfg):
 
     with open(best_params_path, 'w') as f:
         json.dump(best_params, f, indent=2)
-    
+
     results.append(
         {
             'params': params,
@@ -125,7 +115,6 @@ def grid_search(dataset_name, config_path, tuning_cfg):
 
 # ============= MAIN =============
 def main():
-
     args = _parse_arguments()
 
     cfg = _load_config(args.config)
@@ -147,7 +136,7 @@ def main():
 
     with open(config_copy, 'w') as f:
         yaml.dump(cfg, f)
-    
+
     output = {
         'best_params': best_params,
         'results': results,
@@ -164,4 +153,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-   

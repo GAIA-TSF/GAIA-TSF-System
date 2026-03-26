@@ -1,12 +1,8 @@
-
-
 def expanding_window_splits(n, look_back, horizon, folds=3):
-
     fold_size = n // (folds + 1)
     splits = []
 
     for k in range(1, folds + 1):
-
         train_end = fold_size * k
         test_end = train_end + fold_size
 

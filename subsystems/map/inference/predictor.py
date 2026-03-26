@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import torch.nn as nn 
+import torch.nn as nn
 
 """
 This class runs sliding-window inference and reconstructs 
@@ -11,41 +11,40 @@ a continuous prediction series.
 class Predictor:
     """
     Runs probabilistic inference using MC Dropout.
-    Produces prediction mean and uncertainty band. 
+    Produces prediction mean and uncertainty band.
     """
 
     def __init__(
-            self,
-            model: torch.nn.Module,
-            device: torch.device,
-            look_back: int,
-            horizon: int,
-            mc_samples: int,
-            sigma_threshold: float,
-            warmup_factor: int,
-            calibration_fraction: float,
-            persistence: int,
-            use_model_uncertainty: bool,
-        ):
-            self.model = model.to(device)
-            self.device = device
+        self,
+        model: torch.nn.Module,
+        device: torch.device,
+        look_back: int,
+        horizon: int,
+        mc_samples: int,
+        sigma_threshold: float,
+        warmup_factor: int,
+        calibration_fraction: float,
+        persistence: int,
+        use_model_uncertainty: bool,
+    ):
+        self.model = model.to(device)
+        self.device = device
 
-            self.look_back = look_back
-            self.horizon = horizon
+        self.look_back = look_back
+        self.horizon = horizon
 
-            self._mc_samples = mc_samples
-            self._sigma_threshold = sigma_threshold
+        self._mc_samples = mc_samples
+        self._sigma_threshold = sigma_threshold
 
-            # monitoring parameters
-            self._warmup_factor = warmup_factor
-            self._calibration_fraction = calibration_fraction
-            self._persistence = persistence
-            self._use_model_uncertainty = use_model_uncertainty
+        # monitoring parameters
+        self._warmup_factor = warmup_factor
+        self._calibration_fraction = calibration_fraction
+        self._persistence = persistence
+        self._use_model_uncertainty = use_model_uncertainty
 
-            # learned later
-            self._monitor_start = None
-            self._baseline_sigma = None
-
+        # learned later
+        self._monitor_start = None
+        self._baseline_sigma = None
 
     # Enable MC dropout during inference
     def _enable_dropout(self):
@@ -54,7 +53,6 @@ class Predictor:
                 module.train()
 
     def _compute_monitoring_regions(self, series_length):
-
         warmup = self._warmup_factor * self.look_back
         calibration = int(self._calibration_fraction * series_length)
 
@@ -66,9 +64,8 @@ class Predictor:
         print(f' Warmup end:       {warmup}')
         print(f' Calibration end:  {monitor_start}')
         print(f' Monitoring start: {monitor_start}')
-    
-    def _fit_baseline(self, residuals):
 
+    def _fit_baseline(self, residuals):
         warmup = self._warmup_factor * self.look_back
         calib_end = self._monitor_start
 
@@ -78,18 +75,16 @@ class Predictor:
 
         print(f'[Baseline] residual σ = {self._baseline_sigma:.4f}')
 
-
     def predict_series(
         self,
         displacement: np.ndarray,
-    ):        
+    ):
         """Predict entire series using sliding windows."""
 
         mean_pred = np.full(len(displacement), np.nan)
         std_pred = np.full(len(displacement), np.nan)
 
         for i in range(len(displacement) - self.look_back - self.horizon):
-
             window = displacement[i : i + self.look_back]
 
             inputs = (
@@ -112,8 +107,8 @@ class Predictor:
 
             mean_forecast = samples.mean(axis=0)
             std_forecast = samples.std(axis=0)
-            
-            # add minimum uncertainty (noise floor - HARD CODED) 
+
+            # add minimum uncertainty (noise floor - HARD CODED)
             # Why? Because even a perfect model cannot predict measurement noise.
             # Without this, probabilistic detection is meaningless.
             noise_floor = 0.35  # ~ measurement noise of InSAR-like signal
@@ -121,10 +116,10 @@ class Predictor:
 
             idx = i + self.look_back
 
-            # average overlapping predictions with accumulation 
+            # average overlapping predictions with accumulation
             counts = np.zeros(len(displacement))
             mean_sum = np.zeros(len(displacement))
-            var_sum = np.zeros(len(displacement)) 
+            var_sum = np.zeros(len(displacement))
 
             for j in range(self.horizon):
                 t = idx + j
@@ -142,7 +137,7 @@ class Predictor:
     def anomaly_score(self, residuals):
         residuals = np.asarray(residuals)
 
-        # === calibration phase ===  
+        # === calibration phase ===
         n_calib = int(len(residuals) * self._calibration_fraction)
         calib_res = residuals[:n_calib]
 
@@ -154,10 +149,8 @@ class Predictor:
         # optional persistence smoothing
         if self._persistence > 1:
             z_smoothed = np.convolve(
-                np.abs(z),
-                np.ones(self._persistence) / self._persistence,
-                mode='same'
-            ) 
+                np.abs(z), np.ones(self._persistence) / self._persistence, mode='same'
+            )
         else:
             z_smoothed = np.abs(z)
 
@@ -170,7 +163,7 @@ class Predictor:
     ):
         residuals = observations - predictions
         return residuals
-    
+
     @staticmethod
     def compute_velocity_residuals(
         observations: np.ndarray,
@@ -191,12 +184,11 @@ class Predictor:
         return obs_v - pred_v
 
     def detect_anomaly(self, residuals, std_pred):
-
-        dd = np.abs(residuals) 
+        dd = np.abs(residuals)
 
         # reduce horizon dimension
         if dd.ndim > 1:
-            dd = np.mean(dd, axis=0)  
+            dd = np.mean(dd, axis=0)
 
         # threshold selection
         if self._use_model_uncertainty:
@@ -214,20 +206,20 @@ class Predictor:
             )
 
         if threshold.ndim > 1:
-            threshold = np.mean(threshold, axis=0) 
+            threshold = np.mean(threshold, axis=0)
 
         anomaly_mask = dd > threshold
 
         # disable detection before monitoring
         # anomaly_mask[:self._monitor_start] = False
 
-        # keep NaNs from breaking persistence 
+        # keep NaNs from breaking persistence
         anomaly_mask[np.isnan(dd)] = False
 
         # persistence rule
         for i in range(len(anomaly_mask)):
             if anomaly_mask[i]:
-                window = anomaly_mask[i:i+self._persistence]
+                window = anomaly_mask[i : i + self._persistence]
                 if np.sum(window) < self._persistence:
                     anomaly_mask[i] = False
 

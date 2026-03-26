@@ -4,13 +4,11 @@ from datetime import datetime
 
 
 class ModelRegistry:
-
     def __init__(self, registry_path):
         self.registry_path = registry_path
 
         # ensure directory exists
-        os.makedirs(os.path.dirname(registry_path), 
-                    exist_ok=True) 
+        os.makedirs(os.path.dirname(registry_path), exist_ok=True)
 
         if not os.path.exists(registry_path):
             with open(registry_path, 'w') as f:
@@ -25,11 +23,10 @@ class ModelRegistry:
         metrics,
         version='1.0',
     ):
-
         with open(self.registry_path) as f:
             registry = json.load(f)
 
-        model_id = f'model_{len(registry)+1}'
+        model_id = f'model_{len(registry) + 1}'
 
         entry = {
             'model_id': model_id,
@@ -49,7 +46,7 @@ class ModelRegistry:
 
         return entry
 
-    @staticmethod 
+    @staticmethod
     def load_latest_model(exp_dir):
         """
         Load latest registered model from registry.
@@ -59,9 +56,7 @@ class ModelRegistry:
         registry_file = os.path.join(exp_dir, 'model_registry.json')
 
         if not os.path.exists(registry_file):
-            raise RuntimeError(
-                f'No model registry found in {exp_dir}'
-            )
+            raise RuntimeError(f'No model registry found in {exp_dir}')
 
         with open(registry_file) as f:
             registry = json.load(f)
@@ -74,4 +69,3 @@ class ModelRegistry:
         model_path = os.path.join(exp_dir, latest['model_file'])
 
         return model_path, latest
-    

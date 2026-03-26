@@ -1,12 +1,16 @@
-import os 
+import os
 import yaml
 import torch
 
 from subsystems.map.utils.utils import _load_config, _select_device
 from subsystems.map.utils.builders import create_dataloaders, create_model
-from ..dataset.insar import create_synthetic_insar_dataset, create_mirmazloumi_2023_dataset
+from ..dataset.insar import (
+    create_synthetic_insar_dataset,
+    create_mirmazloumi_2023_dataset,
+)
 from ..learning import LearningModule
 from . import InferenceModule
+
 # from .monitoring_runner import run_monitoring
 from subsystems.map.monitoring.runner import run_monitoring
 from subsystems.map.evaluation.plots import plot_results
@@ -16,6 +20,7 @@ from subsystems.map.registry.model_registry import ModelRegistry
 """
 Core ML orchestration. 
 """
+
 
 def _build_indices(dataset, split_name, look_back, horizon):
     split = dataset.split_info[split_name]
@@ -29,8 +34,8 @@ def _build_indices(dataset, split_name, look_back, horizon):
 
     return indices
 
-def _load_experiment_config(cfg):
 
+def _load_experiment_config(cfg):
     exp_dir = os.path.join(
         cfg['experiments']['root_dir'],
         cfg['experiments']['name'],
@@ -39,18 +44,14 @@ def _load_experiment_config(cfg):
     exp_config_path = os.path.join(exp_dir, 'config_used.yaml')
 
     if not os.path.exists(exp_config_path):
-        raise RuntimeError(
-            f'Experiment config not found: {exp_config_path}'
-        )
+        raise RuntimeError(f'Experiment config not found: {exp_config_path}')
 
     with open(exp_config_path, 'r') as f:
         return yaml.safe_load(f)
 
 
-
 # ============= MAIN EXPERIMENT =============
 def run_lstm_experiment(dataset_name: str, config_path: str):
-
     # cfg = _load_config(config_path)
 
     # model_cfg = cfg['model']
@@ -71,16 +72,13 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
     monitor_cfg = cfg['monitoring']
     infer_cfg = cfg['inference']
 
-
     device = _select_device(trainer_cfg['device'])
 
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
-
-
     # ============= DATASET =============
-    
+
     if dataset_name == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
@@ -100,23 +98,19 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
         dataset,
         _build_indices(dataset, 'train', look_back, horizon),
         _build_indices(dataset, 'test', look_back, horizon),
-        trainer_cfg['batch_size']
+        trainer_cfg['batch_size'],
     )
-
 
     # ============= TRAINING =============
     learning = LearningModule()
-    
-    model = create_model(learning, model_cfg, horizon) 
+
+    model = create_model(learning, model_cfg, horizon)
 
     # ============= TRAINING =============
     # load trained model
-    exp_dir = os.path.join(
-        cfg['experiments']['root_dir'],
-        cfg['experiments']['name']
-    )
-    
-    # redundant? 
+    exp_dir = os.path.join(cfg['experiments']['root_dir'], cfg['experiments']['name'])
+
+    # redundant?
     model_path = os.path.join(exp_dir, cfg['experiments']['model_file'])
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
@@ -137,13 +131,8 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
         if epoch % 20 == 0:
             print(f'Epoch {epoch:03d} | train {train_loss:.4f} | test {test_loss:.4f}')
 
-
-
     # ============= INFERENCE =============
-    exp_dir = os.path.join(
-        cfg['experiments']['root_dir'],
-        cfg['experiments']['name']
-    )
+    exp_dir = os.path.join(cfg['experiments']['root_dir'], cfg['experiments']['name'])
 
     model_path, metadata = ModelRegistry.load_latest_model(exp_dir)
 
@@ -163,9 +152,7 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
         bidirectional=metadata['parameters']['bidirectional'],
     )
 
-    model.load_state_dict(
-        torch.load(model_path, map_location=device)
-    )
+    model.load_state_dict(torch.load(model_path, map_location=device))
 
     model.to(device)
     model.eval()

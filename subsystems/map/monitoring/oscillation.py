@@ -1,4 +1,3 @@
-
 import numpy as np
 
 
@@ -13,14 +12,12 @@ class OscillationDetector:
         self.threshold = threshold
 
     def run(self, z):
-
         var = np.full_like(z, np.nan)
 
         for i in range(self.window, len(z)):
-            var[i] = np.var(z[i-self.window:i])
+            var[i] = np.var(z[i - self.window : i])
 
         baseline = np.nanmedian(var)
         alarms = var > self.threshold * baseline
 
-        return var, alarms 
-    
+        return var, alarms

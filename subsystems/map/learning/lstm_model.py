@@ -35,7 +35,7 @@ class LstmModel(nn.Module):
         self._mode = mode
         self._horizon = horizon
         self._bidirectional = bidirectional
-        self._dropout = nn.Dropout(dropout) 
+        self._dropout = nn.Dropout(dropout)
 
         self._lstm = nn.LSTM(
             input_size=input_size,
@@ -65,7 +65,7 @@ class LstmModel(nn.Module):
 
         if self._mode == 'forecasting':
             last_hidden = outputs[:, -1, :]
-            last_hidden = self._dropout(last_hidden) 
+            last_hidden = self._dropout(last_hidden)
             return self._head(last_hidden)
 
         # reconstruction

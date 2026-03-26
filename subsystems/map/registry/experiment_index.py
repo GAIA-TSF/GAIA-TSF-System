@@ -1,4 +1,3 @@
-
 import os
 import json
 from datetime import datetime
@@ -17,10 +16,7 @@ def update_experiment_index(root_dir, exp_name, metrics):
         with open(index_file, 'r') as f:
             index = json.load(f)
 
-    entry = {
-        'experiment': exp_name,
-        'best_test_loss': metrics['best_test_loss']
-    }
+    entry = {'experiment': exp_name, 'best_test_loss': metrics['best_test_loss']}
 
     index.append(entry)
 
@@ -35,7 +31,6 @@ class ExperimentTracker:
     """
 
     def __init__(self, exp_dir):
-
         self.exp_dir = exp_dir
         os.makedirs(exp_dir, exist_ok=True)
 
@@ -48,7 +43,6 @@ class ExperimentTracker:
     # start experiment
     # -------------------------------------------------
     def start(self, dataset, config):
-
         exp_data = {
             'dataset': dataset,
             'start_time': datetime.utcnow().isoformat(),
@@ -64,7 +58,6 @@ class ExperimentTracker:
     # log metrics
     # -------------------------------------------------
     def log_metrics(self, train_losses, test_losses):
-
         metrics = {
             'train_losses': train_losses,
             'test_losses': test_losses,
@@ -80,7 +73,6 @@ class ExperimentTracker:
     # log artifact
     # -------------------------------------------------
     def log_artifact(self, path):
-
         artifacts = []
 
         if os.path.exists(self.artifacts_file):
@@ -96,7 +88,6 @@ class ExperimentTracker:
     # finish experiment
     # -------------------------------------------------
     def finish(self):
-
         with open(self.exp_file) as f:
             exp_data = json.load(f)
 

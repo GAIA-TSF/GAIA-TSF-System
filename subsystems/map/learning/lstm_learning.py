@@ -4,28 +4,25 @@ import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Subset
 
 from subsystems.map.utils.utils import _load_config, _select_device
-from subsystems.map.utils.builders import create_dataloaders, create_model 
-from subsystems.map.registry.model_registry import ModelRegistry 
-from subsystems.map.registry.experiment_tracker import ExperimentTracker
-from subsystems.map.registry.experiment_index import update_experiment_index 
-
 from subsystems.map.utils.builders import create_dataloaders, create_model
-
+from subsystems.map.registry.model_registry import ModelRegistry
+from subsystems.map.registry.experiment_tracker import ExperimentTracker
+from subsystems.map.registry.experiment_index import update_experiment_index
 
 
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
     create_mirmazloumi_2023_dataset,
 )
+
 # from .lstm_model import LstmModel
 # from .trainer import Trainer
 from ..learning import LearningModule
 
 
-# argument parsing 
+# argument parsing
 def _parse_arguments():
     parser = argparse.ArgumentParser(
         description='Run LSTM learning experiment.',
@@ -51,7 +48,6 @@ def _parse_arguments():
 
 # index builder (same as pipeline)
 def _build_indices(dataset, split_name, look_back, horizon):
-
     split = dataset.split_info[split_name]
     indices = []
 
@@ -65,14 +61,14 @@ def _build_indices(dataset, split_name, look_back, horizon):
     return indices
 
 
-# ============= MAIN ============= 
+# ============= MAIN =============
 def main():
     args = _parse_arguments()
     config = _load_config(args.config)
 
     # set seed for reproducibility
     torch.manual_seed(42)
-    np.random.seed(42) 
+    np.random.seed(42)
 
     model_cfg = config['model']
     trainer_cfg = config['trainer']
@@ -84,24 +80,23 @@ def main():
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
-    
-    # ============= Dataset selection =============    
+    # ============= Dataset selection =============
     if args.dataset == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
             noise_std=dataset_cfg['noise_std'],
             trend_amplitude=dataset_cfg['trend_amplitude'],
             anomaly_magnitude=dataset_cfg['anomaly_magnitude'],
-            look_back=look_back, 
-            horizon=horizon
+            look_back=look_back,
+            horizon=horizon,
         )
     else:
         dataset = create_mirmazloumi_2023_dataset(
             look_back=look_back,
-            horizon=horizon, 
+            horizon=horizon,
         )
-    
-    # Train/test split 
+
+    # Train/test split
     split = dataset.split_info
     train_end = split['train']['end_index']
     test_start = split['test']['start_index']
@@ -116,17 +111,14 @@ def main():
     )
 
     train_loader, test_loader = create_dataloaders(
-        dataset,
-        train_indices,
-        test_indices,
-        trainer_cfg['batch_size']
+        dataset, train_indices, test_indices, trainer_cfg['batch_size']
     )
 
     # ============= Learning module =============
     learning = LearningModule()
 
     model = create_model(learning, model_cfg, horizon)
-    
+
     trainer = learning.create_trainer(
         model=model,
         learning_rate=trainer_cfg['learning_rate'],
@@ -137,18 +129,14 @@ def main():
     print('Training starts')
 
     exp_dir = os.path.join(
-        config['experiments']['root_dir'],
-        config['experiments']['name']
-    )   
+        config['experiments']['root_dir'], config['experiments']['name']
+    )
 
     tracker = ExperimentTracker(exp_dir)
 
-    tracker.start(
-        dataset=args.dataset,
-        config=config
-    )
+    tracker.start(dataset=args.dataset, config=config)
 
-    registry_path = os.path.join(exp_dir, 'model_registry.json') 
+    registry_path = os.path.join(exp_dir, 'model_registry.json')
     registry = ModelRegistry(registry_path)
 
     os.makedirs(exp_dir, exist_ok=True)
@@ -158,19 +146,13 @@ def main():
     with open(config_copy, 'w') as f:
         yaml.dump(config, f)
 
-    model_path = os.path.join(
-        exp_dir,
-        config['experiments']['model_file']
-    )
+    model_path = os.path.join(exp_dir, config['experiments']['model_file'])
 
     train_losses, test_losses = trainer.fit(
-        train_loader,
-        test_loader,
-        trainer_cfg['epochs'],
-        model_path=model_path
+        train_loader, test_loader, trainer_cfg['epochs'], model_path=model_path
     )
 
-    print('Best model stored in:', model_path) 
+    print('Best model stored in:', model_path)
 
     tracker.log_metrics(train_losses, test_losses)
     tracker.log_artifact(model_path)
@@ -179,9 +161,7 @@ def main():
     update_experiment_index(
         config['experiments']['root_dir'],
         config['experiments']['name'],
-        {
-            'best_test_loss': float(min(test_losses))
-        }
+        {'best_test_loss': float(min(test_losses))},
     )
 
     # Register model in registry
@@ -205,7 +185,7 @@ def main():
     os.makedirs(plot_dir, exist_ok=True)
 
     plot_path = os.path.join(plot_dir, 'learning_curve.png')
-    
+
     plt.figure(figsize=(8, 4))
     plt.plot(train_losses, label='Train', color='blue')
     plt.plot(test_losses, label='Test', color='green')
@@ -218,7 +198,7 @@ def main():
     plt.savefig(plot_path)
 
     tracker.log_artifact(plot_path)
-    tracker.finish() 
+    tracker.finish()
 
 
 if __name__ == '__main__':

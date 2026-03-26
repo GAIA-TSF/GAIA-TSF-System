@@ -1,13 +1,11 @@
 import numpy as np
 
 
-
 def calibrate_cusum(residuals, calibration_end):
     """
     Autocorrelation-aware baseline estimation for geophysical time series.
     Converts classical CUSUM -> deformation instability detector.
     """
-
 
     # ============= 1) Clean baseline =============
     baseline = residuals[:calibration_end]
@@ -42,7 +40,6 @@ def calibrate_cusum(residuals, calibration_end):
     # numerical safety
     rho = np.clip(rho, -0.95, 0.95)
 
-
     # ============= 4) Effective sample size =============
     n = len(baseline)
     n_eff = n * (1 - rho) / (1 + rho)
@@ -53,7 +50,6 @@ def calibrate_cusum(residuals, calibration_end):
             'Increase calibration window.'
         )
 
-
     # ============= 5) Corrected variance =============
     # inflate sigma for correlated signal
     sigma_classic = np.std(baseline)
@@ -63,7 +59,7 @@ def calibrate_cusum(residuals, calibration_end):
         sigma0 = 1e-6
 
     # ============= 6) Normalized detector parameters =============
-    
+
     # k: detectable acceleration (~0.5σ trend)
     # h: persistence of deformation energy
     k = 0.5
