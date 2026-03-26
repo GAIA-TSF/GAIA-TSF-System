@@ -206,6 +206,7 @@ class StacItemFactory:
                 'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
             ],
             'id': item_id,
+            'collection': 'undefined',
             'properties': {
                 'datetime': now,
                 'proj:epsg': self.raster.get_epsg(),
