@@ -1,26 +1,28 @@
-from subsystems.qcl.logger import Logger
-
-_logger = Logger(subsystem='QCL')
+from lib.logging_provider import get_logger
 
 
 class GaiaError(Exception):
-    def __init__(self, msg: str):
-        """Initialize generic GaiaError.
+    log_level = "critical"  # default
 
-        :param str msg: error message
-        """
-        _logger.critical(msg)
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+        logger = get_logger()
+        if logger:
+            log_method = getattr(logger, self.log_level, None)
+            if log_method:
+                log_method(msg)
 
 
 class GaiaConfigError(GaiaError):
     """Configuration error."""
-
     pass
 
 
 class GaiaUnsupportedDataError(GaiaError):
     """Unsupported data source or operation."""
-
+    pass
 
 class GaiaReadDataError(GaiaError):
     """Read / Parse data error."""
+    pass
