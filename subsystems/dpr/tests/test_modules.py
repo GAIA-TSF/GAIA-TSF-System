@@ -5,7 +5,7 @@ from pathlib import Path
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from lib.exceptions import GaiaUnsupportedDataError
-from tests import conftest
+
 
 class TestModules:
     def test_PreprocessingPipelines_001(self):
