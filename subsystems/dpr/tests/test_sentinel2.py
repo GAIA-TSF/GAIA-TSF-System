@@ -35,10 +35,10 @@ class TestSentinel2Workflow:
         assert os.path.exists(metadata_path), "The metadata file was not created."
 
         # Run the pipeline
-        pipeline = PreprocessingPipelines.Sentinel2CloudCoverPipeline(metadata_path=metadata_path,
-                                                                      path_key="source_path",
-                                                                      scl_band=13)
-        pipeline.run()
+        pipeline = PreprocessingPipelines.Sentinel2CloudCoverPipeline()
+        pipeline.run(metadata_path=metadata_path,
+                     path_key="source_path",
+                     scl_band=13)
 
         # Verification of the outputs
         # get the processed metadata file:

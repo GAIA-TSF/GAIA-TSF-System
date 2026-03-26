@@ -8,29 +8,16 @@ import numpy as np
 class Sentinel2CloudCoverPipeline(BasePipeline):
     metadata = {
         'title': 'Sentinel-2 Cloud Cover',
-        'abstract': 'Retrieve Sentinel-2 cloud cover and other quality parameters from the SCL band.'
-                    'Input: JSON metadata file containing the path to a Sentinel-2 raster.'
-                    'Output: Add SCL classes percentages and overall cloud cover percentage to the JSON metadata file.',
+        'abstract': 'Read metadata JSON file, retrieve Sentinel-2 scene path, compute cloud cover and other land cover'
+                    'classes from the SCL band, write the percentages to the metadata file.',
     }
 
-    def __init__(self, metadata_path: str = None, path_key: str = None, scl_band: int = 13):
-        """
-        Initialize the pipeline with the path to a JSON metadata file.
-        :param metadata_path: Path to the JSON file containing the 'path' key.
-        :param path_key: Name of the dictionary key containing the path to the raster.
-        :param scl_band: The index of the Sentinel-2 SCL band (default is band 13).
-        """
-        self.metadata_path = metadata_path
-        self.path_key = path_key
-        self.scl_band = scl_band
-        self.metadata = self._load_json()
-        self.raster_path = self._get_path(self.metadata, self.path_key)
-
-        if not self.raster_path:
-            raise KeyError("The 'path' key could not be found.")
-
-        if not os.path.exists(self.raster_path):
-            raise FileNotFoundError(f"Raster file not found at: {self.raster_path}")
+    def __init__(self):
+        """Initialise with None values."""
+        self.raster_path = None
+        self.metadata_path = None
+        self.path_key = None
+        self.scl_band = None
 
     def _load_json(self):
         """Loads the JSON metadata file."""
@@ -57,7 +44,7 @@ class Sentinel2CloudCoverPipeline(BasePipeline):
 
     def _process_scl_statistics(self):
         """
-        Extracts the slc band, calculates pixel counts for each class,
+        Extracts the SCL band, calculates pixel counts for each class,
         and appends the results to the JSON file.
         """
         # Register all GDAL drivers
@@ -111,5 +98,35 @@ class Sentinel2CloudCoverPipeline(BasePipeline):
         # Save the updated metadata back to the file
         self._save_json()
 
-    def run(self):
+    def run(self, metadata_path: str = None, path_key: str = None, scl_band: int = 13):
+        """
+        :param metadata_path: Path to the JSON file containing the 'path' key.
+        :param path_key: Name of the metadata dictionary key containing the path to the raster.
+        :param scl_band: The index of the Sentinel-2 SCL band (default is band 13).
+        """
+        self.metadata_path = metadata_path
+
+        if not os.path.exists(self.metadata_path):
+            raise FileNotFoundError(f"Metadata file not found at: {self.metadata_path}")
+
+        self.path_key = path_key
+
+        if self.path_key is None:
+            raise KeyError("The 'path' key could not be found.")
+
+        self.scl_band = scl_band
+
+        if self.scl_band < 0:
+            raise ValueError(f"Invalid SCL band index value {self.scl_band}. SCL band index should be greater than 0.")
+
+        if not isinstance(self.scl_band, int):
+            # Raise a ValueError with a descriptive message
+            raise ValueError(f"Invalid SCL band index value {self.scl_band}. Input value must be an integer.")
+
+        self.metadata = self._load_json()
+        self.raster_path = self._get_path(self.metadata, self.path_key)
+
+        if not os.path.exists(self.raster_path):
+            raise FileNotFoundError(f"Raster file not found at: {self.raster_path}")
+
         self._process_scl_statistics()
