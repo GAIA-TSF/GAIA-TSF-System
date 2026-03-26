@@ -20,8 +20,10 @@ class PreprocessingPipelines:
     """
 
     def __init__(self):
-        self._pipelines = {'sentinel1': Sentinel1Pipeline(),
-                           'cloudcover': Sentinel2CloudCoverPipeline()}
+        self._pipelines = {
+            'sentinel1': Sentinel1Pipeline(),
+            'cloudcover': Sentinel2CloudCoverPipeline(),
+        }
 
     @property
     def metadata(self) -> Dict[str, Any]:
