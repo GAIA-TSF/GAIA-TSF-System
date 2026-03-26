@@ -6,7 +6,6 @@ from .stream_handler import (
     KinesisStreamHandler,
     SensorThingsAPIHandler,
 )
-from lib.exceptions import GaiaUnsupportedDataError
 from lib.base import GaiaBase, SubsystemId
 
 
