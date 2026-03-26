@@ -1,4 +1,3 @@
-
 import numpy as np
 
 """
@@ -17,8 +16,8 @@ class CUSUMDetector:
 
     Optionally expects normalized input.
 
-    NEXT: 
-    
+    NEXT:
+
     velocity residual
         │
         ├── CUSUM+  acceleration
@@ -55,7 +54,6 @@ class CUSUMDetector:
             Alarm indicator
         """
 
-        
         """"
         S = np.zeros_like(signal, dtype=float)
         alarms = np.zeros_like(signal, dtype=bool)
@@ -83,17 +81,16 @@ class CUSUMDetector:
         alarm_dec = np.zeros_like(z, dtype=bool)
 
         for t in range(1, len(z)):
-
             if np.isnan(z[t]):
-                s_pos[t] = s_pos[t-1]
-                s_neg[t] = s_neg[t-1]
+                s_pos[t] = s_pos[t - 1]
+                s_neg[t] = s_neg[t - 1]
                 continue
 
             # upward drift: failure acceleration
-            s_pos[t] = max(0, s_pos[t-1] + z[t] - self.k)
+            s_pos[t] = max(0, s_pos[t - 1] + z[t] - self.k)
 
             # downward drift: stabilization
-            s_neg[t] = max(0, s_neg[t-1] - z[t] - self.k)
+            s_neg[t] = max(0, s_neg[t - 1] - z[t] - self.k)
 
             if s_pos[t] > self.h:
                 alarm_acc[t] = True
@@ -101,4 +98,4 @@ class CUSUMDetector:
             if s_neg[t] > self.h:
                 alarm_dec[t] = True
 
-        return s_pos, s_neg, alarm_acc, alarm_dec 
+        return s_pos, s_neg, alarm_acc, alarm_dec

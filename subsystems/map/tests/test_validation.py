@@ -1,6 +1,7 @@
-import sys 
+import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[3])) 
+
+sys.path.append(str(Path(__file__).resolve().parents[3]))
 
 from subsystems.map.learning.validate_lstm import expanding_window_splits
 

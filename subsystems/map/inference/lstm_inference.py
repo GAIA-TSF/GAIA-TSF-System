@@ -1,14 +1,15 @@
-import os 
+import os
 import argparse
-import yaml 
-import numpy as np 
-import torch 
+import torch
 
 # import matplotlib.pyplot as plt
 from subsystems.map.utils.utils import _load_config, _select_device
 from subsystems.map.utils.builders import create_dataloaders, create_model
-from subsystems.map.monitoring.runner import run_monitoring 
-from ..dataset.insar import create_synthetic_insar_dataset, create_mirmazloumi_2023_dataset
+from subsystems.map.monitoring.runner import run_monitoring
+from ..dataset.insar import (
+    create_synthetic_insar_dataset,
+    create_mirmazloumi_2023_dataset,
+)
 from ..learning import LearningModule
 from ..inference import InferenceModule
 from ..evaluation.plots import plot_results
@@ -17,10 +18,9 @@ from ..evaluation.plots import plot_results
 Entry point only. 
 """
 
+
 def _parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Run LSTM monitoring experiment"
-    )
+    parser = argparse.ArgumentParser(description='Run LSTM monitoring experiment')
 
     parser.add_argument(
         '--dataset',
@@ -71,9 +71,9 @@ def main():
     sigma_threshold = inference_cfg['sigma_threshold']
     warmup_factor = monitoring_cfg['warmup_factor']
     calibration_fraction = monitoring_cfg['calibration_fraction']
-    persistence = monitoring_cfg['persistence'] 
-    use_model_uncertainty = monitoring_cfg['use_model_uncertainty'] 
-    
+    persistence = monitoring_cfg['persistence']
+    use_model_uncertainty = monitoring_cfg['use_model_uncertainty']
+
     # ============= Dataset =============
     if args.dataset == 'synthetic':
         dataset = create_synthetic_insar_dataset(
@@ -90,37 +90,30 @@ def main():
             horizon=horizon,
         )
 
-    
     # ============= Build dataloaders =============
     train_indices = _build_indices(dataset, 'train', look_back, horizon)
     test_indices = _build_indices(dataset, 'test', look_back, horizon)
 
     train_loader, test_loader = create_dataloaders(
-        dataset,
-        train_indices,
-        test_indices,
-        trainer_cfg['batch_size']
+        dataset, train_indices, test_indices, trainer_cfg['batch_size']
     )
-
 
     # ============= Model =============
     learning = LearningModule()
-    model = create_model(learning, model_cfg, horizon) 
+    model = create_model(learning, model_cfg, horizon)
 
     # ============= load trained weights =============
     exp_dir = config['experiments']['root_dir']
     model_path = os.path.join(
-        exp_dir,
-        config['experiments']['name'], 
-        config['experiments']['model_file']
+        exp_dir, config['experiments']['name'], config['experiments']['model_file']
     )
     print(f'Loading model from: {model_path}')
     model.load_state_dict(torch.load(model_path, map_location=device))
 
     model.to(device)
     model.eval()
-    
-    # ============= Inference =============    
+
+    # ============= Inference =============
     predictor = InferenceModule.create_predictor(
         model=model,
         device=device,
@@ -131,7 +124,7 @@ def main():
         warmup_factor=warmup_factor,
         calibration_fraction=calibration_fraction,
         persistence=persistence,
-        use_model_uncertainty=use_model_uncertainty
+        use_model_uncertainty=use_model_uncertainty,
     )
 
     displacement = dataset.displacement
@@ -146,7 +139,7 @@ def main():
     # plt.figure(figsize=(10, 6))
     # plt.subplot(2, 1, 1)
     # plt.plot(time_days, displacement, marker='.', label='Observed', color='black')
-    # prediction_plot = prediction[0] 
+    # prediction_plot = prediction[0]
     # plt.plot(time_days, prediction_plot, marker='.', label='Predicted', color='blue')
     # plt.legend()
     # plt.title('Prediction vs Observation')
@@ -158,8 +151,8 @@ def main():
     # plt.tight_layout()
     # plt.show()
 
-    plot_results(time_days, displacement, mean_pred, mon) 
+    plot_results(time_days, displacement, mean_pred, mon)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -32,7 +32,8 @@ class LearningModule:
             dropout=dropout,
             bidirectional=bidirectional,
         )
-    @staticmethod 
+
+    @staticmethod
     def create_reconstruction_model(
         input_size: int,
         hidden_size: int,

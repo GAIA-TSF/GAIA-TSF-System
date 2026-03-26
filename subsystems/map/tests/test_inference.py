@@ -17,7 +17,6 @@ class TestInferenceModule:
     """
 
     def make_predictor(self, horizon):
-
         model = LstmModel(
             input_size=1,
             hidden_size=8,
@@ -42,9 +41,7 @@ class TestInferenceModule:
 
         return predictor
 
-
     def test_model_prediction(self):
-
         predictor = self.make_predictor(horizon=3)
 
         series = np.random.randn(50)
@@ -54,9 +51,7 @@ class TestInferenceModule:
         assert len(mean_pred) == len(series)
         assert len(std_pred) == len(series)
 
-
     def test_residual_computation(self):
-
         predictor = self.make_predictor(horizon=2)
 
         series = np.random.randn(50)
@@ -72,10 +67,7 @@ class TestInferenceModule:
         valid = residuals[predictor.look_back : -predictor.horizon + 1]
         assert np.isfinite(valid).all()
 
-
-
     def test_anomaly_detection(self):
-
         predictor = self.make_predictor(horizon=2)
 
         series = np.random.randn(50)
@@ -91,4 +83,3 @@ class TestInferenceModule:
 
         assert len(score) == len(series)
         assert len(mask) == len(series)
-        

@@ -1,9 +1,9 @@
-
 import json
 import tempfile
 from pathlib import Path
 
 import sys
+
 sys.path.append(str(Path(__file__).resolve().parents[3]))
 from subsystems.map.registry.model_registry import ModelRegistry
 
@@ -19,13 +19,12 @@ class TestModelRegistry:
         """
 
         with tempfile.TemporaryDirectory() as tmp:
-
             registry_path = Path(tmp) / 'model_registry.json'
 
             registry = ModelRegistry(registry_path)
 
             # assert registry_path.exists()
-            assert registry is not None 
+            assert registry is not None
 
             with open(registry_path) as f:
                 data = json.load(f)
@@ -38,26 +37,15 @@ class TestModelRegistry:
         """
 
         with tempfile.TemporaryDirectory() as tmp:
-
             registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
             entry = registry.register_model(
                 model_file='best_model.pt',
                 dataset='synthetic',
-                parameters={
-                    'hidden_size': 64,
-                    'num_layers': 2,
-                    'dropout': 0.1
-                },
-                monitoring_cfg={
-                    'sigma_threshold': 2.5,
-                    'persistence': 3
-                },
-                metrics={
-                    'final_train_loss': 2.5,
-                    'final_test_loss': 3.1
-                }
+                parameters={'hidden_size': 64, 'num_layers': 2, 'dropout': 0.1},
+                monitoring_cfg={'sigma_threshold': 2.5, 'persistence': 3},
+                metrics={'final_train_loss': 2.5, 'final_test_loss': 3.1},
             )
 
             assert entry['model_file'] == 'best_model.pt'
@@ -72,7 +60,6 @@ class TestModelRegistry:
         """
 
         with tempfile.TemporaryDirectory() as tmp:
-
             registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
@@ -81,7 +68,7 @@ class TestModelRegistry:
                 dataset='synthetic',
                 parameters={'hidden_size': 32},
                 monitoring_cfg={},
-                metrics={'final_test_loss': 3.0}
+                metrics={'final_test_loss': 3.0},
             )
 
             registry.register_model(
@@ -89,7 +76,7 @@ class TestModelRegistry:
                 dataset='synthetic',
                 parameters={'hidden_size': 64},
                 monitoring_cfg={},
-                metrics={'final_test_loss': 2.5}
+                metrics={'final_test_loss': 2.5},
             )
 
             with open(registry_path) as f:
@@ -105,7 +92,6 @@ class TestModelRegistry:
         """
 
         with tempfile.TemporaryDirectory() as tmp:
-
             registry_path = Path(tmp) / 'model_registry.json'
             registry = ModelRegistry(registry_path)
 
@@ -114,7 +100,7 @@ class TestModelRegistry:
                 dataset='synthetic',
                 parameters={},
                 monitoring_cfg={},
-                metrics={}
+                metrics={},
             )
 
             registry.register_model(
@@ -122,7 +108,7 @@ class TestModelRegistry:
                 dataset='synthetic',
                 parameters={},
                 monitoring_cfg={},
-                metrics={}
+                metrics={},
             )
 
             model_path, metadata = ModelRegistry.load_latest_model(tmp)

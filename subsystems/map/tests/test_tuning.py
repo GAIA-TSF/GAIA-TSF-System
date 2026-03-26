@@ -1,6 +1,7 @@
-import sys 
+import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[3])) 
+
+sys.path.append(str(Path(__file__).resolve().parents[3]))
 
 from subsystems.map.learning.validate_lstm import expanding_window_splits
 
@@ -34,4 +35,3 @@ class TestTimeSeriesValidation:
         train_idx, test_idx = splits[0]
 
         assert max(train_idx) < min(test_idx)
-

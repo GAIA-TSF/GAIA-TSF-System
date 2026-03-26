@@ -1,29 +1,21 @@
-import os 
-import yaml
+import os
 import json
 import torch
 import numpy as np
-from torch.utils.data import Subset
 from subsystems.map.utils.builders import create_dataloaders, create_model
 from subsystems.map.utils.utils import _load_config
 from ..dataset.insar import (
     create_synthetic_insar_dataset,
     create_mirmazloumi_2023_dataset,
 )
-from subsystems.map.utils.builders import create_dataloaders, create_model
 from ..learning import LearningModule
 from .validation import expanding_window_splits
 
 import argparse
 
-from subsystems.map import learning
-    
 
 def _parse_arguments():
-
-    parser = argparse.ArgumentParser(
-        description='Run LSTM time-series validation'
-    )
+    parser = argparse.ArgumentParser(description='Run LSTM time-series validation')
 
     parser.add_argument(
         '--dataset',
@@ -41,50 +33,40 @@ def _parse_arguments():
     )
 
     return parser.parse_args()
-    
-    
-def run_validation(dataset_name, config_path, override_params=None, save_results=True):
 
+
+def run_validation(dataset_name, config_path, override_params=None, save_results=True):
     # print('Validation!')
     # with open(config_path) as f:
     #     cfg = yaml.safe_load(f)
-    
+
     cfg = _load_config(config_path)
 
-    exp_dir = os.path.join(
-        cfg['experiments']['root_dir'],
-        cfg['experiments']['name']
-    )
+    exp_dir = os.path.join(cfg['experiments']['root_dir'], cfg['experiments']['name'])
 
     os.makedirs(exp_dir, exist_ok=True)
-    print('Validation experiment directory:', exp_dir) 
+    print('Validation experiment directory:', exp_dir)
 
     trainer_cfg = cfg['trainer']
     dataset_cfg = cfg['dataset']
     model_cfg = cfg['model']
-    # validation_cfg = cfg['validation'] TODO: check if to use it? 
+    # validation_cfg = cfg['validation'] TODO: check if to use it?
 
     look_back = trainer_cfg['look_back']
     horizon = trainer_cfg['horizon']
 
-    device = torch.device(
-        'cuda' if torch.cuda.is_available() else 'cpu'
-    )
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     if override_params:
-
         for k, v in override_params.items():
-
             if k in cfg['model']:
                 cfg['model'][k] = v
 
             if k in cfg['trainer']:
                 cfg['trainer'][k] = v
 
-
     # ============= dataset =============
     if dataset_name == 'synthetic':
-        
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
             noise_std=dataset_cfg['noise_std'],
@@ -107,20 +89,16 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
         horizon,
         folds=cfg['validation']['folds'],
     )
-    
+
     learning = LearningModule()
 
     fold_results = []
 
     for fold, (train_idx, test_idx) in enumerate(splits):
-
-        print(f'\nFold {fold+1}')
+        print(f'\nFold {fold + 1}')
 
         train_loader, test_loader = create_dataloaders(
-            dataset,
-            train_idx,
-            test_idx,
-            trainer_cfg['batch_size']
+            dataset, train_idx, test_idx, trainer_cfg['batch_size']
         )
 
         model = create_model(learning, model_cfg, horizon)
@@ -132,7 +110,6 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
         )
 
         for epoch in range(trainer_cfg['epochs']):
-
             trainer.train_epoch(train_loader)
 
         val_loss = trainer.validate_epoch(test_loader)
@@ -145,18 +122,17 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
 
     print('Mean loss:', np.mean(fold_results))
     print('Std loss:', np.std(fold_results))
-    
+
     # print('\nDetailed fold losses:', fold_results)
-    
+
     # save results
     results = {
         'Validation results': 'MSE loss',
         'mean': float(np.mean(fold_results)),
         'std': float(np.std(fold_results)),
     }
- 
-    if save_results:
 
+    if save_results:
         results_path = os.path.join(exp_dir, 'validation_results.json')
         summary_path = os.path.join(exp_dir, 'validation_summary.json')
 
@@ -172,7 +148,6 @@ def run_validation(dataset_name, config_path, override_params=None, save_results
 
 
 def main():
-
     args = _parse_arguments()
 
     run_validation(

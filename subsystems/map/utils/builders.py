@@ -1,5 +1,5 @@
-
 from torch.utils.data import DataLoader, Subset
+
 
 def create_dataloaders(dataset, train_idx, test_idx, batch_size):
     train_loader = DataLoader(
@@ -26,4 +26,3 @@ def create_model(learning_module, model_cfg, horizon):
         dropout=model_cfg['dropout'],
         bidirectional=model_cfg['bidirectional'],
     )
-
