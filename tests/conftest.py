@@ -2,7 +2,8 @@ import pytest
 from subsystems.qcl.logger import Logger
 from lib.logging_provider import set_logger
 
-@pytest.fixture(scope="session", autouse=True)
+
+@pytest.fixture(scope='session', autouse=True)
 def init_logger():
-    _logger = Logger(subsystem="QCL")
+    _logger = Logger(subsystem='QCL')
     set_logger(_logger)
