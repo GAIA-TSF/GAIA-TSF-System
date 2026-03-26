@@ -22,7 +22,7 @@ class PreprocessingPipelines:
     def __init__(self):
         self._pipelines = {
             'sentinel1': Sentinel1Pipeline(),
-            'cloudcover': Sentinel2CloudCoverPipeline(),
+            'sentinel2_cloudcover': Sentinel2CloudCoverPipeline(),
         }
 
     @property
