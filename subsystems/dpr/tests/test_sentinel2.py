@@ -1,7 +1,7 @@
 import json
 import os
 
-from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 
 
 class TestSentinel2Workflow:
@@ -35,7 +35,7 @@ class TestSentinel2Workflow:
         assert os.path.exists(metadata_path), "The metadata file was not created."
 
         # Run the pipeline
-        pipeline = PreprocessingPipelines.Sentinel2CloudCoverPipeline()
+        pipeline = Sentinel2CloudCoverPipeline()
         pipeline.run(metadata_path=metadata_path,
                      path_key="source_path",
                      scl_band=13)
