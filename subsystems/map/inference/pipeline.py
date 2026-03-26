@@ -80,6 +80,7 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
 
 
     # ============= DATASET =============
+    
     if dataset_name == 'synthetic':
         dataset = create_synthetic_insar_dataset(
             length=dataset_cfg['length'],
@@ -97,8 +98,8 @@ def run_lstm_experiment(dataset_name: str, config_path: str):
 
     train_loader, test_loader = create_dataloaders(
         dataset,
-        train_indices,
-        test_indices,
+        _build_indices(dataset, 'train', look_back, horizon),
+        _build_indices(dataset, 'test', look_back, horizon),
         trainer_cfg['batch_size']
     )
 
