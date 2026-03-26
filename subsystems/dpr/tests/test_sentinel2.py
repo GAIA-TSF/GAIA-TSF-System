@@ -9,9 +9,10 @@ class TestSentinel2Workflow:
     def test_cloudcover(self):
         """Test the Sentinel2CloudCoverPipeline."""
 
+        # Get path for sentinel-2 sample scene and create a path for test metadata
         raster_path = os.path.abspath('subsystems/dpr/tests/sample_data/sentinel2_clouds.tif')
         metadata_path = raster_path.replace('.tif', '.json')
-        print(raster_path)
+
         # Check if the raster has been located
         assert os.path.exists(raster_path), "The Sentinel-2 geotiff was not found."
 

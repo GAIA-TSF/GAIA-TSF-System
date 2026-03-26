@@ -13,7 +13,7 @@ class Sentinel2CloudCoverPipeline(BasePipeline):
                     'Output: Add SCL classes percentages and overall cloud cover percentage to the JSON metadata file.',
     }
 
-    def __init__(self, metadata_path: str, path_key: str, scl_band: int = 13):
+    def __init__(self, metadata_path: str = None, path_key: str = None, scl_band: int = 13):
         """
         Initialize the pipeline with the path to a JSON metadata file.
         :param metadata_path: Path to the JSON file containing the 'path' key.
@@ -55,7 +55,7 @@ class Sentinel2CloudCoverPipeline(BasePipeline):
                     return result
         return None
 
-    def _process_slc_statistics(self):
+    def _process_scl_statistics(self):
         """
         Extracts the slc band, calculates pixel counts for each class,
         and appends the results to the JSON file.
@@ -96,17 +96,20 @@ class Sentinel2CloudCoverPipeline(BasePipeline):
             stats_dict[slc_labels[k]] = round(v / npix, 4)
 
         # Sum of cloud classes (key named 'cloud_cover_pct' as in QCL subsystem)
-        stats_dict['cloud_cover_pct'] = stats_dict['SCL_cloud_medium_probability'] + stats_dict[
+        sum_cloud_classes = stats_dict['SCL_cloud_medium_probability'] + stats_dict[
             'SCL_cloud_high_probability'] + stats_dict['SCL_thin_cirrus']
+        cloud_cover_pct = {'cloud_cover_pct': sum_cloud_classes}
 
         # add a no data key named 'null_pixel_pct' as in QCL subsystem
-        stats_dict['null_pixel_pct'] = stats_dict['SCL_no_data']
+        null_pixel_pct = {'null_pixel_pct': stats_dict['SCL_no_data']}
 
         # Update metadata object
-        self.metadata.update(stats_dict)
+        self.metadata['SCL_classes_pct'] = stats_dict
+        self.metadata.update(cloud_cover_pct)
+        self.metadata.update(null_pixel_pct)
 
         # Save the updated metadata back to the file
         self._save_json()
 
     def run(self):
-        self._process_slc_statistics()
+        self._process_scl_statistics()
