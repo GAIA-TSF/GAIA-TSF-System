@@ -87,7 +87,7 @@ class ParsingEngine:
                 'row_count': len(parsed_df),
                 'columns': list(parsed_df.columns),
                 'data_preview': parsed_df.head(5).to_dict(orient='records'),
-                'data': parsed_df
+                'data': parsed_df,
             }
 
         except (ValueError, IOError) as e:

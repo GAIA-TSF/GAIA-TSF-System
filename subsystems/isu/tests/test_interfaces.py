@@ -15,12 +15,13 @@ from subsystems.isu.etl_engine.pipeline import ETLEngine
 
 
 # Minimal CSV payload that triggers SlopeStabilityParser (score > 0.6)
-_SLOPE_CSV = b"timestamp,displacement\n2024-01-01T00:00:00Z,0.5\n2024-01-02T00:00:00Z,0.6"
-_SLOPE_FILENAME = "slope_sensor_data.csv"
+_SLOPE_CSV = (
+    b'timestamp,displacement\n2024-01-01T00:00:00Z,0.5\n2024-01-02T00:00:00Z,0.6'
+)
+_SLOPE_FILENAME = 'slope_sensor_data.csv'
 
 
 class TestInterfaces:
-
     # ------------------------------------------------------------------
     # ISU_I_1 – DPR (DataProcessor)
     # ISU_IR_02: deliver validated and standardised datasets to DPR
@@ -30,7 +31,10 @@ class TestInterfaces:
     def test_IF1_001(self):
         """ISU_I_1: ETLEngine delivers a parsed file to DPR via process_in_situ()."""
         mock_dpr = MagicMock()
-        mock_dpr.process_in_situ.return_value = {'status': 'processed', 'ready_for_sdi': True}
+        mock_dpr.process_in_situ.return_value = {
+            'status': 'processed',
+            'ready_for_sdi': True,
+        }
 
         engine = ETLEngine(dpr_service=mock_dpr)
         result = engine.process_file(_SLOPE_CSV, _SLOPE_FILENAME)
@@ -42,7 +46,10 @@ class TestInterfaces:
     def test_IF1_002(self):
         """ISU_I_1: ETLEngine delivers streaming data to DPR via process_in_situ()."""
         mock_dpr = MagicMock()
-        mock_dpr.process_in_situ.return_value = {'status': 'processed', 'ready_for_sdi': True}
+        mock_dpr.process_in_situ.return_value = {
+            'status': 'processed',
+            'ready_for_sdi': True,
+        }
 
         engine = ETLEngine(dpr_service=mock_dpr)
 

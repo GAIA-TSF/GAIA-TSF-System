@@ -48,12 +48,12 @@ class InSituDataUploader(GaiaBase):
         # 1. Initialize the base class and strictly bind the ISU subsystem identity
         super().__init__(SubsystemId.ISU, project_file=project_file)
 
-        self.logger.info("Initializing ISU Subsystem driven by GaiaBase...")
+        self.logger.info('Initializing ISU Subsystem driven by GaiaBase...')
 
         # 2. ISU_I_2: Wire QCL — instantiate and own the Quality Control layer.
         # QCL receives ingestion status, validation results, and error reports.
         self.qc_layer = QCLayer()
-        self.logger.debug("QCLayer (ISU_I_2) wired into ISU.")
+        self.logger.debug('QCLayer (ISU_I_2) wired into ISU.')
 
         # 3. ISU_I_1: Store the optional DPR service reference.
         # SDI integration is indirect: ISU converts raw data to SDI-compatible
@@ -69,46 +69,44 @@ class InSituDataUploader(GaiaBase):
 
         # 5. Initialize the three parallel ingestion entries
         self.manual_loader = ManualFileLoader(
-            etl_engine=self.etl_engine,
-            project_file=project_file
+            etl_engine=self.etl_engine, project_file=project_file
         )
 
         self.bulk_scheduler = BulkUploadScheduler(
-            etl_engine=self.etl_engine,
-            project_file=project_file
+            etl_engine=self.etl_engine, project_file=project_file
         )
 
         self.stream_handler = StreamingDataHandler(
             etl_callback=self.etl_engine.process_data,
             qc_layer=self.qc_layer,
-            project_file=project_file
+            project_file=project_file,
         )
 
-        self.logger.debug("ISU Subsystem components initialized.")
+        self.logger.debug('ISU Subsystem components initialized.')
 
     def start(self) -> None:
         """
         Start all automated data ingestion background tasks.
-        
-        This triggers both the scheduled bulk file scanner and the 
+
+        This triggers both the scheduled bulk file scanner and the
         real-time streaming listener.
-        
+
         :return: None
         :rtype: None
         """
-        self.logger.info("Starting all ISU background tasks...")
+        self.logger.info('Starting all ISU background tasks...')
         self.bulk_scheduler.start()
         self.stream_handler.start()
 
     def stop(self) -> None:
         """
         Gracefully stop all active data ingestion tasks.
-        
+
         Ensures that schedulers are halted and stream connections are closed properly.
 
         :return: None
         :rtype: None
         """
-        self.logger.info("Stopping all ISU background tasks...")
+        self.logger.info('Stopping all ISU background tasks...')
         self.bulk_scheduler.stop()
         self.stream_handler.stop()
