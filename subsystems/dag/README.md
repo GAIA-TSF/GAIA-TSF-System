@@ -56,7 +56,28 @@ See: `./docs/coding_notes.md`
 **Workflow:** Raw EO Data -> Ingestion -> Harmonization (spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> Preprocessing -> Validation -> Tensorization -> ML-ready dataset 
 
 
+## Run the pipeline 
+
+Run AMD pipeline 
+```
+python3 subsystems/dag/debug_run.py --config config.yaml --pipeline amd
+```
+
+Run slope stability pipeline 
+```
+python3 subsystems/dag/debug_run.py --config config.yaml --pipeline slope 
+```
+
+
 ## Testing 
+
+```
+python3 -m pytest subsystems/dag/tests/test_amd_pipeline.py 
+
+python3 -m pytest subsystems/dag/tests/test_slope_pipeline.py  
+
+```
+
 ```
 cd docker
 docker compose up --build
