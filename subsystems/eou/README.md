@@ -40,7 +40,7 @@ results = dag_module.search(
     geom=wkt_str,
     **self.search_filter,
 )
-dag_module.download(results[0], quicklook=True)
+data_path = dag_module.download(results[0], quicklook=True)
 ```
 
 For data that cannot be automatically retrieved via
