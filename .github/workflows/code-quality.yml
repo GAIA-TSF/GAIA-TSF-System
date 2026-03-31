@@ -9,8 +9,6 @@ on:
       - "**.py"
       - ".github/workflows/code-quality.yml"
       - "ruff.toml"
-    paths-ignore:
-      - "**.md"
 
 jobs:
   ruff-fix:
