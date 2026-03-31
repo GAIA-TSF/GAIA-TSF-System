@@ -18,4 +18,37 @@ downloads relevant imagery based on predefined criteria. All ingested
 data is subsequently passed to the **Data Extraction** logic for
 validation and integration into the processing pipeline.
 
-![EO Data Uploader Architecture](../../images/eou_subsystem.png)
+## Usage
+
+Utilize the `DataAcquisitionGateway` module to automatically retrieve
+new scenes by connecting to services such as Copernicus, Google Earth
+Engine, and NASA Earthdata. By default the `DataAcquisitionGateway` is
+using EODAG package to search and download new data products.
+
+```py
+dag_module = DataAcquisitionGateway()
+
+wkt_str = 'POLYGON((...))'
+search_filter = {
+    'provider': 'cop_dataspace',
+    'start': '2026-01-01',
+    'end': '2026-01-29',
+    'productType': 'S2_MSI_L2A',
+}
+
+results = dag_module.search(
+    geom=wkt_str,
+    **self.search_filter,
+)
+dag_module.download(results[0], quicklook=True)
+```
+
+For data that cannot be automatically retrieved via
+`DataAcquisitionGateway` and is available locally, use
+`ManualFileLoader` module.
+
+```py
+file_path = '/../filename.tif'
+loader_module = ManualFileLoader()
+result = loader_module.check_file_validity(file_path)
+```
