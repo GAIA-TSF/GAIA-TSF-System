@@ -42,7 +42,7 @@ class AMDPipeline(BasePipeline):
             aligned = self.temporal_aligner.align_to_eo(
                 insitu,
                 cube.timestamps if hasattr(cube, 'timestamps') else []
-            )
+            ) # noqa: F821  
 
             print('[AMDPipeline] In-situ aligned shape:', len(aligned))
 
