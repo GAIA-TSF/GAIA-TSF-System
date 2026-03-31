@@ -14,14 +14,17 @@ class GaiaError(Exception):
 
 class GaiaConfigError(GaiaError):
     """Configuration error."""
+
     pass
 
 
 class GaiaUnsupportedDataError(GaiaError):
     """Unsupported data source or operation."""
+
     pass
 
 
 class GaiaReadDataError(GaiaError):
     """Read / Parse data error."""
+
     pass
