@@ -91,6 +91,18 @@ Run tests for the testfile wished:
 docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
 ```
 
+## Push docker images into GitHub container repository
+
+Here is the simplest way how to push the images into GitHub container repository.
+The user has to have Maintainer/Owner rights of the organization.
+
+```sh
+GHCR_PAT=github_token_XXXX
+echo $GHCR_PAT | docker login ghcr.io -u username --password-stdin
+docker compose build
+docker compose push
+```
+
 ## Recommended code subsystem layout
 
 Subsystems code is placed in `subsystems` directory. Subsystems are
