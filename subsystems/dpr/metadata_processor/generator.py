@@ -276,7 +276,7 @@ class MetadataGenerator(GaiaBase):
             pass
         else:
             # TODO: replace by GAIA-TSF exception
-            raise GaiaUnsupportedDataError(f'Unsupported datasource {data_source}')
+            raise GaiaUnsupportedDataError(f'Unsupported datasource {data_source}', self.logger)
 
     @property
     def stac(self) -> StacItemFactory:
