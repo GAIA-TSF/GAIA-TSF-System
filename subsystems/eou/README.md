@@ -18,6 +18,8 @@ downloads relevant imagery based on predefined criteria. All ingested
 data is subsequently passed to the **Data Extraction** logic for
 validation and integration into the processing pipeline.
 
+-![EO Data Uploader Architecture](../../images/eou_subsystem.png)
+
 ## Usage
 
 Utilize the `DataAcquisitionGateway` module to automatically retrieve
