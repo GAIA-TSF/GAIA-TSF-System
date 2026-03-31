@@ -99,8 +99,8 @@ The user has to have Maintainer/Owner rights of the organization.
 ```sh
 GHCR_PAT=github_token_XXXX
 echo $GHCR_PAT | docker login ghcr.io -u username --password-stdin
-docker-compose build
-docker-compose push
+docker compose build
+docker compose push
 ```
 
 ## Recommended code subsystem layout
