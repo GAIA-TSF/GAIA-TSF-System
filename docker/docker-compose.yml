@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: ghcr.io/gaia-tsf/gaiatesting:latest
     container_name: gaiatesting
     restart: unless-stopped
     depends_on:
@@ -70,6 +71,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stacapi
+    image: ghcr.io/gaia-tsf/stacapi:latest
     container_name: stacapi
     restart: unless-stopped
     environment:
