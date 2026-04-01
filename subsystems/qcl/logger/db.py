@@ -23,7 +23,7 @@ class DbRecord(Base):
     __tablename__ = 'logs'
 
     id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
-    subsystem = Column(Integer, nullable=False)
+    subsystem = Column(String(3), nullable=False)
     timestamp = Column(DateTime(), nullable=False)
     level = Column(Integer, nullable=False)
     message = Column(String, nullable=False)
@@ -93,13 +93,13 @@ class DbLogger(logging.Handler):
         if not self._session_maker or not self._session:
             return
 
-        rec = DbRecord(
-            subsystem=0,
-            timestamp=datetime.now(),  # TODO
+        db_record = DbRecord(
+            subsystem=record.subsystem,
+            timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
             level=record.levelno,
             message=record.getMessage(),
             project=None,
             pid=os.getpid(),
         )
-        self._session.add(rec)
+        self._session.add(db_record)
         self._session.commit()

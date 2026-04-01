@@ -118,18 +118,24 @@ class TestSubsystem:
     def test_db_logging(self):
         """Verify that the logger persists logs to the database"""
         import psycopg
+        import logging
+        from lib.base import SubsystemId
 
         qc = QCLayer()
-        qc.logger.info('Test')
+        log_message = 'Test'
+        qc.logger.info(log_message)
 
         db_conn = qc.settings['sdi']['db']
         db_conn.update(qc.settings['qcl']['db'])
-        print(db_conn)
-        conn = psycopg.connect(**db_conn)
 
+        conn = psycopg.connect(**db_conn)
         with conn.cursor() as cur:
             cur.execute('SELECT * FROM logs ORDER BY id DESC LIMIT 1')
             row = cur.fetchone()
-            print(row[1])
-
+            # subsystem
+            assert row[1] == SubsystemId.QCL.name
+            # logging level
+            assert row[3] == logging.INFO
+            # message
+            assert row[4] == log_message
         conn.close()
