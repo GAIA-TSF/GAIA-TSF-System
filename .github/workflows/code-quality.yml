@@ -5,10 +5,11 @@ on:
     branches:
       - develop
   pull_request:
-    paths:
-      - "**.py"
-      - ".github/workflows/code-quality.yml"
-      - "ruff.toml"
+    # disabled, see https://github.com/GAIA-TSF/GAIA-TSF-System/issues/216
+    # paths:
+    #   - "**.py"
+    #   - ".github/workflows/code-quality.yml"
+    #   - "ruff.toml"
 
 jobs:
   ruff-fix:

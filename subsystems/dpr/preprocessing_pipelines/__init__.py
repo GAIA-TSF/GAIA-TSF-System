@@ -5,6 +5,7 @@ if TYPE_CHECKING:
     from typing import Dict, Any
 
 from .sentinel1 import Sentinel1Pipeline
+from .cloudcover import Sentinel2CloudCoverPipeline
 
 
 class PreprocessingPipelines:
@@ -19,7 +20,10 @@ class PreprocessingPipelines:
     """
 
     def __init__(self):
-        self._pipelines = {'sentinel1': Sentinel1Pipeline()}
+        self._pipelines = {
+            'sentinel1': Sentinel1Pipeline(),
+            'sentinel2_cloudcover': Sentinel2CloudCoverPipeline(),
+        }
 
     @property
     def metadata(self) -> Dict[str, Any]:
