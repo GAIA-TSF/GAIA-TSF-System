@@ -13,11 +13,11 @@ class Sentinel2SafeProcessor(BasePipeline):
     metadata = {
         'title': 'Sentinel-2 SAFE Processor',
         'abstract': 'Perform the conversion of a Level2A Sentinel-2 SAFE product to a geotiff.'
-                    'Processing steps include:'
-                    '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
-                    '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
-                    'using GDAL'
-                    '(3) Saving output geotiff and metadata to an output folder.',
+        'Processing steps include:'
+        '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
+        '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
+        'using GDAL'
+        '(3) Saving output geotiff and metadata to an output folder.',
     }
 
     def __init__(self):
@@ -41,15 +41,15 @@ class Sentinel2SafeProcessor(BasePipeline):
         """Locates the required XML files within the input folder hierarchy."""
         for root, dirs, files in os.walk(self.input_folder):
             for file in files:
-                if file == "MTD_MSIL2A.xml":
+                if file == 'MTD_MSIL2A.xml':
                     self.msil2a_path = Path(root) / file
-                elif file == "MTD_TL.xml":
+                elif file == 'MTD_TL.xml':
                     self.mtd_tl_path = Path(root) / file
 
         if not self.msil2a_path:
-            print("Warning: MTD_MSIL2A.xml not found.")
+            print('Warning: MTD_MSIL2A.xml not found.')
         if not self.mtd_tl_path:
-            print("Warning: MTD_TL.xml not found.")
+            print('Warning: MTD_TL.xml not found.')
 
         return self.msil2a_path is not None and self.mtd_tl_path is not None
 
@@ -69,40 +69,48 @@ class Sentinel2SafeProcessor(BasePipeline):
 
         # Define tags to find directly (flat search)
         direct_tags = [
-            'PRODUCT_START_TIME', 'PRODUCT_STOP_TIME', 'PRODUCT_URI',
-            'PROCESSING_LEVEL', 'PRODUCT_TYPE', 'PRODUCT_DOI',
-            'GENERATION_TIME', 'SPACECRAFT_NAME', 'DATATAKE_SENSING_START',
-            'DATATAKE_TYPE', 'SENSING_ORBIT_NUMBER', 'SENSING_ORBIT_DIRECTION'
+            'PRODUCT_START_TIME',
+            'PRODUCT_STOP_TIME',
+            'PRODUCT_URI',
+            'PROCESSING_LEVEL',
+            'PRODUCT_TYPE',
+            'PRODUCT_DOI',
+            'GENERATION_TIME',
+            'SPACECRAFT_NAME',
+            'DATATAKE_SENSING_START',
+            'DATATAKE_TYPE',
+            'SENSING_ORBIT_NUMBER',
+            'SENSING_ORBIT_DIRECTION',
         ]
 
         # Iterative search for basic tags
         for tag in direct_tags:
-            elem = root.find(f".//{tag}")
+            elem = root.find(f'.//{tag}')
             if elem is not None:
                 self.metadata[tag] = elem.text
 
         # Extract Granule_List
-        for granule in root.findall(".//Granule"):
-            list_images = [img.text for img in granule.findall("IMAGE_FILE")]
+        for granule in root.findall('.//Granule'):
+            list_images = [img.text for img in granule.findall('IMAGE_FILE')]
             self.granule_list = list_images
 
         # Extract Special_Values
         special_vals = {}
-        for sv in root.findall(".//Special_Values"):
+        for sv in root.findall('.//Special_Values'):
             for child in sv:
                 special_vals[self._get_clean_tag(child)] = child.text
         self.metadata['Special_Values'] = special_vals
 
         # Extract BOA_ADD_OFFSET_VALUES_LIST
         offsets = {}
-        for offset in root.findall(".//BOA_ADD_OFFSET"):
+        for offset in root.findall('.//BOA_ADD_OFFSET'):
             band_id = offset.get('band_id')
-            offsets[f"band_{band_id}"] = offset.text
+            offsets[f'band_{band_id}'] = offset.text
         self.offset_values_list = offsets
 
         # Extract Reflectance_Conversion
         ref_conv = {}
-        rc_elem = root.find(".//Reflectance_Conversion")
+        rc_elem = root.find('.//Reflectance_Conversion')
         if rc_elem is not None:
             for child in rc_elem:
                 ref_conv[self._get_clean_tag(child)] = child.text
@@ -110,20 +118,22 @@ class Sentinel2SafeProcessor(BasePipeline):
 
         # Extract all physical bands and wavelengths
         wavelengths = {}
-        spectral_info = root.findall(".//Spectral_Information")
+        spectral_info = root.findall('.//Spectral_Information')
         for info in spectral_info:
-            band_id = info.get("bandId")
-            phys_band = info.get("physicalBand")
-            w_node = info.find("Wavelength")
+            band_id = info.get('bandId')
+            phys_band = info.get('physicalBand')
+            w_node = info.find('Wavelength')
             if w_node is not None:
                 wavelengths[phys_band] = {
-                    "bandId": band_id,
-                    "min": w_node.findtext("MIN"),
-                    "max": w_node.findtext("MAX"),
-                    "central": w_node.findtext("CENTRAL"),
-                    "unit": w_node.find("MIN").get("unit") if w_node.find("MIN") is not None else "nm"
+                    'bandId': band_id,
+                    'min': w_node.findtext('MIN'),
+                    'max': w_node.findtext('MAX'),
+                    'central': w_node.findtext('CENTRAL'),
+                    'unit': w_node.find('MIN').get('unit')
+                    if w_node.find('MIN') is not None
+                    else 'nm',
                 }
-        self.metadata["Wavelengths"] = wavelengths
+        self.metadata['Wavelengths'] = wavelengths
 
     def _extract_mtd_tl(self):
         """Extracts required fields from MTD_TL.xml (Tile Metadata)."""
@@ -136,19 +146,23 @@ class Sentinel2SafeProcessor(BasePipeline):
         root = tree.getroot()
 
         # CS Name and Code
-        cs_name = root.find(".//HORIZONTAL_CS_NAME")
-        cs_code = root.find(".//HORIZONTAL_CS_CODE")
-        self.metadata['HORIZONTAL_CS_NAME'] = cs_name.text if cs_name is not None else None
-        self.metadata['HORIZONTAL_CS_CODE'] = cs_code.text if cs_code is not None else None
+        cs_name = root.find('.//HORIZONTAL_CS_NAME')
+        cs_code = root.find('.//HORIZONTAL_CS_CODE')
+        self.metadata['HORIZONTAL_CS_NAME'] = (
+            cs_name.text if cs_name is not None else None
+        )
+        self.metadata['HORIZONTAL_CS_CODE'] = (
+            cs_code.text if cs_code is not None else None
+        )
 
     def _save_json(self):
         """Save metadata to a JSON file."""
         # Todo: Harmonize metadata with Templates.
-        filename = self.metadata["PRODUCT_URI"].replace('.SAFE', '.json')
+        filename = self.metadata['PRODUCT_URI'].replace('.SAFE', '.json')
         output_path = self.output_folder / filename
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(self.metadata, f, indent=4)
-        print(f"Metadata saved to: {output_path}")
+        print(f'Metadata saved to: {output_path}')
 
     def _process_and_merge_jp2(self):
         """
@@ -160,17 +174,39 @@ class Sentinel2SafeProcessor(BasePipeline):
             print('GRANULE list is empty. Unable to retrieve .jp2 files.')
             return
 
-        print("Converting .jp2 files to .tiff")
+        print('Converting .jp2 files to .tiff')
         # Make a list of paths to the jp2 files in the GRANULE folder.
         # For each band uses the file with the smaller pixel size (i.e. 10m if available, else 20m or 60m).
         # Note: make sure that the gdal plugin gdal_JP2OpenJPEG.dll is installed.
-        jp2_bands = [next((item for item in self.granule_list if string in item), None) for string in
-                     ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']]
-        jp2_paths = [os.path.join(self.input_folder, file + '.jp2') for file in jp2_bands]
+        jp2_bands = [
+            next((item for item in self.granule_list if string in item), None)
+            for string in [
+                'B01',
+                'B02',
+                'B03',
+                'B04',
+                'B05',
+                'B06',
+                'B07',
+                'B08',
+                'B8A',
+                'B09',
+                'B11',
+                'B12',
+                'SCL',
+            ]
+        ]
+        jp2_paths = [
+            os.path.join(self.input_folder, file + '.jp2') for file in jp2_bands
+        ]
 
         # Retrieve the offsets for all spectral bands except band 10
         if self.offset_values_list is not None:
-            offsets = [int(value) for key, value in self.offset_values_list.items() if key not in ['band_10']]
+            offsets = [
+                int(value)
+                for key, value in self.offset_values_list.items()
+                if key not in ['band_10']
+            ]
             offsets = offsets + [0]  # add 0 for SCL band
         else:
             offsets = [0] * (len(jp2_paths))
@@ -193,8 +229,8 @@ class Sentinel2SafeProcessor(BasePipeline):
                 yRes=self.target_res[1],
                 resampleAlg=alg,
                 multithread=True,  # Speed up processing
-                srcNodata=-32768, # Todo: get NoData values from the xml files.
-                dstNodata=-32768
+                srcNodata=-32768,  # Todo: get NoData values from the xml files.
+                dstNodata=-32768,
             )
             gdal.Warp(vrt_output, src_file, options=warp_options)
             resampled_vrt_files.append(vrt_output)
@@ -211,28 +247,25 @@ class Sentinel2SafeProcessor(BasePipeline):
         gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
 
         # Create the final geotiff
-        product_name = self.metadata["PRODUCT_URI"].replace('.SAFE', '.tiff')
+        product_name = self.metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
         output_path = os.path.join(self.output_folder, product_name)
         options = ['COMPRESS=LZW', 'TILED=YES']
-        gdal.Translate(
-            output_path,
-            mosaic_vrt,
-            format='GTiff',
-            creationOptions=options
-        )
-        print(f"Merged resampled files as GeoTIFF: {output_path}")
+        gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
+        print(f'Merged resampled files as GeoTIFF: {output_path}')
 
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
         gdal.Unlink(mosaic_vrt)
 
-    def run(self,
-            input_folder: str = None,
-            output_folder: str = None,
-            roi: list = None,
-            target_res: tuple = (20, 20),
-            resampling_alg: str = 'near'):
+    def run(
+        self,
+        input_folder: str = None,
+        output_folder: str = None,
+        roi: list = None,
+        target_res: tuple = (20, 20),
+        resampling_alg: str = 'near',
+    ):
         """
         :param input_folder: Root directory of the S2 SAFE product folder.
         :param output_folder: Directory where the resulting geotiff and corresponding metadata will be saved.
@@ -250,11 +283,13 @@ class Sentinel2SafeProcessor(BasePipeline):
         # Ensure output folder exists
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
-        print(f"Scanning folder: {self.input_folder}")
+        print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
             self._process_and_merge_jp2()
             self._save_json()
         else:
-            print("Extraction failed: Required metadata files are missing or could not be located.")
+            print(
+                'Extraction failed: Required metadata files are missing or could not be located.'
+            )
