@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 from .sentinel1 import Sentinel1Pipeline
 from .cloudcover import Sentinel2CloudCoverPipeline
+from .sentinel2safe import Sentinel2SafeProcessor
 
 
 class PreprocessingPipelines:
@@ -22,6 +23,7 @@ class PreprocessingPipelines:
     def __init__(self):
         self._pipelines = {
             'sentinel1': Sentinel1Pipeline(),
+            'sentinel2_safe_processor': Sentinel2SafeProcessor(),
             'sentinel2_cloudcover': Sentinel2CloudCoverPipeline(),
         }
 
