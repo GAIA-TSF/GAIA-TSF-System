@@ -43,12 +43,16 @@ class GaiaBase:
         :param str project_file: path to project file to be read or None
         """
         from subsystems.qcl.logger import Logger  # avoid circular import
+        from subsystems.qcl.logger.db import DbLogger
 
         self.sid = sid
         # initialize internal settings
         self.settings = SettingsReader()
         # initialize logger
         self.logger = Logger(subsystem=sid.name)
+        db_config = self.settings['sdi']['db']
+        db_config.update(self.settings['qcl']['db'])
+        self.logger.logger.addHandler(DbLogger(db_config))
         self.logger.debug(f'{self.__class__.__name__} initialized')
         if project_file is not None:
             self.project_config = ProjectConfigReader(project_file)

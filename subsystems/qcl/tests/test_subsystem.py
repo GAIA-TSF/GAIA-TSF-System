@@ -114,3 +114,22 @@ class TestSubsystem:
             qc.check('unknown_type', None, {}, 'TEST_ERR_001')
 
         assert 'No QC Controller found for unknown_type' in str(exc_info.value)
+
+    def test_db_logging(self):
+        """Verify that the logger persists logs to the database"""
+        import psycopg
+
+        qc = QCLayer()
+        qc.logger.info('Test')
+
+        db_conn = qc.settings['sdi']['db']
+        db_conn.update(qc.settings['qcl']['db'])
+        print(db_conn)
+        conn = psycopg.connect(**db_conn)
+
+        with conn.cursor() as cur:
+            cur.execute('SELECT * FROM logs ORDER BY id DESC LIMIT 1')
+            row = cur.fetchone()
+            print(row[1])
+
+        conn.close()

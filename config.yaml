@@ -1,6 +1,8 @@
 qcl:
   logger:
     level: DEBUG
+  db:
+    dbname: 'logs'
 eou:
   eodag:
     cop_dataspace:
