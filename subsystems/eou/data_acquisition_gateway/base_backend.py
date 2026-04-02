@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
+
 class DataAcquisitionBackend(ABC):
     @abstractmethod
     def search(self, *args, **kwargs):

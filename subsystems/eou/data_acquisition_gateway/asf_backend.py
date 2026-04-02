@@ -15,11 +15,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
     def search(self, aoi: str, start: str, end: str, direction: str, **kwargs):
         """Search Sentinel-1 BURST data using ASF."""
         results = ASF.search(
-            aoi,
-            startTime=start,
-            stopTime=end,
-            flightDirection=direction,
-            **kwargs
+            aoi, startTime=start, stopTime=end, flightDirection=direction, **kwargs
         )
         return results
 
