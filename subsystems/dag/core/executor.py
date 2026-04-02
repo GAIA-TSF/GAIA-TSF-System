@@ -1,4 +1,3 @@
-
 class PipelineExecutor:
     def __init__(self):
         print('[PipelineExecutor] Initialized')
@@ -10,5 +9,4 @@ class PipelineExecutor:
 
     def run(self, name, inputs):
         print(f'[PipelineExecutor] Running {name}')
-        return self.registry[name].run(inputs) 
-    
+        return self.registry[name].run(inputs)

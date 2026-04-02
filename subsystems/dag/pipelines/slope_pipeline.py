@@ -40,7 +40,7 @@ class SlopeStabilityPipeline(BasePipeline):
         print('[SlopeStabilityPipeline] Finished')
 
         # return output
-        return 0 
+        return 0
 
 
 # Optional standalone run
@@ -53,4 +53,4 @@ if __name__ == '__main__':
     }
 
     result = pipeline.run(inputs)
-    print('Output:', result) 
+    print('Output:', result)

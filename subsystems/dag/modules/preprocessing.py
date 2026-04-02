@@ -1,4 +1,3 @@
-
 class Normalizer:
     def fit(self, cube):
         print('[Normalizer] Fitting')

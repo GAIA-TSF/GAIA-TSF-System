@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 import argparse
@@ -58,7 +57,6 @@ def get_pipeline(name: str):
         raise ValueError(f'Unknown pipeline: {name}')
 
 
-
 # MAIN
 def main():
     parser = argparse.ArgumentParser(description='DAG Debug Runner')
@@ -96,4 +94,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
