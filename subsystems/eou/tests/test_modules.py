@@ -64,7 +64,7 @@ class TestModules:
 
         module = DataAcquisitionGateway()
 
-        result = module.search(
+        result = module.backend.search(
             geom=load_geom(self._get_data_path('area_intervencao.kmz')),
             **self.search_filter,
         )
@@ -80,7 +80,7 @@ class TestModules:
         """
         module = DataAcquisitionGateway()
 
-        results = module.search(
+        results = module.backend.search(
             geom=load_geom(self._get_data_path('area_intervencao.kmz')),
             **self.search_filter,
         )
@@ -89,7 +89,7 @@ class TestModules:
 
         ql_path = None
         try:
-            ql_path = module.download(results[0], quicklook=True)
+            ql_path = module.backend.download(results[0], quicklook=True)
             assert isinstance(ql_path, str)
             assert Path(ql_path).exists()
             assert Path(ql_path).stat().st_size > 0
