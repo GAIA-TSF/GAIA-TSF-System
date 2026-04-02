@@ -37,7 +37,8 @@ class AMDPipeline(BasePipeline):
         # NEW: In-situ integration
         # -----------------------------
         if inputs.get('insitu'):
-            insitu = self.insitu_loader.load_csv(inputs.get('insitu'))
+            print('inputs') 
+            # insitu = self.insitu_loader.load_csv(inputs.get('insitu'))
 
             # aligned = self.temporal_aligner.align_to_eo(
             #     insitu,
