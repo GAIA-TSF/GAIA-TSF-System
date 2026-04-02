@@ -1,4 +1,3 @@
-
 from subsystems.dag.pipelines.amd_pipeline import AMDPipeline
 
 
@@ -13,5 +12,4 @@ def test_amd_pipeline_runs():
 
     output = pipeline.run(inputs)
 
-    assert output is not None 
-    
+    assert output is not None

@@ -27,4 +27,3 @@ class InSituLoader:
             'y': float(parts[3]),
             'point_id': parts[1],
         }
-    

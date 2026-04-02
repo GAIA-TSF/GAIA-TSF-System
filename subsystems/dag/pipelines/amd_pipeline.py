@@ -1,4 +1,4 @@
-from subsystems.dag.pipelines.base_pipeline import BasePipeline 
+from subsystems.dag.pipelines.base_pipeline import BasePipeline
 
 from subsystems.dag.modules.ingestion import EODataLoader
 from subsystems.dag.modules.harmonization import SpatialHarmonizer
@@ -7,7 +7,7 @@ from subsystems.dag.modules.preprocessing import Normalizer
 from subsystems.dag.modules.tensorization import Tensorizer
 from subsystems.dag.modules.masking import MaskApplier
 
-from subsystems.dag.modules.insitu import InSituLoader, TemporalAligner 
+from subsystems.dag.modules.insitu import InSituLoader, TemporalAligner
 
 
 class AMDPipeline(BasePipeline):
@@ -37,23 +37,23 @@ class AMDPipeline(BasePipeline):
         # NEW: In-situ integration
         # -----------------------------
         if inputs.get('insitu'):
-            print('inputs') 
+            print('inputs')
             # insitu = self.insitu_loader.load_csv(inputs.get('insitu'))
 
             # aligned = self.temporal_aligner.align_to_eo(
             #     insitu,
             #     cube.timestamps if hasattr(cube, 'timestamps') else []
-            # ) # noqa: F821  
+            # ) # noqa: F821
 
             # print('[AMDPipeline] In-situ aligned shape:', len(aligned))
 
         # self.normalizer.fit(amd)
         # amd = self.normalizer.transform(amd)
 
-        # return self.tensorizer.to_numpy(amd) 
+        # return self.tensorizer.to_numpy(amd)
 
+        return 0
 
-        return 0 
 
 if __name__ == '__main__':
     print('[AMDPipeline] Standalone run')
@@ -68,4 +68,4 @@ if __name__ == '__main__':
 
     output = pipeline.run(inputs)
 
-    print('Output:', output) 
+    print('Output:', output)
