@@ -1,6 +1,8 @@
 from .base import BasePipeline
 import os
 import json
+import zipfile
+import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from osgeo import gdal
@@ -94,13 +96,6 @@ class Sentinel2SafeProcessor(BasePipeline):
             list_images = [img.text for img in granule.findall('IMAGE_FILE')]
             self.granule_list = list_images
 
-        # Extract Special_Values
-        special_vals = {}
-        for sv in root.findall('.//Special_Values'):
-            for child in sv:
-                special_vals[self._get_clean_tag(child)] = child.text
-        self.metadata['Special_Values'] = special_vals
-
         # Extract BOA_ADD_OFFSET_VALUES_LIST
         offsets = {}
         for offset in root.findall('.//BOA_ADD_OFFSET'):
@@ -157,7 +152,6 @@ class Sentinel2SafeProcessor(BasePipeline):
 
     def _save_json(self):
         """Save metadata to a JSON file."""
-        # Todo: Harmonize metadata with Templates.
         filename = self.metadata['PRODUCT_URI'].replace('.SAFE', '.json')
         output_path = self.output_folder / filename
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -229,18 +223,11 @@ class Sentinel2SafeProcessor(BasePipeline):
                 yRes=self.target_res[1],
                 resampleAlg=alg,
                 multithread=True,  # Speed up processing
-                srcNodata=-32768,  # Todo: get NoData values from the xml files.
+                srcNodata=-32768,
                 dstNodata=-32768,
             )
             gdal.Warp(vrt_output, src_file, options=warp_options)
             resampled_vrt_files.append(vrt_output)
-
-        # Add bands offsets to VRTs
-        for i, vrt in enumerate(resampled_vrt_files):
-            ds = gdal.Open(vrt, gdal.GA_Update)
-            band = ds.GetRasterBand(1)
-            band.SetOffset(offsets[i])
-            del ds
 
         # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
         mosaic_vrt = os.path.join(self.output_folder, 'combined_output.vrt')
@@ -251,7 +238,20 @@ class Sentinel2SafeProcessor(BasePipeline):
         output_path = os.path.join(self.output_folder, product_name)
         options = ['COMPRESS=LZW', 'TILED=YES']
         gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
-        print(f'Merged resampled files as GeoTIFF: {output_path}')
+
+        # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
+        ds = gdal.Open(output_path, gdal.GA_Update)
+        scl_band = ds.GetRasterBand(ds.RasterCount)
+        mask = scl_band.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
+        for i in range(1, ds.RasterCount):
+            band = ds.GetRasterBand(i)
+            data = band.ReadAsArray()
+            data = data + offsets[i - 1]
+            data[mask] = -32768
+            band.WriteArray(data)
+            band.FlushCache()
+        del ds
+        print(f'GeoTIFF saved to: {output_path}')
 
         # Clean temp files
         for vrt in resampled_vrt_files:
@@ -259,22 +259,20 @@ class Sentinel2SafeProcessor(BasePipeline):
         gdal.Unlink(mosaic_vrt)
 
     def run(
-        self,
-        input_folder: str = None,
-        output_folder: str = None,
-        roi: list = None,
-        target_res: tuple = (20, 20),
-        resampling_alg: str = 'near',
+            self,
+            input_safe: str = None,
+            output_folder: str = None,
+            roi: list = None,
+            target_res: tuple = (20, 20),
+            resampling_alg: str = 'near',
     ):
         """
-        :param input_folder: Root directory of the S2 SAFE product folder.
+        :param input_safe: Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder).
         :param output_folder: Directory where the resulting geotiff and corresponding metadata will be saved.
-        :param roi: Optional bounding box in (minX, maxY, maxX, minY) format (standard GDAL Warp bounds).
-        :param target_res: Optional (x_res, y_res) for the output. Default is 20m.
+        :param roi: Optional - bounding box in (minX, maxY, maxX, minY) format (standard GDAL Warp bounds).
+        :param target_res: Pixel resolution (x_res, y_res) for the output. Default is 20m.
         :param resampling_alg: The GDAL resampling algorithm (e.g., 'bilinear', 'cubic', 'near'). Default is 'near'.
         """
-
-        self.input_folder = Path(input_folder)
         self.output_folder = Path(output_folder)
         self.roi = roi
         self.target_res = target_res
@@ -283,13 +281,31 @@ class Sentinel2SafeProcessor(BasePipeline):
         # Ensure output folder exists
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
+        # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
+        if os.path.isdir(input_safe):
+            self.input_folder = Path(input_safe)
+        elif zipfile.is_zipfile(input_safe):
+            target_dir = os.path.join(output_folder, 'temp')
+            print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
+            with zipfile.ZipFile(input_safe, 'r') as zip_ref:
+                zip_ref.extractall(target_dir)
+            self.input_folder = os.path.join(target_dir, Path(os.path.basename(input_safe).replace('.zip', '')))
+        else:
+            print("Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.")
+            return
+
+        # Proceed with the conversion of the SAFE to Geotiff
         print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
             self._process_and_merge_jp2()
             self._save_json()
+            if zipfile.is_zipfile(input_safe):
+                target_dir = os.path.join(output_folder, 'temp')
+                print(f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}')
+                shutil.rmtree(target_dir)
         else:
             print(
-                'Extraction failed: Required metadata files are missing or could not be located.'
+                'Extraction failed: Required metadata files could not be located.'
             )
