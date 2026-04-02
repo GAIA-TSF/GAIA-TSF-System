@@ -259,12 +259,12 @@ class Sentinel2SafeProcessor(BasePipeline):
         gdal.Unlink(mosaic_vrt)
 
     def run(
-            self,
-            input_safe: str = None,
-            output_folder: str = None,
-            roi: list = None,
-            target_res: tuple = (20, 20),
-            resampling_alg: str = 'near',
+        self,
+        input_safe: str = None,
+        output_folder: str = None,
+        roi: list = None,
+        target_res: tuple = (20, 20),
+        resampling_alg: str = 'near',
     ):
         """
         :param input_safe: Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder).
@@ -289,9 +289,13 @@ class Sentinel2SafeProcessor(BasePipeline):
             print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
             with zipfile.ZipFile(input_safe, 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
-            self.input_folder = os.path.join(target_dir, Path(os.path.basename(input_safe).replace('.zip', '')))
+            self.input_folder = os.path.join(
+                target_dir, Path(os.path.basename(input_safe).replace('.zip', ''))
+            )
         else:
-            print("Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.")
+            print(
+                'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
+            )
             return
 
         # Proceed with the conversion of the SAFE to Geotiff
@@ -306,6 +310,4 @@ class Sentinel2SafeProcessor(BasePipeline):
                 print(f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}')
                 shutil.rmtree(target_dir)
         else:
-            print(
-                'Extraction failed: Required metadata files could not be located.'
-            )
+            print('Extraction failed: Required metadata files could not be located.')
