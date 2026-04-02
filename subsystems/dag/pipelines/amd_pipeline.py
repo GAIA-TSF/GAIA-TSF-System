@@ -39,12 +39,12 @@ class AMDPipeline(BasePipeline):
         if inputs.get('insitu'):
             insitu = self.insitu_loader.load_csv(inputs.get('insitu'))
 
-            aligned = self.temporal_aligner.align_to_eo(
-                insitu,
-                cube.timestamps if hasattr(cube, 'timestamps') else []
-            ) # noqa: F821  
+            # aligned = self.temporal_aligner.align_to_eo(
+            #     insitu,
+            #     cube.timestamps if hasattr(cube, 'timestamps') else []
+            # ) # noqa: F821  
 
-            print('[AMDPipeline] In-situ aligned shape:', len(aligned))
+            # print('[AMDPipeline] In-situ aligned shape:', len(aligned))
 
         # self.normalizer.fit(amd)
         # amd = self.normalizer.transform(amd)
