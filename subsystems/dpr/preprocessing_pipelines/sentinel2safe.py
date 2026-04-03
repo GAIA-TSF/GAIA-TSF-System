@@ -253,6 +253,9 @@ class Sentinel2SafeProcessor(BasePipeline):
         del ds
         print(f'GeoTIFF saved to: {output_path}')
 
+        # Add path to the metadata
+        self.s2_metadata['source_path'] = output_path
+
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
@@ -301,6 +304,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         # Proceed with the conversion of the SAFE to Geotiff
         print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
+            self.s2_metadata['Input_SAFE_path'] = self.input_folder
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
             self._process_and_merge_jp2()
