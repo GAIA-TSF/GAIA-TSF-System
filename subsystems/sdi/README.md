@@ -1,5 +1,23 @@
-# Spatial-Data-Infrastructure
-Central repository for spatial and temporal datasets with geospatial services.
+# Spatial Data Infrastructure (SDI)
+
+The **Spatial Data Infrastructure** serves as the core data management
+system for the architecture, responsible for the storage,
+organization, and retrieval of all geospatial and monitoring data. Its
+primary function is to store harmonized Earth Observation (EO) and
+in-situ data, along with their associated metadata, in a structured
+environment that facilitates efficient access by downstream analytics
+and visualization sub-systems. The SDI creates a unified data layer
+that supports both public and private data access, ensuring that raw
+data is preserved for backup purposes while harmonized datasets are
+made readily available for processing. It leverages standard protocols
+such as the SpatioTemporal Asset Catalog (STAC) to index data,
+allowing systems to easily query and locate relevant datasets based on
+time and location. Additionally, the SDI provides specific APIs for
+handling different data types, including coverages for raster data and
+PostGIS for vector data, ensuring optimizing handling of diverse
+monitoring inputs.
+
+-![Spatial Data Infrastructure Architecture](../../images/sdi_subsystem.png)
 
 ## Infrastructure
 
