@@ -21,15 +21,23 @@ class ETLEngine(GaiaBase):
     :type qc_layer: Any
     """
 
-    def __init__(self, project_file: Optional[str] = None, qc_layer: Any = None):
+    def __init__(
+        self,
+        project_file: Optional[str] = None,
+        qc_layer: Any = None,
+        dpr_service: Any = None,
+    ):
         """
         Initialize the ETLEngine using GaiaBase.
         """
         # Step 1: Initialize base class and register subsystem identity as ISU
         super().__init__(SubsystemId.ISU, project_file=project_file)
 
-        # Dependency Injection: Receive the QC layer instance
+        # Dependency Injection: Receive external service instances
+        # qc_layer  → ISU_I_2: Quality Control and Logging (QCL)
+        # dpr_service → ISU_I_1: Data Processing (DPR); SDI is reached indirectly via DPR
         self.qc_layer = qc_layer
+        self.dpr_service = dpr_service
 
         # Step 2: Utilize self.logger automatically provided by GaiaBase
         self.parsing_engine = ParsingEngine(logger=self.logger)
@@ -111,8 +119,30 @@ class ETLEngine(GaiaBase):
                 self.logger.warning('No QC layer configured. Skipping quality control.')
                 qc_result = {'final_status': 'Skipped (No QC Layer)'}
 
+            # ISU_I_1: Route validated, standardised dataset to DPR (ISU_IR_02 / ISU_R_07).
+            # SDI integration is indirect — DPR is responsible for SDI ingestion.
+            if self.dpr_service:
+                dpr_result = self.dpr_service.process_in_situ(df, metadata)
+                self.logger.info(
+                    f"[ISU_I_1] Dataset '{filename}' delivered to DPR: "
+                    f'ready_for_sdi={dpr_result.get("ready_for_sdi")}'
+                )
+            else:
+                self.logger.warning(
+                    'No DPR service configured (ISU_I_1). Skipping data processing.'
+                )
+                dpr_result = {
+                    'status': 'Skipped (No DPR Service)',
+                    'ready_for_sdi': False,
+                }
+
             # Return standardized payload for external interfaces (ISU_R_07)
-            return {'metadata': metadata, 'qc_result': qc_result, 'data': df}
+            return {
+                'metadata': metadata,
+                'qc_result': qc_result,
+                'dpr_result': dpr_result,
+                'data': df,
+            }
         else:
             # If the parser cannot identify the format, quarantine the file
             self.logger.warning(
@@ -142,14 +172,20 @@ class ETLEngine(GaiaBase):
         self.logger.info(
             f'ETL Engine received valid streaming payload from {sensor_type} ({dataset_id}).'
         )
-
-        # Log data shape and QC status.
-        # Note: In a production environment, this triggers the DPR_I_1 interface
-        # to dispatch data to the external Data Processor.
         self.logger.debug(
             f'Stream data shape: {df.shape}, QC Status: {qc_result.get("final_status")}'
         )
 
-        # Integration Hook: Place logic here for downstream handoff.
-        # Example: self.dpr_service.send_to_processor(df, metadata)
-        pass
+        # ISU_I_1: Route validated, standardised streaming dataset to DPR (ISU_IR_02 / ISU_R_07).
+        # SDI integration is indirect — DPR is responsible for SDI ingestion.
+        if self.dpr_service:
+            dpr_result = self.dpr_service.process_in_situ(df, metadata)
+            self.logger.info(
+                f'[ISU_I_1] Stream data from {dataset_id} delivered to DPR: '
+                f'ready_for_sdi={dpr_result.get("ready_for_sdi")}'
+            )
+        else:
+            self.logger.warning(
+                'No DPR service configured (ISU_I_1). Skipping data processing.'
+            )
+            dpr_result = {'status': 'Skipped (No DPR Service)', 'ready_for_sdi': False}
