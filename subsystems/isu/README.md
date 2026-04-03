@@ -1,14 +1,14 @@
-# GAIA-TSF: In-Situ Data Uploader (ISU) Subsystem
+# In-Situ Data Uploader (ISU) Sub-system
 
-## Overview
-
-The In-Situ Data Uploader (ISU) is the core data ingestion hub for the GAIA-TSF platform. It is responsible for securely and efficiently collecting geotechnical and environmental data from physical sensors, external FTP directories, and high-frequency real-time data streams.
+The **In-Situ Data Uploader** is the core data ingestion hub for the GAIA-TSF platform. It is responsible for securely and efficiently collecting geotechnical and environmental data from physical sensors, external FTP directories, and high-frequency real-time data streams.
 
 ISU employs a highly concurrent, decoupled modern architecture. All ingestion endpoints operate in parallel and converge at the central ETL Engine for standardized parsing and preliminary cleaning.
 
 ## Architecture Design
 
 ISU strictly adheres to the D5.1 Architecture Specification, utilizing the Facade and Factory design patterns to ensure maximum decoupling.
+
+![In-Situ Data Uploader Architecture](../../images/isu_subsystem.png)
 
 The core module consists of a main orchestrator (Facade) and four sub-engines:
 
@@ -86,7 +86,5 @@ isu:
 To run the tests, execute the following command in your terminal:
 
 ```bash
-python -m pytest subsystems/isu/tests/ -v -p no:cacheprovider --basetemp=test_tmp
+docker exec gaiatesting python3 -m pytest subsystems/isu/tests/ -v -p no:cacheprovider --basetemp=test_tmp
 ```
-
-![In-Situ Data Uploader Architecture](../../images/isu_subsystem.png)
