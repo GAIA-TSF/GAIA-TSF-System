@@ -64,7 +64,8 @@ class TestSentinel2Workflow:
 
         # Check if the files were created
         filename = (
-            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')+'.tiff'
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+            + '.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
         assert os.path.exists(tiff_path), 'The Geotiff was not created.'
@@ -118,11 +119,11 @@ class TestSentinel2Workflow:
         # input ROI:
         geom = wkt.loads(roi)
         target_epsg = metadata['HORIZONTAL_CS_CODE']
-        transformer = Transformer.from_crs("EPSG:4326", target_epsg, always_xy=True)
+        transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         input_roi = numpy.array(transformed_geom.bounds)
         # Verify that the offsets are less than the pixel resolution
-        offsets = numpy.abs(input_roi-output_roi)
+        offsets = numpy.abs(input_roi - output_roi)
         assert numpy.nanmax(offsets) < numpy.nanmin(res), (
             f'The spatial extent of the Geotiff {output_roi} '
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
