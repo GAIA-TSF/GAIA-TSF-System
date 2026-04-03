@@ -1,4 +1,4 @@
-# In-Situ Data Uploader (ISU)
+# In-Situ Data Uploader (ISU) Sub-system
 
 The **In-Situ Data Uploader** is the core data ingestion hub for the GAIA-TSF platform. It is responsible for securely and efficiently collecting geotechnical and environmental data from physical sensors, external FTP directories, and high-frequency real-time data streams.
 

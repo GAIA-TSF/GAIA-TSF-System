@@ -1,4 +1,4 @@
-# Earth Observation Data Uploader (EOU)
+# Earth Observation Data Uploader (EOU) Sub-system
 
 The **Earth Observation Data Uploader** sub-system is designed to manage
 the acquisition of satellite imagery from both public and restricted

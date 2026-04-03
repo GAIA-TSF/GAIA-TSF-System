@@ -1,4 +1,4 @@
-# Alert Decision Support Engine (ALE)
+# Alert Decision Support Engine (ALE) Sub-system
 
 The **Alert and Decision Support Engine** continuously processes
 information from the SDI sub-system, which provides outputs from

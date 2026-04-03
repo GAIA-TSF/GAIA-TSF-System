@@ -1,4 +1,4 @@
-# Reporting Compliance (REP)
+# Reporting Compliance (REP) Sub-system
 
 The **Reporting and Compliance** sub-system serves as the formal
 output engine of the GAIA-TSF architecture, transforming complex

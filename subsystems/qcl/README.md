@@ -1,4 +1,4 @@
-# Quality Control and Logging Layer (QCL)
+# Quality Control and Logging Layer (QCL) Sub-system
 
 The **Quality Control Layer** serves as the critical validation gatekeeper
 within the GAIA-TSF monitoring architecture, situated between the

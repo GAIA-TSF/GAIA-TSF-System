@@ -1,4 +1,4 @@
-# Notifications (NTF)
+# Notifications (NTF) Sub-system
 
 The **Notification** sub-system is designed to serve as the
 final link in the monitoring chain, ensuring that critical

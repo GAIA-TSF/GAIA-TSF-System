@@ -1,4 +1,4 @@
-# Data Processing (DPR)
+# Data Processing (DPR) Sub-system
 
 The **Data Processing** sub-system serves as the central refinement
 engine of the architecture, responsible for transforming raw inputs

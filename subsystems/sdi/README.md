@@ -1,4 +1,4 @@
-# Spatial Data Infrastructure (SDI)
+# Spatial Data Infrastructure (SDI) Sub-system
 
 The **Spatial Data Infrastructure** serves as the core data management
 system for the architecture, responsible for the storage,

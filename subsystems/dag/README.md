@@ -1,6 +1,6 @@
-# Data Aggregation (DAG)
+# Data Aggregation (DAG) Sub-system
 
-The **Data Aggregation** (DAG) sub-system serves as the critical
+The **Data Aggregation** sub-system serves as the critical
 processing bridge that transforms harmonised data stored within the
 Spatial Data Infrastructure (SDI) into structured inputs suitable for
 machine learning analysis. Its primary function is to prepare data in

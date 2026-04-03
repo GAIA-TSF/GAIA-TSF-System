@@ -1,4 +1,4 @@
-# Visualisation Dashboard
+# Visualisation Dashboard (VID) Sub-system
 
 The **Visualization and Dashboard** sub-system serves as the primary
 user interface for the GAIA-TSF platform, designed to present the
