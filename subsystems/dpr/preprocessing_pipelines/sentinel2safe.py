@@ -29,7 +29,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         self.roi = None
         self.target_res = None
         self.resampling_alg = None
-        self.metadata = {}
+        self.s2_metadata = {}
 
         # Paths to specific files
         self.msil2a_path = None
@@ -89,7 +89,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         for tag in direct_tags:
             elem = root.find(f'.//{tag}')
             if elem is not None:
-                self.metadata[tag] = elem.text
+                self.s2_metadata[tag] = elem.text
 
         # Extract Granule_List
         for granule in root.findall('.//Granule'):
@@ -109,7 +109,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         if rc_elem is not None:
             for child in rc_elem:
                 ref_conv[self._get_clean_tag(child)] = child.text
-        self.metadata['Reflectance_Conversion'] = ref_conv
+        self.s2_metadata['Reflectance_Conversion'] = ref_conv
 
         # Extract all physical bands and wavelengths
         wavelengths = {}
@@ -128,7 +128,7 @@ class Sentinel2SafeProcessor(BasePipeline):
                     if w_node.find('MIN') is not None
                     else 'nm',
                 }
-        self.metadata['Wavelengths'] = wavelengths
+        self.s2_metadata['Wavelengths'] = wavelengths
 
     def _extract_mtd_tl(self):
         """Extracts required fields from MTD_TL.xml (Tile Metadata)."""
@@ -143,19 +143,19 @@ class Sentinel2SafeProcessor(BasePipeline):
         # CS Name and Code
         cs_name = root.find('.//HORIZONTAL_CS_NAME')
         cs_code = root.find('.//HORIZONTAL_CS_CODE')
-        self.metadata['HORIZONTAL_CS_NAME'] = (
+        self.s2_metadata['HORIZONTAL_CS_NAME'] = (
             cs_name.text if cs_name is not None else None
         )
-        self.metadata['HORIZONTAL_CS_CODE'] = (
+        self.s2_metadata['HORIZONTAL_CS_CODE'] = (
             cs_code.text if cs_code is not None else None
         )
 
     def _save_json(self):
         """Save metadata to a JSON file."""
-        filename = self.metadata['PRODUCT_URI'].replace('.SAFE', '.json')
+        filename = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.json')
         output_path = self.output_folder / filename
         with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(self.metadata, f, indent=4)
+            json.dump(self.s2_metadata, f, indent=4)
         print(f'Metadata saved to: {output_path}')
 
     def _process_and_merge_jp2(self):
@@ -234,7 +234,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
 
         # Create the final geotiff
-        product_name = self.metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
+        product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
         output_path = os.path.join(self.output_folder, product_name)
         options = ['COMPRESS=LZW', 'TILED=YES']
         gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
