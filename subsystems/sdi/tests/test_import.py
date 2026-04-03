@@ -11,8 +11,8 @@ from subsystems.sdi.utils import SdiUtils
 
 from lib.config import SettingsReader
 
-from .config import INSITU_COLLECTION, INSITU_ITEM_ID
-from .config import EO_COLLECTION, EO_ITEM_ID
+from config import INSITU_COLLECTION, INSITU_ITEM_ID
+from config import EO_COLLECTION, EO_ITEM_ID
 
 
 class TestInSituDataLoader:
@@ -94,9 +94,11 @@ class TestEarthObservationDataLoader:
         assert items, 'STAC query returned no items'
 
         # Find the asset B01
-        stac_item = items[0]
-        asset = stac_item['assets']['B01']
-        asset_url = asset['href']
+        for stac_item in items:
+            if 'B01' in stac_item['assets']:
+                asset = stac_item['assets']['B01']
+                asset_url = asset['href']
+
         assert asset_url, 'STAC asset does not contain href'
 
         # Download the file from STAC asset URL
@@ -114,3 +116,17 @@ class TestEarthObservationDataLoader:
         assert md5_input == md5_downloaded, (
             'Downloaded file does not match the original GeoTIFF'
         )
+
+    def test_failing_import(self):
+        base_dir = Path(__file__).parent
+        zip_path = base_dir / 'assets' / 'eou_sample_data_bad_metadata.zip'
+        assert zip_path.exists()
+
+        importer = EarthObservationDataLoader(zip_path=zip_path)
+
+        # Expecting expection
+        with pytest.raises(ValueError) as excinfo:
+            importer.import_zip()
+
+        # Checking text of the exception
+        assert 'Missing required fields' in str(excinfo.value)

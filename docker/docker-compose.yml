@@ -1,17 +1,22 @@
-version: "3.9"
-
 services:
   gaiatesting:
     build:
       context: .
       dockerfile: Dockerfile
+    image: ghcr.io/gaia-tsf/gaiatesting:latest
     container_name: gaiatesting
     restart: unless-stopped
+    depends_on:
+      stacapi:
+        condition: service_healthy
+    links:
+      - pgstacdb
     volumes:
       - ..:/opt/gaia_tsf
     networks:
       - gaia_net
     command: tail -f /dev/null
+
   postgis:
     image: postgis/postgis:16-3.4
     container_name: postgis
@@ -26,10 +31,9 @@ services:
       - "6432:5432"
     networks:
       - gaia_net
+
   pgstacdb:
-    build:
-      context: .
-      dockerfile: Dockerfile.pgstacdb
+    image: ghcr.io/stac-utils/pgstac:v0.9.10
     container_name: pgstacdb
     restart: unless-stopped
     environment:
@@ -39,10 +43,12 @@ services:
       LOCALSTACK: "1"
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      oom_kill_disable: true
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U stac" ]
       interval: 5s
-      retries: 5
+      timeout: 5s
+      retries: 10
     ports:
       - "7432:5432"
     volumes:
@@ -50,8 +56,6 @@ services:
       - ..:/opt/gaia_tsf
     networks:
       - gaia_net
-    depends_on:
-      - localstack
 
   localstack:
     image: localstack/localstack:4.13.0
@@ -67,10 +71,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.stacapi
+    image: ghcr.io/gaia-tsf/stacapi:latest
     container_name: stacapi
     restart: unless-stopped
-    depends_on:
-      - pgstacdb
     environment:
       # Connect to pgstac
       POSTGRES_USER: stac
@@ -80,6 +83,12 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DBNAME: stac
       DATABASE_URL: postgresql://stac:stac@pgstacdb:5432/stac
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     ports:
       - "9080:8000"
     networks:
