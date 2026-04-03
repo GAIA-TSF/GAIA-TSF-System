@@ -91,6 +91,8 @@ class TestSentinel2Workflow:
             'Reflectance_Conversion',
             'HORIZONTAL_CS_NAME',
             'HORIZONTAL_CS_CODE',
+            'source_path',
+            'Input_SAFE_path',
         ]
         for key in essential_keys:
             assert key in metadata, f'Key {key} is missing from metadata file.'
