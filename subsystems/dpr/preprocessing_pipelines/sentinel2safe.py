@@ -5,7 +5,10 @@ import zipfile
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from osgeo import gdal
+from osgeo import gdal, ogr
+from shapely import wkt
+from shapely.ops import transform
+from pyproj import Transformer
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
@@ -158,6 +161,19 @@ class Sentinel2SafeProcessor(BasePipeline):
             json.dump(self.s2_metadata, f, indent=4)
         print(f'Metadata saved to: {output_path}')
 
+    def _roi_transform(self):
+        """Transform coordinates from EPSG:4326 to SAFE product coordinates."""
+        # Convert WKT to Shapely geometry
+        geom = wkt.loads(self.roi)
+
+        # Create transformer (From EPSG:4326 to target EPSG)
+        target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
+        transformer = Transformer.from_crs("EPSG:4326", target_epsg, always_xy=True)
+
+        # Transform the geometry
+        transformed_geom = transform(transformer.transform, geom)
+        self.roi = transformed_geom.wkt
+
     def _process_and_merge_jp2(self):
         """
         Makes a list of .jp2 files, resamples them to a consistent resolution,
@@ -212,13 +228,16 @@ class Sentinel2SafeProcessor(BasePipeline):
         resampled_vrt_files = []
 
         # Resample with gdal.Warp using in-memory VRT files
+        geom = ogr.CreateGeometryFromWkt(self.roi)
+        xmin, xmax, ymin, ymax = geom.GetEnvelope()
+        bounds = [xmin, ymin, xmax, ymax]
         for i, (src_file, alg) in enumerate(zip(jp2_paths, resampling_algorithms)):
             vrt_output = os.path.join(self.output_folder, f'temp_{i + 1}.vrt')
             print(f"--- Resampling {os.path.basename(src_file)} - '{alg}'")
             warp_options = gdal.WarpOptions(
                 format='VRT',
                 outputType=gdal.GDT_Int16,
-                outputBounds=self.roi,  # [minX, minY, maxX, maxY] - check projection!
+                outputBounds=bounds,  # [minX, minY, maxX, maxY] - check projection!
                 xRes=self.target_res[0],
                 yRes=self.target_res[1],
                 resampleAlg=alg,
@@ -254,7 +273,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         print(f'GeoTIFF saved to: {output_path}')
 
         # Add path to the metadata
-        self.s2_metadata['source_path'] = output_path
+        self.s2_metadata['source_path'] = str(output_path)
 
         # Clean temp files
         for vrt in resampled_vrt_files:
@@ -272,7 +291,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         """
         :param input_safe: Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder).
         :param output_folder: Directory where the resulting geotiff and corresponding metadata will be saved.
-        :param roi: Optional - bounding box in (minX, maxY, maxX, minY) format (standard GDAL Warp bounds).
+        :param roi: Optional - bounding box as a POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)
         :param target_res: Pixel resolution (x_res, y_res) for the output. Default is 20m.
         :param resampling_alg: The GDAL resampling algorithm (e.g., 'bilinear', 'cubic', 'near'). Default is 'near'.
         """
@@ -304,9 +323,10 @@ class Sentinel2SafeProcessor(BasePipeline):
         # Proceed with the conversion of the SAFE to Geotiff
         print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
-            self.s2_metadata['Input_SAFE_path'] = self.input_folder
+            self.s2_metadata['Input_SAFE_path'] = str(self.input_folder)
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
+            self._roi_transform()
             self._process_and_merge_jp2()
             self._save_json()
             if zipfile.is_zipfile(input_safe):

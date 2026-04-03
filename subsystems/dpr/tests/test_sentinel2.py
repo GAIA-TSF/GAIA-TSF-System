@@ -3,7 +3,11 @@ import os
 import shutil
 import numpy
 from osgeo import gdal
+from shapely import wkt
+from shapely.ops import transform
+from pyproj import Transformer
 
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 
@@ -14,13 +18,28 @@ class TestSentinel2Workflow:
         # GDAL configuration to handle errors
         gdal.UseExceptions()
 
-        # Get path for sentinel-2 zipped safe product
-        safe_path = os.path.abspath(
-            'subsystems/dpr/tests/sample_data/S2B_MSIL2A_20180805T102019_N0500_R065_T33VVG_20230731T140510.SAFE.zip'
+        # Retrieve a Sentinel-2 safe product using EOU's DataAcquisitionGateway
+        dag_module = DataAcquisitionGateway()
+
+        # Set ROI as a WKT string (WGS84). This will be used for both product search and cropping parameter.
+        roi = 'POLYGON((14.757 60.027, 14.757 60.052, 14.826 60.052, 14.826 60.027, 14.757 60.027))'
+
+        # Set search filters
+        search_filter = {
+            'provider': 'cop_dataspace',
+            'start': '2018-07-01',
+            'end': '2018-07-31',
+            'productType': 'S2_MSI_L2A',
+        }
+
+        results = dag_module.search(
+            geom=roi,
+            **search_filter,
         )
+        data_path = dag_module.download(results[0], quicklook=True)
 
         # Check if the SAFE product can be located
-        assert os.path.exists(safe_path), 'The SAFE product was not found.'
+        assert os.path.exists(data_path), 'The SAFE product was not found.'
 
         # Define an output folder to store the results
         output_folder = os.path.abspath(
@@ -31,9 +50,6 @@ class TestSentinel2Workflow:
         if os.path.exists(output_folder):
             shutil.rmtree(output_folder)
 
-        # Set ROI
-        roi = [486450, 6654430, 490310, 6657230]
-
         # Set output resolution
         res = (10, 10)
 
@@ -43,40 +59,17 @@ class TestSentinel2Workflow:
         # Run the pipeline
         pipeline = Sentinel2SafeProcessor()
         pipeline.run(
-            safe_path, output_folder, roi=roi, target_res=res, resampling_alg=r_alg
+            data_path, output_folder, roi=roi, target_res=res, resampling_alg=r_alg
         )
 
         # Check if the files were created
         filename = (
-            os.path.basename(safe_path).replace('.SAFE', '').replace('.zip', '.tiff')
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')+'.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
         assert os.path.exists(tiff_path), 'The Geotiff was not created.'
         json_path = os.path.join(output_folder, tiff_path.replace('.tiff', '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
-
-        # Checks if Geotiff was produced with all the bands and according to inputs
-        ds = gdal.Open(tiff_path, gdal.GA_Update)
-        assert ds.RasterCount == 13, (
-            'The Geotiff does not contain the right amount of bands.'
-        )
-        gt = ds.GetGeoTransform()
-        output_res = (numpy.abs(gt[1]), numpy.abs(gt[5]))
-        assert output_res == res, (
-            f'The spatial resolution of the Geotiff {output_res} '
-            f'differs from the input parameters {res} .'
-        )
-        width = ds.RasterXSize
-        height = ds.RasterYSize
-        minx = gt[0]
-        maxy = gt[3]
-        maxx = minx + gt[1] * width
-        miny = maxy + gt[5] * height
-        output_roi = [minx, miny, maxx, maxy]
-        assert output_roi == roi, (
-            f'The spatial extent of the Geotiff {output_roi} '
-            f'differs from the input parameters {roi} .'
-        )
 
         # Check if essential keys are present in the metadata file
         with open(json_path, 'r') as f:
@@ -96,6 +89,44 @@ class TestSentinel2Workflow:
         ]
         for key in essential_keys:
             assert key in metadata, f'Key {key} is missing from metadata file.'
+
+        # Checks if Geotiff was produced with all the bands and according to inputs
+        ds = gdal.Open(tiff_path, gdal.GA_Update)
+        assert ds.RasterCount == 13, (
+            'The Geotiff does not contain the right amount of bands.'
+        )
+
+        # Check if output resolution is same as input
+        gt = ds.GetGeoTransform()
+        output_res = (numpy.abs(gt[1]), numpy.abs(gt[5]))
+        assert output_res == res, (
+            f'The spatial resolution of the Geotiff {output_res} '
+            f'differs from the input parameters {res} .'
+        )
+
+        # Check if output ROI is same as input ROI
+        # Note: Practically we check if the difference between the bounding boxes coordinates are less than the
+        # resolution of 1 pixel (e.g. less or equal to 10m is the input spatial resolution is 10m)
+        # Output ROI:
+        width = ds.RasterXSize
+        height = ds.RasterYSize
+        minx = gt[0]
+        maxy = gt[3]
+        maxx = minx + gt[1] * width
+        miny = maxy + gt[5] * height
+        output_roi = numpy.array((minx, miny, maxx, maxy))
+        # input ROI:
+        geom = wkt.loads(roi)
+        target_epsg = metadata['HORIZONTAL_CS_CODE']
+        transformer = Transformer.from_crs("EPSG:4326", target_epsg, always_xy=True)
+        transformed_geom = transform(transformer.transform, geom)
+        input_roi = numpy.array(transformed_geom.bounds)
+        # Verify that the offsets are less than the pixel resolution
+        offsets = numpy.abs(input_roi-output_roi)
+        assert numpy.nanmax(offsets) < numpy.nanmin(res), (
+            f'The spatial extent of the Geotiff {output_roi} '
+            f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
+        )
 
     def test_sentinel2_cloudcover(self):
         """Test the Sentinel2CloudCoverPipeline."""
