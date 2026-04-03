@@ -1,12 +1,16 @@
-# GAIA-TSF – Data Aggregation (DAG) Subsystem
+# Data Aggregation (DAG) Sub-system
 
-## Overview
+The **Data Aggregation** sub-system serves as the critical
+processing bridge that transforms harmonised data stored within the
+Spatial Data Infrastructure (SDI) into structured inputs suitable for
+machine learning analysis. Its primary function is to prepare data in
+structures that are harmonised and ready for downstream consumption,
+adhering to the principle that "garbage in, garbage out" dictates
+model performance. The sub-system ingests multi-temporal satellite
+image stacks (e.g., Sentinel-2) and co-located in-situ measurements
+(e.g., pH, pore pressure) to produce model-ready feature tensors.
 
-The **Data Aggregation (DAG) subsystem** integrates multi-temporal Earth Observation (EO) and auxiliary data into **analysis-ready, machine learning–compatible datasets**.
-
-It serves as a **feature abstraction layer** between raw EO data (Sentinel-1, Sentinel-2) and the MAP (Modeling and Prediction) subsystem.
-
----
+![Data Agregation Architecture](../../images/dag_subsystem.png)
 
 ## Key Capabilities
 
@@ -23,8 +27,6 @@ It serves as a **feature abstraction layer** between raw EO data (Sentinel-1, Se
 - Validation and consistency checks
 - Tensorization into ML-ready formats `(T, H, W, C)`
 
----
-
 ## Inputs
 
 - **Slope Stability (KV1)**
@@ -36,8 +38,6 @@ It serves as a **feature abstraction layer** between raw EO data (Sentinel-1, Se
   - AOI polygon
   - Water mask
 
----
-
 ## Outputs
 
 - ML-ready tensors:
@@ -46,8 +46,6 @@ It serves as a **feature abstraction layer** between raw EO data (Sentinel-1, Se
   - velocity, acceleration (slope stability)
   - AMD index and spectral features
 - Ready for probabilistic anomaly detection (MAP subsystem)
-
----
 
 ## Architecture
 
