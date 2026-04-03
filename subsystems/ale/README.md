@@ -10,6 +10,6 @@ anomaly or risk. When a threshold is exceeded or an unusual pattern is
 detected, the engine categorizes the severity and sends alerts to the
 notification system for dissemination to relevant stakeholders.
 
--![Alert Decision Support Engine Architecture](../../images/ale_subsystem.png)
+![Alert Decision Support Engine Architecture](../../images/ale_subsystem.png)
 
 ## Usage

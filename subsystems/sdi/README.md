@@ -17,7 +17,7 @@ handling different data types, including coverages for raster data and
 PostGIS for vector data, ensuring optimizing handling of diverse
 monitoring inputs.
 
--![Spatial Data Infrastructure Architecture](../../images/sdi_subsystem.png)
+![Spatial Data Infrastructure Architecture](../../images/sdi_subsystem.png)
 
 ## Infrastructure
 

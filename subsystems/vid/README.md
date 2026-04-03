@@ -10,6 +10,6 @@ processing workflow itself. The system is split into two main
 functional areas: a web application for general users and a monitoring
 dashboard for administrators and developers.
 
--![Visualisation Dashboard Architecture](../../images/vid_subsystem.png)
+![Visualisation Dashboard Architecture](../../images/vid_subsystem.png)
 
 ## Usage

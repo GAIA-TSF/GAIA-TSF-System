@@ -19,6 +19,8 @@ Its job is to validate all data (In-Situ and Earth Observation) before
 it is saved or analyzed. It ensures the system only uses high-quality,
 realistic data.
 
+![Quality Control and Logging Layer Architecture](../../images/qcl_subsystem.png)
+
 ## Key Features
 * **Automated QC**: Runs real-time checks using the `qc_layer.check()` method.
 * **Status Tagging**: Automatically marks datasets as `Pass`, `Warn`, or `Fail`.

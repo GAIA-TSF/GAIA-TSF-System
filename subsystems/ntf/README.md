@@ -17,6 +17,6 @@ that enables users to customize their alerting preferences, such as
 defining specific areas of interest and setting frequency limits,
 ensuring that notifications remain relevant and actionable.
 
--![Notifications Architecture](../../images/ntf_subsystem.png)
+![Notifications Architecture](../../images/ntf_subsystem.png)
 
 ## Usage

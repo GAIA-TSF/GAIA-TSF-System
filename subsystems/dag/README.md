@@ -10,6 +10,6 @@ model performance. The sub-system ingests multi-temporal satellite
 image stacks (e.g., Sentinel-2) and co-located in-situ measurements
 (e.g., pH, pore pressure) to produce model-ready feature tensors.
 
--![Data Agregation Architecture](../../images/dag_subsystem.png)
+![Data Agregation Architecture](../../images/dag_subsystem.png)
 
 ## Usage

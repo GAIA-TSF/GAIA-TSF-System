@@ -12,7 +12,7 @@ inference, and output results upload.
 
 ![ML Predictive Analytics](../../images/map_subsystem.png)
 
-## Deployment
+## Usage
 
 Prepare synthetic data of slope stability:
 

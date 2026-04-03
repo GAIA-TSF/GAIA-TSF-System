@@ -11,6 +11,6 @@ tables, which individually process ML outputs (such as prediction
 maps, anomaly scores, and time-series trends) before a central
 Document Creator assembles them into a cohesive PDF file.
 
--![Reporting Compliance Architecture](../../images/rep_subsystem.png)
+![Reporting Compliance Architecture](../../images/rep_subsystem.png)
 
 ## Usage
