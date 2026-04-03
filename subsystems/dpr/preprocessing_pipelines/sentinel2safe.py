@@ -168,7 +168,7 @@ class Sentinel2SafeProcessor(BasePipeline):
 
         # Create transformer (From EPSG:4326 to target EPSG)
         target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
-        transformer = Transformer.from_crs("EPSG:4326", target_epsg, always_xy=True)
+        transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
 
         # Transform the geometry
         transformed_geom = transform(transformer.transform, geom)
