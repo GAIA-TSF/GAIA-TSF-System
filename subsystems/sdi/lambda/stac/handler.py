@@ -8,7 +8,10 @@ from lib.config import SettingsReader
 STAC_URL = os.environ.get(
     'STAC_URL', 'http://ip-172-31-19-31.eu-central-1.compute.internal:8080'
 )
-logger = Logger(subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db'])
+logger = Logger(
+    subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db']
+)
+
 
 def stac(event, context):
     """
