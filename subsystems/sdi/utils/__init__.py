@@ -3,6 +3,7 @@ import requests
 
 from lib.base import GaiaBase, SubsystemId
 
+
 class SdiUtils(GaiaBase):
     def __init__(self):
         """Simple SDI client for searching and downloading assets."""

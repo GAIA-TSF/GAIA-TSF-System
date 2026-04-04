@@ -20,7 +20,9 @@ if LOCALSTACK:
 else:
     s3 = boto3.client('s3')
 
-logger = Logger(subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db'])
+logger = Logger(
+    subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db']
+)
 
 
 def validate_user(auth_header):
