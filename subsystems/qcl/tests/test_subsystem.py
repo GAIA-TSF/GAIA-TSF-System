@@ -125,10 +125,7 @@ class TestSubsystem:
         log_message = 'Test'
         qc.logger.info(log_message)
 
-        db_conn = qc.settings['sdi']['db']
-        db_conn.update(qc.settings['qcl']['db'])
-
-        conn = psycopg.connect(**db_conn)
+        conn = psycopg.connect(**qc.settings['qcl']['logger']['db'])
         with conn.cursor() as cur:
             cur.execute('SELECT * FROM logs ORDER BY id DESC LIMIT 1')
             row = cur.fetchone()
