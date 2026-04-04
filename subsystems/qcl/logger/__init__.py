@@ -10,6 +10,35 @@ class Logger:
     _configured = False
 
     def __new__(cls, name='GAIA-TSF', db_config=None, **context):
+        """
+        Create or retrieve a configured logger instance.
+
+        This class implements a singleton-like pattern for logger configuration.
+        The underlying logger (from the standard ``logging`` module) is configured
+        only once per application lifecycle. Subsequent instantiations reuse the
+        existing configuration while allowing additional contextual data.
+
+        :param str name:
+            Name of the logger instance. Defaults to ``'GAIA-TSF'``.
+
+        :param dict db_config:
+            Optional database configuration for log persistence (e.g. PostgreSQL/PostGIS).
+            Expected keys include ``host``, ``port``, ``dbname``, ``user``, and ``password``.
+            If not provided, database logging may be disabled.
+
+        :param context:
+            Arbitrary keyword arguments representing contextual metadata
+            (e.g. subsystem).
+        :type context: dict
+
+
+            Configured instance of ``logging.Logger``.
+        :rtype: logging.Logger
+
+        :raises Exception:
+            May raise exceptions depending on logging handler initialization
+            (e.g. database connection errors).
+        """
         base_logger = logging.getLogger(name)
 
         if not cls._configured:
