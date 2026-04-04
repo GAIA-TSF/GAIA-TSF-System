@@ -9,8 +9,6 @@ import requests
 import boto3
 from abc import ABC, abstractmethod
 
-from subsystems.qcl.logger import Logger
-
 from lib.base import GaiaBase, SubsystemId
 
 

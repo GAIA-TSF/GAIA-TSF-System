@@ -3,7 +3,6 @@ import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from subsystems.qcl.logger import Logger
 from lib.base import GaiaBase, SubsystemId
 
 STAC_URL = 'http://stacapi:8000'
