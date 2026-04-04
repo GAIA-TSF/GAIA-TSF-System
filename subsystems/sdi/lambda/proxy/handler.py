@@ -4,6 +4,8 @@ from botocore.exceptions import ClientError
 import json
 
 from subsystems.qcl.logger import Logger
+from lib.base import SubsystemId
+from lib.config import SettingsReader
 
 LOCALSTACK = os.getenv('LOCALSTACK', '0') == '1'
 
@@ -18,8 +20,7 @@ if LOCALSTACK:
 else:
     s3 = boto3.client('s3')
 
-id = 'SDI'
-logger = Logger(subsystem=id)
+logger = Logger(subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db'])
 
 
 def validate_user(auth_header):

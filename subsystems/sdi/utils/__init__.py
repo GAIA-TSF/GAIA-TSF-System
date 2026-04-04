@@ -1,13 +1,12 @@
 import hashlib
 import requests
-from subsystems.qcl.logger import Logger
 
+from lib.base import GaiaBase, SubsystemId
 
-class SdiUtils:
+class SdiUtils(GaiaBase):
     def __init__(self):
         """Simple SDI client for searching and downloading assets."""
-        self.id = 'SDI'
-        self.logger = Logger(subsystem=self.id)
+        GaiaBase.__init__(self, SubsystemId.SDI)
 
     def file_md5(self, path):
         """

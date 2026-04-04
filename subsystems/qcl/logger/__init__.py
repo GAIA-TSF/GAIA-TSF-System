@@ -1,13 +1,15 @@
 import sys
 import logging
 
+from subsystems.qcl.logger.db import DbLogger
+
 from lib.config import SettingsReader
 
 
 class Logger:
     _configured = False
 
-    def __new__(cls, name='GAIA-TSF', **context):
+    def __new__(cls, name='GAIA-TSF', db_config=None, **context):
         base_logger = logging.getLogger(name)
 
         if not cls._configured:
@@ -25,6 +27,8 @@ class Logger:
             )
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)
+            if db_config is not None:
+                base_logger.addHandler(DbLogger(db_config))
             base_logger.propagate = False
 
             cls._configured = True

@@ -33,9 +33,6 @@ class SdiLoader(ABC, GaiaBase):
         self.json_file = None
         self.table_name = None
         self.stac_json = None
-        self.id = 'SDI'
-
-        self.logger = Logger(subsystem=self.id)
 
     def import_zip(self, append_data: bool = False):
         """
