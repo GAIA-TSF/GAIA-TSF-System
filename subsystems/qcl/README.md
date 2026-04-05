@@ -69,3 +69,13 @@ if result['final_status'] == 'Fail':
     print(f"Data Rejected! Errors: {result['errors']}")
     # Expected: "pH values out of 0-14..."
 ```
+
+### Access logs
+
+Go to `docker` directory and run:
+
+```sh
+docker compose exec postgis psql logging -U postgres -c 'select * from log order by id desc limit 1'
+```
+
+Example above retrieves the most recent log entry from the database.
