@@ -1,5 +1,8 @@
+import os
 import pytest
+
 import pandas as pd
+
 from subsystems.qcl.layer import QualityControlLoggingLayer
 from subsystems.qcl import QCLayer
 
@@ -125,14 +128,17 @@ class TestSubsystem:
         log_message = 'Test'
         qc.logger.info(log_message)
 
-        conn = psycopg.connect(**qc.settings['qcl']['logger']['db'])
-        with conn.cursor() as cur:
-            cur.execute('SELECT * FROM log ORDER BY id DESC LIMIT 1')
-            row = cur.fetchone()
-            # subsystem
-            assert row[1] == SubsystemId.QCL.name
-            # logging level
-            assert row[3] == logging.INFO
-            # message
-            assert row[4] == log_message
-        conn.close()
+        with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'SELECT subsystem_id,level_id,message,pid FROM log ORDER BY id DESC LIMIT 1'
+                )
+                row = cur.fetchone()
+                # subsystem
+                assert row[0] == SubsystemId.QCL.name
+                # logging level
+                assert row[1] == logging.INFO
+                # message
+                assert row[2] == log_message
+                # pid
+                assert row[3] == os.getpid()
