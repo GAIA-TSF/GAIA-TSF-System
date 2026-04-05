@@ -75,7 +75,7 @@ if result['final_status'] == 'Fail':
 Go to `docker` directory and run:
 
 ```sh
-docker compose exec postgis psql logging -U postgres -c 'select * from log order by id desc limit 1'
+docker compose exec postgis psql logging -U postgres -c 'select lo.id,s.description subsystem,timestamp,lv.name,message,project,pid from log lo join log_level lv on level_id=lv.id join subsystem s on subsystem_id=s.id order by lo.id desc limit 1'
 ```
 
 Example above retrieves the most recent log entry from the database.
