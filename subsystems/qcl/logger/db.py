@@ -1,3 +1,5 @@
+from typing import Dict
+
 import os
 import logging
 from datetime import datetime
@@ -35,9 +37,14 @@ class DbRecord(Base):
 
 
 class DbLogger(logging.Handler):
-    """A custom handler for DB logging."""
+    def __init__(self, db_config: Dict[str, str]):
+        """A custom handler for DB logging.
 
-    def __init__(self, db_config):
+        :param dict db_config:
+            Database configuration for log persistence (e.g. PostgreSQL/PostGIS).
+            Expected keys include ``host``, ``port``, ``dbname``, ``user``, and ``password``.
+        """
+
         super(DbLogger, self).__init__()
 
         self._session = None
@@ -56,10 +63,12 @@ class DbLogger(logging.Handler):
             self._session_maker.close_all()
         self._session = self._session_maker = None
 
-    def _set_session(self, db_config):
+    def _set_session(self, db_config: Dict[str, str]):
         """Create a new session.
 
-        :param TODO
+        :param dict db_config:
+            Database configuration for log persistence (e.g. PostgreSQL/PostGIS).
+            Expected keys include ``host``, ``port``, ``dbname``, ``user``, and ``password``.
         """
         # create session if not already defined
         if not self._session:
@@ -83,12 +92,12 @@ class DbLogger(logging.Handler):
             self._close_all()
             raise DbConnectionError('{}'.format(e))
 
-    def emit(self, record):
+    def emit(self, record: LogRecord):
         """Format the record and store in DB log tables.
 
         Overrides the logging.Handler.emit function.
 
-        :param record: record to emit
+        :param LogRecord record: record to emit
         """
         if not self._session_maker or not self._session:
             return
