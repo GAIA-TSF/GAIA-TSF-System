@@ -22,7 +22,7 @@ class DbConnectionError(Exception):
 
 
 class DbRecord(Base):
-    """Table definition: logs"""
+    """Table definition: log"""
 
     __tablename__ = 'log'
 
@@ -42,14 +42,14 @@ class DbRecord(Base):
 
 
 class DbLogLevel(Base):
-    """Table definition: logs"""
+    """Table definition: log_level"""
 
     __tablename__ = 'log_level'
 
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(255), nullable=False)
 
-    logs = relationship('DbRecord', back_populates='log_level')
+    log = relationship('DbRecord', back_populates='log_level')
 
 
 class DbSubsystem(Base):
@@ -60,7 +60,7 @@ class DbSubsystem(Base):
     id = Column(String(10), primary_key=True, nullable=False)
     description = Column(String(255), nullable=False)
 
-    logs = relationship('DbRecord', back_populates='subsystem')
+    log = relationship('DbRecord', back_populates='subsystem')
 
 
 class DbLogger(logging.Handler):
