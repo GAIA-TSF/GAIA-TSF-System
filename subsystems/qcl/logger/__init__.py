@@ -1,3 +1,5 @@
+from typing import Dict
+
 import sys
 import logging
 
@@ -9,7 +11,7 @@ from lib.config import SettingsReader
 class Logger:
     _configured = False
 
-    def __new__(cls, name='GAIA-TSF', db_config=None, **context):
+    def __new__(cls, db_config: Dict[str, str], name: str = 'GAIA-TSF', **context):
         """
         Create or retrieve a configured logger instance.
 
@@ -18,21 +20,19 @@ class Logger:
         only once per application lifecycle. Subsequent instantiations reuse the
         existing configuration while allowing additional contextual data.
 
+        :param dict db_config:
+            Database configuration for log persistence (e.g. PostgreSQL/PostGIS).
+            Expected keys include ``host``, ``port``, ``dbname``, ``user``, and ``password``.
+
         :param str name:
             Name of the logger instance. Defaults to ``'GAIA-TSF'``.
-
-        :param dict db_config:
-            Optional database configuration for log persistence (e.g. PostgreSQL/PostGIS).
-            Expected keys include ``host``, ``port``, ``dbname``, ``user``, and ``password``.
-            If not provided, database logging may be disabled.
 
         :param context:
             Arbitrary keyword arguments representing contextual metadata
             (e.g. subsystem).
         :type context: dict
 
-
-            Configured instance of ``logging.Logger``.
+        :return: Configured instance of ``logging.Logger``.
         :rtype: logging.Logger
 
         :raises Exception:
@@ -56,8 +56,7 @@ class Logger:
             )
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)
-            if db_config is not None:
-                base_logger.addHandler(DbLogger(db_config))
+            base_logger.addHandler(DbLogger(db_config))
             base_logger.propagate = False
 
             cls._configured = True
