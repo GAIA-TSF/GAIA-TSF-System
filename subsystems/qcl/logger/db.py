@@ -92,12 +92,12 @@ class DbLogger(logging.Handler):
             self._close_all()
             raise DbConnectionError('{}'.format(e))
 
-    def emit(self, record: LogRecord):
+    def emit(self, record: logging.LogRecord):
         """Format the record and store in DB log tables.
 
         Overrides the logging.Handler.emit function.
 
-        :param LogRecord record: record to emit
+        :param logging.LogRecord record: record to emit
         """
         if not self._session_maker or not self._session:
             return
