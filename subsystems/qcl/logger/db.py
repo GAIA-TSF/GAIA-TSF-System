@@ -37,8 +37,8 @@ class DbRecord(Base):
         nullable=False,
         index=True,
     )
-    log_level = relationship('DbLogLevel', back_populates='logs')
-    subsystem = relationship('DbSubsystem', back_populates='logs')
+    log_level = relationship('DbLogLevel', back_populates='log')
+    subsystem = relationship('DbSubsystem', back_populates='log')
 
 
 class DbLogLevel(Base):
