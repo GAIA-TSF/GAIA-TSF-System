@@ -127,7 +127,7 @@ class TestSubsystem:
 
         conn = psycopg.connect(**qc.settings['qcl']['logger']['db'])
         with conn.cursor() as cur:
-            cur.execute('SELECT * FROM logs ORDER BY id DESC LIMIT 1')
+            cur.execute('SELECT * FROM log ORDER BY id DESC LIMIT 1')
             row = cur.fetchone()
             # subsystem
             assert row[1] == SubsystemId.QCL.name
