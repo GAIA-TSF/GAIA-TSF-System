@@ -3,16 +3,15 @@ import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from subsystems.qcl.logger import Logger
+from lib.base import GaiaBase, SubsystemId
 
 STAC_URL = 'http://stacapi:8000'
 
 
-class SdiReader:
+class SdiReader(GaiaBase):
     def __init__(self):
         """Simple SDI client for searching and downloading assets."""
-        self.id = 'SDI'
-        self.logger = Logger(subsystem=self.id)
+        super().__init__(SubsystemId.SDI)
 
     def search_assets(
         self, query_string: str, asset_name: Optional[str] = None
