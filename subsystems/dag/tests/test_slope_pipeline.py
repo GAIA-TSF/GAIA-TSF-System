@@ -1,14 +1,13 @@
-from subsystems.dag.pipelines.slope_pipeline import SlopeStabilityPipeline
+
+from subsystems.dag.pipelines.slope_pipeline import SlopePipeline
+from subsystems.dag.core.data_model import DataContainer
 
 
 def test_slope_pipeline_runs():
-    pipeline = SlopeStabilityPipeline()
+    pipeline = SlopePipeline()
 
-    inputs = {
-        's1': ['dummy.tif'],
-        'aoi': 'aoi.geojson',
-    }
+    input_data = DataContainer(data=None, metadata={})
+    output = pipeline.run(input_data)
 
-    output = pipeline.run(inputs)
+    assert output is not None 
 
-    assert output is not None

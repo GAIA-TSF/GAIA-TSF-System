@@ -1,3 +1,15 @@
+from dataclasses import dataclass
+from typing import Any, Dict
+
+
+@dataclass
+class DataContainer:
+    """Generic container passed between DAG nodes."""
+    data: Any
+    metadata: Dict = None
+
+
+"""
 class DataCube:
     def __init__(
         self, data=None, timestamps=None, transform=None, crs=None, metadata=None
@@ -26,3 +38,5 @@ class InSituSeries:
         self.x = x
         self.y = y
         self.point_id = point_id
+
+"""

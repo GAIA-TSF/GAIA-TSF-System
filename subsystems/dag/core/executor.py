@@ -1,12 +1,15 @@
+
 class PipelineExecutor:
-    def __init__(self):
+    def __init__(self, steps):
         print('[PipelineExecutor] Initialized')
-        self.registry = {}
+        self.steps = steps 
 
     def register(self, name, pipeline):
         print(f'[PipelineExecutor] Registering {name}')
         self.registry[name] = pipeline
 
-    def run(self, name, inputs):
-        print(f'[PipelineExecutor] Running {name}')
-        return self.registry[name].run(inputs)
+    def run(self, data):
+        for step in self.steps: 
+            data = step.run(data) 
+        return data 
+    

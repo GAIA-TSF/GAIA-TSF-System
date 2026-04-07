@@ -2,9 +2,7 @@
 DAG role: integration of EO and in-situ data into unified, analysis-ready datasets.
 
 ### 1. Architecture overview
-
-This is the original architecture of DAG: 
-<img src="./dag_architecture.png" alt="DAG Architecture" width="600">
+See ./images/dag_architecture.png 
 
 #### 2. Requirements: 
 - DA_R_01: The sub-system shall transform raw time-series data and multi-temporal satellite image stacks stored in the SDI into meaningful, model-ready features.
@@ -55,6 +53,50 @@ MAP: DA_R_05: The sub-system shall normalize input features using techniques suc
 #### Execution: 
 - Pipeline executor 
 
+
+After refactoring, respecting D5.1 design
+```
+subsystems/
+└── dag/
+    ├── __init__.py
+    ├── config.yaml
+    ├── core/                      # engine layer
+    │   ├── data_model.py
+    │   ├── registry.py
+    │   └── executor.py
+    │
+    ├── data_import/               # (Layer 1)
+    │   ├── __init__.py           
+    │   ├── eo_loader.py           # EO Time Series 
+    │   └── insitu/                # In-situ datasets
+    │        ├── __init__.py
+    │        ├── loader.py
+    │        └── aligner.py
+    │  
+    ├── data_processing/           # (Layer 2)
+    │   ├── __init__.py
+    │   ├── alignment.py           # temporal alignment
+    │   ├── harmonization.py       # spatial harmonization
+    │   ├── masking.py
+    │   ├── validation.py
+    │   ├── preprocessing.py
+    │   └── sampling.py            # spatio-temporal sampling
+    │   
+    ├── feature_engineering/       # (Layer 3)
+    │   ├── __init__.py
+    │   ├── aggregation.py         # multi-modal aggregation
+    │   ├── eo_features.py         # spectral indices etc.
+    │   └── tensorization.py       # ML tensor creation
+    │   
+    ├── pipelines/
+    │   ├── base_pipeline.py
+    │   ├── slope_pipeline.py
+    │   └── amd_pipeline.py
+    │ 
+    └── tests/
+        ├── test_amd_pipeline.py
+        └── test_slope_pipeline.py
+```
 
 
 ```

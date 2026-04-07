@@ -1,11 +1,7 @@
-# from .loader import InSituLoader # noqa: F821
-# from .aligner import TemporalAligner # noqa: F821
+from .loader import InSituLoader # noqa: F821
+from .aligner import TemporalAligner # noqa: F821
 
-# from subsystems.dag.modules.insitu.loader import InSituLoader
-# from subsystems.dag.modules.insitu.aligner import TemporalAligner
-
-# subsystems/dag/modules/insitu/__init__.py
-
+""" 
 print('DEBUG: loading insitu package')
 
 try:
@@ -21,5 +17,6 @@ try:
     print('DEBUG: TemporalAligner loaded')
 except Exception as e:
     print('DEBUG ERROR aligner:', e)
+""" 
 
 __all__ = ['InSituLoader', 'TemporalAligner']

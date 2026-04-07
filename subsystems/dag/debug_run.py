@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 import argparse
+from sklearn import pipeline
 import yaml
 
 # Ensure project root in path
@@ -10,11 +11,17 @@ if str(ROOT) not in sys.path:
 
 from subsystems.dag.core.executor import PipelineExecutor
 from subsystems.dag.pipelines.amd_pipeline import AMDPipeline
-from subsystems.dag.pipelines.slope_pipeline import SlopeStabilityPipeline
+from subsystems.dag.pipelines.slope_pipeline import SlopePipeline 
 
 
 # Config loader
 def load_config(path: str):
+    """Load YAML config file.
+    Args:
+        path (str): Path to the YAML config file.
+    Returns:
+        dict: The loaded configuration.
+    """ 
     print(f'[DEBUG] Loading config: {path}')
 
     with open(path, 'r') as f:
@@ -23,6 +30,13 @@ def load_config(path: str):
 
 # Build inputs from config
 def build_inputs(config: dict, pipeline_name: str):
+    """Build pipeline inputs based on config and pipeline type.
+    Args:
+        config (dict): The loaded configuration.
+        pipeline_name (str): Name of the pipeline ('amd' or 'slope').
+    Returns:
+        dict: The constructed inputs for the pipeline.
+    """
     print(f'[DEBUG] Building inputs for pipeline: {pipeline_name}')
 
     inputs_cfg = config.get('inputs', {})
@@ -49,16 +63,23 @@ def build_inputs(config: dict, pipeline_name: str):
 
 # Pipeline factory
 def get_pipeline(name: str):
+    """Return pipeline instance based on name.
+    Args:        name: Name of the pipeline ('amd' or 'slope')
+    """ 
     if name == 'amd':
         return AMDPipeline()
     elif name == 'slope':
-        return SlopeStabilityPipeline()
+        return SlopePipeline()
     else:
         raise ValueError(f'Unknown pipeline: {name}')
 
 
 # MAIN
 def main():
+    """"Main function to run the DAG pipeline based on command-line arguments.
+    Usage:
+        python debug_run.py --config path/to/config.yaml --pipeline [amd|slope]
+    """
     parser = argparse.ArgumentParser(description='DAG Debug Runner')
 
     parser.add_argument(
@@ -80,17 +101,18 @@ def main():
     print(f'[DEBUG] Pipeline: {args.pipeline}')
 
     config = load_config(args.config)
+    print(f"[DEBUG] Loading config: {args.config}") 
 
-    inputs = build_inputs(config, args.pipeline)
+    input_data = build_inputs(config, args.pipeline)
 
-    executor = PipelineExecutor()
-    executor.register(args.pipeline, get_pipeline(args.pipeline))
+    print(f"[DEBUG] Running pipeline: {args.pipeline}")
 
-    result = executor.run(args.pipeline, inputs)
+    pipeline = get_pipeline(args.pipeline)
 
-    print('\n[RESULT]')
-    print(result)
+    result = pipeline.run(input_data)
+    print("[DEBUG] Pipeline finished successfully")
 
+    return result 
 
 if __name__ == '__main__':
     main()

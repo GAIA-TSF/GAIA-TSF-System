@@ -1,7 +1,15 @@
 import numpy as np
 
+from subsystems.dag.core.data_model import DataContainer
+
 
 class TemporalAligner:
+    def run(self, data: DataContainer) -> DataContainer:
+        # data.metadata = data.metadata or {}
+        # data.metadata["insitu_temporal_aligned"] = True
+        print("[TemporalAligner] Running temporal alignment step")
+        return data
+
     def align_to_eo(self, insitu, eo_timestamps, method='nearest'):
         print('[TemporalAligner] Aligning in-situ to EO timestamps')
 

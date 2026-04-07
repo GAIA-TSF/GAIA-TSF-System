@@ -1,7 +1,16 @@
 from datetime import datetime
 
+from subsystems.dag.core.data_model import DataContainer
+
 
 class InSituLoader:
+
+    def run(self, data: DataContainer) -> DataContainer:
+        # data.metadata = data.metadata or {}
+        # data.metadata["insitu_loaded"] = True
+        print("[InSituLoader] Running In-Situ data loading step")
+        return data
+
     def load_csv(self, path: str):
         print(f'[InSituLoader] Loading CSV: {path}')
 
