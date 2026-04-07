@@ -8,7 +8,9 @@ from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisition
 
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
-    def search(self, aoi: str | BaseGeometry, start: str, end: str, direction: str, **kwargs) -> GeoDataFrame:
+    def search(
+        self, aoi: str | BaseGeometry, start: str, end: str, direction: str, **kwargs
+    ) -> GeoDataFrame:
         """Search for Sentinel-1 BURST data using ASF backend.
 
         :param str | BaseGeometry aoi: geometry as WKT or shapely BaseGeometry object
@@ -22,7 +24,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             try:
                 aoi = loads(aoi)
             except Exception as e:
-                raise ValueError(f"Failed to parse AOI WKT string: {e}")
+                raise ValueError(f'Failed to parse AOI WKT string: {e}')
 
         results = ASF.search(
             aoi, startTime=start, stopTime=end, flightDirection=direction, **kwargs
