@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from subsystems.dpr.metadata_processor import MetadataGenerator
+from subsystems.dpr.metadata_processor import MetadataValidator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
 
@@ -64,3 +65,9 @@ class TestModules:
         ) as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataProcessor_002(self):
+        """Test MetadataValidator module."""
+        module = MetadataValidator()
+        module.validate(Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json')
+        # TODO: assert
