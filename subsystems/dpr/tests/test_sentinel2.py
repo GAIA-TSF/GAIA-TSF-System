@@ -1,6 +1,8 @@
+import pytest
 import json
 import os
 import shutil
+
 import numpy
 from osgeo import gdal
 from shapely import wkt
@@ -13,7 +15,8 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 
 
 class TestSentinel2Workflow:
-    def manual_test_sentinel2_safe_processor(self):
+    @pytest.mark.slow
+    def test_sentinel2_safe_processor(self):
         """Test the Sentinel2SafeProcessor."""
         # GDAL configuration to handle errors
         gdal.UseExceptions()
