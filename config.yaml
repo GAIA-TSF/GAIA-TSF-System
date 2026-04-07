@@ -1,6 +1,3 @@
-qcl:
-  logger:
-    level: DEBUG
 eou:
   eodag:
     cop_dataspace:
@@ -9,7 +6,7 @@ eou:
           username: "gaia.tsf.project@gmail.com"
           password: ""
 sdi:
-  db:
+  db: &sdi_db
     host: 'postgis'
     port: 5432
     dbname: 'geodata'
@@ -26,3 +23,9 @@ sdi:
   allowed_raster_extensions:
     - '.tif'
     - '.zip'
+qcl:
+  logger:
+    level: DEBUG
+    db:
+      <<: *sdi_db
+      dbname: 'logging'
