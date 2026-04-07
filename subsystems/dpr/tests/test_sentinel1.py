@@ -7,7 +7,6 @@ from shapely.geometry import Polygon
 import numpy as np
 import pytest
 
-
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
@@ -276,6 +275,77 @@ class TestSentinel1Workflow:
             pipeline._compute_baseline(24)
             assert pipeline.baseline is not None
             assert len(pipeline.baseline) > 0
+
+    def test_016_compute_interferogram(self, pipeline, config):
+        with pipeline:
+            if pipeline.stack is None:
+                if pipeline.aoi_utm is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._get_geometries(aoi, 'EPSG:32735')
+                base_dir = Path(config['project']['data_dir'])
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+                pipeline._crop_bursts()
+                pipeline._compute_baseline(24)
+
+            pipeline._compute_interferogram()
+            assert pipeline.mintf is not None
+            assert pipeline.mcorr is not None
+
+    def test_017_unwrap_interferogram(self, pipeline, config):
+        with pipeline:
+            base_dir = Path(config['project']['data_dir'])
+            dem_file = base_dir / 'dem.nc'
+            if pipeline.stack is None:
+                if pipeline.aoi_utm is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._get_geometries(aoi, 'EPSG:32735')
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+                pipeline._crop_bursts()
+                pipeline._compute_baseline(24)
+                pipeline._compute_interferogram()
+
+            pipeline._unwrap_interferogram(dem_file)
+            assert pipeline.mphase is not None
+
+    def test_018_detrend_unwrapped_phase(self, pipeline, config):
+        with pipeline:
+            base_dir = Path(config['project']['data_dir'])
+            dem_file = base_dir / 'dem.nc'
+            if pipeline.stack is None:
+                if pipeline.aoi_utm is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._get_geometries(aoi, 'EPSG:32735')
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+                pipeline._crop_bursts()
+                pipeline._compute_baseline(24)
+                pipeline._compute_interferogram()
+                pipeline._unwrap_interferogram(dem_file)
+
+            pipeline._detrend_unwrapped_phase()
+            assert pipeline.mphase_detrend is not None
+
+    def test_019_compute_displacement(self, pipeline, config):
+        with pipeline:
+            base_dir = Path(config['project']['data_dir'])
+            dem_file = base_dir / 'dem.nc'
+            if pipeline.stack is None:
+                if pipeline.aoi_utm is None:
+                    aoi = loads(config['project']['aoi']['geom'])
+                    pipeline._get_geometries(aoi, 'EPSG:32735')
+                zarr_dir = base_dir / 'zarrdir'
+                pipeline._stack_bursts(str(zarr_dir))
+                pipeline._crop_bursts()
+                pipeline._compute_baseline(24)
+                pipeline._compute_interferogram()
+                pipeline._unwrap_interferogram(dem_file)
+                pipeline._detrend_unwrapped_phase()
+
+            pipeline._compute_displacement()
+            assert pipeline.mdisplacement_los is not None
+            assert pipeline.mvelocity is not None
 
     def test_run_workflow(self, pipeline, config):
         pass

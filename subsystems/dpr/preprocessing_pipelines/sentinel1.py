@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from insardev import Stack
+import sys
+# TODO: Resolve this problem within GAIA system
+sys.path.insert(0, r"C:\Users\tombo\Documents\gaia\insardev_library")
+from insardev import Stack, BatchUnit
+from insardev.Batch import Batch
 from insardev_pygmtsar import S1
 from insardev_toolkit import ASF, EOF, Tiles
 import xarray as xr
@@ -34,6 +38,12 @@ class Sentinel1Pipeline(BasePipeline):
         self.client = None
         self.stack = None
         self.baseline = None
+        self.mintf = None
+        self.mcorr = None
+        self.mphase = None
+        self.mphase_detrend = None
+        self.mdisplacement_los = None
+        self.mvelocity = None
 
     def __del__(self):
         try:
@@ -414,6 +424,152 @@ class Sentinel1Pipeline(BasePipeline):
                 memory_limit='6GB',
             )
         self.baseline = self.stack.baseline(days=days)
+
+    def _compute_interferogram(self):
+        if self.stack is None:
+            raise NameError(
+                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
+            )
+        if self.baseline is None:
+            raise NameError(
+                'self.baseline is None. Run _compute_baseline method first.'
+            )
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
+        gauss_wavelength = 20.0
+        self.mintf, self.mcorr = self.stack.phasediff(self.baseline.tolist(), wavelength=gauss_wavelength).compute()
+
+    def _unwrap_interferogram(self, dem_file):
+        if self.stack is None:
+            raise NameError(
+                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
+            )
+
+        if self.mintf is None or self.mcorr is None:
+            raise NameError(
+                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
+            )
+
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
+
+        dem_path = Path(dem_file)
+        if dem_path.is_file():
+            ds = xr.open_dataset(str(dem_path))
+            da = ds['dem']
+
+        def _to_dask_chunks(ds, pair_chunk=1, y_chunk=366, x_chunk=1569):
+            # ds is an xarray.Dataset
+            out = {}
+            for v in ds.data_vars:
+                da_v = ds[v]
+                # convert numpy -> dask (keep existing dask if already)
+                if not hasattr(da_v.data, "chunks"):
+                    da_v = da_v.copy(data=da.from_array(da_v.data, chunks=da_v.shape))
+                # now chunk with pair=1 if pair dim exists
+                chunks = {}
+                if "pair" in da_v.dims:
+                    chunks["pair"] = pair_chunk
+                if "y" in da_v.dims:
+                    chunks["y"] = min(y_chunk, da_v.sizes["y"])
+                if "x" in da_v.dims:
+                    chunks["x"] = min(x_chunk, da_v.sizes["x"])
+                da_v = da_v.chunk(chunks)
+                out[v] = da_v
+            return ds.assign(out)
+
+        # 1) Ensure mcorr datasets are dask+chunked
+        mcorr_dask = Batch({k: _to_dask_chunks(ds.astype("float32")) for k, ds in self.mcorr.items()})
+        # 2) Wrap as BatchUnit (unwrap2d weight requirement)
+        mcorr_unit = BatchUnit(mcorr_dask)
+        # 3) Unwrap
+        self.mphase = self.stack.unwrap2d(self.mintf, mcorr_unit).compute()
+
+    def _detrend_unwrapped_phase(self):
+        if self.stack is None:
+            raise NameError(
+                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
+            )
+
+        if self.mintf is None or self.mcorr is None:
+            raise NameError(
+                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
+            )
+
+        if self.mphase is None:
+            raise NameError(
+                'self.mphase is None. Run _unwrap_interferogram method first.'
+            )
+
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
+        mphase_trend = self.stack.trend2d(self.mphase, self.mcorr, self.stack.transform()[['azi', 'rng', 'ele']])
+        self.mphase_detrend = self.mphase - mphase_trend
+
+    def _compute_displacement(self):
+        if self.stack is None:
+            raise NameError(
+                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
+            )
+
+        if self.mintf is None or self.mcorr is None:
+            raise NameError(
+                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
+            )
+
+        if self.mphase is None:
+            raise NameError(
+                'self.mphase is None. Run _unwrap_interferogram method first.'
+            )
+
+        if self.mphase_detrend is None:
+            raise NameError(
+                'self.mphase_detrend is None. Run _detrend_unwrapped_phase method first.'
+            )
+
+        if self.client is None or self.client.status == 'closed':
+            self.client = Client(
+                silence_logs='CRITICAL',
+                n_workers=2,
+                threads_per_worker=2,
+                memory_limit='6GB',
+            )
+
+        # 1) Convert mcorr (BatchComplex) -> real-valued batch
+        mcorr_b = self.mcorr.real()
+        # If that ever looks wrong, use magnitude instead:
+        # mcorr_b = self.mcorr.abs()
+
+        # 2) Clip each polarization's DataArray to [0, 1]
+        mcorr_map = {pol: da.clip(0.0, 1.0) for pol, da in mcorr_b.items()}
+
+        # 3) Wrap as BatchUnit (this is what lstsq requires)
+        mcorr_unit = BatchUnit(mcorr_map)
+
+        # 4) Now run lstsq
+        mphase_acc = self.stack.lstsq(self.mphase_detrend, mcorr_unit).compute()
+
+        # 5) Compute LOS Displacement
+        self.mdisplacement_los = self.stack.displacement_los(mphase_acc)
+
+        # 6) Compute LOS Velocity
+        self.mvelocity, mdisp0 = self.mdisplacement_los.velocity()
+
 
     def run(
         self,
