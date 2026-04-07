@@ -39,7 +39,7 @@ class TestSentinel2Workflow:
             geom=roi,
             **search_filter,
         )
-        data_path = dag_module.download(results[0], quicklook=True)
+        data_path = dag_module.download(results[0], quicklook=False)
 
         # Check if the SAFE product can be located
         assert os.path.exists(data_path), 'The SAFE product was not found.'
@@ -131,6 +131,9 @@ class TestSentinel2Workflow:
             f'The spatial extent of the Geotiff {output_roi} '
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
         )
+
+        # Delete folder after test is complete
+        shutil.rmtree(output_folder)
 
     def test_sentinel2_cloudcover(self):
         """Test the Sentinel2CloudCoverPipeline."""
