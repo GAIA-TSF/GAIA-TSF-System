@@ -26,7 +26,9 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         super().set_config(config)
         self._dag.update_providers_config(yaml.dump(config))
 
-    def search(self, provider: str, start: str, end: str, geom: str, **kwargs) -> SearchResult:
+    def search(
+        self, provider: str, start: str, end: str, geom: str, **kwargs
+    ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using eodag backend.
 
