@@ -6,8 +6,11 @@ eou:
     cop_dataspace:
       auth:
         credentials:
-          username: "gaia.tsf.project@gmail.com"
-          password: ""
+          username: 'gaia.tsf.project@gmail.com'
+          password: ''
+  asf:
+    username: ''
+    password: ''
 sdi:
   db:
     host: 'postgis'

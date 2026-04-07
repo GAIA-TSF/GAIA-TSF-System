@@ -1,5 +1,7 @@
 from pathlib import Path
+import shutil
 
+from eodag import SearchResult
 from osgeo import gdal
 
 gdal.UseExceptions()
@@ -55,7 +57,7 @@ class TestModules:
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
 
-    def test_DataAcquisitionGateway_001(self):
+    def test_DataAcquisitionGateway_001a(self):
         """Test DataAcquisitionGateway module.
 
         Test search capability using default backend (eodag).
@@ -73,7 +75,27 @@ class TestModules:
         assert len(result) > 0
         assert result[0].product_type == self.search_filter['productType']
 
-    def test_DataAcquisitionGateway_002(self):
+    def test_DataAcquisitionGateway_001b(self):
+        """Test DataAcquisitionGateway module.
+
+        Test search capability using ASF backend.
+        """
+        from geopandas import GeoDataFrame
+
+        module = DataAcquisitionGateway(backend='asf')
+        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        result = module.backend.search(
+            aoi=aoi_geom,
+            start='2022-07-01',
+            end='2022-07-30',
+            direction='A'
+        )
+
+        assert isinstance(result, GeoDataFrame)
+        assert result is not None
+        assert len(result) > 0
+
+    def test_DataAcquisitionGateway_002a(self):
         """Test DataAcquisitionGateway module.
 
         Test download capability using default backend (eodag).
@@ -96,6 +118,31 @@ class TestModules:
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
+
+    def test_DataAcquisitionGateway_002b(self):
+        """Test DataAcquisitionGateway module.
+
+        Test download capability using ASF backend.
+        """
+        download_path = Path(__file__).parent / "sample_data" / "asf_download"
+        module = DataAcquisitionGateway(backend='asf')
+        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        result = module.backend.search(
+            aoi=aoi_geom,
+            start='2022-07-01',
+            end='2022-07-30',
+            direction='A'
+        )
+
+        assert len(result) > 0
+
+        try:
+            download_path.mkdir(parents=True, exist_ok=True)
+            module.backend.download(download_path, result)
+            assert any(download_path.iterdir())
+        finally:
+            if download_path.exists() and download_path.is_dir():
+                shutil.rmtree(download_path)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
