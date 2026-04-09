@@ -1,0 +1,167 @@
+# GAIA-TSF DAG CONFIG
+global:
+  random_seed: 42
+  log_level: INFO
+
+  # default spatial reference, Update to actual AOI CRS!!! 
+  crs: "EPSG:32633"
+
+  # default resolution (meters)
+  target_resolution: 10
+
+  # chunking for large data
+  processing:
+    use_dask: false
+    chunk_size: [256, 256]
+    n_workers: 4 
+
+
+# INPUT DEFINITIONS
+inputs:
+  slope_stability:
+    sentinel1:
+      data_path: "/data/sentinel1/"
+      data_product: 'LOS' 
+      # polarization: "VV"
+      # orbit: "ASCENDING"
+      # apply_orbit_correction: true
+    auxiliary:
+      aoi_path: "/data/aoi/aoi.geojson"
+
+  amd:
+    sentinel2:
+      data_path: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/sentinel2"
+      bands: ["B02", "B04"]
+      cloud_mask: true
+
+    auxiliary:
+      data_path: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
+      aoi_path: "yxsjoberg_aoi.gpkg"
+      water_mask: "yxsjoberg_water_mask.tif"
+      mask_coding: 
+        0: "no_data"
+        1: "amd"
+        2: "water"
+        3: "other_land" 
+
+# HARMONIZATION
+harmonization:
+  spatial:
+    method: "bilinear"     # nearest | bilinear | cubic
+    target_resolution: 10
+
+  temporal:
+    enabled: false         # DA_R_02 (disabled for now)
+    method: "linear"       # nearest | linear | spline
+    max_gap_days: 30
+
+
+# FEATURE ENGINEERING
+feature_engineering:
+  slope_stability:
+    compute_velocity: true
+    compute_acceleration: true
+    compute_trend: false
+    window_size: 3
+    smoothing: false
+
+  amd:
+    compute_amd_index: true
+    spectral_indices:
+      amd_ratio: true
+        formula: "B04 / B02"
+      amd_diff: true
+        formula: "B04 - B02"
+      ndwi: true
+    log_transform: false
+
+# PREPROCESSING
+preprocessing:
+  normalization:
+    method: "zscore"   # minmax | zscore
+    per_feature: true
+
+  missing_values:
+    strategy: "median"   # mean | median | drop
+    max_nan_ratio: 0.2
+
+  outliers:
+    method: "clip"     # clip | log
+    clip_range: [0.01, 0.99]
+
+  categorical:
+    enabled: false     # DA_R_08
+
+# MASKING
+masking:
+  apply_aoi: true
+  apply_water_mask: true
+
+# VALIDATION
+validation:
+  check_spatial_consistency: true
+  check_nan_ratio: true
+  check_time_gaps: true
+
+  max_nan_ratio: 0.3
+  max_time_gap_days: 60
+
+# TENSORIZATION
+tensorization:
+  output_format: "numpy"   # numpy | torch
+  layout: "THWC"           # (T, H, W, C)
+
+  flatten:
+      enabled: true        # false
+      method: "pixel"      # pixel -> (N_pixels, T, C)
+
+# PIPELINES
+pipelines:
+  slope_stability:
+    enabled: true
+    steps:
+      - ingestion
+      - masking
+      - spatial_harmonization
+      - feature_engineering
+      - preprocessing
+      - validation
+      - tensorization
+
+  amd:
+    enabled: true
+    steps:                    # DAG workflow
+      - ingestion             # Sentinel-2 time series 
+      - masking               # Apply water masks
+      - feature_engineering   # Compute AMD indices into features 
+      - tensorization         # Prepare tensors for ML models and store it 
+    # out: 
+      # - spatial_harmonization
+      # - preprocessing
+      # - validation
+
+# OUTPUT SETTINGS
+output:
+  save_intermediate: true
+  paths:
+    features: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/features"
+    tensors: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/tensors"
+
+  formats:
+    raster: "GTiff"
+    tensor: "pt" 
+
+# PERFORMANCE SETTINGS
+performance:
+  use_gpu: false
+  mixed_precision: false
+
+  batch_processing:
+    enabled: true
+    batch_size: 8
+
+# DEBUG
+debug:
+  verbose: true
+  save_debug_tiles: false
+  debug_tile_size: [128, 128]
