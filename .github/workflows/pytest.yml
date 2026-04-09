@@ -1,4 +1,4 @@
-name: pytest
+name: Unit and integration tests
 
 on:
   push:
