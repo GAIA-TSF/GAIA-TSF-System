@@ -33,7 +33,7 @@ This subsystem implements a modular machine learning framework for monitoring ge
   * `learning_pipeline`: training and experiment registration
   * `inference_pipeline`: prediction, residual computation, and monitoring
 
-* **Physics-Informed Monitoring Layer for Slope Stability**
+* **Physics-Informed Monitoring Layer**
   Predictions are transformed into risk signals using methods such as:
 
   * CUSUM (persistent acceleration detection)
@@ -44,24 +44,47 @@ This subsystem implements a modular machine learning framework for monitoring ge
 ### Architecture Overview
 
 ```
-plugins/
-  variables/     # variable-specific logic (slope, AMD)
-  features/      # feature engineering pipelines
-  models/        # ML models (LSTM, RF, XGB)
-
-core/
-  interfaces.py  # common abstractions
-  registry.py    # plugin registration
-
-pipelines/
-  learning_pipeline.py
-  inference_pipeline.py
-
-dataset/         # data loading and windowing
-monitoring/      # change detection and risk analysis
-registry/        # experiment tracking
-utils/           # shared utilities
+map/
+├── core/              # interfaces + registry 
+├── dataset/           # data loading, windowing, splitting
+├── learning/          # training logic 
+├── inference/         # prediction logic 
+├── monitoring/        # physics-informed layer
+├── pipelines/         # orchestration 
+├── plugins/           # extensibility 
+│   ├── features/
+│   ├── models/
+│   └── variables/
+├── utils/             # config, IO, helpers
+├── tests/
 ```
+
+### Learning Pipeline: 
+config
+  ↓
+dataset →  variable plugin
+  ↓
+feature pipeline
+  ↓
+learning.trainer
+  ↓
+model
+  ↓
+save
+
+### Inference Pipeline 
+
+config
+  ↓
+dataset → variables 
+  ↓
+feature pipeline
+  ↓
+inference.predictor
+  ↓
+residuals
+  ↓
+monitoring.runner
 
 
 ### Usage 
