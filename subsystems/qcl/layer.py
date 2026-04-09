@@ -5,17 +5,15 @@ from typing import Dict, Any, List, Tuple
 from .logger import Logger
 
 from lib.base import GaiaBase, SubsystemId
+from lib.dispatcher import DispatcherBase
 
 
-class SdiOutputDispatcher:
+class SdiOutputDispatcher(DispatcherBase):
     """
     QCL_I_1: Actively pushes QC results and quality metrics to SDI after each
     validation cycle. SDI receives a structured record for auditability and
     traceability.
     """
-
-    def __init__(self, logger_instance: Logger):
-        self._logger = logger_instance
 
     def dispatch(self, qc_result: Dict[str, Any], sdi_service: Any) -> None:
         """
@@ -24,10 +22,7 @@ class SdiOutputDispatcher:
         :param qc_result: Full QC result dict (dataset_id, final_status, metrics, errors).
         :param sdi_service: SDI service instance exposing ``store_qc_result()``.
         """
-        if sdi_service is None:
-            self._logger.warning(
-                '[QCL_I_1] No SDI service configured. Skipping QC result storage.'
-            )
+        if not self._guard(sdi_service, 'QCL_I_1'):
             return
         sdi_service.store_qc_result(qc_result)
         self._logger.info(
@@ -35,14 +30,11 @@ class SdiOutputDispatcher:
         )
 
 
-class NotificationDispatcher:
+class NotificationDispatcher(DispatcherBase):
     """
     QC_IR_04: Actively triggers the Notification Service (NTF) when QC detects
     failures or warnings. Fires on every Fail or Warn — does not wait to be asked.
     """
-
-    def __init__(self, logger_instance: Logger):
-        self._logger = logger_instance
 
     def dispatch(
         self,
@@ -59,10 +51,7 @@ class NotificationDispatcher:
         :param errors: List of error/warning messages to include in the alert.
         :param notification_service: NTF service instance exposing ``send_alert()``.
         """
-        if notification_service is None:
-            self._logger.warning(
-                '[QC_IR_04] No notification service configured. Skipping alert.'
-            )
+        if not self._guard(notification_service, 'QC_IR_04'):
             return
         if status == 'Fail':
             notification_service.send_alert(
@@ -76,14 +65,11 @@ class NotificationDispatcher:
             self._logger.info(f'[QC_IR_04] Warning alert sent for {dataset_id}.')
 
 
-class VidOutputDispatcher:
+class VidOutputDispatcher(DispatcherBase):
     """
     QCL_I_2: Actively pushes system health status and QC events to the VID
     (Visualisation Dashboard) after every validation cycle.
     """
-
-    def __init__(self, logger_instance: Logger):
-        self._logger = logger_instance
 
     def dispatch(self, qc_result: Dict[str, Any], vid_service: Any) -> None:
         """
@@ -92,10 +78,7 @@ class VidOutputDispatcher:
         :param qc_result: Full QC result dict to derive the status event from.
         :param vid_service: VID service instance exposing ``push_status()``.
         """
-        if vid_service is None:
-            self._logger.warning(
-                '[QCL_I_2] No VID service configured. Skipping dashboard update.'
-            )
+        if not self._guard(vid_service, 'QCL_I_2'):
             return
         status_event = {
             'dataset_id': qc_result.get('dataset_id'),
@@ -344,9 +327,9 @@ class QualityControlLoggingLayer(GaiaBase):
         )
 
         # Active output dispatchers (QCL_I_1, QC_IR_04, QCL_I_2)
-        self._sdi_dispatcher = SdiOutputDispatcher(self.logger)
-        self._notification_dispatcher = NotificationDispatcher(self.logger)
-        self._vid_dispatcher = VidOutputDispatcher(self.logger)
+        self._sdi_dispatcher = SdiOutputDispatcher(logger=self.logger)
+        self._notification_dispatcher = NotificationDispatcher(logger=self.logger)
+        self._vid_dispatcher = VidOutputDispatcher(logger=self.logger)
 
         # Injected downstream service references
         self._sdi_service = sdi_service
