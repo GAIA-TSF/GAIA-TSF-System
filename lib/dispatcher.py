@@ -35,8 +35,6 @@ class DispatcherBase(ABC):
         :rtype: bool
         """
         if service is None:
-            self._logger.warning(
-                f'[{interface_id}] No service configured. Skipping.'
-            )
+            self._logger.warning(f'[{interface_id}] No service configured. Skipping.')
             return False
         return True
