@@ -1,5 +1,8 @@
 # GAIA-TSF System
 
+![Code Quality](https://github.com/GAIA-TSF/GAIA-TSF-System/actions/workflows/code-quality.yml/badge.svg)
+![Tests](https://github.com/GAIA-TSF/GAIA-TSF-System/actions/workflows/pytest.yml/badge.svg)
+
 Major repository for GAIA-TSF System
 
 See [CONTRIBUTING](CONTRIBUTING.md) file for more details.
