@@ -142,8 +142,10 @@ class ETLEngine(GaiaBase):
             ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'unknown'
             parser_applied = result.get('parser_applied', '')
             parser_short = (
-                'slope' if 'slope' in parser_applied.lower()
-                else 'water' if 'water' in parser_applied.lower()
+                'slope'
+                if 'slope' in parser_applied.lower()
+                else 'water'
+                if 'water' in parser_applied.lower()
                 else parser_applied
             )
 
