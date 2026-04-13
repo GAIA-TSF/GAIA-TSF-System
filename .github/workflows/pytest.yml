@@ -1,4 +1,4 @@
-name: pytest
+name: Unit and integration tests
 
 on:
   push:
@@ -25,7 +25,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run ALE test suite
         run: |
@@ -44,7 +45,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run DAG test suite
         run: |
@@ -63,7 +65,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run DPR test suite
         env:
@@ -85,7 +88,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run EOU test suite
         env:
@@ -107,7 +111,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run ISU test suite
         run: |
@@ -126,7 +131,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run MAP test suite
         run: |
@@ -145,7 +151,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run NTF test suite
         run: |
@@ -164,7 +171,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run QCL test suite
         run: |
@@ -183,7 +191,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run REP test suite
         run: |
@@ -202,7 +211,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run SDI test suite
         run: |
@@ -221,7 +231,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run VID test suite
         run: |
@@ -240,7 +251,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run general tests
         run: |

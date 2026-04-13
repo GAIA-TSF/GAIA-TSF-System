@@ -8,5 +8,7 @@ pandas==3.0.1 # isu
 openpyxl==3.1.5 # isu
 pyyaml==6.0.3 # lib.config, eou
 shapely==2.1.2 # lib.config
+sqlalchemy==2.0.48 # qcl.logger.db
+sqlalchemy_utils==0.42.1 # qcl.logger.db
 geopandas==1.1.3 # eou
 insardev_toolkit==2026.3.21 # eou
