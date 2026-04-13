@@ -5,7 +5,11 @@ from typing import Dict, Any, List, Tuple
 from .logger import Logger
 
 from lib.base import GaiaBase, SubsystemId
-from lib.dispatcher import SdiOutputDispatcher, NotificationDispatcher, VidOutputDispatcher
+from lib.dispatcher import (
+    SdiOutputDispatcher,
+    NotificationDispatcher,
+    VidOutputDispatcher,
+)
 
 
 class RuleRepository:
