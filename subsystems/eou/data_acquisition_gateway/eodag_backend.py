@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+from shapely.geometry.base import BaseGeometry
 from eodag import EODataAccessGateway
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         self._dag.update_providers_config(yaml.dump(config))
 
     def search(
-        self, provider: str, start: str, end: str, geom: str, **kwargs
+        self, provider: str, start: str, end: str, geom: str | BaseGeometry, **kwargs
     ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using eodag backend.
@@ -35,7 +36,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         :param str provider: the provider to be used
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filer
-        :param str geom: geometry as WKT
+        :param str geom: geometry as WKT or shapely BaseGeometry object
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search

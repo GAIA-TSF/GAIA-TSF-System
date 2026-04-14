@@ -6,8 +6,10 @@ eou:
           username: 'gaia.tsf.project@gmail.com'
           password: ''
   asf:
-    username: ''
-    password: ''
+    auth:
+      credentials:
+        username: ''
+        password: ''
 sdi:
   db: &sdi_db
     host: 'postgis'

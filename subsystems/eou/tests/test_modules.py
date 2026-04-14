@@ -2,6 +2,7 @@ from pathlib import Path
 import shutil
 
 from osgeo import gdal
+from shapely.wkt import loads
 
 gdal.UseExceptions()
 
@@ -56,7 +57,7 @@ class TestModules:
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
 
-    def test_DataAcquisitionGateway_001a(self):
+    def test_DataAcquisitionGateway_001_eodag_search(self):
         """Test DataAcquisitionGateway module.
 
         Test search capability using default backend (eodag).
@@ -74,7 +75,7 @@ class TestModules:
         assert len(result) > 0
         assert result[0].product_type == self.search_filter['productType']
 
-    def test_DataAcquisitionGateway_001b(self):
+    def test_DataAcquisitionGateway_001_asf_search(self):
         """Test DataAcquisitionGateway module.
 
         Test search capability using ASF backend.
@@ -91,7 +92,7 @@ class TestModules:
         assert result is not None
         assert len(result) > 0
 
-    def test_DataAcquisitionGateway_002a(self):
+    def test_DataAcquisitionGateway_002_eodag_download(self):
         """Test DataAcquisitionGateway module.
 
         Test download capability using default backend (eodag).
@@ -115,7 +116,7 @@ class TestModules:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
 
-    def test_DataAcquisitionGateway_002b(self):
+    def test_DataAcquisitionGateway_002_asf_download(self):
         """Test DataAcquisitionGateway module.
 
         Test download capability using ASF backend.
@@ -131,8 +132,8 @@ class TestModules:
 
         try:
             download_path.mkdir(parents=True, exist_ok=True)
-            module.backend.download(download_path, result)
-            assert any(download_path.iterdir())
+            datadir = module.backend.download(download_path, result)
+            assert any(datadir.iterdir())
         finally:
             if download_path.exists() and download_path.is_dir():
                 shutil.rmtree(download_path)
