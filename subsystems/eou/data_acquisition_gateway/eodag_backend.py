@@ -29,11 +29,11 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         return self._dag.search(**search_params)
 
-    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
+    def download(self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs) -> str:
         if quicklook:
-            return product.get_quicklook(**kwargs)
+            return product.get_quicklook(output_dir=target_dir, **kwargs)
 
-        return self._dag.download(product, extract=False, **kwargs)
+        return self._dag.download(product, extract=False, output_dir=target_dir, **kwargs)
 
     def set_config(self, config: dict) -> None:
         self._dag.update_providers_config(yaml.dump(config))

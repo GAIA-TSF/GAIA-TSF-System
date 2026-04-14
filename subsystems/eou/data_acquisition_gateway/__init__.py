@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import os
 
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
@@ -26,6 +27,7 @@ class DataAcquisitionGateway(GaiaBase):
         self._backend = DataAcquisitionBackend()
         # TBD: raise GaiaSettingsError
         self._backend.set_config(self.settings['eou']['eodag'])
+        self.base_dir = self.settings['storage']['data_dir']
 
     def search(
         self, provider: str, start: str, end: str, geom: str, **kwargs
@@ -50,13 +52,19 @@ class DataAcquisitionGateway(GaiaBase):
         )
         return self._backend.search(provider, start, end, geom, **kwargs)
 
-    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
+    def download(self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs) -> str:
         """Download selected data product using selected data
         acquisition backend.
 
         :param EOProduct product: EO product to be downloaded
+        :param str target_dir: target directory (absolute or relative) to store downloaded product
         :param bool quicklook: If True, only download the preview image
         :return: a path to the download data
         :rtype: str
         """
-        return self._backend.download(product, quicklook=quicklook, **kwargs)
+        if os.path.isabs(target_dir):
+            final_path = target_dir
+        else:
+            final_path = os.path.join(self.base_dir, target_dir)
+
+        return self._backend.download(product, target_dir=final_path, quicklook=quicklook, **kwargs)

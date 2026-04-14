@@ -5,6 +5,8 @@ eou:
         credentials:
           username: "gaia.tsf.project@gmail.com"
           password: ""
+storage:
+  data_dir: /tmp/data
 sdi:
   db: &sdi_db
     host: 'postgis'
