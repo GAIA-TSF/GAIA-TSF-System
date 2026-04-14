@@ -2,7 +2,6 @@ from pathlib import Path
 import shutil
 
 from osgeo import gdal
-from shapely.wkt import loads
 
 gdal.UseExceptions()
 
