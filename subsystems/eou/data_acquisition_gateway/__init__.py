@@ -52,7 +52,9 @@ class DataAcquisitionGateway(GaiaBase):
         )
         return self._backend.search(provider, start, end, geom, **kwargs)
 
-    def download(self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs) -> str:
+    def download(
+        self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs
+    ) -> str:
         """Download selected data product using selected data
         acquisition backend.
 
@@ -67,4 +69,6 @@ class DataAcquisitionGateway(GaiaBase):
         else:
             final_path = os.path.join(self.base_dir, target_dir)
 
-        return self._backend.download(product, target_dir=final_path, quicklook=quicklook, **kwargs)
+        return self._backend.download(
+            product, target_dir=final_path, quicklook=quicklook, **kwargs
+        )
