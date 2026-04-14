@@ -1,54 +1,55 @@
 
-from subsystems.dag.pipelines.base_pipeline import BasePipeline
+"""
+Slope Pipeline using DAG execution.
 
-# Data Import
-from subsystems.dag.data_import.eo_loader import EOLoader
-from subsystems.dag.data_import.insitu import InSituLoader, TemporalAligner
+This replaces the old linear pipeline with:
+CONFIG → DAG → EXECUTION
+"""
 
-# Data Processing
-from subsystems.dag.data_processing.harmonization import SpatialHarmonizer
-from subsystems.dag.data_processing.alignment import TemporalAlignerEO
-from subsystems.dag.data_processing.preprocessing import Preprocessor
-from subsystems.dag.data_processing.masking import Masking
-
-# Feature Engineering
-from subsystems.dag.feature_engineering.eo_features import EOFeatureExtractor
-from subsystems.dag.feature_engineering.aggregation import MultiModalAggregator
-from subsystems.dag.feature_engineering.tensorization import Tensorizer
+# subsystems. 
+from dag.core.dag_builder import DAGBuilder
+from dag.core.executor import DAGExecutor
 
 
-class SlopePipeline(BasePipeline):
-    """
-    Pipeline for slope stability analysis.
-
-    Conceptually:
-    EO (InSAR, S2) + InSitu → aligned → features → tensor
-    """
-
+class SlopePipeline:
     def __init__(self):
-        steps = [
-            # -------------------------
-            # Data Import
-            # -------------------------
-            EOLoader(),
-            InSituLoader(),
-            TemporalAligner(),
+        self.config = None
 
-            # -------------------------
-            # Data Processing
-            # -------------------------
-            SpatialHarmonizer(),
-            TemporalAlignerEO(),
-            Preprocessor(),
-            Masking(),
+    def run(self, input_data):
+        """
+        Run Slope pipeline.
 
-            # -------------------------
-            # Feature Engineering
-            # -------------------------
-            EOFeatureExtractor(),     # later: slope-specific features (e.g. displacement trends)
-            MultiModalAggregator(),
-            Tensorizer(),
-        ]
+        Args:
+            input_data (dict): initial inputs from debug runner
 
-        super().__init__(steps) 
-        
+        Returns:
+            final output of DAG
+        """
+        # -------------------------------------------------------------
+        # Build DAG from config
+        # -------------------------------------------------------------
+        builder = DAGBuilder(self.config, pipeline_name="slope")
+        nodes, output_node = builder.build()
+
+        # -------------------------------------------------------------
+        # Create executor
+        # -------------------------------------------------------------
+        executor = DAGExecutor(nodes)
+
+        # -------------------------------------------------------------
+        # Initialize execution context
+        # -------------------------------------------------------------
+        context = {
+            "input": input_data
+        }
+
+        # -------------------------------------------------------------
+        # Run DAG
+        # -------------------------------------------------------------
+        result = executor.run(context)
+
+        # -------------------------------------------------------------
+        # Return final node output
+        # -------------------------------------------------------------
+        return result[output_node]
+    

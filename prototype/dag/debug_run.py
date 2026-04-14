@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 import argparse
-from sklearn import pipeline
 import yaml
 
 # Ensure project root in path
@@ -9,9 +8,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from subsystems.dag.core.executor import PipelineExecutor
-from subsystems.dag.pipelines.amd_pipeline import AMDPipeline
-from subsystems.dag.pipelines.slope_pipeline import SlopePipeline 
+# subsystems.
+# from dag.core.executor import PipelineExecutor
+from dag.pipelines.amd_pipeline import AMDPipeline
+from dag.pipelines.slope_pipeline import SlopePipeline 
+
+from dag.core.register_modules import register_all
+
+register_all()
 
 
 # Config loader
@@ -108,7 +112,7 @@ def main():
     print(f"[DEBUG] Running pipeline: {args.pipeline}")
 
     pipeline = get_pipeline(args.pipeline)
-
+    pipeline.config = config   
     result = pipeline.run(input_data)
     print("[DEBUG] Pipeline finished successfully")
 

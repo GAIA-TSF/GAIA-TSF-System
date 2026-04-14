@@ -60,7 +60,9 @@ See: `./docs/coding_notes.md`
 
 Run AMD pipeline 
 ```
-python3 prototype/dag/debug_run.py --config config.yaml --pipeline amd
+python3 -m dag.debug_run \
+  --config dag/config.yaml \
+  --pipeline amd
 ```
 
 Run slope stability pipeline 

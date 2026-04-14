@@ -2,19 +2,14 @@
 global:
   random_seed: 42
   log_level: INFO
-
   # default spatial reference, Update to actual AOI CRS!!! 
   crs: "EPSG:32633"
-
   # default resolution (meters)
   target_resolution: 10
-
   # chunking for large data
   processing:
-    use_dask: false
     chunk_size: [256, 256]
     n_workers: 4 
-
 
 # INPUT DEFINITIONS
 inputs:
@@ -32,17 +27,20 @@ inputs:
     sentinel2:
       data_path: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/sentinel2"
       bands: ["B02", "B04"]
-      cloud_mask: true
+      cloud_mask_path: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/sentinel2_clouds/"
+      cloud_sufix: "*_pred" 
+      cloud_code: "1"
+      water_code: "4"
 
     auxiliary:
       data_path: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
       aoi_path: "yxsjoberg_aoi.gpkg"
       water_mask: "yxsjoberg_water_mask.tif"
       mask_coding: 
-        0: "no_data"
-        1: "amd"
-        2: "water"
-        3: "other_land" 
+        "0": "no_data"
+        "1": "amd"
+        "2": "water"
+        "3": "other_land" 
 
 # HARMONIZATION
 harmonization:
@@ -55,9 +53,21 @@ harmonization:
     method: "linear"       # nearest | linear | spline
     max_gap_days: 30
 
-
 # FEATURE ENGINEERING
 feature_engineering:
+  amd:
+    compute_amd_index: true
+    spectral_indices:
+      amd_diff:
+        enabled: true
+        formula: "B04 - B02"
+      # amd_ratio:
+      #   enabled: false
+      #   formula: "B04 / B02"
+      # ndwi:
+      #   enabled: false
+      #   formula: "(B03 - B08) / (B03 + B08)"
+
   slope_stability:
     compute_velocity: true
     compute_acceleration: true
@@ -65,21 +75,11 @@ feature_engineering:
     window_size: 3
     smoothing: false
 
-  amd:
-    compute_amd_index: true
-    spectral_indices:
-      amd_ratio: true
-        formula: "B04 / B02"
-      amd_diff: true
-        formula: "B04 - B02"
-      ndwi: true
-    log_transform: false
-
 # PREPROCESSING
 preprocessing:
   normalization:
     method: "zscore"   # minmax | zscore
-    per_feature: true
+    per_feature: false
 
   missing_values:
     strategy: "median"   # mean | median | drop
@@ -109,44 +109,64 @@ validation:
 # TENSORIZATION
 tensorization:
   output_format: "numpy"   # numpy | torch
-  layout: "THWC"           # (T, H, W, C)
+  layout: "THWC"           # (T, H, W, C) "TCHW" for PyTorch 
 
   flatten:
       enabled: true        # false
       method: "pixel"      # pixel -> (N_pixels, T, C)
 
-# PIPELINES
+# DAG (Directed Acyclic Graph) PIPELINES
 pipelines:
-  slope_stability:
-    enabled: true
-    steps:
-      - ingestion
-      - masking
-      - spatial_harmonization
-      - feature_engineering
-      - preprocessing
-      - validation
-      - tensorization
-
   amd:
     enabled: true
-    steps:                    # DAG workflow
-      - ingestion             # Sentinel-2 time series 
-      - masking               # Apply water masks
-      - feature_engineering   # Compute AMD indices into features 
-      - tensorization         # Prepare tensors for ML models and store it 
-    # out: 
-      # - spatial_harmonization
-      # - preprocessing
-      # - validation
+    dag:
+      nodes:
+        # --- Feature Engineering ---
+        features:
+          op: feature_engineering
+          inputs: [input]
+        # --- Cloud mask ---
+        cloud:
+          op: cloud_masking
+          inputs: [features]
+        # --- TSF Masking ---
+        # mask:
+        #   op: masking
+        #   inputs: [features]
+        # --- Tensorization ---
+        tensor:
+          op: tensorization
+          inputs: [cloud] # or [features] if masking is not implemented yet 
+      output: tensor
+
+  slope_stability:
+    enabled: false 
+    dag:
+      nodes:
+        ingestion:
+          op: ingestion
+          inputs: [input]
+        mask:
+          op: masking
+          inputs: [ingestion]
+        harmonize:
+          op: spatial_harmonization
+          inputs: [mask]
+        features:
+          op: feature_engineering
+          inputs: [harmonize]
+        tensor:
+          op: tensorization
+          inputs: [features]
+      output: tensor
+
 
 # OUTPUT SETTINGS
 output:
   save_intermediate: true
   paths:
-    features: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/features"
-    tensors: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/tensors"
-
+    features: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/features"
+    tensors: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/tensors"
   formats:
     raster: "GTiff"
     tensor: "pt" 
@@ -163,5 +183,3 @@ performance:
 # DEBUG
 debug:
   verbose: true
-  save_debug_tiles: false
-  debug_tile_size: [128, 128]
