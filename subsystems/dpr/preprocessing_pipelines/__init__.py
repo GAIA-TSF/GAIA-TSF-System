@@ -1,14 +1,9 @@
-from __future__ import annotations
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Dict, Any
-
+from subsystems.dpr.base_pipeline import PipelineFactory
 from .sentinel1 import Sentinel1Pipeline
 from .cloudcover import Sentinel2CloudCoverPipeline
 
 
-class PreprocessingPipelines:
+class PreprocessingPipelines(PipelineFactory):
     """The Preprocessing Pipelines are designed as a sequence of
     independent modules tailored for data refinement. Key modules
     include atmospheric correction units, cloud detection services
@@ -24,21 +19,3 @@ class PreprocessingPipelines:
             'sentinel1': Sentinel1Pipeline(),
             'sentinel2_cloudcover': Sentinel2CloudCoverPipeline(),
         }
-
-    @property
-    def metadata(self) -> Dict[str, Any]:
-        """
-        Get list of registered pipelines.
-
-        :return: list of pipelines (id, metadata)
-        :rtype: Dict[str, Any]
-        """
-        metadata = {}
-        for pid, pipeline in self._pipelines.items():
-            metadata[pid] = pipeline.metadata
-
-        return metadata
-
-    @property
-    def pipeline(self):
-        return self._pipelines
