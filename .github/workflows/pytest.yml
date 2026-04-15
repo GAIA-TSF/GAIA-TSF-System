@@ -91,9 +91,15 @@ jobs:
           docker compose pull
           docker compose up --wait --detach
 
+      - name: Update values.yaml
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: 'config.yaml'
+          propertyPath: 'eou.eodag.cop_dataspace.auth.credentials.password'
+          value: ${{secrets.CDSE_PASS}}
+          commitChange: false
+
       - name: Run EOU test suite
-        env:
-          CDSE: ${{secrets.CDSE}}
         run: |
           echo "$CDSE" > config.yaml
           for i in $(ls subsystems/eou/tests/test*py); do
