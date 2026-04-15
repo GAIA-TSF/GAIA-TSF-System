@@ -91,7 +91,7 @@ jobs:
           docker compose pull
           docker compose up --wait --detach
 
-      - name: Update values.yaml
+      - name: Update config.yaml
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: 'config.yaml'
