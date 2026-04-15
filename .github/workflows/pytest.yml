@@ -101,6 +101,8 @@ jobs:
 
       - name: Run EOU test suite
         run: |
+          echo "*************************"
+          echo $(cat config.yaml)
           for i in $(ls subsystems/eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
