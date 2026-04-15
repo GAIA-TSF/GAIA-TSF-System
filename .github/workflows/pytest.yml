@@ -96,7 +96,7 @@ jobs:
         with:
           valueFile: 'config.yaml'
           propertyPath: 'eou.eodag.cop_dataspace.auth.credentials.password'
-          value: ${{secrets.CDSE_PASS}}
+          value: ${{ secrets.CDSE_PASS }}
           commitChange: false
 
       - name: Run EOU test suite
