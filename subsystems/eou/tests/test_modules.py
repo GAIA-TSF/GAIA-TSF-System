@@ -34,7 +34,7 @@ class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2026-01-01',
-        'end': '2026-01-29',
+        'end': '2026-01-10',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -84,7 +84,7 @@ class TestModules:
         module = DataAcquisitionGateway(backend='asf')
         aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
         result = module.backend.search(
-            aoi=aoi_geom, start='2022-07-01', end='2022-07-30', direction='A'
+            aoi=aoi_geom, start=self.search_filter['start'], end=self.search_filter['end'], direction='A'
         )
 
         assert isinstance(result, GeoDataFrame)
@@ -124,7 +124,7 @@ class TestModules:
         module = DataAcquisitionGateway(backend='asf')
         aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
         result = module.backend.search(
-            aoi=aoi_geom, start='2022-07-01', end='2022-07-30', direction='A'
+            aoi=aoi_geom, start=self.search_filter['start'], end=self.search_filter['end'], direction='A'
         )
 
         assert len(result) > 0
