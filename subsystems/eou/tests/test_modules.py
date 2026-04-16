@@ -5,7 +5,7 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-
+from lib.config import SettingsReader
 
 def load_geom(file_path):
     ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
@@ -107,19 +107,18 @@ class TestModules:
 
         assert len(results) > 0
 
-        ql_path = None
+        target_dir = 'sentinel2'
         try:
-            ql_path = module.backend.download(
-                results[0], target_dir='sentinel2', quicklook=True
-            )
+            ql_path = Path(module.backend.download(
+                results[0], target_dir=target_dir, quicklook=True
+            ))
 
-            assert isinstance(ql_path, str)
-            assert Path(ql_path).exists()
-            assert Path(ql_path).stat().st_size > 0
+            assert ql_path.exists()
+            assert ql_path.stat().st_size > 0
+            assert ql_path.parent.resolve() == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
         finally:
             if ql_path and Path(ql_path).exists():
-                # Path(ql_path).unlink()
-                pass
+                Path(ql_path).unlink()
 
     def test_DataAcquisitionGateway_002_asf_download(self):
         """Test DataAcquisitionGateway module.
@@ -137,9 +136,11 @@ class TestModules:
 
         assert len(result) > 0
 
+        target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download(result, target_dir='sentinel1'))
+            datadir = Path(module.backend.download(result, target_dir=target_dir))
             assert any(datadir.iterdir())
+            assert datadir.resolve() == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
         finally:
             if datadir.exists() and datadir.is_dir():
                 # shutil.rmtree(download_path)
