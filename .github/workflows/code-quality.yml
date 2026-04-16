@@ -20,7 +20,7 @@ jobs:
       actions: write
       contents: write
       pull-requests: write
-      workkflows: write
+      workflows: write
 
     steps:
       - name: Checkout repository
