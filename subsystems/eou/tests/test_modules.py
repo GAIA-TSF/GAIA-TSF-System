@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 
 from osgeo import gdal
 
@@ -33,7 +34,7 @@ class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2026-01-01',
-        'end': '2026-01-29',
+        'end': '2026-01-10',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -55,7 +56,7 @@ class TestModules:
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
 
-    def test_DataAcquisitionGateway_001(self):
+    def test_DataAcquisitionGateway_001_eodag_search(self):
         """Test DataAcquisitionGateway module.
 
         Test search capability using default backend (eodag).
@@ -64,7 +65,7 @@ class TestModules:
 
         module = DataAcquisitionGateway()
 
-        result = module.search(
+        result = module.backend.search(
             geom=load_geom(self._get_data_path('area_intervencao.kmz')),
             **self.search_filter,
         )
@@ -73,14 +74,34 @@ class TestModules:
         assert len(result) > 0
         assert result[0].product_type == self.search_filter['productType']
 
-    def test_DataAcquisitionGateway_002(self):
+    def test_DataAcquisitionGateway_001_asf_search(self):
+        """Test DataAcquisitionGateway module.
+
+        Test search capability using ASF backend.
+        """
+        from geopandas import GeoDataFrame
+
+        module = DataAcquisitionGateway(backend='asf')
+        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        result = module.backend.search(
+            aoi=aoi_geom,
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert isinstance(result, GeoDataFrame)
+        assert result is not None
+        assert len(result) > 0
+
+    def test_DataAcquisitionGateway_002_eodag_download(self):
         """Test DataAcquisitionGateway module.
 
         Test download capability using default backend (eodag).
         """
         module = DataAcquisitionGateway()
 
-        results = module.search(
+        results = module.backend.search(
             geom=load_geom(self._get_data_path('area_intervencao.kmz')),
             **self.search_filter,
         )
@@ -92,12 +113,38 @@ class TestModules:
             ql_path = module.download(
                 results[0], target_dir='sentinel2', quicklook=True
             )
+
             assert isinstance(ql_path, str)
             assert Path(ql_path).exists()
             assert Path(ql_path).stat().st_size > 0
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
+
+    def test_DataAcquisitionGateway_002_asf_download(self):
+        """Test DataAcquisitionGateway module.
+
+        Test download capability using ASF backend.
+        """
+        download_path = Path(__file__).parent / 'sample_data' / 'asf_download'
+        module = DataAcquisitionGateway(backend='asf')
+        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        result = module.backend.search(
+            aoi=aoi_geom,
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert len(result) > 0
+
+        try:
+            download_path.mkdir(parents=True, exist_ok=True)
+            datadir = module.backend.download(download_path, result)
+            assert any(datadir.iterdir())
+        finally:
+            if download_path.exists() and download_path.is_dir():
+                shutil.rmtree(download_path)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
