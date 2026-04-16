@@ -8,6 +8,7 @@ gdal.UseExceptions()
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader
 
+
 def load_geom(file_path):
     ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
     layer = ds.GetLayer(0)
@@ -110,13 +111,18 @@ class TestModules:
 
         target_dir = 'sentinel2'
         try:
-            ql_path = Path(module.backend.download(
-                results[0], target_dir=target_dir, quicklook=True
-            ))
+            ql_path = Path(
+                module.backend.download(
+                    results[0], target_dir=target_dir, quicklook=True
+                )
+            )
 
             assert ql_path.exists()
             assert ql_path.stat().st_size > 0
-            assert ql_path.parent.resolve() == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            assert (
+                ql_path.parent.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
@@ -141,10 +147,13 @@ class TestModules:
         try:
             datadir = Path(module.backend.download(result, target_dir=target_dir))
             assert any(datadir.iterdir())
-            assert datadir.resolve() == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            assert (
+                datadir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
         finally:
             if datadir.exists() and datadir.is_dir():
-                shutil.rmtree(download_path)
+                shutil.rmtree(datadir)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
