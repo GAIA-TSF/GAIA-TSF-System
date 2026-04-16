@@ -34,5 +34,5 @@ qcl:
       <<: *sdi_db
       dbname: 'logging'
 storage:
-  data_dir: /tmp/data
+  data_dir: /tmp/gaia_tsf
 
