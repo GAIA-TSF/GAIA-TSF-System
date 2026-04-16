@@ -2,7 +2,7 @@ name: Docker Build CI/CD
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "feature/build-docker-worflow" ]
     paths:
       - 'docker/**'
       - '.github/workflows/docker-build.yml'
