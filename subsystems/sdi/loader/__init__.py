@@ -9,8 +9,6 @@ import requests
 import boto3
 from abc import ABC, abstractmethod
 
-from subsystems.qcl.logger import Logger
-
 from lib.base import GaiaBase, SubsystemId
 
 
@@ -33,9 +31,6 @@ class SdiLoader(ABC, GaiaBase):
         self.json_file = None
         self.table_name = None
         self.stac_json = None
-        self.id = 'SDI'
-
-        self.logger = Logger(subsystem=self.id)
 
     def import_zip(self, append_data: bool = False):
         """
@@ -265,20 +260,6 @@ class InSituDataLoader(SdiLoader):
 
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
-
-                        query = sql.SQL(
-                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
-                        ).format(
-                            table_ident,
-                            sql.SQL(', ').join(
-                                sql.Identifier(c['name']) for c in columns
-                            ),
-                        )
-
-                        with open(csv_path, 'rb') as f:
-                            with cur.copy(query) as copy:
-                                while data := f.read(8192):
-                                    copy.write(data)
 
                         copy_query = sql.SQL(
                             'COPY {} ({}) FROM STDIN WITH CSV HEADER'
