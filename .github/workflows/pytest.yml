@@ -103,6 +103,7 @@ jobs:
         run: |
           echo "*************************"
           echo $(cat config.yaml)
+          echo "*************************"
           for i in $(ls subsystems/eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
