@@ -24,7 +24,10 @@ _sqlalchemy = types.ModuleType('sqlalchemy')
 _sqlalchemy.create_engine = MagicMock()  # type: ignore[attr-defined]
 sys.modules.setdefault('sqlalchemy', _sqlalchemy)
 
-from subsystems.dpr.metadata_processor.generator import InsituDataset, InsituStacItemFactory
+from subsystems.dpr.metadata_processor.generator import (
+    InsituDataset,
+    InsituStacItemFactory,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -75,12 +78,14 @@ METADATA_NO_LOCATION = {
 @pytest.fixture
 def tmp_csv():
     """Create a temporary CSV file and return its path."""
-    df = pd.DataFrame({
-        'iso_timestamp': ['2026-01-01T00:00:00', '2026-06-30T23:59:59'],
-        'lat': [50.082, 50.092],
-        'lon': [14.412, 14.440],
-        'pressure': [101.3, 102.1],
-    })
+    df = pd.DataFrame(
+        {
+            'iso_timestamp': ['2026-01-01T00:00:00', '2026-06-30T23:59:59'],
+            'lat': [50.082, 50.092],
+            'lon': [14.412, 14.440],
+            'pressure': [101.3, 102.1],
+        }
+    )
     with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as f:
         df.to_csv(f.name, index=False)
         yield f.name
@@ -90,6 +95,7 @@ def tmp_csv():
 # ---------------------------------------------------------------------------
 # InsituDataset
 # ---------------------------------------------------------------------------
+
 
 class TestInsituDataset:
     def test_epsg_from_metadata(self, tmp_csv):
@@ -122,6 +128,7 @@ class TestInsituDataset:
 # ---------------------------------------------------------------------------
 # InsituStacItemFactory
 # ---------------------------------------------------------------------------
+
 
 class TestInsituStacItemFactory:
     def test_stac_item_structure(self, tmp_csv):
@@ -162,6 +169,7 @@ class TestInsituStacItemFactory:
 # process_in_situ() — tests the full pipeline using InsituDataset + InsituStacItemFactory
 # directly, bypassing GaiaBase/sqlalchemy dependencies
 # ---------------------------------------------------------------------------
+
 
 class TestProcessInSitu:
     def test_process_in_situ_returns_valid_stac(self, tmp_csv):

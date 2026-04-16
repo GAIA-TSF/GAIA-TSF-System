@@ -25,7 +25,9 @@ class DataProcessing(GaiaBase):
         self.data_analysis_pipelines = DataAnalysisPipelines()
         self.metadata_processor = MetadataProcessor()
 
-    def process_in_situ(self, file_path: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    def process_in_situ(
+        self, file_path: str, metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         ISU_I_1: Receive an in-situ CSV file and its metadata from ISU,
         generate a STAC item via MetadataGenerator, and prepare for SDI ingestion.
