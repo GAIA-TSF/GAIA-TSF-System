@@ -1,3 +1,4 @@
+import tempfile
 from typing import Any, Dict, Optional
 import pandas as pd
 
@@ -216,7 +217,7 @@ class ETLEngine(GaiaBase):
             # ISU_I_1: Route validated, standardised dataset to DPR (ISU_IR_02 / ISU_R_07).
             # SDI integration is indirect — DPR is responsible for SDI ingestion.
             if self.dpr_service:
-                dpr_result = self.dpr_service.process_in_situ(df, metadata)
+                dpr_result = self.dpr_service.process_in_situ(filename, metadata)
                 self.logger.info(
                     f"[ISU_I_1] Dataset '{filename}' delivered to DPR: "
                     f'ready_for_sdi={dpr_result.get("ready_for_sdi")}'
@@ -289,7 +290,13 @@ class ETLEngine(GaiaBase):
         # ISU_I_1: Route validated, standardised streaming dataset to DPR (ISU_IR_02 / ISU_R_07).
         # SDI integration is indirect — DPR is responsible for SDI ingestion.
         if self.dpr_service:
-            dpr_result = self.dpr_service.process_in_situ(df, metadata)
+            with tempfile.NamedTemporaryFile(
+                suffix='.csv', delete=False, prefix=f'{dataset_id}_'
+            ) as tmp:
+                tmp_path = tmp.name
+            df.to_csv(tmp_path, index=False)
+            self.logger.debug(f'[ISU_I_1] Streaming data written to temporary file: {tmp_path}')
+            dpr_result = self.dpr_service.process_in_situ(tmp_path, metadata)
             self.logger.info(
                 f'[ISU_I_1] Stream data from {dataset_id} delivered to DPR: '
                 f'ready_for_sdi={dpr_result.get("ready_for_sdi")}'
