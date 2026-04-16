@@ -26,7 +26,7 @@ class TestSentinel1Workflow:
         assert config.is_valid() is True
 
         module = DataAcquisitionGateway()
-        results = module.search(
+        results = module.backend.search(
             geom=config['project']['aoi']['geom'],
             **self.search_filter,
         )
@@ -35,7 +35,9 @@ class TestSentinel1Workflow:
 
         ql_path = None
         try:
-            ql_path = module.download(results[0], quicklook=True)
+            ql_path = module.backend.download(
+                results[0], target_dir='sentinel1', quicklook=True
+            )
             assert Path(ql_path).exists()
         finally:
             if ql_path and Path(ql_path).exists():
