@@ -31,16 +31,17 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         )
         return results
 
-    def download(self, search_results: GeoDataFrame, **kwargs) -> str:
+    def _download(self, search_results: GeoDataFrame, target_dir: str, **kwargs) -> str:
         """Download selected Sentinel-1 BURST data using ASF backend.
 
         :param GeoDataFrame search_results: search results to be downloaded returned by search method
+        :param str target_dir: target directory to store downloaded product
         :return: a path to the directory with downloaded data
         :rtype: str
         """
         username = self.config.get('auth', {}).get('credentials', {}).get('username')
         password = self.config.get('auth', {}).get('credentials', {}).get('password')
         asf = ASF(username, password)
-        asf.download(self.output_dir, search_results.fileID.tolist(), **kwargs)
+        asf.download(target_dir, search_results.fileID.tolist(), **kwargs)
 
-        return self.output_dir
+        return target_dir

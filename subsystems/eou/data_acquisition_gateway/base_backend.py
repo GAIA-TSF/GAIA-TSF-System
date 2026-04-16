@@ -1,10 +1,12 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+import os
 
 
 class DataAcquisitionBackend(ABC):
     def __init__(self):
         self.config: dict = {}
+        self.data_dir: str = None
 
     def set_config(self, config: dict) -> None:
         self.config = config
@@ -15,6 +17,13 @@ class DataAcquisitionBackend(ABC):
         pass
 
     @abstractmethod
-    def download(self, *args, **kwargs) -> str:
+    def _download(self, *args, **kwargs) -> str:
         """Generic download interface"""
         pass
+
+    def download(self, *args, **kwargs) -> str:
+        """Generic download interface"""
+        if not os.path.isabs(kwargs['target_dir']):
+            kwargs['target_dir'] = os.path.join(self.data_dir, kwargs['target_dir'])
+
+        return self._download(*args, **kwargs)

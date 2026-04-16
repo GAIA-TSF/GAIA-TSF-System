@@ -1,5 +1,4 @@
 from pathlib import Path
-import shutil
 
 from osgeo import gdal
 
@@ -110,7 +109,7 @@ class TestModules:
 
         ql_path = None
         try:
-            ql_path = module.download(
+            ql_path = module.backend.download(
                 results[0], target_dir='sentinel2', quicklook=True
             )
 
@@ -119,14 +118,14 @@ class TestModules:
             assert Path(ql_path).stat().st_size > 0
         finally:
             if ql_path and Path(ql_path).exists():
-                Path(ql_path).unlink()
+                # Path(ql_path).unlink()
+                pass
 
     def test_DataAcquisitionGateway_002_asf_download(self):
         """Test DataAcquisitionGateway module.
 
         Test download capability using ASF backend.
         """
-        download_path = Path(__file__).parent / 'sample_data' / 'asf_download'
         module = DataAcquisitionGateway(backend='asf')
         aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
         result = module.backend.search(
@@ -139,12 +138,12 @@ class TestModules:
         assert len(result) > 0
 
         try:
-            download_path.mkdir(parents=True, exist_ok=True)
-            datadir = module.backend.download(download_path, result)
+            datadir = Path(module.backend.download(result, target_dir='sentinel1'))
             assert any(datadir.iterdir())
         finally:
-            if download_path.exists() and download_path.is_dir():
-                shutil.rmtree(download_path)
+            if datadir.exists() and datadir.is_dir():
+                # shutil.rmtree(download_path)
+                pass
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
