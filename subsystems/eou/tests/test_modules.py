@@ -143,8 +143,7 @@ class TestModules:
             assert datadir.resolve() == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
         finally:
             if datadir.exists() and datadir.is_dir():
-                # shutil.rmtree(download_path)
-                pass
+                shutil.rmtree(download_path)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
