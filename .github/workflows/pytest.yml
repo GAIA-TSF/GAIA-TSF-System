@@ -95,7 +95,7 @@ jobs:
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: 'config.yaml'
-          propertyPath: 'eou.eodag.cop_dataspace.auth.credentials.password'
+          propertyPath: 'eeou.eodag.cop_dataspace.auth.credentials.password'
           value: ${{secrets.CDSE_PASS}}
           commitChange: false
 
