@@ -56,20 +56,17 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         return self._dag.search(**search_params)
 
-    def download(
-        self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs
-    ) -> str:
+    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
         """Download selected data product using eodag backend.
 
         :param EOProduct product: EO product to be downloaded
-        :param str target_dir: directory where to store downloaded data
         :param bool quicklook: If True, only download the preview image
         :return: a path to the download data
         :rtype: str
         """
         if quicklook:
-            return product.get_quicklook(output_dir=target_dir, **kwargs)
+            return product.get_quicklook(output_dir=self.output_dir, **kwargs)
 
         return self._dag.download(
-            product, extract=False, output_dir=target_dir, **kwargs
+            product, extract=False, output_dir=self.output_dir, **kwargs
         )
