@@ -4,7 +4,7 @@ eou:
       auth:
         credentials: &cred
           username: 'gaia.tsf.project@gmail.com'
-          password: 'Gaia-Tsf;2026'
+          password: ''
   asf:
     auth:
       credentials:
