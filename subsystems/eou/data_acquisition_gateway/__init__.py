@@ -36,8 +36,8 @@ class DataAcquisitionGateway(GaiaBase):
 
         self.backend.set_config(self.settings['eou'][backend])
         if os.path.isabs(target_dir):
-            self.backend.data_dir = target_dir
+            self.backend.output_dir = target_dir
         else:
-            self.backend.data_dir = os.path.join(
+            self.backend.output_dir = os.path.join(
                 self.settings['storage']['data_dir'], target_dir
             )
