@@ -94,7 +94,7 @@ jobs:
       - name: Update config.yaml
         run: |
           pip install ruamel.yaml
-          python3 .github/workflows/update_config.py --password ${{secrets.CDSE_PASS}}
+          python3 .github/utils/update_config.py --password ${{secrets.CDSE_PASS}}
 
       - name: Run EOU test suite
         run: |
