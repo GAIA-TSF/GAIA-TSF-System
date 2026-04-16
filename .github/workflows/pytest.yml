@@ -92,12 +92,9 @@ jobs:
           docker compose up --wait --detach
 
       - name: Update config.yaml
-        uses: fjogeleit/yaml-update-action@main
-        with:
-          valueFile: 'config.yaml'
-          propertyPath: 'eeou.eodag.cop_dataspace.auth.credentials.password'
-          value: ${{secrets.CDSE_PASS}}
-          commitChange: false
+        run: |
+          pip install ruamel.yaml
+          python3 .github/workflows/update_config.py --password ${{secrets.CDSE_PASS}}
 
       - name: Run EOU test suite
         run: |
