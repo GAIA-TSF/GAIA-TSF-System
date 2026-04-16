@@ -9,6 +9,14 @@ class DataAcquisitionGateway(GaiaBase):
     """
 
     def __init__(self, backend: str = 'eodag'):
+        """Initialize Data Acquisition Gateway.
+
+        Currently supported backends:
+        - EODAG
+        - ASF
+
+        :param str backend: backend to be used for searching and downloading data
+        """
         super().__init__(SubsystemId.EOU)
 
         if backend == 'eodag':
@@ -23,5 +31,5 @@ class DataAcquisitionGateway(GaiaBase):
             raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
 
         self.backend = DataAcquisitionBackend()
-        # TBD: raise GaiaSettingsError
         self.backend.set_config(self.settings['eou'][backend])
+        self.backend.data_dir = self.settings['storage']['data_dir']
