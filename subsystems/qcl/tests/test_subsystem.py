@@ -1,5 +1,8 @@
+import os
 import pytest
+
 import pandas as pd
+
 from subsystems.qcl.layer import QualityControlLoggingLayer
 from subsystems.qcl import QCLayer
 
@@ -114,3 +117,28 @@ class TestSubsystem:
             qc.check('unknown_type', None, {}, 'TEST_ERR_001')
 
         assert 'No QC Controller found for unknown_type' in str(exc_info.value)
+
+    def test_db_logging(self):
+        """Verify that the logger persists logs to the database"""
+        import psycopg
+        import logging
+        from lib.base import SubsystemId
+
+        qc = QCLayer()
+        log_message = 'Test'
+        qc.logger.info(log_message)
+
+        with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    'SELECT subsystem_id,level_id,message,pid FROM log ORDER BY id DESC LIMIT 1'
+                )
+                row = cur.fetchone()
+                # subsystem
+                assert row[0] == SubsystemId.QCL.name
+                # logging level
+                assert row[1] == logging.INFO
+                # message
+                assert row[2] == log_message
+                # pid
+                assert row[3] == os.getpid()

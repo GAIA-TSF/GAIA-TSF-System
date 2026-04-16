@@ -1,21 +1,29 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from eodag.api.search_result import SearchResult
-    from eodag_cube.api.product._product import EOProduct
+import os
 
 
 class DataAcquisitionBackend(ABC):
+    def __init__(self):
+        self.config: dict = {}
+        self.data_dir: str = None
+
+    def set_config(self, config: dict) -> None:
+        self.config = config
+
     @abstractmethod
-    def search(self, provider, start, end, geom, **kwargs) -> SearchResult:
+    def search(self, *args, **kwargs):
+        """Generic search interface"""
         pass
 
     @abstractmethod
-    def download(self, product: EOProduct, quicklook: bool = False, **kwargs) -> str:
+    def _download(self, *args, **kwargs) -> str:
+        """Generic download interface"""
         pass
 
-    @abstractmethod
-    def set_config(self, config_file: dict) -> None:
-        pass
+    def download(self, *args, **kwargs) -> str:
+        """Generic download interface"""
+        if not os.path.isabs(kwargs['target_dir']):
+            kwargs['target_dir'] = os.path.join(self.data_dir, kwargs['target_dir'])
+
+        return self._download(*args, **kwargs)
