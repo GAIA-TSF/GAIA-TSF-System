@@ -295,7 +295,9 @@ class ETLEngine(GaiaBase):
             ) as tmp:
                 tmp_path = tmp.name
             df.to_csv(tmp_path, index=False)
-            self.logger.debug(f'[ISU_I_1] Streaming data written to temporary file: {tmp_path}')
+            self.logger.debug(
+                f'[ISU_I_1] Streaming data written to temporary file: {tmp_path}'
+            )
             dpr_result = self.dpr_service.process_in_situ(tmp_path, metadata)
             self.logger.info(
                 f'[ISU_I_1] Stream data from {dataset_id} delivered to DPR: '
