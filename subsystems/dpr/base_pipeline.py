@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Mapping, Any
+    from typing import Mapping, Any, Dict
 
 from abc import ABC, abstractmethod
 
@@ -22,11 +22,12 @@ class BasePipeline(ABC):
         """Execute pipeline."""
         pass
 
+
 class PipelineFactory:
     @abstractmethod
     def __init__(self):
         pass
-    
+
     @property
     def metadata(self) -> Dict[str, Any]:
         """
