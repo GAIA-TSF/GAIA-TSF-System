@@ -1,18 +1,10 @@
 # MAP CONFIGURATION 
 
-# NOTES: 
-# - Active experiment is controlled by top-level keys:
-#     variable, model, dataset, training, monitoring
-# - Everything else defines reusable components
-# - Fully compatible with plugin architecture
-
-
 # GLOBAL EXPERIMENT CONFIGURATION
 experiment:
   name: "amd_gbr_baseline"
   description: "AMD monitoring using Gradient Boosting"
   seed: 42
-
 
 # ACTIVE SETUP (used by pipeline)
 variable: amd          # active variable plugin
@@ -133,7 +125,58 @@ datasets:
       val_ratio: 0.15
       test_ratio: 0.15
 
+### 
+# PIPELINES 
+pipelines:
+  learning:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs: [input]
+        split:
+          op: splitter
+          inputs: [load]
+        window:
+          op: windowing
+          inputs: [split]
+        features:
+          op: feature_engineering
+          inputs: [window]
+        train:
+          op: trainer
+          inputs: [features]
+        validate:
+          op: validation
+          inputs: [train]
+      output: train
 
+pipelines:
+  inference:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs: [input]
+        features:
+          op: feature_engineering
+          inputs: [load]
+        predict:
+          op: predictor
+          inputs: [features]
+        trend:
+          op: trend_detection
+          inputs: [predict]
+        anomaly:
+          op: anomaly_detection
+          inputs: [predict]
+        risk:
+          op: risk_scoring
+          inputs: [trend, anomaly]
+      output: risk
+### 
+
+### --- OLD --- ### 
 # TRAINING / VALIDATION
 training:
 

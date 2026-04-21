@@ -1,0 +1,235 @@
+"""
+Temporary script to modell AMD behaviour
+- Input (2 time series)
+- Preprocessing (handle missing, smoothing)
+- Baseline model (learn “clean behavior”)
+- Prediction on AMD series
+- Residuals (deviation)
+- Anomaly detection
+- Risk scoring
+-  Spatial generalization (conceptual step) TODO later
+"""
+
+import os 
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt 
+
+from sklearn.ensemble import GradientBoostingRegressor
+
+# Data 
+dir_path = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/'
+
+df_clean = pd.read_csv(os.path.join(dir_path, 'yxsjoberg_clean_series.csv'), 
+                       parse_dates=["system:time_start"])
+df_amd = pd.read_csv(os.path.join(dir_path, 'yxsjoberg_amd_series.csv'), 
+                     parse_dates=["system:time_start"])
+
+print(df_clean.head())
+print(df_amd.head())
+df_clean.rename(columns={'system:time_start': 'Date'}, inplace=True)
+df_amd.rename(columns={'system:time_start': 'Date'}, inplace=True)
+# Set date as index for time series analysis
+df_clean = df_clean.set_index("Date")
+df_amd = df_amd.set_index("Date")
+
+# plt.scatter(df_clean.index, df_clean["AMD"], label="Clean water", color="blue")
+plt.scatter(df_amd.index, df_amd["AMD"], label="AMD", color="red")
+# plt.ylim(0, 7)
+plt.legend()
+plt.show()  
+
+# remove outliers from clean water
+mu = df_clean["AMD"].mean()
+sigma = df_clean["AMD"].std()
+# df_clean = df_clean[df_clean["AMD"] < mu + 3 * sigma]
+# df_clean = df_clean[df_clean["AMD"] > mu - 3 * sigma]
+
+df_clean["z_score"] = (df_clean["AMD"] - mu) / sigma
+""" 
+|z| < 2 → normal variability
+2 < |z| < 3 → suspicious
+|z| > 3 → strong anomaly
+"""
+threshold = 2.5  # 2-3 is common, but can be adjusted
+df_clean["outlier"] = np.abs(df_clean["z_score"]) > threshold
+# df_clean.head(20)
+
+# Robust
+median = df_clean["AMD"].median()
+mad = np.nanmedian(np.abs(df_clean["AMD"] - median))
+df_clean["z_robust"] = 0.6745 * (df_clean["AMD"] - median) / mad
+df_clean["outlier_robust"] = np.abs(df_clean["z_robust"]) > 3
+
+# Outlier persistence
+# df_clean["outlier_persistent"] = (
+#     df_clean["outlier_robust"]
+#     .rolling(3)
+#     .sum() >= 2
+# )
+
+# Plot outliers
+plt.figure(figsize=(10,5))
+plt.plot(df_clean.index, df_clean["AMD"], 'b.', label="Clean water observed")
+# baseline band
+plt.axhline(mu + 2*sigma, color="gray", linestyle="-")
+plt.axhline(median + 2*mad, color="gray", linestyle="--")
+# outliers z-score
+plt.scatter(
+    df_clean.index[df_clean["outlier"]],
+    df_clean["AMD"][df_clean["outlier"]],
+    color="orange", label="Outliers z-score"
+)
+# outliers z-robust
+plt.scatter(
+    df_clean.index[df_clean["outlier_robust"]],
+    df_clean["AMD"][df_clean["outlier_robust"]],
+    color="red", label="Outliers z-robust"
+)
+plt.legend()
+plt.title("Outlier Detection")
+plt.show()
+
+# Data clening (remove outliers)
+df_clean = df_clean[~df_clean["outlier_robust"]]
+
+# --- Remove outliers from AMD series --- #
+median_amd = df_amd["AMD"].median()
+mad_amd = np.nanmedian(np.abs(df_amd["AMD"] - median_amd))
+
+df_amd["z_robust"] = 0.6745 * (df_amd["AMD"] - median_amd) / mad_amd
+
+# Detect FAR outliers in AMD series, but be cautious
+far_threshold = 6  # much stricter than 3
+
+df_amd["outlier_far"] = np.abs(df_amd["z_robust"]) > far_threshold
+
+# physical constriant 
+physical_max = 20  # adjust based on domain knowledge
+df_amd["outlier_physical"] = df_amd["AMD"] > physical_max
+
+# combine 
+df_amd["outlier_final"] = df_amd["outlier_far"] | df_amd["outlier_physical"]
+
+# remove  2018-05-05
+df_amd = df_amd[~df_amd["outlier_final"]].copy() 
+
+# Visual check 
+plt.figure(figsize=(10,5))
+plt.plot(df_amd.index, df_amd["AMD"], '.', color="gray", label="Original")
+# far outliers
+plt.scatter(
+    df_amd.index[df_amd["outlier_final"]],
+    df_amd["AMD"][df_amd["outlier_final"]],
+    color="red", label="Removed (far outliers)"
+)
+# cleaned signal
+plt.plot(
+    df_amd_cleaned.index,
+    df_amd_cleaned["AMD"],
+    '.', color="blue", label="Cleaned AMD"
+)
+plt.legend()
+plt.title("AMD Outlier Removal (Far Outliers Only)")
+plt.show()
+
+
+# Sort data 
+df_clean = df_clean.sort_values("Date")
+df_amd = df_amd.sort_values("Date")
+
+# Gap filling (conservative)
+df_clean["AMD"] = df_clean["AMD"].interpolate(method="time") 
+df_amd["AMD"] = df_amd["AMD"].interpolate(method="time")
+
+# Optional smoothing
+df_clean["AMD_smooth"] = df_clean["AMD"].rolling(window=3, center=True).mean()
+df_amd["AMD_smooth"] = df_amd["AMD"].rolling(window=3, center=True).mean()
+
+plt.scatter(df_clean.index, df_clean["AMD"], label="Clean", color="blue")
+plt.scatter(df_amd.index, df_amd["AMD_smooth"], label="AMD_smooth", color="red")
+plt.ylim(0, 7) 
+plt.legend()
+plt.show()
+
+plt.scatter(df_clean.index, df_clean["AMD_smooth"], label="AMD_smooth", color="blue")
+plt.ylim(0, 7) 
+plt.legend()
+plt.show()
+
+plt.plot(df_amd.index, df_amd["AMD_smooth"], 'r.')
+plt.legend()
+plt.show()  
+
+
+# Feature engineering (lag features)
+def create_features(df):
+    df["lag1"] = df["AMD_smooth"].shift(1)
+    df["lag2"] = df["AMD_smooth"].shift(2)
+    df["rolling_mean"] = df["AMD_smooth"].rolling(3).mean()
+    df["month"] = df.index.month
+    return df.dropna()
+
+# --- Train baseline model on clean data --- # 
+clean_feat = create_features(df_clean)
+X_clean = clean_feat[["lag1", "lag2", "rolling_mean", "month"]]
+y_clean = clean_feat["AMD_smooth"]
+
+# TODO later: model = RandomForestRegressor(n_estimators=100, random_state=42) 
+model = GradientBoostingRegressor()
+model.fit(X_clean, y_clean)
+
+# --- Temporal profile + risk threshold --- #
+amd_feat = create_features(df_amd)
+
+X_amd = amd_feat[["lag1", "lag2", "rolling_mean", "month"]]
+y_true = amd_feat["AMD_smooth"]
+
+y_pred = model.predict(X_amd)
+
+residuals = y_true - y_pred 
+
+# --- Define risk threshold --- #
+# statistical 
+threshold = 2 * residuals.std() 
+
+# robust 
+threshold = np.percentile(np.abs(residuals), 95) 
+
+# plot 
+plt.plot(amd_feat.index, y_true, 'ko', label="Observed")
+plt.plot(amd_feat.index, y_pred, 'b.', label="Expected")
+plt.ylim(0, 7) 
+plt.legend()
+plt.show()
+
+# --- Anomaly detection --- # 
+anomaly = np.abs(residuals) > threshold
+
+# Rolling z-score 
+z = (residuals - residuals.mean()) / residuals.std()
+anomaly = np.abs(z) > 2
+
+# Persistent anomly 
+anomaly_persistent = anomaly.rolling(3).sum() >= 2 
+
+# Plot anomalies 
+plt.plot(amd_feat.index, y_true, 'ko', label="Observed")
+plt.plot(amd_feat.index, y_pred, 'b.', label="Expected")
+plt.scatter(amd_feat.index[anomaly], y_true[anomaly], color="red", label="Anomaly")
+plt.ylim(0, 7) 
+plt.legend()        
+plt.show()
+
+### Result ### 
+# amd_feat["anomaly"] = anomaly_persistent
+
+# --- Spatial AMD risk map --- # 
+# risk per time step 
+# risk_score = np.abs(residuals) / threshold
+# risk_score = np.clip(risk_score, 0, 1)
+
+# convert to probability 
+# prob_acidic = 1 / (1 + np.exp(-residuals)) 
+
+

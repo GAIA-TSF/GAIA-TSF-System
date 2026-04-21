@@ -26,7 +26,7 @@ class AMDVariable(VariablePlugin):
         Important:
         This step is CRITICAL for stability of ML models.
         """
-        from plugins.features.amd_preprocessing import gap_fill, smooth
+        from plugins.feature.amd_preprocessing import gap_fill, smooth
 
         print("[AMD] Preprocessing: gap filling + smoothing") 
 

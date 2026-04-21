@@ -2,7 +2,7 @@
 from logging import config
 
 from core.registry import VARIABLE_REGISTRY, MODEL_REGISTRY, FEATURE_REGISTRY
-from dataset.loader import load_dataset
+from prototype.map.data_loading.tensor_loader import load_dataset
 # from utils.io import save_model, save_config
 
 

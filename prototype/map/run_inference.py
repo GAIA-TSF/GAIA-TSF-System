@@ -12,7 +12,7 @@ if ROOT_DIR not in sys.path:
     
 # Register plugins
 import plugins.variables.amd
-import plugins.features.temporal
+import plugins.feature.temporal
 import subsystems.map.plugins.models.gbr
 
 from utils.config_loader import load_config

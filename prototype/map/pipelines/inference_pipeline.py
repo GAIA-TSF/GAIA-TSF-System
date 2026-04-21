@@ -1,6 +1,6 @@
 
 from core.registry import VARIABLE_REGISTRY, FEATURE_REGISTRY
-from dataset.loader import load_new_data
+from prototype.map.data_loading.tensor_loader import load_new_data
 from utils.io import load_model
 from monitoring.monitoring import run_monitoring
 
