@@ -14,7 +14,8 @@ class PreprocessingPipelines(PipelineFactory):
     system.
     """
 
-    def __init__(self):
+    def _set_pipelines(self):
+        """Define available preprocessing pipelines."""
         self._pipelines = {
             'sentinel1': Sentinel1Pipeline(),
             'sentinel2_cloudcover': Sentinel2CloudCoverPipeline(),

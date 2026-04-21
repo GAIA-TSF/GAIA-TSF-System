@@ -6,9 +6,15 @@ if TYPE_CHECKING:
 
 from abc import ABC, abstractmethod
 
+from lib.base import GaiaBase, SubsystemId
 
-class BasePipeline(ABC):
+
+class BasePipeline(ABC, GaiaBase):
     metadata = {'title': 'unknown', 'abstract': 'unknown'}
+
+    def __init__(self):
+        ABC.__init__(self)
+        GaiaBase.__init__(self, SubsystemId.DPR)
 
     def configure(self, config: Mapping[str, Any]) -> None:
         """Configure pipeline using structured config.
@@ -23,9 +29,15 @@ class BasePipeline(ABC):
         pass
 
 
-class PipelineFactory:
-    @abstractmethod
+class PipelineFactory(GaiaBase):
     def __init__(self):
+        """Initialize available pipelines."""
+        super().__init__(SubsystemId.DPR)
+        self._set_pipelines()
+
+    @abstractmethod
+    def _set_pipelines(self):
+        """Define available pipelines."""
         pass
 
     @property

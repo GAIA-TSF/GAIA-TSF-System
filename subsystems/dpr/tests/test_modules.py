@@ -4,6 +4,7 @@ from pathlib import Path
 
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
 
 
 class TestModules:
@@ -23,11 +24,19 @@ class TestModules:
         ), "Invalid structure: expected {str: {'title': str, 'abstract': str}}"
 
     def test_DataAnalysisPipelines_001(self):
-        """Test DataAnalysisPipelines module.
+        """Test PreprocessingPipelines module.
 
-        Example of unit test.
+        Check preprocessing pipelines metadata.
         """
-        pass
+        module = DataAnalysisPipelines()
+        data = module.metadata
+        assert isinstance(data, dict) and all(
+            isinstance(k, str)
+            and isinstance(v, dict)
+            and isinstance(v.get('title'), str)
+            and isinstance(v.get('abstract'), str)
+            for k, v in data.items()
+        ), "Invalid structure: expected {str: {'title': str, 'abstract': str}}"
 
     def test_DataAnalysisPipelines_002(self):
         """Test DataAnalysisPipelines module.
