@@ -1,5 +1,5 @@
 from subsystems.dpr.base_pipeline import BasePipeline
 
 
-class BaseDataAnalysisPipeline(BasePipeline):
+class DataAnalysisBasePipeline(BasePipeline):
     pass

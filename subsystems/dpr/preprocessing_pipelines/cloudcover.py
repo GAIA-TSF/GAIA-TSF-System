@@ -1,11 +1,11 @@
-from .base import BasePreprocessingPipeline
+from .base import PreprocessingBasePipeline
 from osgeo import gdal
 import os
 import json
 import numpy as np
 
 
-class Sentinel2CloudCoverPipeline(BasePreprocessingPipeline):
+class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-2 Cloud Cover',
         'abstract': 'Read metadata JSON file, retrieve Sentinel-2 scene path, compute cloud cover and other land cover'
