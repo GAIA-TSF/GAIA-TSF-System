@@ -1,7 +1,7 @@
-from .base import BasePipeline
+from .base import PreprocessingBasePipeline
 
 
-class Sentinel1Pipeline(BasePipeline):
+class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
