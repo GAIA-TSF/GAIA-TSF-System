@@ -60,7 +60,7 @@ class DbSubsystem(Base):
 
     id = Column(String(10), primary_key=True, nullable=False)
     name = Column(String(255), nullable=False)
-    description = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
 
     log = relationship('DbRecord', back_populates='subsystem')
 
