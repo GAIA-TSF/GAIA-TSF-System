@@ -9,8 +9,6 @@ import requests
 import boto3
 from abc import ABC, abstractmethod
 
-from subsystems.qcl.logger import Logger
-
 from lib.base import GaiaBase, SubsystemId
 
 
@@ -33,9 +31,6 @@ class SdiLoader(ABC, GaiaBase):
         self.json_file = None
         self.table_name = None
         self.stac_json = None
-        self.id = 'SDI'
-
-        self.logger = Logger(subsystem=self.id)
 
     def import_zip(self, append_data: bool = False):
         """
@@ -113,22 +108,46 @@ class SdiLoader(ABC, GaiaBase):
 
         # Create a new collection
         collection_id = self.stac_json['collection']
-        collection_payload = {
-            'id': collection_id,
-            'title': 'Test Collection',
-            'description': 'Collection created dynamically from STAC JSON',
-            'extent': {
-                'spatial': {'bbox': [bbox]},
-                'temporal': {'interval': interval},
-            },
-            'license': 'proprietary',
-        }
 
-        response = requests.post(
-            f'{self.stac_api_url}/collections', json=collection_payload
+        collection_url = f'{self.stac_api_url}/collections/{collection_id}'
+
+        # Check if collection exists
+        check_response = requests.get(collection_url)
+
+        if check_response.status_code == 200:
+            # Collection exists, do not do anything
+            self.logger.debug(f'Collection "{collection_id}" already exists')
+
+        elif check_response.status_code == 404:
+            # Collection does not exist
+
+            collection_payload = {
+                'id': collection_id,
+                'title': 'Test Collection',
+                'description': 'Collection created dynamically from STAC JSON',
+                'extent': {
+                    'spatial': {'bbox': [bbox]},
+                    'temporal': {'interval': interval},
+                },
+                'license': 'proprietary',
+            }
+
+            response = requests.post(
+                f'{self.stac_api_url}/collections', json=collection_payload
+            )
+            if response.status_code not in (200, 201):
+                raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
+        else:
+            # Other problem
+            raise requests.exceptions.HTTPError(
+                f'STAC API Error checking collection: {check_response.status_code} {check_response.text}'
+            )
+
+        # We are deleting the item first. Not sure if this is the right approach.
+        item_id = self.stac_json['id']
+        requests.delete(
+            f'{self.stac_api_url}/collections/{collection_id}/items/{item_id}'
         )
-        if response.status_code not in (200, 201):
-            raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
 
         # Post the STAC feature as item
         response = requests.post(
