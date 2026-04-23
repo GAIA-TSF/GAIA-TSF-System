@@ -1,4 +1,9 @@
-class DataAnalysisPipelines:
+from subsystems.dpr.base_pipeline import PipelineFactory
+
+from .water_masking import Sentinel2WaterMaskingPipeline
+
+
+class DataAnalysisPipelines(PipelineFactory):
     """The Data Analysis and Derivation Pipelines represent the
     higher-level processing layer. These modules operate on the
     preprocessed data to compute spectral indices (e.g., NDVI, NDWI)
@@ -8,5 +13,6 @@ class DataAnalysisPipelines:
     data types.
     """
 
-    def __init__(self):
-        pass
+    def _set_pipelines(self):
+        """Define available data analysis pipelines."""
+        self._pipelines = {'sentinel2_water_masking': Sentinel2WaterMaskingPipeline()}
