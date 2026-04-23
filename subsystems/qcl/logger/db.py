@@ -182,7 +182,7 @@ class DbLogger(logging.Handler):
         subsystems = [
             DbSubsystem(
                 id=subsystem.name,
-                name=descriptions[subsystem.name],  # POUŽÍVÁ name místo description
+                name=descriptions[subsystem.name],
                 description=descriptions[subsystem.name],
             )
             for subsystem in SubsystemId
