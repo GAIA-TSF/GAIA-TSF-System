@@ -1,12 +1,12 @@
 pytest==9.0  # all modules
 boto3==1.42  # eou
-gdal==3.10  # eou, dpr
+gdal==3.10.3  # eou, dpr
 requests==2.32  # eou, sdi
 psycopg==3.2  # sdi
 eodag==3.10 # eou
 pandas==3.0 # isu
 openpyxl==3.1 # isu
-pyyaml==6.0 # lib.config, eou
+pyyaml==6.0.3 # lib.config, eou
 shapely==2.1 # lib.config
 sqlalchemy==2.0 # qcl.logger.db
 sqlalchemy_utils==0.42 # qcl.logger.db
