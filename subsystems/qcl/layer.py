@@ -175,7 +175,7 @@ class InSituQualityController:
             sensor_mask = ~office_mask & ~fault_mask
         else:
             office_mask = df.index != df.index  # all False
-            fault_mask = df.index != df.index   # all False
+            fault_mask = df.index != df.index  # all False
             sensor_mask = ~office_mask
 
         office_count = office_mask.sum()
@@ -198,15 +198,21 @@ class InSituQualityController:
         # 3. Sensor rows: check for unexpected NaN (real data loss)
         sensor_df = df[sensor_mask]
         non_meta_cols = [
-            c for c in sensor_df.columns
-            if not any(k in c.lower() for k in ('lat', 'lon', 'timestamp', 'date', 'platform', 'qc'))
+            c
+            for c in sensor_df.columns
+            if not any(
+                k in c.lower()
+                for k in ('lat', 'lon', 'timestamp', 'date', 'platform', 'qc')
+            )
         ]
         if not sensor_df.empty and non_meta_cols:
             nan_rows = sensor_df[non_meta_cols].isnull().any(axis=1).sum()
             if nan_rows > 0:
                 if status != 'Fail':
                     status = 'Warn'
-                errors.append(f'{nan_rows} sensor row(s) contain missing measurement values.')
+                errors.append(
+                    f'{nan_rows} sensor row(s) contain missing measurement values.'
+                )
 
         # 4. Physical range checks — sensor rows only, skip NaN
         for col in sensor_df.columns:
@@ -215,7 +221,10 @@ class InSituQualityController:
             if rule_key and rule_key in self._rules:
                 rule = self._rules[rule_key]
                 valid = sensor_df[col].dropna()
-                if not valid.empty and not valid.between(rule['min'], rule['max']).all():
+                if (
+                    not valid.empty
+                    and not valid.between(rule['min'], rule['max']).all()
+                ):
                     status = 'Fail'
                     errors.append(
                         f'{col} values out of range [{rule["min"]}, {rule["max"]}].'
