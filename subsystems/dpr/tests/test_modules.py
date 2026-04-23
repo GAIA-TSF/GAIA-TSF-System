@@ -20,13 +20,17 @@ class TestModules:
             and isinstance(v, dict)
             and isinstance(v.get('title'), str)
             and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
             for k, v in data.items()
-        ), "Invalid structure: expected {str: {'title': str, 'abstract': str}}"
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'params': dict}}"
+        )
 
         assert len(module.pipelines) > 0
         for name, pipeline in module.pipelines.items():
             assert isinstance(name, str)
             assert isinstance(pipeline.metadata['title'], str)
+            assert isinstance(pipeline.metadata['params'], dict)
 
     def test_DataAnalysisPipelines_001(self):
         """Test PreprocessingPipelines module.
@@ -40,13 +44,17 @@ class TestModules:
             and isinstance(v, dict)
             and isinstance(v.get('title'), str)
             and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
             for k, v in data.items()
-        ), "Invalid structure: expected {str: {'title': str, 'abstract': str}}"
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'param': dict}}"
+        )
 
         assert len(module.pipelines) > 0
         for name, pipeline in module.pipelines.items():
             assert isinstance(name, str)
             assert isinstance(pipeline.metadata['title'], str)
+            assert isinstance(pipeline.metadata['params'], dict)
 
     def test_DataAnalysisPipelines_002(self):
         """Test DataAnalysisPipelines module.

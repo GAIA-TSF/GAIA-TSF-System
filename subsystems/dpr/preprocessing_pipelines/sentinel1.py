@@ -5,6 +5,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
+        'params': {},
     }
 
     def _build_sbas_stack(self):
@@ -13,7 +14,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     def _reframe_sbas(self):
         raise NotImplementedError()
 
-    def run(self):
+    def _run(self):
         self._build_sbas_stack()
         self._reframe_sbas
         # ...
