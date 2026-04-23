@@ -1,21 +1,8 @@
-from pathlib import Path
-
-import sys
-# TODO: Resolve this problem within GAIA system
-sys.path.insert(0, r"C:\Users\tombo\Documents\gaia\insardev_library")
-from insardev import Stack, BatchUnit
-from insardev.Batch import Batch
-from insardev_pygmtsar import S1
-from insardev_toolkit import ASF, EOF, Tiles
-import xarray as xr
-import rioxarray  # noqa: F401
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-from dask.distributed import Client
-
 from .base import BasePipeline
 
+from pathlib import Path
+from pygmtsar import S1, Tiles, Stack
+from dask.distributed import Client
 
 class Sentinel1Pipeline(BasePipeline):
     metadata = {
@@ -25,576 +12,56 @@ class Sentinel1Pipeline(BasePipeline):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bursts = None
-        self.s1 = None
-        self.dem_da = None
-        self.dem_masked = None
-        self.dem_cropped = None
-        self.landmask_arr = None
-        self.ref_date = None
-        self.centroid_utm = None
-        self.aoi_utm = None
-        self.centroid_utm_off = None
         self.client = None
-        self.stack = None
-        self.baseline = None
-        self.mintf = None
-        self.mcorr = None
-        self.mphase = None
-        self.mphase_detrend = None
-        self.mdisplacement_los = None
-        self.mvelocity = None
+        self.s1 = None
+        self.dem = None
+        self.landmask = None
+        self.sbas = None
 
-    def __del__(self):
-        try:
-            if hasattr(self, 'client'):
-                if self.client.status != 'closed':
-                    self.client.close()
-        except Exception:
-            pass
+    def close(self):
+        if self.client:
+            self.client.close()
+            self.client = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if hasattr(self, 'client') and self.client and self.client.status != 'closed':
-            self.client.close()
-
-    def _search_bursts(self, aoi, start, end, direction):
-        """Search Sentinel-1 BURST data intersecting with chosen AOI using ASF.
-
-        :param str aoi: WKT string representing the area of interest.
-        :param str start: Start time for search in 'yyyy-mm-dd' format.
-        :param str end: End time for search in 'yyyy-mm-dd' format.
-        :param str direction: Flight direction of Sentinel-1 satellites ('A' - ascending, 'D' - descending).
-        :return: None
-        """
-        self.bursts = ASF.search(
-            aoi, startTime=start, stopTime=end, flightDirection=direction
-        )
-
-    def _download_bursts(self, username, password, datadir):
-        """Download searched Sentinel-1 BURST data using ASF.
-
-        :param str username: Username for ASF.
-        :param str password: Password for ASF.
-        :param str datadir: Directory path to save the data.
-        :return: None
-        """
-        burst_ids = self.bursts.fileID.tolist()
-        asf = ASF(username, password)
-        asf.download(datadir, burst_ids)
+        self.client.close()
 
     def _download_orbits(self, datadir):
-        """Download precise orbit files for Sentinel-1 BURST data.
+        self.s1 = S1.scan_slc(datadir)
+        S1.download_orbits(datadir, self.s1)
 
-        :param str datadir: Path to directory with downloaded BURST data
-        :return: None.
-        """
-        self.s1 = S1(datadir)
-        EOF().download(datadir, self.s1.to_dataframe())
+    def _download_dem(self, aoi, output_dem):
+        Tiles().download_dem(aoi, filename=output_dem, skip_exist=False)
+        self.dem = output_dem
 
-    def _download_dem_baseline(self, roi_square):
-        """Download DEM baseline for AOI.
+    def _download_landmask(self, aoi, output_landmask):
+        Tiles().download_landmask(aoi, filename=output_landmask).fillna(0)
+        self.landmask = output_landmask
 
-        :param Polygon roi_square: Bounding box of the area of interest as a Shapely Polygon.
-        :return: None
-        """
-        tiles = Tiles()
-        dem_raw = tiles.download_dem(roi_square, skip_exist=False)
+    def _run_dask_cluster(self, **kwargs):
+        if self.client is None:
+            self.client = Client(**kwargs)
 
-        if isinstance(dem_raw, xr.Dataset):
-            candidates = [v for v in dem_raw.data_vars if dem_raw[v].ndim >= 2]
-            if not candidates:
-                raise RuntimeError('DEM Dataset has no 2D variables.')
-            da = dem_raw[candidates[0]]
-        elif isinstance(dem_raw, xr.DataArray):
-            da = dem_raw
-        else:
-            raise TypeError(f'Unsupported DEM object type: {type(dem_raw)}')
+    def _stack_scenes(self, datadir, workdir):
+        data_path = Path(datadir).resolve()
+        work_path = Path(workdir).resolve()
 
-        da = da.squeeze(drop=True)
-        if 'band' in da.dims:
-            da = da.isel(band=0, drop=True)
-
-        da = da.squeeze(drop=True)
-        if da.ndim != 2:
-            raise RuntimeError(
-                f'Copernicus baseline: Expected 2D after squeeze, got dims={da.dims}, shape={da.shape}'
+        if data_path == work_path:
+            raise ValueError(
+                f"Safety Triggered: datadir and workdir are the same location ({data_path}). "
+                "Aborting to prevent accidental data deletion."
             )
-        if 'lat' in da.dims and 'lon' in da.dims:
-            da = da.transpose('lat', 'lon')
-        elif 'y' in da.dims and 'x' in da.dims:
-            da = da.rename({'y': 'lat', 'x': 'lon'})
-            da = da.transpose('lat', 'lon')
-        elif 'latitude' in da.dims and 'longitude' in da.dims:
-            da = da.rename({'latitude': 'lat', 'longitude': 'lon'})
-            da = da.transpose('lat', 'lon')
-        else:
-            raise RuntimeError(
-                f'Copernicus baseline: Cannot normalise to (lat, lon). dims={da.dims}, shape={da.shape}'
+        if work_path in data_path.parents:
+            raise ValueError(
+                f"Safety Triggered: workdir ({work_path}) is a parent of datadir ({data_path}). "
+                "Aborting to prevent accidental data deletion."
             )
 
-        self.dem_da = da.rio.write_crs('EPSG:4326')
-        self.dem_da = self.dem_da.rio.set_spatial_dims(
-            x_dim='lon', y_dim='lat', inplace=False
-        )
-
-    def _lidar_infill(self, lidar_data):
-        """Infill DEM with more precise LiDAR data.
-
-        :param Path lidar_data: Path to LiDAR data.
-        :return: None
-        """
-        use_lidar = lidar_data.is_file()
-
-        if use_lidar:
-            print(
-                f'[DEM] LiDAR DEM found at {lidar_data}. Merging LiDAR over Copernicus where finite...'
-            )
-
-            ds_lidar = xr.open_dataset(lidar_data)
-            print('[DEM] LiDAR variables:', list(ds_lidar.data_vars))
-
-            # Prefer variable named 'z', else first 2D var
-            if 'z' in ds_lidar.data_vars and ds_lidar['z'].ndim >= 2:
-                dem_lidar = ds_lidar['z']
-            else:
-                cand = [v for v in ds_lidar.data_vars if ds_lidar[v].ndim >= 2]
-                if not cand:
-                    ds_lidar.close()
-                    raise RuntimeError(
-                        f'LiDAR NetCDF has no 2D variables: {list(ds_lidar.data_vars)}'
-                    )
-                dem_lidar = ds_lidar[cand[0]]
-
-            dem_lidar = dem_lidar.squeeze(drop=True)
-            if 'band' in dem_lidar.dims:
-                dem_lidar = dem_lidar.isel(band=0, drop=True)
-
-            if dem_lidar.ndim != 2:
-                ds_lidar.close()
-                raise RuntimeError(
-                    f'LiDAR DEM is not 2D: dims={dem_lidar.dims}, shape={dem_lidar.shape}'
-                )
-
-            # Normalise LiDAR dims to lat/lon where possible
-            if 'lat' in dem_lidar.dims and 'lon' in dem_lidar.dims:
-                dem_lidar_rio = dem_lidar.transpose('lat', 'lon')
-                dem_lidar_rio = dem_lidar_rio.rio.write_crs('EPSG:4326')
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
-                    x_dim='lon', y_dim='lat', inplace=False
-                )
-            elif 'latitude' in dem_lidar.dims and 'longitude' in dem_lidar.dims:
-                dem_lidar_rio = dem_lidar.rename(
-                    {'latitude': 'lat', 'longitude': 'lon'}
-                ).transpose('lat', 'lon')
-                dem_lidar_rio = dem_lidar_rio.rio.write_crs('EPSG:4326')
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
-                    x_dim='lon', y_dim='lat', inplace=False
-                )
-            else:
-                # Fallback: assume 2D dims are y/x-like and mark CRS (best-effort)
-                y_dim, x_dim = dem_lidar.dims
-                dem_lidar_rio = dem_lidar.rio.write_crs('EPSG:4326')
-                dem_lidar_rio = dem_lidar_rio.rio.set_spatial_dims(
-                    x_dim=x_dim, y_dim=y_dim, inplace=False
-                )
-
-            # Reproject LiDAR to match Copernicus grid
-            dem_lidar_on_cop = dem_lidar_rio.rio.reproject_match(self.dem_da)
-
-            # Force consistent dims/coords after reproject (avoids odd naming drift)
-            dem_lidar_on_cop = xr.DataArray(
-                data=dem_lidar_on_cop.values,
-                coords={
-                    'lat': self.dem_da['lat'].values,
-                    'lon': self.dem_da['lon'].values,
-                },
-                dims=('lat', 'lon'),
-                name='dem_lidar_on_cop',
-            )
-
-            # LiDAR overrides Copernicus where LiDAR is finite
-            self.dem_da = xr.where(
-                np.isfinite(dem_lidar_on_cop), dem_lidar_on_cop, self.dem_da
-            )
-
-            ds_lidar.close()
-
-            # Restore rioxarray metadata after xr.where
-            self.dem_da = self.dem_da.rio.write_crs('EPSG:4326')
-            self.dem_da = self.dem_da.rio.set_spatial_dims(
-                x_dim='lon', y_dim='lat', inplace=False
-            )
-
-            print('[DEM] LiDAR merge complete. Composite DEM shape:', self.dem_da.shape)
-        else:
-            print(
-                f'[DEM] LiDAR DEM not found at {lidar_data}. Using Copernicus DEM only.'
-            )
-
-    def _save_composite_dem(self, output_file):
-        """Save a composite DEM to disk.
-
-        :param Path output_file: Path to output file.
-        :return: None
-        """
-        self.dem_da = self.dem_da.load().squeeze(drop=True)
-        self.dem_da.name = 'dem'
-        self.dem_da = self.dem_da.rio.write_crs('EPSG:4326')
-        self.dem_da = self.dem_da.rio.set_spatial_dims(
-            x_dim='lon', y_dim='lat', inplace=False
-        )
-
-        xr.Dataset({'dem': self.dem_da}).to_netcdf(output_file)
-        print(f'[DEM] Composite DEM written to: {output_file}')
-
-        with xr.open_dataset(output_file) as ds_check:
-            if 'dem' not in ds_check.data_vars:
-                raise RuntimeError(
-                    f"[DEM] Saved file does not contain variable 'dem'. Found: {list(ds_check.data_vars)}"
-                )
-            print('[DEM] Saved variables:', list(ds_check.data_vars))
-
-    def _clip_dem(self, aoi):
-        """Clip DEM to AOI.
-
-        :param str aoi: WKT string representing the area of interest.
-        :return: None
-        """
-        # TODO: Check if really needed
-        self.dem_masked = self.dem_da.rio.clip(
-            [aoi], self.dem_da.rio.crs, drop=False, invert=False
-        )
-        self.dem_cropped = self.dem_da.rio.clip(
-            [aoi], self.dem_da.rio.crs, drop=True, invert=False
-        )
-
-    def _save_landmask(self, output_landmask):
-        """Save landmask based on DEM to disk.
-
-        :param Path output_landmask: Path to output landmask file.
-        :return: None
-        """
-        # TODO: Check if really needed
-        self.landmask_arr = xr.where(np.isfinite(self.dem_masked), 1, 0).astype('uint8')
-        self.landmask_arr.name = 'landmask'
-        self.landmask_arr = self.landmask_arr.rio.write_crs(self.dem_da.rio.crs)
-        self.landmask_arr = self.landmask_arr.rio.set_spatial_dims(
-            x_dim='lon', y_dim='lat', inplace=False
-        )
-
-        xr.Dataset({'landmask': self.landmask_arr}).to_netcdf(output_landmask)
-
-        print(f'[LANDMASK] AOI-based landmask saved to: {output_landmask}')
-        print(
-            '[LANDMASK] Convention: 1 = inside AOI (TSF polygon), 0 = outside within DEM area.'
-        )
-        print(
-            '[LANDMASK] Landmask dims:', self.landmask_arr.dims, self.landmask_arr.shape
-        )
-
-    def _link_s1_with_dem(self, datadir, dem_file):
-        """Link Sentinel-1 BURST data with DEM.
-
-        :param str datadir: Path to directory with BURST data.
-        """
-        self.s1 = S1(datadir, DEM=str(dem_file))
-        self.s1.to_dataframe()
-
-    def _infer_ref_date(self):
-        """Find the reference date from Sentinel-1 BURST data.
-
-        :return: None
-        """
-        if self.bursts is not None and len(self.bursts) > 0:
-            acq_dates = pd.to_datetime(self.bursts['startTime'], utc=True)
-            self.ref_date = acq_dates.iloc[
-                (acq_dates - acq_dates.median()).abs().idxmin()
-            ].strftime('%Y-%m-%d')
-        elif self.s1 is not None:
-            acq_dates = pd.to_datetime(self.s1.df['startTime'], utc=True)
-            self.ref_date = acq_dates.loc[
-                (acq_dates - acq_dates.median()).abs().idxmin()
-            ].strftime('%Y-%m-%d')
-        else:
-            raise NameError(
-                'No data found to infer reference date. Need one of: bursts, or s1.'
-            )
-
-    def _transform_to_zarr(self, dem_file, datadir, zarrdir):
-        """Transform Sentinel-1 BURST data to georeferenced zarr format. GMTSAR tool needs to be installed!
-        See: https://github.com/gmtsar/gmtsar/wiki
-
-        :param Path dem_file: Path to Sentinel-1 BURST data.
-        :param Path|str datadir: Path to directory with BURST data.
-        :param Path zarrdir: Path to output zarr directory.
-        :return: None
-        """
-        dem_path = Path(dem_file)
-        if dem_path.is_file():
-            ds = xr.open_dataset(str(dem_path))
-            da = ds['dem']
-            da = da.copy()
-            da.name = 'dem'
-            ds.close()
-
-            dem_onevar = dem_path.with_name(dem_path.stem + '_onevar.nc')
-            da.to_netcdf(str(dem_onevar))
-
-            if datadir.is_dir() and zarrdir.is_dir():
-                if self.ref_date is not None:
-                    self.s1 = S1(datadir, DEM=str(dem_onevar))
-                    self.s1.transform(zarrdir, ref=self.ref_date, n_jobs=1)
-                else:
-                    raise NameError(
-                        'No reference date found. Run _infer_ref_date() first.'
-                    )
-            else:
-                raise NameError('datadir or zarrdir or both do not exist.')
-        else:
-            raise FileNotFoundError(dem_path)
-
-    def _get_geometries(self, aoi, utm):
-        """Get AOI and centroid geometries in UTM coordinates.
-
-        :param str aoi: WKT string representing the area of interest.
-        :param str utm: EPSG code of the UTM coordinate system (example: 'EPSG:32735').
-        :return: None
-        """
-        aoi_geom = gpd.GeoDataFrame(index=[0], crs='EPSG:4326', geometry=[aoi])
-        centroid = aoi_geom.geometry.representative_point()
-        self.centroid_utm = centroid.to_crs(utm)
-        self.aoi_utm = aoi_geom.to_crs(utm)
-        self.centroid_utm_off = self.centroid_utm.translate(xoff=15, yoff=15)
-
-    def _stack_bursts(self, zarrdir):
-        """Load georeferenced BURST data into stack.
-
-        :param str zarrdir: Path to zarr directory with georeferenced BURST data.
-        :return: None
-        """
-        self.client = Client(
-            silence_logs='CRITICAL',
-            n_workers=2,
-            threads_per_worker=2,
-            memory_limit='6GB',
-        )
-        self.stack = Stack().load(zarrdir)
-
-    def _crop_bursts(self):
-        """Crop stacked BURST data by AOI.
-
-        :return: None
-        """
-        if self.aoi_utm is None:
-            raise NameError('self.aoi_utm is None. Run _get_geometries method first.')
-        if self.stack is None:
-            raise NameError('self.stack is None. Run _stack_bursts method first.')
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-
-        buf_m = 200
-        bounds = self.aoi_utm.buffer(buf_m).total_bounds
-        self.stack = self.stack.sel(
-            x=slice(bounds[0], bounds[2]), y=slice(bounds[1], bounds[3])
-        )
-
-    def _compute_baseline(self, days):
-        """Compute temporal/perpendicular baseline from stacked BURST data.
-
-        :param int days: Maximum number of days between two Sentinel-1 data acquisitions for creating interferometric pairs.
-        :return: None
-        """
-        if self.stack is None:
-            raise NameError(
-                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
-            )
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-        self.baseline = self.stack.baseline(days=days)
-
-    def _compute_interferogram(self):
-        if self.stack is None:
-            raise NameError(
-                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
-            )
-        if self.baseline is None:
-            raise NameError(
-                'self.baseline is None. Run _compute_baseline method first.'
-            )
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-        gauss_wavelength = 20.0
-        self.mintf, self.mcorr = self.stack.phasediff(self.baseline.tolist(), wavelength=gauss_wavelength).compute()
-
-    def _unwrap_interferogram(self, dem_file):
-        if self.stack is None:
-            raise NameError(
-                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
-            )
-
-        if self.mintf is None or self.mcorr is None:
-            raise NameError(
-                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
-            )
-
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-
-        dem_path = Path(dem_file)
-        if dem_path.is_file():
-            ds = xr.open_dataset(str(dem_path))
-            da = ds['dem']
-
-        def _to_dask_chunks(ds, pair_chunk=1, y_chunk=366, x_chunk=1569):
-            # ds is an xarray.Dataset
-            out = {}
-            for v in ds.data_vars:
-                da_v = ds[v]
-                # convert numpy -> dask (keep existing dask if already)
-                if not hasattr(da_v.data, "chunks"):
-                    da_v = da_v.copy(data=da.from_array(da_v.data, chunks=da_v.shape))
-                # now chunk with pair=1 if pair dim exists
-                chunks = {}
-                if "pair" in da_v.dims:
-                    chunks["pair"] = pair_chunk
-                if "y" in da_v.dims:
-                    chunks["y"] = min(y_chunk, da_v.sizes["y"])
-                if "x" in da_v.dims:
-                    chunks["x"] = min(x_chunk, da_v.sizes["x"])
-                da_v = da_v.chunk(chunks)
-                out[v] = da_v
-            return ds.assign(out)
-
-        # 1) Ensure mcorr datasets are dask+chunked
-        mcorr_dask = Batch({k: _to_dask_chunks(ds.astype("float32")) for k, ds in self.mcorr.items()})
-        # 2) Wrap as BatchUnit (unwrap2d weight requirement)
-        mcorr_unit = BatchUnit(mcorr_dask)
-        # 3) Unwrap
-        self.mphase = self.stack.unwrap2d(self.mintf, mcorr_unit).compute()
-
-    def _detrend_unwrapped_phase(self):
-        if self.stack is None:
-            raise NameError(
-                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
-            )
-
-        if self.mintf is None or self.mcorr is None:
-            raise NameError(
-                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
-            )
-
-        if self.mphase is None:
-            raise NameError(
-                'self.mphase is None. Run _unwrap_interferogram method first.'
-            )
-
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-        mphase_trend = self.stack.trend2d(self.mphase, self.mcorr, self.stack.transform()[['azi', 'rng', 'ele']])
-        self.mphase_detrend = self.mphase - mphase_trend
-
-    def _compute_displacement(self):
-        if self.stack is None:
-            raise NameError(
-                'self.stack is None. Run _stack_bursts and _crop_bursts methods first.'
-            )
-
-        if self.mintf is None or self.mcorr is None:
-            raise NameError(
-                'self.mintf or self.mcorr is None. Run _compute_interferogram method first.'
-            )
-
-        if self.mphase is None:
-            raise NameError(
-                'self.mphase is None. Run _unwrap_interferogram method first.'
-            )
-
-        if self.mphase_detrend is None:
-            raise NameError(
-                'self.mphase_detrend is None. Run _detrend_unwrapped_phase method first.'
-            )
-
-        if self.client is None or self.client.status == 'closed':
-            self.client = Client(
-                silence_logs='CRITICAL',
-                n_workers=2,
-                threads_per_worker=2,
-                memory_limit='6GB',
-            )
-
-        # 1) Convert mcorr (BatchComplex) -> real-valued batch
-        mcorr_b = self.mcorr.real()
-        # If that ever looks wrong, use magnitude instead:
-        # mcorr_b = self.mcorr.abs()
-
-        # 2) Clip each polarization's DataArray to [0, 1]
-        mcorr_map = {pol: da.clip(0.0, 1.0) for pol, da in mcorr_b.items()}
-
-        # 3) Wrap as BatchUnit (this is what lstsq requires)
-        mcorr_unit = BatchUnit(mcorr_map)
-
-        # 4) Now run lstsq
-        mphase_acc = self.stack.lstsq(self.mphase_detrend, mcorr_unit).compute()
-
-        # 5) Compute LOS Displacement
-        self.mdisplacement_los = self.stack.displacement_los(mphase_acc)
-
-        # 6) Compute LOS Velocity
-        self.mvelocity, mdisp0 = self.mdisplacement_los.velocity()
-
-
-    def run(
-        self,
-        aoi,
-        start,
-        end,
-        direction,
-        username,
-        password,
-        data_dir,
-        bbox,
-        lidar_file,
-        output_dem,
-        output_landmask,
-        zarrdir,
-    ):
-        self._search_bursts(aoi, start, end, direction)
-        self._download_bursts(username, password, data_dir)
-        self._download_orbits(data_dir)
-        self._download_dem_baseline(bbox)
-        self._lidar_infill(lidar_file)
-        self._save_composite_dem(output_dem)
-        self._clip_dem(aoi)
-        self._save_landmask(output_landmask)
-        self._link_s1_with_dem(data_dir, output_dem)
-        self._infer_ref_date()
-        self._transform_to_zarr(output_dem, data_dir, zarrdir)
-        # ...
+        self.s1 = S1.scan_slc(datadir)
+        self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(self.s1)
+
+    def run(self):
+        pass

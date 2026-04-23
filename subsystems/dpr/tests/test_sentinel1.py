@@ -1,11 +1,11 @@
 from pathlib import Path
 import os
-import re
 
 from shapely.wkt import loads
 from shapely.geometry import Polygon
-import numpy as np
 import pytest
+import xarray as xr
+from dask.distributed import Client
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -49,12 +49,12 @@ class TestSentinel1Workflow:
         """Test project configuration."""
         assert config.is_valid() is True
 
-    def test_download(self, config):
+    def test_download_sentinel1_slc(self, config):
         """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
         search_filter = {
             'provider': 'cop_dataspace',
-            'start': '2026-01-01',
-            'end': '2026-01-29',
+            'start': '2022-01-01',
+            'end': '2022-01-31',
             'productType': 'S1_SAR_SLC',
             'orbitDirection': 'ascending',
         }
@@ -78,274 +78,78 @@ class TestSentinel1Workflow:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()
 
-    def test_001_search_bursts(self, pipeline, config):
-        """Test Sentinel-1 BURST data search using ASF."""
-        aoi = loads(config['project']['aoi']['geom'])
-        pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
-        assert pipeline.bursts is not None
-        assert len(pipeline.bursts) > 0
-
-    def test_002_download_bursts(self, pipeline, config):
-        """Test Sentinel-1 BURST data download using ASF."""
-        if pipeline.bursts is None:
-            aoi = loads(config['project']['aoi']['geom'])
-            pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
-            assert pipeline.bursts is not None
-            assert len(pipeline.bursts) > 0
-
-        data_dir = config['project']['data_dir']
-        pipeline._download_bursts('username', 'password', data_dir)
-        assert any(
-            item.is_dir() and 'IW' in item.name for item in Path(data_dir).iterdir()
-        )
-
-    def test_003_download_orbits(self, pipeline, config):
-        """Test downloading orbit files for Sentinel-1 BURST data."""
+    def test_001_download_orbits(self, pipeline, config):
+        """Test downloading orbit files for Sentinel-1 SLC data."""
         data_dir = config['project']['data_dir']
         pipeline._download_orbits(data_dir)
         assert pipeline.s1 is not None
-        assert not pipeline.s1.df.empty
+        assert not pipeline.s1.empty
         eof_files = [f for f in os.listdir(data_dir) if f.endswith('.EOF')]
         assert len(eof_files) > 0
 
-    def test_004_download_dem_baseline(self, pipeline, config):
-        """Test downloading DEM baseline."""
-        bbox = self._get_bbox(config)
-        pipeline._download_dem_baseline(bbox)
-        assert pipeline.dem_da is not None
-        assert pipeline.dem_da.rio.crs.to_epsg() == 4326
-        assert 'lat' in pipeline.dem_da.coords
-        assert 'lon' in pipeline.dem_da.coords
-        assert pipeline.dem_da.ndim == 2
+    def test_002_download_dem(self, pipeline, config):
+        """Test downloading DEM for Sentinel-1 SLC data."""
+        data_dir = Path(config['project']['data_dir'])
+        dem_path = data_dir / 'dem.nc'
+        aoi = self._get_bbox(config)
+        pipeline._download_dem(aoi, dem_path)
+        assert pipeline.dem.exists()
+        assert os.path.isfile(pipeline.dem)
+        with xr.open_dataset(pipeline.dem) as ds:
+            assert len(ds.data_vars) > 0
+            first_var = list(ds.data_vars)[0]
+            assert ds[first_var].size > 0
 
-    def test_005_lidar_infill(self, pipeline, config):
-        """Test infilling DEM with LiDAR data."""
-        if pipeline.dem_da is None:
-            pipeline._download_dem_baseline(self._get_bbox(config))
-            assert pipeline.dem_da is not None
+    def test_003_download_landmask(self, pipeline, config):
+        """Test downloading landmask for Sentinel-1 SLC data."""
+        data_dir = Path(config['project']['data_dir'])
+        landmask_path = data_dir / 'landmask.nc'
+        aoi = self._get_bbox(config)
+        pipeline._download_landmask(aoi, landmask_path)
+        assert pipeline.landmask.exists()
+        assert os.path.isfile(pipeline.landmask)
+        with xr.open_dataset(pipeline.landmask) as ds:
+            assert len(ds.data_vars) > 0
+            first_var = list(ds.data_vars)[0]
+            assert ds[first_var].size > 0
 
-        base_dir = Path(config['project']['data_dir'])
-        lidar_dir = base_dir / 'lidar'
-        if lidar_dir.is_dir():
-            lidar_file = next(lidar_dir.glob('*lidar*.nc'), None)
-            if lidar_file is None:
-                raise FileNotFoundError(f'No lidar .nc file found in {lidar_dir}')
-            else:
-                baseline_snapshot = pipeline.dem_da.copy(deep=True)
-                pipeline._lidar_infill(lidar_file)
-                assert pipeline.dem_da is not None
-                assert not np.array_equal(
-                    pipeline.dem_da.values, baseline_snapshot.values
-                )
-        else:
-            assert pipeline.dem_da is not None
+    def test_004_run_dask_cluster(self, pipeline):
+        """Test running local dusk cluster for computation."""
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '6GB'
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            assert pipeline.client is not None
+            assert isinstance(pipeline.client, Client)
+            assert pipeline.client.status == "running"
 
-    def test_006_save_composite_dem(self, pipeline, config):
-        """Test saving DEM to disk."""
-        if pipeline.dem_da is None:
-            pipeline._download_dem_baseline(self._get_bbox(config))
-            assert pipeline.dem_da is not None
+            worker_info = pipeline.client.scheduler_info()['workers']
+            assert len(worker_info) == 2
 
-        base_dir = Path(config['project']['data_dir'])
-        output_dem = base_dir / 'dem.nc'
-        pipeline._save_composite_dem(output_dem)
-        assert output_dem.exists()
+            def square(x):
+                return x ** 2
 
-    def test_007_clip_dem(self, pipeline, config):
-        """Test clipping DEM."""
-        if pipeline.dem_da is None:
-            pipeline._download_dem_baseline(self._get_bbox(config))
-            assert pipeline.dem_da is not None
+            future = pipeline.client.submit(square, 10)
+            result = future.result()
+            assert result == 100
 
-        aoi = loads(config['project']['aoi']['geom'])
-        pipeline._clip_dem(aoi)
-        assert pipeline.dem_masked is not None
-        assert pipeline.dem_cropped is not None
-        assert not np.isnan(pipeline.dem_masked.values).all()
-        assert not np.isnan(pipeline.dem_cropped.values).all()
+        assert pipeline.client is None or pipeline.client.status == "closed"
 
-    def test_008_save_landmask(self, pipeline, config):
-        """Test saving landmask based on DEM to disk."""
-        if pipeline.dem_da is None:
-            pipeline._download_dem_baseline(self._get_bbox(config))
-            assert pipeline.dem_da is not None
-        if pipeline.dem_masked is None:
-            aoi = loads(config['project']['aoi']['geom'])
-            pipeline._clip_dem(aoi)
-            assert pipeline.dem_masked is not None
-
-        base_dir = Path(config['project']['data_dir'])
-        output_landmask = base_dir / 'landmask.nc'
-        pipeline._save_landmask(output_landmask)
-        assert output_landmask.exists()
-
-    def test_009_link_s1_with_dem(self, pipeline, config):
-        """Test linking Sentinel-1 BURST data with DEM."""
-        if pipeline.dem_da is None:
-            pipeline._download_dem_baseline(self._get_bbox(config))
-            assert pipeline.dem_da is not None
-        base_dir = Path(config['project']['data_dir'])
-        dem = base_dir / 'dem.nc'
-        if not dem.exists():
-            pipeline._save_composite_dem(dem)
-            assert dem.exists()
-
-        pipeline._link_s1_with_dem(base_dir, dem)
+    def test_005_stack_scenes(self, pipeline, config):
+        """Test stacking Sentinel-1 SLC data."""
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        pipeline._stack_scenes(data_dir, work_dir)
         assert pipeline.s1 is not None
-        assert pipeline.s1.DEM is not None
-        assert pipeline.s1.DEM == str(dem)
-
-    def test_010_infer_ref_date(self, pipeline, config):
-        """Test finding reference date from Sentinel-1 BURST data."""
-        if pipeline.bursts is None:
-            aoi = loads(config['project']['aoi']['geom'])
-            pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
-            assert pipeline.bursts is not None
-            assert len(pipeline.bursts) > 0
-
-        pipeline._infer_ref_date()
-        assert pipeline.ref_date is not None
-        assert isinstance(pipeline.ref_date, str)
-        assert re.match(r'^\d{4}-\d{2}-\d{2}$', pipeline.ref_date)
-
-    def test_011_transform_to_zarr(self, pipeline, config):
-        """Test transforming Sentinel-1 BURST data to georeferenced zarr format."""
-        base_dir = Path(config['project']['data_dir'])
-        dem_file = base_dir / 'dem.nc'
-
-        if dem_file.exists():
-            zarr_dir = base_dir / 'zarrdir'
-            zarr_dir.mkdir(exist_ok=True)
-            assert zarr_dir.is_dir()
-
-            if pipeline.ref_date is None:
-                if pipeline.bursts is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._search_bursts(aoi, '2022-07-01', '2022-10-30', 'A')
-                pipeline._infer_ref_date()
-
-            pipeline._transform_to_zarr(dem_file, base_dir, zarr_dir)
-            assert any(zarr_dir.iterdir())
-
-    def test_012_get_geometries(self, pipeline, config):
-        """Test getting AOI and centroid geometries in UTM coordinates."""
-        aoi = loads(config['project']['aoi']['geom'])
-        pipeline._get_geometries(aoi, 'EPSG:32735')
-        assert pipeline.centroid_utm is not None
-        assert pipeline.aoi_utm is not None
-        assert pipeline.centroid_utm_off is not None
-
-    def test_013_stack_bursts(self, pipeline, config):
-        """Test loading georeferenced BURST data into stack."""
-        base_dir = Path(config['project']['data_dir'])
-        zarr_dir = base_dir / 'zarrdir'
-        with pipeline:
-            pipeline._stack_bursts(str(zarr_dir))
-            assert pipeline.stack is not None
-            assert len(pipeline.stack) > 0
-
-    def test_014_crop_bursts(self, pipeline, config):
-        """Test cropping stacked BURST data by AOI."""
-        with pipeline:
-            if pipeline.aoi_utm is None:
-                aoi = loads(config['project']['aoi']['geom'])
-                pipeline._get_geometries(aoi, 'EPSG:32735')
-            if pipeline.stack is None:
-                base_dir = Path(config['project']['data_dir'])
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-
-            pipeline._crop_bursts()
-            assert pipeline.stack is not None
-            assert len(pipeline.stack) > 0
-            # TODO: How to check if it was actually cropped?
-
-    def test_015_compute_baseline(self, pipeline, config):
-        """Test computing temporal/perpendicular baseline from BURST data."""
-        with pipeline:
-            if pipeline.stack is None:
-                if pipeline.aoi_utm is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._get_geometries(aoi, 'EPSG:32735')
-                base_dir = Path(config['project']['data_dir'])
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-                pipeline._crop_bursts()
-
-            pipeline._compute_baseline(24)
-            assert pipeline.baseline is not None
-            assert len(pipeline.baseline) > 0
-
-    def test_016_compute_interferogram(self, pipeline, config):
-        with pipeline:
-            if pipeline.stack is None:
-                if pipeline.aoi_utm is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._get_geometries(aoi, 'EPSG:32735')
-                base_dir = Path(config['project']['data_dir'])
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-                pipeline._crop_bursts()
-                pipeline._compute_baseline(24)
-
-            pipeline._compute_interferogram()
-            assert pipeline.mintf is not None
-            assert pipeline.mcorr is not None
-
-    def test_017_unwrap_interferogram(self, pipeline, config):
-        with pipeline:
-            base_dir = Path(config['project']['data_dir'])
-            dem_file = base_dir / 'dem.nc'
-            if pipeline.stack is None:
-                if pipeline.aoi_utm is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._get_geometries(aoi, 'EPSG:32735')
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-                pipeline._crop_bursts()
-                pipeline._compute_baseline(24)
-                pipeline._compute_interferogram()
-
-            pipeline._unwrap_interferogram(dem_file)
-            assert pipeline.mphase is not None
-
-    def test_018_detrend_unwrapped_phase(self, pipeline, config):
-        with pipeline:
-            base_dir = Path(config['project']['data_dir'])
-            dem_file = base_dir / 'dem.nc'
-            if pipeline.stack is None:
-                if pipeline.aoi_utm is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._get_geometries(aoi, 'EPSG:32735')
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-                pipeline._crop_bursts()
-                pipeline._compute_baseline(24)
-                pipeline._compute_interferogram()
-                pipeline._unwrap_interferogram(dem_file)
-
-            pipeline._detrend_unwrapped_phase()
-            assert pipeline.mphase_detrend is not None
-
-    def test_019_compute_displacement(self, pipeline, config):
-        with pipeline:
-            base_dir = Path(config['project']['data_dir'])
-            dem_file = base_dir / 'dem.nc'
-            if pipeline.stack is None:
-                if pipeline.aoi_utm is None:
-                    aoi = loads(config['project']['aoi']['geom'])
-                    pipeline._get_geometries(aoi, 'EPSG:32735')
-                zarr_dir = base_dir / 'zarrdir'
-                pipeline._stack_bursts(str(zarr_dir))
-                pipeline._crop_bursts()
-                pipeline._compute_baseline(24)
-                pipeline._compute_interferogram()
-                pipeline._unwrap_interferogram(dem_file)
-                pipeline._detrend_unwrapped_phase()
-
-            pipeline._compute_displacement()
-            assert pipeline.mdisplacement_los is not None
-            assert pipeline.mvelocity is not None
+        assert not pipeline.s1.empty
+        assert pipeline.sbas is not None
+        df_stack = pipeline.sbas.to_dataframe()
+        assert len(df_stack) == len(pipeline.s1)
+        assert len(df_stack) > 1
 
     def test_run_workflow(self, pipeline, config):
         pass
