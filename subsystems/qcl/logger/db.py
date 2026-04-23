@@ -183,7 +183,7 @@ class DbLogger(logging.Handler):
             DbSubsystem(
                 id=subsystem.name,
                 name=descriptions[subsystem.name],
-                description=descriptions[subsystem.name],
+                description=None,
             )
             for subsystem in SubsystemId
         ]
