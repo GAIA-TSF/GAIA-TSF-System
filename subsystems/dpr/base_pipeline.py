@@ -13,7 +13,6 @@ class BasePipeline(ABC, GaiaBase):
     metadata = {'title': 'unknown', 'abstract': 'unknown'}
 
     def __init__(self):
-        ABC.__init__(self)
         GaiaBase.__init__(self, SubsystemId.DPR)
 
     def configure(self, config: Mapping[str, Any]) -> None:
