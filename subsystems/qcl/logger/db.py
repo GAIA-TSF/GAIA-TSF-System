@@ -48,6 +48,7 @@ class DbLogLevel(Base):
 
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(255), nullable=False)
+    severity = Column(Integer, nullable=False)
 
     log = relationship('DbRecord', back_populates='log_level')
 
@@ -58,6 +59,7 @@ class DbSubsystem(Base):
     __tablename__ = 'subsystem'
 
     id = Column(String(10), primary_key=True, nullable=False)
+    name = Column(String(255), nullable=False)
     description = Column(String(255), nullable=False)
 
     log = relationship('DbRecord', back_populates='subsystem')
@@ -148,11 +150,11 @@ class DbLogger(logging.Handler):
             return
 
         log_levels = [
-            DbLogLevel(id=logging.DEBUG, name='DEBUG'),
-            DbLogLevel(id=logging.INFO, name='INFO'),
-            DbLogLevel(id=logging.WARNING, name='WARNING'),
-            DbLogLevel(id=logging.ERROR, name='ERROR'),
-            DbLogLevel(id=logging.CRITICAL, name='CRITICAL'),
+            DbLogLevel(id=logging.DEBUG, name='DEBUG', severity=logging.DEBUG),
+            DbLogLevel(id=logging.INFO, name='INFO', severity=logging.INFO),
+            DbLogLevel(id=logging.WARNING, name='WARNING', severity=logging.WARNING),
+            DbLogLevel(id=logging.ERROR, name='ERROR', severity=logging.ERROR),
+            DbLogLevel(id=logging.CRITICAL, name='CRITICAL', severity=logging.CRITICAL),
         ]
 
         self._session.add_all(log_levels)
@@ -180,6 +182,7 @@ class DbLogger(logging.Handler):
         subsystems = [
             DbSubsystem(
                 id=subsystem.name,
+                name=descriptions[subsystem.name],  # POUŽÍVÁ name místo description
                 description=descriptions[subsystem.name],
             )
             for subsystem in SubsystemId
