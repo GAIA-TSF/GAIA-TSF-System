@@ -54,5 +54,5 @@ class PipelineFactory(GaiaBase):
         return metadata
 
     @property
-    def pipeline(self):
+    def pipelines(self):
         return self._pipelines
