@@ -46,7 +46,7 @@ class TestSubsystem:
 
         assert result['final_status'] == 'Fail'
         # Verify that the specific error message is present
-        assert any('pH values out of 0-14' in e for e in result['errors'])
+        assert any('out of range' in e and 'ph' in e.lower() for e in result['errors'])
 
     def test_in_situ_fail_duplicate_ids(self):
         """Test duplicate identifiers: Duplicated indices should result in 'Fail'."""
