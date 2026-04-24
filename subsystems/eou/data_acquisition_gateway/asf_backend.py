@@ -3,7 +3,7 @@ from __future__ import annotations
 from geopandas import GeoDataFrame
 from shapely.wkt import loads
 from shapely.geometry.base import BaseGeometry
-from insardev_toolkit import ASF
+from pygmtsar import ASF
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
 
@@ -26,9 +26,12 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             except Exception as e:
                 raise ValueError(f'Failed to parse AOI WKT string: {e}')
 
-        results = ASF.search(
+        all_results = ASF.search(
             aoi, startTime=start, stopTime=end, flightDirection=direction, **kwargs
         )
+        best_orbit = all_results['pathNumber'].value_counts().idxmax()
+        results = all_results[all_results['pathNumber'] == best_orbit]
+
         return results
 
     def _download(self, search_results: GeoDataFrame, target_dir: str, **kwargs) -> str:
