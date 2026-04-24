@@ -11,4 +11,4 @@ shapely==2.1.2 # lib.config
 sqlalchemy==2.0.48 # qcl.logger.db
 sqlalchemy_utils==0.42.1 # qcl.logger.db
 geopandas==1.1.3 # eou
-pygmtsar==2024.1.21 # eou
+pygmtsar==2025.4.8.post1 # eou
