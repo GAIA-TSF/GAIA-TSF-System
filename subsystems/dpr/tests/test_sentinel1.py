@@ -111,7 +111,7 @@ class TestSentinel1Workflow:
         """Test downloading DEM for Sentinel-1 SLC data."""
         data_dir = Path(config['project']['data_dir'])
         dem_path = data_dir / 'dem.nc'
-        aoi = self._get_bbox(config)
+        aoi = loads(config['project']['aoi']['geom'])
         pipeline._download_dem(aoi, dem_path)
         assert pipeline.dem.exists()
         assert os.path.isfile(pipeline.dem)
@@ -124,7 +124,7 @@ class TestSentinel1Workflow:
         """Test downloading landmask for Sentinel-1 SLC data."""
         data_dir = Path(config['project']['data_dir'])
         landmask_path = data_dir / 'landmask.nc'
-        aoi = self._get_bbox(config)
+        aoi = loads(config['project']['aoi']['geom'])
         pipeline._download_landmask(aoi, landmask_path)
         assert pipeline.landmask.exists()
         assert os.path.isfile(pipeline.landmask)
@@ -208,6 +208,39 @@ class TestSentinel1Workflow:
             pipeline._load_dem_and_landmask(aoi)
             assert (work_dir / "landmask.nc").exists()
             assert (work_dir / "DEM_WGS84.nc").exists()
+            assert pipeline.dem_masked is not None
+
+    def test_008_align_images(self, pipeline, config):
+        """Test aligning Sentinel-1 SLC data."""
+        aoi = loads(config['project']['aoi']['geom'])
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        if pipeline.dem is None:
+            dem_path = data_dir / 'dem.nc'
+            pipeline._download_dem(aoi, dem_path)
+        if pipeline.landmask is None:
+            landmask_path = data_dir / 'landmask.nc'
+            pipeline._download_landmask(aoi, landmask_path)
+        if pipeline.sbas is None:
+            pipeline._stack_scenes(data_dir, work_dir)
+            pipeline._reframe_scenes(aoi)
+
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '6GB'
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            pipeline._load_dem_and_landmask(aoi)
+            pipeline._align_images()
+            led_files = [f for f in os.listdir(work_dir) if f.endswith('.LED')]
+            assert len(led_files) > 0
+            prm_files = [f for f in os.listdir(work_dir) if f.endswith('.PRM')]
+            assert len(prm_files) > 0
+            slc_files = [f for f in os.listdir(work_dir) if f.endswith('.SLC')]
+            assert len(slc_files) > 0
 
     def test_run_workflow(self, pipeline, config):
         pass
