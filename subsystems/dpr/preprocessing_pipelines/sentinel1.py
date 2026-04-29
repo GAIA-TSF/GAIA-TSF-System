@@ -3,6 +3,8 @@ from .base import BasePipeline
 from pathlib import Path
 from pygmtsar import ASF, S1, Tiles, Stack
 from dask.distributed import Client
+from collections import defaultdict
+import numpy as np
 
 class Sentinel1Pipeline(BasePipeline):
     metadata = {
@@ -20,6 +22,9 @@ class Sentinel1Pipeline(BasePipeline):
         self.landmask = None
         self.sbas = None
         self.dem_masked = None
+        self.baseline_pairs = None
+        self.corr = None
+        self.intf = None
 
     def close(self):
         if self.client:
@@ -151,6 +156,83 @@ class Sentinel1Pipeline(BasePipeline):
         :return: None
         """
         self.sbas.compute_geocode(coarsen=10.)
+
+    def _find_optimal_network(self):
+        """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
+
+        :return: None
+        """
+        basedays = [36, 48, 60, 80]
+        basemeters = [80, 100, 120, 150]
+
+        stack_df = self.sbas.to_dataframe()
+        all_dates = list(stack_df.index.astype(str))
+        results = []
+
+        for days in basedays:
+            for meters in basemeters:
+                # Build candidate pairs
+                pairs_df = self.sbas.sbas_pairs(days=days, meters=meters) if hasattr(self.sbas, "sbas_pairs") \
+                    else self.sbas.baseline_pairs(days=days, meters=meters)
+
+                # Connectivity check (DFS)
+                adj = defaultdict(set)
+                for a, b in pairs_df.iloc[:, :2].astype(str).values:
+                    adj[a].add(b)
+                    adj[b].add(a)
+
+                seen, components = set(), 0
+                for node in all_dates:
+                    if node not in seen:
+                        components += 1
+                        stack = [node]
+                        while stack:
+                            curr = stack.pop()
+                            if curr not in seen:
+                                seen.add(curr)
+                                stack.extend(adj[curr] - seen)
+
+                results.append(
+                    {'days': days, 'meters': meters, 'n_pairs': len(pairs_df), 'n_comp': components, 'df': pairs_df})
+
+        valid = [r for r in results if r['n_comp'] == 1]
+        if not valid:
+            raise RuntimeError("No connected network found. Try increasing thresholds.")
+
+        best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
+        self.baseline_pairs = best_config['df']
+
+    def _compute_interferograms(self):
+        """
+        Compute interferograms from baseline pairs.
+
+        :return: None
+        """
+        intensity_wavelength = 20  # metres
+        phase_wavelength = 30  # metres
+        coarsen = (1, 4)
+        goldstein_patch = 8  # pixels
+
+        # 1. Load Data
+        topo = self.sbas.get_topo()
+        data = self.sbas.open_data()
+
+        # 2. Process Intensity (for correlation weights)
+        intensity = self.sbas.multilooking(
+            np.square(np.abs(data)),
+            wavelength=intensity_wavelength,
+            coarsen=coarsen
+        )
+
+        # 3. Compute Phase Difference
+        phase = self.sbas.phasediff(self.baseline_pairs, data, topo)
+        phase = self.sbas.multilooking(phase, wavelength=phase_wavelength, coarsen=coarsen)
+
+        # 4. Filter & Synthesis
+        self.corr = self.sbas.correlation(phase, intensity)
+        phase_goldstein = self.sbas.goldstein(phase, self.corr, goldstein_patch)
+
+        self.intf = self.sbas.interferogram(phase_goldstein)
 
     def run(self):
         pass
