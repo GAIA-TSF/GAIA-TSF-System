@@ -16,7 +16,6 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 
 
 class TestSentinel2Workflow:
-    @pytest.mark.slow
     def test_sentinel2_safe_processor(self):
         """Test the Sentinel2SafeProcessor."""
         # GDAL configuration to handle errors
