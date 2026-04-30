@@ -6,6 +6,7 @@ from shapely.geometry import Polygon
 import pytest
 import xarray as xr
 from dask.distributed import Client
+import numpy as np
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -333,6 +334,74 @@ class TestSentinel1Workflow:
             assert pipeline.corr is not None
             assert pipeline.intf is not None
             assert len(pipeline.intf.pair) == len(pipeline.baseline_pairs)
+
+    def test_012_unwrap_interferograms(self, pipeline, config):
+        aoi = loads(config['project']['aoi']['geom'])
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        if pipeline.dem is None:
+            dem_path = data_dir / 'dem.nc'
+            pipeline._download_dem(aoi, dem_path)
+        if pipeline.landmask is None:
+            landmask_path = data_dir / 'landmask.nc'
+            pipeline._download_landmask(aoi, landmask_path)
+        if pipeline.sbas is None:
+            pipeline._stack_scenes(data_dir, work_dir)
+            pipeline._reframe_scenes(aoi)
+
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '6GB'
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            pipeline._load_dem_and_landmask(aoi)
+            pipeline._align_images()
+            pipeline._geocoding_transform()
+            pipeline._find_optimal_network()
+            pipeline._compute_interferograms()
+            pipeline._unwrap_interferograms()
+            assert pipeline.unwrap is not None
+            unwrapped_phase = pipeline.unwrap.phase
+            expected_pairs = len(pipeline.baseline_pairs)
+            actual_pairs = len(unwrapped_phase.pair)
+            assert actual_pairs == expected_pairs
+            sample_data = unwrapped_phase.isel(pair=0).values
+            assert np.any(~np.isnan(sample_data))
+            assert np.nanstd(sample_data) > 0
+
+    def test_013_detrend_phase(self, pipeline, config):
+        aoi = loads(config['project']['aoi']['geom'])
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        if pipeline.dem is None:
+            dem_path = data_dir / 'dem.nc'
+            pipeline._download_dem(aoi, dem_path)
+        if pipeline.landmask is None:
+            landmask_path = data_dir / 'landmask.nc'
+            pipeline._download_landmask(aoi, landmask_path)
+        if pipeline.sbas is None:
+            pipeline._stack_scenes(data_dir, work_dir)
+            pipeline._reframe_scenes(aoi)
+
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '6GB'
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            pipeline._load_dem_and_landmask(aoi)
+            pipeline._align_images()
+            pipeline._geocoding_transform()
+            pipeline._find_optimal_network()
+            pipeline._compute_interferograms()
+            pipeline._unwrap_interferograms()
+            pipeline._detrend_phase()
+            assert pipeline.detrend is not None
 
     def test_run_workflow(self, pipeline, config):
         pass

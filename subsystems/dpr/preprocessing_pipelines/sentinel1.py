@@ -2,6 +2,7 @@ from .base import BasePipeline
 
 from pathlib import Path
 from pygmtsar import ASF, S1, Tiles, Stack
+import dask
 from dask.distributed import Client
 from collections import defaultdict
 import numpy as np
@@ -25,6 +26,8 @@ class Sentinel1Pipeline(BasePipeline):
         self.baseline_pairs = None
         self.corr = None
         self.intf = None
+        self.unwrap = None
+        self.detrend = None
 
     def close(self):
         if self.client:
@@ -233,6 +236,73 @@ class Sentinel1Pipeline(BasePipeline):
         phase_goldstein = self.sbas.goldstein(phase, self.corr, goldstein_patch)
 
         self.intf = self.sbas.interferogram(phase_goldstein)
+
+    def _unwrap_interferograms(self, corr_limit=0.20, unwrap_m=10.0):
+        """
+        Unwrap interferograms using SNAPHU.
+
+        :param float corr_limit: Minimum correlation threshold for masking.
+        :param float unwrap_m: Target spatial resolution for unwrapping in meters.
+        :return: None
+        """
+        if self.intf is None or self.corr is None:
+            raise RuntimeError("Interferograms and correlation must be computed before unwrapping.")
+
+        # 1. Decimate to target unwrap spacing
+        dec_u = self.sbas.decimator(unwrap_m)
+        corr_u, intf_u = dask.persist(dec_u(self.corr), dec_u(self.intf))
+
+        # 2. Build Correlation Mask
+        corr_mask = corr_u.where(corr_u >= corr_limit)
+
+        # Verify we have valid pixels to unwrap
+        n_valid = int(np.isfinite(corr_mask).sum().compute())
+        if n_valid == 0:
+            raise RuntimeError(f"No pixels found above corr_limit={corr_limit}. Unwrapping aborted.")
+
+        # 3. Run SNAPHU Unwrapping
+        # This returns the unwrapped phase in radar coordinates
+        self.unwrap = self.sbas.unwrap_snaphu(
+            intf_u.where(corr_mask),
+            corr_mask
+        ).persist()
+
+        # Trigger computation to catch SNAPHU execution errors immediately
+        _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
+
+    def _detrend_phase(self, ramp_factor=3.0):
+        """
+        Removes long-wavelength ramps from the unwrapped phase in radar geometry.
+
+        :param float ramp_factor: Multiplier for the smoothing wavelength. Higher values remove only very broad trends.
+        :return: None
+        """
+        if self.unwrap is None:
+            raise RuntimeError("Phase must be unwrapped before detrending.")
+
+        # 1. Determine spatial scales
+        # We use the unwrap resolution and a base smoothing wavelength (usually 30m)
+        base_wavelength = 30
+        ramp_wavelength = ramp_factor * base_wavelength
+
+        # 2. Ensure Dask chunking
+        # Gaussian filters are memory-intensive; chunking keeps it lazy
+        chunksize = 256
+        phase_data = self.unwrap.phase
+        chunk_spec = {d: chunksize for d in phase_data.dims if d in ("y", "x")}
+        if chunk_spec:
+            phase_data = phase_data.chunk(chunk_spec)
+
+        # 3. Build and subtract the ramp
+        # sbas.gaussian estimates the 'noise' (the ramp)
+        ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
+
+        # Subtracting the ramp leaves only the localized displacement signal
+        self.detrend = (phase_data - ramp).persist()
+
+        # 4. Trigger computation
+        # This ensures the Dask graph is executed and catches errors immediately
+        _ = float(self.detrend.isel(pair=0).mean().compute())
 
     def run(self):
         pass
