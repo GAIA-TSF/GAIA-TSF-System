@@ -23,7 +23,7 @@ class TestInSituDataLoader:
         yield conn
         conn.close()
 
-    def test_import(self):
+    def test_import(self, db_connection):
         utils = SdiUtils()
 
         base_dir = Path(__file__).parent
@@ -37,6 +37,14 @@ class TestInSituDataLoader:
         )
 
         importer.import_zip()
+
+        with db_connection.cursor() as cur:
+            cur.execute("""
+                        SELECT COUNT(*)
+                        FROM prague.measurement_ph_202602_data;
+                        """)
+            count = cur.fetchone()[0]
+            assert count == 20
 
     def test_import_append_data(self, db_connection):
         utils = SdiUtils()

@@ -5,6 +5,11 @@ from typing import Dict, Any, List, Tuple
 from .logger import Logger
 
 from lib.base import GaiaBase, SubsystemId
+from lib.dispatcher import (
+    SdiOutputDispatcher,
+    NotificationDispatcher,
+    VidOutputDispatcher,
+)
 
 
 class RuleRepository:
@@ -214,7 +219,12 @@ class QualityControlLoggingLayer(GaiaBase):
     processes and the Spatial Data Infrastructure (SDI) storage.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        sdi_service: Any = None,
+        notification_service: Any = None,
+        vid_service: Any = None,
+    ):
         super().__init__(SubsystemId.QCL)
 
         self._rule_repo = RuleRepository()
@@ -235,6 +245,16 @@ class QualityControlLoggingLayer(GaiaBase):
             self.logger,
         )
 
+        # Active output dispatchers (QCL_I_1, QC_IR_04, QCL_I_2)
+        self._sdi_dispatcher = SdiOutputDispatcher(logger=self.logger)
+        self._notification_dispatcher = NotificationDispatcher(logger=self.logger)
+        self._vid_dispatcher = VidOutputDispatcher(logger=self.logger)
+
+        # Injected downstream service references
+        self._sdi_service = sdi_service
+        self._notification_service = notification_service
+        self._vid_service = vid_service
+
     def process_incoming_data(
         self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Dict[str, Any]:
@@ -249,16 +269,30 @@ class QualityControlLoggingLayer(GaiaBase):
         # Always log lineage
         self._lineage_logger.log(dataset_id, actions, status)
 
-        # Trigger notification on critical failure
+        # Trigger notification on critical failure (legacy internal log)
         if status == 'Fail':
             self._notifier.send_alert(dataset_id, errors)
 
-        return {
+        qc_result = {
             'dataset_id': dataset_id,
             'final_status': status,
             'metrics': metrics,
             'errors': errors,
         }
+
+        # --- Active outputs ---
+        # QCL_I_1: Push QC result to SDI
+        self._sdi_dispatcher.dispatch(qc_result, self._sdi_service)
+
+        # QC_IR_04: Trigger NTF alert on Fail or Warn
+        self._notification_dispatcher.dispatch(
+            dataset_id, status, errors, self._notification_service
+        )
+
+        # QCL_I_2: Push health status to VID dashboard
+        self._vid_dispatcher.dispatch(qc_result, self._vid_service)
+
+        return qc_result
 
     def manual_review(
         self, dataset_id: str, action: str, new_status: str = None
