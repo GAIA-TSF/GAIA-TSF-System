@@ -44,7 +44,11 @@ class TestInterfaces:
         assert result['dpr_result']['ready_for_sdi'] is True
 
     def test_IF1_002(self):
-        """ISU_I_1: ETLEngine delivers streaming data to DPR via process_in_situ()."""
+        """ISU_I_1: ETLEngine delivers streaming data to DPR via process_in_situ().
+
+        Streaming data is written to a temporary CSV file before handoff,
+        so DPR receives a file path (str) rather than a DataFrame directly.
+        """
         mock_dpr = MagicMock()
         mock_dpr.process_in_situ.return_value = {
             'status': 'processed',
@@ -63,7 +67,11 @@ class TestInterfaces:
 
         engine.process_data(df, metadata, qc_result)
 
-        mock_dpr.process_in_situ.assert_called_once_with(df, metadata)
+        mock_dpr.process_in_situ.assert_called_once()
+        call_args = mock_dpr.process_in_situ.call_args
+        file_path_arg = call_args[0][0]
+        assert isinstance(file_path_arg, str)
+        assert file_path_arg.endswith('.csv')
 
     # ------------------------------------------------------------------
     # ISU_I_2 – QCL (QualityControlLogging)
