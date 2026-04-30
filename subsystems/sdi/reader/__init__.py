@@ -5,12 +5,12 @@ from typing import Optional, List, Dict
 
 from lib.base import GaiaBase, SubsystemId
 
+
 class SdiReader(GaiaBase):
     def __init__(self, stac_api_url=None):
         """Simple SDI client for searching and downloading assets."""
         GaiaBase.__init__(self, SubsystemId.SDI)
         self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
-
 
     def search_assets(
         self, query_string: str, asset_name: Optional[str] = None
