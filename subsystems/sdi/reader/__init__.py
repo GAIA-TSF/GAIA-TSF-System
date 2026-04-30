@@ -5,13 +5,12 @@ from typing import Optional, List, Dict
 
 from lib.base import GaiaBase, SubsystemId
 
-STAC_URL = 'http://stacapi:8000'
-
-
 class SdiReader(GaiaBase):
-    def __init__(self):
+    def __init__(self, stac_api_url=None):
         """Simple SDI client for searching and downloading assets."""
-        super().__init__(SubsystemId.SDI)
+        GaiaBase.__init__(self, SubsystemId.SDI)
+        self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
+
 
     def search_assets(
         self, query_string: str, asset_name: Optional[str] = None
@@ -26,7 +25,7 @@ class SdiReader(GaiaBase):
                            If None, all assets from matching items are returned.
         :return: List of asset dictionaries (each containing at least 'href' and metadata).
         """
-        search_url = f'{STAC_URL}/search?{query_string}'
+        search_url = f'{self.stac_api_url}/search?{query_string}'
 
         response = requests.post(search_url, json={})
         response.raise_for_status()
