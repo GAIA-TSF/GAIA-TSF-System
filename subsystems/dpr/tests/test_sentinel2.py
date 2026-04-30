@@ -62,7 +62,7 @@ class TestSentinel2Workflow:
         # Run the pipeline
         pipeline = Sentinel2SafeProcessor()
         pipeline.run(
-            data_path, output_folder, roi=roi, target_res=res, resampling_alg=r_alg
+            data_path, output_folder, roi=roi, target_res=res, resampling_alg=r_alg, overwrite=True
         )
 
         # Check if the files were created

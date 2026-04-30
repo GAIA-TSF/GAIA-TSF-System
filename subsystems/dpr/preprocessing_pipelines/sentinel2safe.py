@@ -284,9 +284,10 @@ class Sentinel2SafeProcessor(BasePipeline):
         self,
         input_safe: str = None,
         output_folder: str = None,
-        roi: list = None,
+        roi: str = None,
         target_res: tuple = (20, 20),
         resampling_alg: str = 'near',
+        overwrite: bool = False,
     ):
         """
         :param input_safe: Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder).
@@ -294,6 +295,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         :param roi: Optional - bounding box as a POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)
         :param target_res: Pixel resolution (x_res, y_res) for the output. Default is 20m.
         :param resampling_alg: The GDAL resampling algorithm (e.g., 'bilinear', 'cubic', 'near'). Default is 'near'.
+        :param overwrite: Boolean. If true overwrites any geotiff with same filename present in the output folder.
         """
         self.output_folder = Path(output_folder)
         self.roi = roi
@@ -302,6 +304,13 @@ class Sentinel2SafeProcessor(BasePipeline):
 
         # Ensure output folder exists
         self.output_folder.mkdir(parents=True, exist_ok=True)
+
+        product = os.path.basename(input_safe)
+        print('Processing ', product)
+        path = os.path.join(self.output_folder, product.replace('.zip', '.tiff'))
+        if os.path.exists(path) and overwrite is False:
+            print('Skipping processing: A geotiff file already exists in the output folder.')
+            return
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
         if os.path.isdir(input_safe):
@@ -323,7 +332,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         # Proceed with the conversion of the SAFE to Geotiff
         print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
-            self.s2_metadata['Input_SAFE_path'] = str(self.input_folder)
+            self.s2_metadata['Input_SAFE_path'] = str(Path(input_safe))
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
             self._roi_transform()
