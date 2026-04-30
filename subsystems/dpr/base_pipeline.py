@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Mapping, Any, Dict
+    from typing import Any, Dict
 
 from abc import ABC, abstractmethod
 
@@ -10,22 +10,52 @@ from lib.base import GaiaBase, SubsystemId
 
 
 class BasePipeline(ABC, GaiaBase):
-    metadata = {'title': 'unknown', 'abstract': 'unknown'}
+    metadata = {'title': 'unknown', 'abstract': 'unknown', 'params': None}
 
     def __init__(self):
         GaiaBase.__init__(self, SubsystemId.DPR)
+        self._config = None
 
-    def configure(self, config: Mapping[str, Any]) -> None:
+    def configure(self, **kwargs) -> None:
         """Configure pipeline using structured config.
 
         param Mapping[str, Any]: pipeline configuration in YAML structure
         """
-        self._config = config
+        self._config = kwargs
+
+    def _check_config(self):
+        """Check pipeline configuration based on metadata['params']
+
+        Raise RuntimeError on failure
+        """
+        if (
+            self.metadata.get('params', None) is None
+            or self.metadata['params'] is None
+            or len(self.metadata['params'].keys()) < 1
+        ):
+            raise RuntimeError('Pipeline has no paramaters defined')
+
+        if self._config is None:
+            raise RuntimeError('Pipeline is not configured. Call configure() method')
+
+        for k, v in self.metadata['params'].items():
+            if self._config.get(k, None) is None:
+                if v.get('default', None) is not None:
+                    self._config[k] = v['default']
+                else:
+                    raise RuntimeError(f"Parameter '{k}' not defined")
+            if type(self._config[k]) is not v['dtype']:
+                raise RuntimeError(f"Paramater '{k}' type mismatch")
 
     @abstractmethod
-    def run(self) -> None:
+    def _run(self) -> None:
         """Execute pipeline."""
         pass
+
+    def run(self) -> None:
+        """Execute pipeline."""
+        self._check_config()
+        return self._run()
 
 
 class PipelineFactory(GaiaBase):
