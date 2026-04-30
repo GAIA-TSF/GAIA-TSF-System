@@ -50,7 +50,7 @@ class RasterDataset:
         """
         # common STAC definition
         item_standard = create_item(
-            granule_href=path,
+            granule_href=str(path),
             additional_providers=None,
             tolerance=None,
             asset_href_prefix=None,
