@@ -309,7 +309,9 @@ class Sentinel2SafeProcessor(BasePipeline):
         print('Processing ', product)
         path = os.path.join(self.output_folder, product.replace('.zip', '.tiff'))
         if os.path.exists(path) and overwrite is False:
-            print('Skipping processing: A geotiff file already exists in the output folder.')
+            print(
+                'Skipping processing: A geotiff file already exists in the output folder.'
+            )
             return
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
@@ -320,7 +322,9 @@ class Sentinel2SafeProcessor(BasePipeline):
             print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
             with zipfile.ZipFile(input_safe, 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
-            extracted_folder = os.path.join(target_dir, Path(os.path.basename(input_safe)))
+            extracted_folder = os.path.join(
+                target_dir, Path(os.path.basename(input_safe))
+            )
             # set input folder path depending on whether extracted zip ends with '.SAFE' or not
             if os.path.isdir(extracted_folder.replace('.zip', '.SAFE')):
                 self.input_folder = extracted_folder.replace('.zip', '.SAFE')
