@@ -10,13 +10,13 @@ from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
 
-from .base import BasePipeline
+from .base import PreprocessingBasePipeline
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
 
 
-class Sentinel2SafeProcessor(BasePipeline):
+class Sentinel2SafeProcessor(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-2 SAFE Processor',
         'abstract': 'Perform the conversion of a Level2A Sentinel-2 SAFE product to a geotiff.'
@@ -56,7 +56,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         },
     }
 
-    def __init__(self):
+    def _configure(self):
         """Initialize the processor with None values."""
         self.input_folder = None
         self.s2_metadata = {}
@@ -79,9 +79,9 @@ class Sentinel2SafeProcessor(BasePipeline):
                     self.mtd_tl_path = Path(root) / file
 
         if not self.msil2a_path:
-            print('Warning: MTD_MSIL2A.xml not found.')
+            self.logger.warning('MTD_MSIL2A.xml not found.')
         if not self.mtd_tl_path:
-            print('Warning: MTD_TL.xml not found.')
+            self.logger.warning('MTD_TL.xml not found.')
 
         return self.msil2a_path is not None and self.mtd_tl_path is not None
 
@@ -92,10 +92,10 @@ class Sentinel2SafeProcessor(BasePipeline):
     def _extract_mtd_msil2a(self):
         """Extracts required fields from MTD_MSIL2A.xml."""
         if not self.msil2a_path:
-            print('MTD_MSIL2A.xml file not found.')
+            self.logger.error('MTD_MSIL2A.xml file not found.')
             return
 
-        print('Parsing MTD_MSIL2A.xml')
+        self.logger.info('Parsing MTD_MSIL2A.xml')
         tree = ET.parse(self.msil2a_path)
         root = tree.getroot()
 
@@ -163,10 +163,10 @@ class Sentinel2SafeProcessor(BasePipeline):
     def _extract_mtd_tl(self):
         """Extracts required fields from MTD_TL.xml (Tile Metadata)."""
         if not self.mtd_tl_path:
-            print('MTD_TL.xml file not found.')
+            self.logger.error('MTD_TL.xml file not found.')
             return
 
-        print('Parsing MTD_TL.xml')
+        self.logger.info('Parsing MTD_TL.xml')
         tree = ET.parse(self.mtd_tl_path)
         root = tree.getroot()
 
@@ -186,7 +186,7 @@ class Sentinel2SafeProcessor(BasePipeline):
         output_path = self._config['output_folder'] / filename
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(self.s2_metadata, f, indent=4)
-        print(f'Metadata saved to: {output_path}')
+        self.logger.info(f'Metadata saved to: {output_path}')
 
     def _roi_transform(self):
         """Transform coordinates from EPSG:4326 to SAFE product coordinates.
@@ -214,10 +214,10 @@ class Sentinel2SafeProcessor(BasePipeline):
         """
 
         if self.granule_list is None:
-            print('GRANULE list is empty. Unable to retrieve .jp2 files.')
+            self.logger.error('GRANULE list is empty. Unable to retrieve .jp2 files.')
             return
 
-        print('Converting .jp2 files to .tiff')
+        self.logger.info('Converting .jp2 files to .tiff')
         # Make a list of paths to the jp2 files in the GRANULE folder.
         # For each band uses the file with the smaller pixel size (i.e. 10m if available, else 20m or 60m).
         # Note: make sure that the gdal plugin gdal_JP2OpenJPEG.dll is installed.
@@ -270,7 +270,7 @@ class Sentinel2SafeProcessor(BasePipeline):
             vrt_output = os.path.join(
                 self._config['output_folder'], f'temp_{i + 1}.vrt'
             )
-            print(f"--- Resampling {os.path.basename(src_file)} - '{alg}'")
+            self.logger.info(f"--- Resampling {os.path.basename(src_file)} - '{alg}'")
             warp_options = gdal.WarpOptions(
                 format='VRT',
                 outputType=gdal.GDT_Int16,
@@ -307,7 +307,7 @@ class Sentinel2SafeProcessor(BasePipeline):
             band.WriteArray(data)
             band.FlushCache()
         del ds
-        print(f'GeoTIFF saved to: {output_path}')
+        self.logger.info(f'GeoTIFF saved to: {output_path}')
 
         # Add path to the metadata
         self.s2_metadata['source_path'] = str(output_path)
@@ -322,10 +322,12 @@ class Sentinel2SafeProcessor(BasePipeline):
         self._config['output_folder'].mkdir(parents=True, exist_ok=True)
 
         product = os.path.basename(self._config['input_safe'])
-        print('Processing ', product)
-        path = os.path.join(self._config['output_folder'], product.replace('.zip', '.tiff'))
+        self.logger.info('Processing {product}')
+        path = os.path.join(
+            self._config['output_folder'], product.replace('.zip', '.tiff')
+        )
         if os.path.exists(path) and self._config['overwrite'] is False:
-            print(
+            self.logger.info(
                 'Skipping processing: A geotiff file already exists in the output folder.'
             )
             return
@@ -335,17 +337,19 @@ class Sentinel2SafeProcessor(BasePipeline):
             self.input_folder = self._config['input_safe']
         elif zipfile.is_zipfile(self._config['input_safe']):
             target_dir = os.path.join(self._config['output_folder'], 'temp')
-            print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
+            self.logger.info(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
             with zipfile.ZipFile(self._config['input_safe'], 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
-            self.input_folder = Path(target_dir, self._config['input_safe'].name).with_suffix('.SAFE')
+            self.input_folder = Path(
+                target_dir, self._config['input_safe'].name
+            ).with_suffix('.SAFE')
         else:
             raise RuntimeError(
                 'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
             )
 
         # Proceed with the conversion of the SAFE to Geotiff
-        print(f'Scanning folder: {self.input_folder}')
+        self.logger.info(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
             self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
@@ -355,7 +359,11 @@ class Sentinel2SafeProcessor(BasePipeline):
             self._save_json()
             if zipfile.is_zipfile(self._config['input_safe']):
                 target_dir = os.path.join(self._config['output_folder'], 'temp')
-                print(f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}')
+                self.logger.info(
+                    f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}'
+                )
                 shutil.rmtree(target_dir)
         else:
-            print('Extraction failed: Required metadata files could not be located.')
+            self.logger.error(
+                'Extraction failed: Required metadata files could not be located.'
+            )

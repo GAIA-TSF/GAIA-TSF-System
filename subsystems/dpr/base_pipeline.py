@@ -16,11 +16,16 @@ class BasePipeline(ABC, GaiaBase):
         GaiaBase.__init__(self, SubsystemId.DPR)
         self._config = None
 
+    def _configure(self):
+        """Set internal properties (may be overridden)"""
+        pass
+
     def configure(self, **kwargs) -> None:
         """Configure pipeline using structured config.
 
         param Mapping[str, Any]: pipeline configuration in YAML structure
         """
+        self._configure()
         self._config = kwargs
 
     def _check_config(self):
