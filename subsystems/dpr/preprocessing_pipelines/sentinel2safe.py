@@ -1,14 +1,16 @@
-from .base import BasePipeline
 import os
 import json
 import zipfile
 import shutil
 import xml.etree.ElementTree as ET
-from pathlib import Path
+from pathlib import Path, PosixPath
+
 from osgeo import gdal, ogr
 from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
+
+from .base import BasePipeline
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
@@ -23,15 +25,40 @@ class Sentinel2SafeProcessor(BasePipeline):
         '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
         'using GDAL'
         '(3) Saving output geotiff and metadata to an output folder.',
+        'params': {
+            'input_safe': {
+                'dtype': PosixPath,
+                'description': 'Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder)',
+            },
+            'output_folder': {
+                'dtype': PosixPath,
+                'description': 'Directory where the resulting geotiff and corresponding metadata will be saved.',
+            },
+            'overwrite': {
+                'dtype': bool,
+                'description': 'If true overwrites any geotiff with same filename present in the output folder.',
+                'default': False,
+            },
+            'roi': {
+                'dtype': str,
+                'description': 'Bounding box as a POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)',
+            },
+            'target_res': {
+                'dtype': tuple,
+                'description': 'Pixel resolution (x_res, y_res) for the output.',
+                'default': (20, 20),
+            },
+            'resampling_alg': {
+                'dtype': str,
+                'description': 'The GDAL resampling algorithm (e.g., bilinear, cubic, near).',
+                'default': 'near',
+            },
+        },
     }
 
     def __init__(self):
         """Initialize the processor with None values."""
         self.input_folder = None
-        self.output_folder = None
-        self.roi = None
-        self.target_res = None
-        self.resampling_alg = None
         self.s2_metadata = {}
 
         # Paths to specific files
@@ -156,15 +183,19 @@ class Sentinel2SafeProcessor(BasePipeline):
     def _save_json(self):
         """Save metadata to a JSON file."""
         filename = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.json')
-        output_path = self.output_folder / filename
+        output_path = self._config['output_folder'] / filename
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(self.s2_metadata, f, indent=4)
         print(f'Metadata saved to: {output_path}')
 
     def _roi_transform(self):
-        """Transform coordinates from EPSG:4326 to SAFE product coordinates."""
+        """Transform coordinates from EPSG:4326 to SAFE product coordinates.
+
+        :return roi transformed  (WKT)
+        :rtype: str
+        """
         # Convert WKT to Shapely geometry
-        geom = wkt.loads(self.roi)
+        geom = wkt.loads(self._config['roi'])
 
         # Create transformer (From EPSG:4326 to target EPSG)
         target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
@@ -172,12 +203,14 @@ class Sentinel2SafeProcessor(BasePipeline):
 
         # Transform the geometry
         transformed_geom = transform(transformer.transform, geom)
-        self.roi = transformed_geom.wkt
+        return transformed_geom.wkt
 
-    def _process_and_merge_jp2(self):
+    def _process_and_merge_jp2(self, roi):
         """
         Makes a list of .jp2 files, resamples them to a consistent resolution,
         crops them to a Region of Interest (ROI), and merges them into a single GeoTIFF.
+
+        :param str roi: region of interest
         """
 
         if self.granule_list is None:
@@ -222,24 +255,28 @@ class Sentinel2SafeProcessor(BasePipeline):
             offsets = [0] * (len(jp2_paths))
 
         # List resampling algorithms to be used for each spectral bands and add 'near' for SCL band (integers)
-        resampling_algorithms = [self.resampling_alg] * (len(jp2_paths) - 1) + ['near']
+        resampling_algorithms = [self._config['resampling_alg']] * (
+            len(jp2_paths) - 1
+        ) + ['near']
 
         # Make an empty list to store paths to temp VRT files
         resampled_vrt_files = []
 
         # Resample with gdal.Warp using in-memory VRT files
-        geom = ogr.CreateGeometryFromWkt(self.roi)
+        geom = ogr.CreateGeometryFromWkt(roi)
         xmin, xmax, ymin, ymax = geom.GetEnvelope()
         bounds = [xmin, ymin, xmax, ymax]
         for i, (src_file, alg) in enumerate(zip(jp2_paths, resampling_algorithms)):
-            vrt_output = os.path.join(self.output_folder, f'temp_{i + 1}.vrt')
+            vrt_output = os.path.join(
+                self._config['output_folder'], f'temp_{i + 1}.vrt'
+            )
             print(f"--- Resampling {os.path.basename(src_file)} - '{alg}'")
             warp_options = gdal.WarpOptions(
                 format='VRT',
                 outputType=gdal.GDT_Int16,
                 outputBounds=bounds,  # [minX, minY, maxX, maxY] - check projection!
-                xRes=self.target_res[0],
-                yRes=self.target_res[1],
+                xRes=self._config['target_res'][0],
+                yRes=self._config['target_res'][1],
                 resampleAlg=alg,
                 multithread=True,  # Speed up processing
                 srcNodata=-32768,
@@ -249,12 +286,12 @@ class Sentinel2SafeProcessor(BasePipeline):
             resampled_vrt_files.append(vrt_output)
 
         # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
-        mosaic_vrt = os.path.join(self.output_folder, 'combined_output.vrt')
+        mosaic_vrt = os.path.join(self._config['output_folder'], 'combined_output.vrt')
         gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
 
         # Create the final geotiff
         product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
-        output_path = os.path.join(self.output_folder, product_name)
+        output_path = os.path.join(self._config['output_folder'], product_name)
         options = ['COMPRESS=LZW', 'TILED=YES']
         gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
 
@@ -280,73 +317,44 @@ class Sentinel2SafeProcessor(BasePipeline):
             gdal.Unlink(vrt)
         gdal.Unlink(mosaic_vrt)
 
-    def run(
-        self,
-        input_safe: str = None,
-        output_folder: str = None,
-        roi: str = None,
-        target_res: tuple = (20, 20),
-        resampling_alg: str = 'near',
-        overwrite: bool = False,
-    ):
-        """
-        :param input_safe: Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder).
-        :param output_folder: Directory where the resulting geotiff and corresponding metadata will be saved.
-        :param roi: Optional - bounding box as a POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)
-        :param target_res: Pixel resolution (x_res, y_res) for the output. Default is 20m.
-        :param resampling_alg: The GDAL resampling algorithm (e.g., 'bilinear', 'cubic', 'near'). Default is 'near'.
-        :param overwrite: Boolean. If true overwrites any geotiff with same filename present in the output folder.
-        """
-        self.output_folder = Path(output_folder)
-        self.roi = roi
-        self.target_res = target_res
-        self.resampling_alg = resampling_alg
-
+    def _run(self):
         # Ensure output folder exists
-        self.output_folder.mkdir(parents=True, exist_ok=True)
+        self._config['output_folder'].mkdir(parents=True, exist_ok=True)
 
-        product = os.path.basename(input_safe)
+        product = os.path.basename(self._config['input_safe'])
         print('Processing ', product)
-        path = os.path.join(self.output_folder, product.replace('.zip', '.tiff'))
-        if os.path.exists(path) and overwrite is False:
+        path = os.path.join(self._config['output_folder'], product.replace('.zip', '.tiff'))
+        if os.path.exists(path) and self._config['overwrite'] is False:
             print(
                 'Skipping processing: A geotiff file already exists in the output folder.'
             )
             return
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
-        if os.path.isdir(input_safe):
-            self.input_folder = Path(input_safe)
-        elif zipfile.is_zipfile(input_safe):
-            target_dir = os.path.join(output_folder, 'temp')
+        if os.path.isdir(self._config['input_safe']):
+            self.input_folder = self._config['input_safe']
+        elif zipfile.is_zipfile(self._config['input_safe']):
+            target_dir = os.path.join(self._config['output_folder'], 'temp')
             print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
-            with zipfile.ZipFile(input_safe, 'r') as zip_ref:
+            with zipfile.ZipFile(self._config['input_safe'], 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
-            extracted_folder = os.path.join(
-                target_dir, Path(os.path.basename(input_safe))
-            )
-            # set input folder path depending on whether extracted zip ends with '.SAFE' or not
-            if os.path.isdir(extracted_folder.replace('.zip', '.SAFE')):
-                self.input_folder = extracted_folder.replace('.zip', '.SAFE')
-            else:
-                self.input_folder = extracted_folder.replace('.zip', '')
+            self.input_folder = Path(target_dir, self._config['input_safe'].name).with_suffix('.SAFE')
         else:
-            print(
+            raise RuntimeError(
                 'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
             )
-            return
 
         # Proceed with the conversion of the SAFE to Geotiff
         print(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
-            self.s2_metadata['Input_SAFE_path'] = str(Path(input_safe))
+            self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
-            self._roi_transform()
-            self._process_and_merge_jp2()
+            roi = self._roi_transform()
+            self._process_and_merge_jp2(roi)
             self._save_json()
-            if zipfile.is_zipfile(input_safe):
-                target_dir = os.path.join(output_folder, 'temp')
+            if zipfile.is_zipfile(self._config['input_safe']):
+                target_dir = os.path.join(self._config['output_folder'], 'temp')
                 print(f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}')
                 shutil.rmtree(target_dir)
         else:

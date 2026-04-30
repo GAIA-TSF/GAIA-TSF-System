@@ -2,6 +2,7 @@ import pytest
 import json
 import os
 import shutil
+from pathlib import Path
 
 import numpy
 from osgeo import gdal
@@ -35,11 +36,13 @@ class TestSentinel2Workflow:
             'productType': 'S2_MSI_L2A',
         }
 
-        results = dag_module.search(
+        results = dag_module.backend.search(
             geom=roi,
             **search_filter,
         )
-        data_path = dag_module.download(results[0], quicklook=False)
+        data_path = dag_module.backend.download(
+            results[0], quicklook=False, target_dir='sentinel2'
+        )
 
         # Check if the SAFE product can be located
         assert os.path.exists(data_path), 'The SAFE product was not found.'
@@ -61,14 +64,15 @@ class TestSentinel2Workflow:
 
         # Run the pipeline
         pipeline = Sentinel2SafeProcessor()
-        pipeline.run(
-            data_path,
-            output_folder,
+        pipeline.configure(
+            input_safe=Path(data_path),
+            output_folder=Path(output_folder),
             roi=roi,
             target_res=res,
             resampling_alg=r_alg,
             overwrite=True,
         )
+        pipeline.run()
 
         # Check if the files were created
         filename = (
@@ -76,7 +80,7 @@ class TestSentinel2Workflow:
             + '.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
-        assert os.path.exists(tiff_path), 'The Geotiff was not created.'
+        assert os.path.exists(tiff_path), f'The Geotiff was not created: {tiff_path}'
         json_path = os.path.join(output_folder, tiff_path.replace('.tiff', '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
 

@@ -45,7 +45,9 @@ class BasePipeline(ABC, GaiaBase):
                 else:
                     raise RuntimeError(f"Parameter '{k}' not defined")
             if type(self._config[k]) is not v['dtype']:
-                raise RuntimeError(f"Paramater '{k}' type mismatch")
+                raise RuntimeError(
+                    f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})"
+                )
 
     @abstractmethod
     def _run(self) -> None:
