@@ -169,7 +169,8 @@ class TestSentinel2Workflow:
 
         # Run the pipeline
         pipeline = Sentinel2CloudCoverPipeline()
-        pipeline.run(metadata_path=metadata_path, path_key='source_path', scl_band=13)
+        pipeline.configure(metadata_path=metadata_path, path_key='source_path')
+        pipeline.run()
 
         # Verification of the outputs
         # get the processed metadata file:
