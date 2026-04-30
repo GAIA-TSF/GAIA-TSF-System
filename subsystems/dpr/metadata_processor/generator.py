@@ -194,6 +194,130 @@ class RasterDataset:
         return new_item
 
 
+class InsituDataset:
+    """
+    Wrapper for in-situ CSV datasets providing spatial and temporal metadata
+    for STAC item generation. Relies on the metadata dict provided by ISU,
+    since CSV files do not embed spatial information like GeoTIFF.
+
+    :param str path: Path to the CSV file
+    :param dict metadata: Metadata dict from ISU containing time_range, location, schema, crs, sensor_type
+    """
+
+    def __init__(self, path: str, metadata: Dict[str, Any]):
+        self.path = Path(path)
+        self._meta = metadata
+        self._data = metadata.get('data', {})
+
+    @property
+    def epsg(self) -> int:
+        crs = self._data.get('crs', 'EPSG:4326')
+        return int(crs.split(':')[1])
+
+    def get_bbox(self) -> Optional[List[float]]:
+        """Returns [min_lon, min_lat, max_lon, max_lat] or None."""
+        loc = self._data.get('location')
+        return loc['bbox'] if loc else None
+
+    def get_time_range(self) -> Optional[Dict[str, str]]:
+        """Returns {'start': ..., 'end': ...} or None."""
+        return self._data.get('time_range')
+
+    def get_schema(self) -> List[str]:
+        """Returns list of column names."""
+        return self._data.get('schema', [])
+
+    def get_sensor_type(self) -> Optional[str]:
+        """Returns sensor type string or None."""
+        return self._data.get('sensor_type')
+
+
+class InsituStacItemFactory:
+    """
+    Creates STAC Item metadata from an InsituDataset.
+    """
+
+    STAC_EXTENSIONS: List[str] = [
+        'https://stac-extensions.github.io/table/v1.2.0/schema.json',
+        'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+    ]
+
+    def __init__(self, dataset: InsituDataset, logger: Any):
+        self.dataset = dataset
+        self.logger = logger
+
+    def _build_geometry(self, bbox: List[float]) -> Dict[str, Any]:
+        return {
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [bbox[0], bbox[1]],
+                    [bbox[0], bbox[3]],
+                    [bbox[2], bbox[3]],
+                    [bbox[2], bbox[1]],
+                    [bbox[0], bbox[1]],
+                ]
+            ],
+        }
+
+    def create_item(self) -> Dict[str, Any]:
+        """
+        Creates a STAC Item as a dictionary.
+
+        :return: STAC Item
+        :rtype: dict
+        """
+        bbox = self.dataset.get_bbox()
+        time_range = self.dataset.get_time_range()
+        schema = self.dataset.get_schema()
+
+        properties: Dict[str, Any] = {
+            'datetime': time_range['start'] if time_range else None,
+            'start_datetime': time_range['start'] if time_range else None,
+            'end_datetime': time_range['end'] if time_range else None,
+            'proj:epsg': self.dataset.epsg,
+        }
+        sensor_type = self.dataset.get_sensor_type()
+        if sensor_type:
+            properties['sensor_type'] = sensor_type
+
+        stac_item: Dict[str, Any] = {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': self.STAC_EXTENSIONS,
+            'id': self.dataset.path.stem,
+            'collection': 'undefined',
+            'properties': properties,
+            'geometry': self._build_geometry(bbox) if bbox else None,
+            'bbox': bbox,
+            'assets': {
+                'data': {
+                    'href': self.dataset.path.name,
+                    'type': 'text/csv',
+                    'roles': ['data'],
+                    'table:columns': [{'name': c} for c in schema],
+                }
+            },
+            'links': [],
+        }
+        self.logger.debug(f'STAC item created: {stac_item}')
+        return stac_item
+
+    def save(self, output_path: str) -> str:
+        """
+        Saves the STAC Item to a JSON file.
+
+        :param str output_path: Path to the output JSON
+        :return: output path
+        :rtype: str
+        """
+        item = self.create_item()
+        with open(output_path, 'w') as f:
+            json.dump(item, f, indent=4)
+        self.logger.info(f'STAC item saved: {output_path}')
+        return output_path
+
+
 class StacItemFactory:
     """
     Creates STAC Item metadata from a RasterDataset.
@@ -247,6 +371,14 @@ class MetadataGenerator(GaiaBase):
     def __init__(self):
         """Initialize metadata generator."""
         super().__init__(SubsystemId.DPR)
+        self._isu_metadata: Dict[str, Any] = {}
+
+    def set_isu_metadata(self, metadata: Dict[str, Any]) -> None:
+        """Store ISU-provided metadata for use when processing CSV datasources.
+
+        :param dict metadata: Metadata dict from ISU (time_range, location, schema, crs, sensor_type).
+        """
+        self._isu_metadata = metadata
 
     def set_datasource(self, data_source: str):
         """Set the data source for which metadata should be generated.
@@ -254,8 +386,9 @@ class MetadataGenerator(GaiaBase):
         :param str data_source: path to the datasource (raster, tabular data...)
         """
         if Path(data_source).suffix in ('.csv',):
-            # TODO: ISU
-            pass
+            self.logger.info(f'Metadata generator datasource: {data_source}')
+            self._ds = InsituDataset(data_source, self._isu_metadata)
+            self._factory = InsituStacItemFactory(self._ds, self.logger)
         else:
             self.logger.info(f'Metadata generator datasource: {data_source}')
             self._ds = RasterDataset(data_source)
