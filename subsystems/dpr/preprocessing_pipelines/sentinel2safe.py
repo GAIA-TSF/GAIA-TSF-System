@@ -320,9 +320,12 @@ class Sentinel2SafeProcessor(BasePipeline):
             print(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
             with zipfile.ZipFile(input_safe, 'r') as zip_ref:
                 zip_ref.extractall(target_dir)
-            self.input_folder = os.path.join(
-                target_dir, Path(os.path.basename(input_safe).replace('.zip', ''))
-            )
+            extracted_folder = os.path.join(target_dir, Path(os.path.basename(input_safe)))
+            # set input folder path depending on whether extracted zip ends with '.SAFE' or not
+            if os.path.isdir(extracted_folder.replace('.zip', '.SAFE')):
+                self.input_folder = extracted_folder.replace('.zip', '.SAFE')
+            else:
+                self.input_folder = extracted_folder.replace('.zip', '')
         else:
             print(
                 'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
