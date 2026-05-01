@@ -17,7 +17,7 @@ class BasePipeline(ABC, GaiaBase):
         self._config = None
 
     def _configure(self):
-        """Set internal properties (may be overridden)"""
+        """Set internal properties (to be overridden by pipeline implementation)"""
         pass
 
     def configure(self, **kwargs) -> None:
