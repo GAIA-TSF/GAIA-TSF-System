@@ -5,9 +5,7 @@ Covers InsituDataset, InsituStacItemFactory, and MetadataGenerator for CSV datas
 """
 
 import os
-import sys
 import tempfile
-import types
 from unittest.mock import MagicMock
 
 import pandas as pd
