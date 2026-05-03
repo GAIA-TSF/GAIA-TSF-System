@@ -336,6 +336,7 @@ class TestSentinel1Workflow:
             assert len(pipeline.intf.pair) == len(pipeline.baseline_pairs)
 
     def test_012_unwrap_interferograms(self, pipeline, config):
+        """Test unwrapping interferograms."""
         aoi = loads(config['project']['aoi']['geom'])
         data_dir = Path(config['project']['data_dir'])
         work_dir = data_dir / 'workdir'
@@ -373,6 +374,7 @@ class TestSentinel1Workflow:
             assert np.nanstd(sample_data) > 0
 
     def test_013_detrend_phase(self, pipeline, config):
+        """Test detrending phases."""
         aoi = loads(config['project']['aoi']['geom'])
         data_dir = Path(config['project']['data_dir'])
         work_dir = data_dir / 'workdir'
@@ -402,6 +404,9 @@ class TestSentinel1Workflow:
             pipeline._unwrap_interferograms()
             pipeline._detrend_phase()
             assert pipeline.detrend is not None
+            assert "pair" in pipeline.detrend.dims
+            val = pipeline.detrend.isel(pair=0).mean().compute()
+            assert not np.isnan(val)
 
     def test_run_workflow(self, pipeline, config):
         pass

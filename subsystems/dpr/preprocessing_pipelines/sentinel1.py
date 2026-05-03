@@ -261,7 +261,6 @@ class Sentinel1Pipeline(BasePipeline):
             raise RuntimeError(f"No pixels found above corr_limit={corr_limit}. Unwrapping aborted.")
 
         # 3. Run SNAPHU Unwrapping
-        # This returns the unwrapped phase in radar coordinates
         self.unwrap = self.sbas.unwrap_snaphu(
             intf_u.where(corr_mask),
             corr_mask
@@ -281,12 +280,10 @@ class Sentinel1Pipeline(BasePipeline):
             raise RuntimeError("Phase must be unwrapped before detrending.")
 
         # 1. Determine spatial scales
-        # We use the unwrap resolution and a base smoothing wavelength (usually 30m)
         base_wavelength = 30
         ramp_wavelength = ramp_factor * base_wavelength
 
         # 2. Ensure Dask chunking
-        # Gaussian filters are memory-intensive; chunking keeps it lazy
         chunksize = 256
         phase_data = self.unwrap.phase
         chunk_spec = {d: chunksize for d in phase_data.dims if d in ("y", "x")}
@@ -294,14 +291,12 @@ class Sentinel1Pipeline(BasePipeline):
             phase_data = phase_data.chunk(chunk_spec)
 
         # 3. Build and subtract the ramp
-        # sbas.gaussian estimates the 'noise' (the ramp)
         ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
 
         # Subtracting the ramp leaves only the localized displacement signal
         self.detrend = (phase_data - ramp).persist()
 
         # 4. Trigger computation
-        # This ensures the Dask graph is executed and catches errors immediately
         _ = float(self.detrend.isel(pair=0).mean().compute())
 
     def run(self):
