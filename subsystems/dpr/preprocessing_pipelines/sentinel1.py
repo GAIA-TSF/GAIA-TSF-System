@@ -7,6 +7,7 @@ from dask.distributed import Client
 from collections import defaultdict
 import numpy as np
 
+
 class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
@@ -94,7 +95,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if not output_landmask.exists():
-            Tiles().download_landmask(aoi, filename=output_landmask, skip_exist=True).fillna(0)
+            Tiles().download_landmask(
+                aoi, filename=output_landmask, skip_exist=True
+            ).fillna(0)
         self.landmask = output_landmask
 
     def _run_dask_cluster(self, **kwargs):
@@ -117,13 +120,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         if data_path == work_path:
             raise ValueError(
-                f"Safety Triggered: datadir and workdir are the same location ({data_path}). "
-                "Aborting to prevent accidental data deletion."
+                f'Safety Triggered: datadir and workdir are the same location ({data_path}). '
+                'Aborting to prevent accidental data deletion.'
             )
         if work_path in data_path.parents:
             raise ValueError(
-                f"Safety Triggered: workdir ({work_path}) is a parent of datadir ({data_path}). "
-                "Aborting to prevent accidental data deletion."
+                f'Safety Triggered: workdir ({work_path}) is a parent of datadir ({data_path}). '
+                'Aborting to prevent accidental data deletion.'
             )
 
         self.s1 = S1.scan_slc(datadir)
@@ -145,7 +148,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         self.sbas.load_dem(str(self.dem), aoi)
         self.sbas.load_landmask(str(self.landmask))
-        self.dem_masked = self.sbas.get_dem().where(self.sbas.get_landmask()) # maybe not needed
+        self.dem_masked = self.sbas.get_dem().where(
+            self.sbas.get_landmask()
+        )  # maybe not needed
 
     def _align_images(self):
         """Align Sentinel-1 images.
@@ -159,7 +164,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         :return: None
         """
-        self.sbas.compute_geocode(coarsen=10.)
+        self.sbas.compute_geocode(coarsen=10.0)
 
     def _find_optimal_network(self):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
@@ -176,8 +181,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         for days in basedays:
             for meters in basemeters:
                 # Build candidate pairs
-                pairs_df = self.sbas.sbas_pairs(days=days, meters=meters) if hasattr(self.sbas, "sbas_pairs") \
+                pairs_df = (
+                    self.sbas.sbas_pairs(days=days, meters=meters)
+                    if hasattr(self.sbas, 'sbas_pairs')
                     else self.sbas.baseline_pairs(days=days, meters=meters)
+                )
 
                 # Connectivity check (DFS)
                 adj = defaultdict(set)
@@ -197,11 +205,18 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                                 stack.extend(adj[curr] - seen)
 
                 results.append(
-                    {'days': days, 'meters': meters, 'n_pairs': len(pairs_df), 'n_comp': components, 'df': pairs_df})
+                    {
+                        'days': days,
+                        'meters': meters,
+                        'n_pairs': len(pairs_df),
+                        'n_comp': components,
+                        'df': pairs_df,
+                    }
+                )
 
         valid = [r for r in results if r['n_comp'] == 1]
         if not valid:
-            raise RuntimeError("No connected network found. Try increasing thresholds.")
+            raise RuntimeError('No connected network found. Try increasing thresholds.')
 
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
@@ -223,14 +238,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # 2. Process Intensity (for correlation weights)
         intensity = self.sbas.multilooking(
-            np.square(np.abs(data)),
-            wavelength=intensity_wavelength,
-            coarsen=coarsen
+            np.square(np.abs(data)), wavelength=intensity_wavelength, coarsen=coarsen
         )
 
         # 3. Compute Phase Difference
         phase = self.sbas.phasediff(self.baseline_pairs, data, topo)
-        phase = self.sbas.multilooking(phase, wavelength=phase_wavelength, coarsen=coarsen)
+        phase = self.sbas.multilooking(
+            phase, wavelength=phase_wavelength, coarsen=coarsen
+        )
 
         # 4. Filter & Synthesis
         self.corr = self.sbas.correlation(phase, intensity)
@@ -247,7 +262,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.intf is None or self.corr is None:
-            raise RuntimeError("Interferograms and correlation must be computed before unwrapping.")
+            raise RuntimeError(
+                'Interferograms and correlation must be computed before unwrapping.'
+            )
 
         # 1. Decimate to target unwrap spacing
         dec_u = self.sbas.decimator(unwrap_m)
@@ -259,12 +276,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Verify we have valid pixels to unwrap
         n_valid = int(np.isfinite(corr_mask).sum().compute())
         if n_valid == 0:
-            raise RuntimeError(f"No pixels found above corr_limit={corr_limit}. Unwrapping aborted.")
+            raise RuntimeError(
+                f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
+            )
 
         # 3. Run SNAPHU Unwrapping
         self.unwrap = self.sbas.unwrap_snaphu(
-            intf_u.where(corr_mask),
-            corr_mask
+            intf_u.where(corr_mask), corr_mask
         ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
@@ -278,7 +296,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.unwrap is None:
-            raise RuntimeError("Phase must be unwrapped before detrending.")
+            raise RuntimeError('Phase must be unwrapped before detrending.')
 
         # 1. Determine spatial scales
         base_wavelength = 30
@@ -287,7 +305,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # 2. Ensure Dask chunking
         chunksize = 256
         phase_data = self.unwrap.phase
-        chunk_spec = {d: chunksize for d in phase_data.dims if d in ("y", "x")}
+        chunk_spec = {d: chunksize for d in phase_data.dims if d in ('y', 'x')}
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
