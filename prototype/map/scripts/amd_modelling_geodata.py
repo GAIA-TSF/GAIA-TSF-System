@@ -2,6 +2,23 @@
 This script applies AMD time series modelling to the 
 spatial data. 
 
+TODO: 
+- learn model from 100 pxiels in clean water mask 
+- apply to all pixels in TSF mask
+
+Seasonal effect: 
+- O3: train on normalized clean regime (robust) XXX  
+- O4: seasonal + anomaly decomposition (much more robust for monitoring) 
+
+next: 
+- full raster inference (vectorized, fast)
+    no loops over pixels
+    works on entire image stack
+
+finally: 
+- AMD anomaly map
+- CUSUM map
+- regime probability map
 """
 
 import os
@@ -17,7 +34,18 @@ from sklearn.ensemble import GradientBoostingRegressor
 # CONFIG
 AMD_THRESHOLD = 2.0
 CUSUM_K = 0.1
-CUSUM_H = 5
+CUSUM_H = 3
+
+# AMD MODLE 
+class AMDModel:
+    def __init__(self, model, scaler):
+        self.model = model
+        self.scaler = scaler
+
+    def predict(self, feat):
+        feat_scaled = self.scaler.transform(feat)
+        y_scaled = self.model.predict(feat_scaled)
+        return self.scaler.inverse_transform_target(y_scaled)
 
 
 # READ GEOTIFF SERIES 
@@ -89,6 +117,50 @@ def extract_timeseries(data, y, x):
 
     return df
 
+# PIXELS SAMPLING 
+def sample_pixels(mask, n=100, seed=42):
+    np.random.seed(seed)
+
+    ys, xs = np.where(mask > 0)
+
+    idx = np.random.choice(len(ys), size=min(n, len(ys)), replace=False)
+
+    return list(zip(ys[idx], xs[idx]))
+
+# EXTRACT MULTIPLE TIME SERIES BASED ON SAMPLING 
+def extract_timeseries_multi(data, pixel_list):
+    all_series = []
+
+    for i, (y, x) in enumerate(pixel_list):
+
+        values = []
+
+        for d in data:
+            img = d["img"]
+            cloud = d["cloud"]
+
+            if cloud[y, x] == 1:
+                values.append(np.nan)
+                continue
+
+            B2 = img[1, y, x]
+            B4 = img[3, y, x]
+
+            amd = B4 / (B2 + 1e-6)
+            values.append(amd)
+
+        dates = [d["date"] for d in data]
+
+        df = pd.DataFrame({
+            "Date": dates,
+            "AMD": values,
+            "pixel_id": i   
+        }).set_index("Date")
+
+        all_series.append(df)
+
+    return pd.concat(all_series)
+
 
 # CSV DATA LOADING
 def load_data(dir_path, amd_fn, clean_fn ):
@@ -113,7 +185,7 @@ def remove_outliers(df, extreme=False):
     if extreme:
         mask = (np.abs(z) > 6) | (df["AMD"] > 20)
     else:
-        mask = np.abs(z) > 3
+        mask = np.abs(z) > 2.0
 
     return df.loc[~mask].copy()
 
@@ -132,46 +204,131 @@ def preprocess(df_clean, df_amd):
 
     return df_clean, df_amd
 
+def preprocess_multi(df):
 
+    df_list = []
+
+    for pid, group in df.groupby("pixel_id"):
+
+        group = remove_outliers(group)
+
+        group["AMD"] = group["AMD"].interpolate("time")
+        group["AMD_smooth"] = group["AMD"].rolling(3, center=True).mean()
+
+        df_list.append(group)
+
+    return pd.concat(df_list) 
+
+class StandardScalerCustom:
+    def fit(self, df, cols):
+        self.mean_ = df[cols].mean()
+        self.std_ = df[cols].std().replace(0, 1e-6)
+        self.cols = cols
+        return self
+
+    def transform(self, df):
+        df = df.copy()
+        df[self.cols] = (df[self.cols] - self.mean_) / self.std_
+        return df
+
+    def inverse_transform_target(self, y):
+        return y * self.std_["AMD_smooth"] + self.mean_["AMD_smooth"]
+
+class SimpleScaler:
+
+    def fit(self, df, FEATURE_COLS):
+        self.cols = FEATURE_COLS
+        self.mean_ = df[self.cols].mean()
+        self.std_ = df[self.cols].std().replace(0, 1)
+        return self
+
+    def transform(self, df):
+        df = df.copy()
+        df[self.cols] = (df[self.cols] - self.mean_) / self.std_
+        return df    
 
 # FEATURE ENGINEERING
 def create_features(df):
+
     df = df.copy()
-    df["lag1"] = df["AMD_smooth"].shift(1)
-    df["lag2"] = df["AMD_smooth"].shift(2)
-    # df["lag3"] = df["AMD_smooth"].shift(3)
+
+    # group by pixel to avoid mixing signals
+    df["lag1"] = df.groupby("pixel_id")["AMD_smooth"].shift(1)
+    df["lag2"] = df.groupby("pixel_id")["AMD_smooth"].shift(2)
+
     df["ratio"] = df["lag1"] / (df["lag2"] + 1e-6)
 
-    df["diff1"] = df["AMD_smooth"].diff(1)
-    df["diff2"] = df["AMD_smooth"].diff(2)
-    df["acc"] = df["diff1"].diff(1)
-    
-    df["rolling_mean"] = df["AMD_smooth"].rolling(3).mean()
-    df["local_std"] = df["AMD_smooth"].rolling(5).std()
-    
+    df["diff1"] = df.groupby("pixel_id")["AMD_smooth"].diff(1)
+    df["diff2"] = df.groupby("pixel_id")["AMD_smooth"].diff(2)
+    df["acc"] = df.groupby("pixel_id")["diff1"].diff(1)
+
+    df["rolling_mean"] = df.groupby("pixel_id")["AMD_smooth"].rolling(3).mean().reset_index(level=0, drop=True)
+    df["local_std"] = df.groupby("pixel_id")["AMD_smooth"].rolling(5).std().reset_index(level=0, drop=True)
+
     return df.dropna()
+
+# OPTION 4 
+def build_clean_baseline(df_clean):
+    """
+    Build seasonal clean baseline using DOY statistics
+    """
+
+    df = df_clean.copy()
+    df["doy"] = df.index.dayofyear
+
+    # robust seasonal statistics
+    baseline = df.groupby("doy")["AMD_smooth"].median()
+    upper = df.groupby("doy")["AMD_smooth"].quantile(0.7) # 0.75 0.9
+
+    return baseline, upper
+
+
+def apply_clean_baseline(baseline, upper, target_index):
+    """
+    Map seasonal baseline to target timeline
+    """
+
+    doy = target_index.dayofyear
+
+    y_pred = baseline.reindex(doy).values
+    upper_vals = upper.reindex(doy).values
+
+    uncertainty = upper_vals - y_pred
+
+    return y_pred, uncertainty
+
 
 
 # MODEL
-def train_model(clean_feat):
-    X = clean_feat[["lag1", "lag2", "ratio", "diff1", "diff2", "acc", "rolling_mean", "local_std"]] # "lag3",  "month"
-    y = clean_feat["AMD_smooth"]
+def train_model(clean_feat_scaled):
+
+    X = clean_feat_scaled[
+        ["lag1", "lag2", "ratio", "diff1", "diff2", "acc", "rolling_mean", "local_std"]
+    ]
+
+    y = clean_feat_scaled["AMD_smooth"]
 
     model = GradientBoostingRegressor()
     model.fit(X, y)
+
     return model
 
 
-def predict(model, feat):
-    X = feat[["lag1", "lag2", "ratio", "diff1", "diff2", "acc", "rolling_mean", "local_std"]] # , "rolling_mean", "month"
-    return model.predict(X)
+# def predict(model, feat):
+#     X = feat[["lag1", "lag2", "ratio", "diff1", "diff2", "acc", "rolling_mean", "local_std"]] # , "rolling_mean", "month"
+#     return model.predict(X)
 
+
+def predict(model, feat, scaler, FEATURE_COLS):
+    X = feat[FEATURE_COLS]
+    X_scaled = scaler.transform(feat)[FEATURE_COLS]
+    return model.predict(X_scaled) 
 
 
 # UNCERTAINTY
-def compute_uncertainty(model, clean_feat, amd_feat):
+def compute_uncertainty(model, clean_feat, amd_feat, scaler, FEATURE_COLS):
     y_true = clean_feat["AMD_smooth"]
-    y_pred = predict(model, clean_feat)
+    y_pred = predict(model, clean_feat, scaler, FEATURE_COLS)
 
     residuals = y_true - y_pred
     unc = residuals.rolling(10, min_periods=5).std()
@@ -354,14 +511,15 @@ def plot_monitoring_dashboard_amd_clean(
             clean_y,
             "o",
             color="blue",
-            alpha=0.3,
+            alpha=0.1,
             label="Clean water reference"
         )
 
     # AMD observed
-    ax.plot(x, y_true, "ko", label="Observed (AMD)")
+    ax.plot(x, y_true, color="orange", label="Observed (AMD)")
+    ax.plot(x, y_true, '.', color="orange", label="Observed (AMD)")  
     # Model prediction
-    ax.plot(x, y_pred, "b.", label="Expected (baseline)")
+    ax.plot(x, y_pred, "ko--", label="Expected (baseline)")
 
     # Uncertainty
     ax.fill_between(
@@ -369,7 +527,7 @@ def plot_monitoring_dashboard_amd_clean(
         y_pred - 3 * uncertainty,
         y_pred + 3 * uncertainty,
         color="blue",
-        alpha=0.2,
+        alpha=0.1,
         label="Uncertainty"
     )
 
@@ -466,79 +624,6 @@ def plot_monitoring_dashboard_amd_clean(
     plt.show()
 
 
-# MAIN PIPELINE
-def main(dir_path, amd_fn, clean_fn):
-    
-
-    df_clean, df_amd = load_data(dir_path, amd_fn, clean_fn) 
-    df_clean, df_amd = preprocess(df_clean, df_amd)
-
-    clean_feat = create_features(df_clean)
-    amd_feat = create_features(df_amd)
-
-    model = train_model(clean_feat)
-
-    y_pred = predict(model, amd_feat)
-    y_true = amd_feat["AMD_smooth"]
-
-    uncertainty = compute_uncertainty(model, clean_feat, amd_feat)
-
-    residuals = pd.Series(y_true.values - y_pred, index=amd_feat.index)
-
-    signal = y_true - AMD_THRESHOLD
-    cusum = cusum_positive(signal, CUSUM_K)
-
-    p_clean, p_trans, p_amd, regime = compute_regime(y_true, cusum)
-
-    # --- CLEAN reference (STRICT alignment) ---
-    clean_x = clean_feat.index
-    clean_y = clean_feat["AMD_smooth"]
-
-    clean_signal = clean_y - AMD_THRESHOLD
-
-    cusum_clean = cusum_positive(
-        pd.Series(clean_signal, index=clean_x),
-        CUSUM_K
-    )
-
-    _, _, _, regime_clean = compute_regime(
-        clean_y,
-        cusum_clean
-    )
-
-    # Plots
-    # plot_prediction(amd_feat.index, y_true, y_pred, uncertainty)
-    # plot_residuals(amd_feat.index, residuals, y_true)
-    # plot_cusum(cusum)
-    # plot_regime(regime)
-
-    # plot_monitoring_dashboard(
-    #     x=amd_feat.index,
-    #     y_true=y_true,
-    #     y_pred=y_pred,
-    #     uncertainty=uncertainty,
-    #     residuals=residuals,
-    #     cusum=cusum,
-    #     regime=regime
-    # )  
-
-    # plot_feature_diagnostics(amd_feat) 
-
-    # plot_feature_space(amd_feat)  
-
-    plot_monitoring_dashboard_amd_clean(
-        x=amd_feat.index,
-        y_true=y_true,
-        y_pred=y_pred,
-        uncertainty=uncertainty,
-        residuals=residuals,
-        cusum=cusum,
-        regime=regime,
-        clean_x=clean_x,
-        clean_y=clean_y, 
-        clean_regime=None
-    )  
-
 ### SPATIAL VERSION ### 
 def main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path):
 
@@ -550,28 +635,60 @@ def main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path):
     tsf_mask = load_mask(tsf_mask_path)
 
     # 3. Select pixels
-    clean_y, clean_x = select_pixel(clean_mask)
+    # clean_y, clean_x = select_pixel(clean_mask) 
+    clean_pixels = sample_pixels(clean_mask, n=100)
+    assert len(clean_pixels) > 0, "No clean pixels found in mask" 
     tsf_y, tsf_x = select_pixel(tsf_mask)
 
-    print(f"Clean pixel: {clean_y, clean_x}")
+    print(f"Number of clean pixels sampled: {len(clean_pixels)}")
+    print(f"Example clean pixels: {clean_pixels[:5]}")
     print(f"TSF pixel: {tsf_y, tsf_x}")
 
     # 4. Extract time series
-    df_clean = extract_timeseries(data, clean_y, clean_x)
+    # df_clean = extract_timeseries(data, clean_y, clean_x)
+    df_clean = extract_timeseries_multi(data, clean_pixels) 
     df_amd = extract_timeseries(data, tsf_y, tsf_x)
 
     # 5. Apply your existing pipeline
-    df_clean, df_amd = preprocess(df_clean, df_amd)
+    df_clean = preprocess_multi(df_clean)
+    _, df_amd = preprocess(df_clean.copy(), df_amd)
 
-    clean_feat = create_features(df_clean)
-    amd_feat = create_features(df_amd)
+    # clean_feat = create_features(df_clean)
+    clean_feat = create_features(df_clean) 
+    # amd_feat = create_features(df_amd)
+    amd_feat = create_features(df_amd.assign(pixel_id=0))
 
-    model = train_model(clean_feat)
+    # quick test 
+    print(clean_feat["AMD_smooth"].max())
+    print(amd_feat["lag1"].max())
 
-    y_pred = predict(model, amd_feat)
-    y_true = amd_feat["AMD_smooth"]
+    # columns to normalize
+    feature_cols = [
+        "lag1", "lag2", "ratio",
+        "diff1", "diff2", "acc",
+        "rolling_mean", "local_std"
+    ]
 
-    uncertainty = compute_uncertainty(model, clean_feat, amd_feat)
+    target_col = ["AMD_smooth"]
+
+    all_cols = feature_cols + target_col
+
+    # --- OPTION 4: CLEAN BASELINE ---
+
+    # aggregate ALL clean pixels into one seasonal signal
+    clean_series = df_clean.copy()
+    clean_series["AMD_smooth"] = clean_series["AMD_smooth"]
+
+    baseline, upper = build_clean_baseline(clean_series)
+
+    # map to AMD timeline
+    y_pred, uncertainty = apply_clean_baseline(
+        baseline,
+        upper,
+        amd_feat.index
+    )    
+    
+    y_true = amd_feat["AMD_smooth"] 
 
     residuals = pd.Series(y_true.values - y_pred, index=amd_feat.index)
 
@@ -591,7 +708,9 @@ def main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path):
         regime=regime,
         clean_x=clean_feat.index,
         clean_y=clean_feat["AMD_smooth"],
-        clean_regime=None
+        clean_regime=None, 
+        AMD_THRESHOLD=AMD_THRESHOLD,
+        CUSUM_H=CUSUM_H
     )
 
 
