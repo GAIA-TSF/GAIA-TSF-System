@@ -89,6 +89,7 @@ class TestModules:
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
+            path_number=147,
         )
 
         assert isinstance(result, GeoDataFrame)
