@@ -50,51 +50,28 @@ class TestSentinel1Workflow:
         """Test project configuration."""
         assert config.is_valid() is True
 
-    def test_download_sentinel1_slc(self, config):
-        """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
+    def test_download_sentinel1_bursts(self, config):
+        """Test EOU Data Acquisition Gateway to download Sentinel-1 BURST data."""
         search_filter = {
-            'provider': 'cop_dataspace',
             'start': '2022-01-01',
             'end': '2022-01-31',
-            'productType': 'S1_SAR_SLC',
-            'orbitDirection': 'ascending',
+            'orbitDirection': 'A',
         }
 
-        module = DataAcquisitionGateway()
+        module = DataAcquisitionGateway(backend='asf')
+        aoi = loads(config['project']['aoi']['geom'])
         results = module.backend.search(
-            geom=config['project']['aoi']['geom'],
-            **search_filter,
+            aoi=aoi,
+            start=search_filter['start'],
+            end=search_filter['end'],
+            direction=search_filter['orbitDirection'],
         )
+        assert results is not None
         assert len(results) > 0
 
-        data_path = None
-        try:
-            data_path = module.backend.download(
-                results[0], target_dir='sentinel1', quicklook=False
-            )
-            assert Path(data_path).exists()
-        finally:
-            if data_path and Path(data_path).exists():
-                Path(data_path).unlink()
-
-    def test_000a_search_bursts(self, pipeline, config):
-        aoi = loads(config['project']['aoi']['geom'])
-        pipeline._search_bursts(aoi, '2022-01-01', '2022-01-31', 'A')
-        assert pipeline.bursts is not None
-        assert len(pipeline.bursts) > 0
-
-    def test_000b_download_bursts(self, pipeline, config):
-        if pipeline.bursts is None:
-            aoi = loads(config['project']['aoi']['geom'])
-            pipeline._search_bursts(aoi, '2022-01-01', '2022-01-31', 'A')
-            assert pipeline.bursts is not None
-            assert len(pipeline.bursts) > 0
-
-        data_dir = config['project']['data_dir']
-        pipeline._download_bursts('username', 'password', data_dir)
-        assert any(
-            item.is_dir() and 'IW' in item.name for item in Path(data_dir).iterdir()
-        )
+        target_dir = Path(config['project']['data_dir']).resolve()
+        datadir = module.backend.download(results, target_dir=target_dir)
+        assert any(datadir.iterdir())
 
     def test_001_download_orbits(self, pipeline, config):
         """Test downloading orbit files for Sentinel-1 SLC data."""

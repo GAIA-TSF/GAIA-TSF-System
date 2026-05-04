@@ -1,7 +1,7 @@
 from .base import PreprocessingBasePipeline
 
 from pathlib import Path
-from pygmtsar import ASF, S1, Tiles, Stack
+from pygmtsar import S1, Tiles, Stack
 import dask
 from dask.distributed import Client
 from collections import defaultdict
@@ -17,7 +17,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bursts = None
         self.client = None
         self.s1 = None
         self.stack = None
@@ -41,33 +40,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.client.close()
-
-    def _search_bursts(self, aoi, start, end, direction):
-        """Search Sentinel-1 BURST data intersecting with chosen AOI using ASF.
-
-        :param str aoi: WKT string representing the area of interest.
-        :param str start: Start time for search in 'yyyy-mm-dd' format.
-        :param str end: End time for search in 'yyyy-mm-dd' format.
-        :param str direction: Flight direction of Sentinel-1 satellites ('A' - ascending, 'D' - descending).
-        :return: None
-        """
-        all_bursts = ASF.search(
-            aoi, startTime=start, stopTime=end, flightDirection=direction
-        )
-        best_orbit = all_bursts['pathNumber'].value_counts().idxmax()
-        self.bursts = all_bursts[all_bursts['pathNumber'] == best_orbit]
-
-    def _download_bursts(self, username, password, datadir):
-        """Download searched Sentinel-1 BURST data using ASF.
-
-        :param str username: Username for ASF.
-        :param str password: Password for ASF.
-        :param str datadir: Directory path to save the data.
-        :return: None
-        """
-        burst_ids = self.bursts.fileID.tolist()
-        asf = ASF(username, password)
-        asf.download(datadir, burst_ids)
 
     def _download_orbits(self, datadir):
         """Download precise orbit files for Sentinel-1 BURST data.
