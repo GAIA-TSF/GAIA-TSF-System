@@ -67,7 +67,6 @@ class TestSentinel1Workflow:
         )
         assert len(results) > 0
 
-
         data_path = None
         try:
             data_path = module.backend.download(
@@ -138,25 +137,25 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
             assert pipeline.client is not None
             assert isinstance(pipeline.client, Client)
-            assert pipeline.client.status == "running"
+            assert pipeline.client.status == 'running'
 
             worker_info = pipeline.client.scheduler_info()['workers']
             assert len(worker_info) == 2
 
             def square(x):
-                return x ** 2
+                return x**2
 
             future = pipeline.client.submit(square, 10)
             result = future.result()
             assert result == 100
 
-        assert pipeline.client is None or pipeline.client.status == "closed"
+        assert pipeline.client is None or pipeline.client.status == 'closed'
 
     def test_005_stack_scenes(self, pipeline, config):
         """Test stacking Sentinel-1 SLC data."""
@@ -200,13 +199,13 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
             pipeline._load_dem_and_landmask(aoi)
-            assert (work_dir / "landmask.nc").exists()
-            assert (work_dir / "DEM_WGS84.nc").exists()
+            assert (work_dir / 'landmask.nc').exists()
+            assert (work_dir / 'DEM_WGS84.nc').exists()
             assert pipeline.dem_masked is not None
 
     def test_008_align_images(self, pipeline, config):
@@ -228,7 +227,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -260,7 +259,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -289,7 +288,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -321,7 +320,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -353,7 +352,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -391,7 +390,7 @@ class TestSentinel1Workflow:
             'silence_logs': 'CRITICAL',
             'n_workers': 2,
             'threads_per_worker': 2,
-            'memory_limit': '6GB'
+            'memory_limit': '6GB',
         }
         with pipeline:
             pipeline._run_dask_cluster(**dask_kwargs)
@@ -403,7 +402,7 @@ class TestSentinel1Workflow:
             pipeline._unwrap_interferograms()
             pipeline._detrend_phase()
             assert pipeline.detrend is not None
-            assert "pair" in pipeline.detrend.dims
+            assert 'pair' in pipeline.detrend.dims
             val = pipeline.detrend.isel(pair=0).mean().compute()
             assert not np.isnan(val)
 
