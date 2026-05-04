@@ -67,14 +67,13 @@ class TestSentinel1Workflow:
         )
         assert len(results) > 0
 
-        output_directory = config['project']['data_dir']  # TODO -> GaiaBase
-        data_path = None
 
+        data_path = None
         try:
-            ql_path = module.backend.download(
+            data_path = module.backend.download(
                 results[0], target_dir='sentinel1', quicklook=False
             )
-            assert Path(ql_path).exists()
+            assert Path(data_path).exists()
         finally:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()
