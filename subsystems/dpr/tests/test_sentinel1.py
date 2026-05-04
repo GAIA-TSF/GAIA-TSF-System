@@ -16,7 +16,7 @@ from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 @pytest.fixture(scope='class')
 def pipeline():
     module = PreprocessingPipelines()
-    return module.pipeline['sentinel1']
+    return module.pipelines['sentinel1']
 
 
 @pytest.fixture(scope='class')
