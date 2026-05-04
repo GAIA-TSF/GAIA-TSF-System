@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - develop
+    paths:
+      - "**.py"
+      - ".github/workflows/code-quality.yml"
+      - "ruff.toml"
   pull_request:
-    # disabled, see https://github.com/GAIA-TSF/GAIA-TSF-System/issues/216
-    # paths:
-    #   - "**.py"
-    #   - ".github/workflows/code-quality.yml"
-    #   - "ruff.toml"
+    paths:
+      - "**.py"
+      - ".github/workflows/code-quality.yml"
+      - "ruff.toml"
 
 jobs:
   ruff-fix:
@@ -17,6 +20,7 @@ jobs:
     if: startsWith(github.head_ref, 'automated-ruff-fixes') == false
     permissions:
       # grant GITHUB_TOKEN write permission to create a PR
+      actions: write
       contents: write
       pull-requests: write
 

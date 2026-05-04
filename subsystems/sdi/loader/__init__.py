@@ -261,20 +261,6 @@ class InSituDataLoader(SdiLoader):
                         # Bulk load CSV
                         csv_path = os.path.join(self.temp_dir, href)
 
-                        query = sql.SQL(
-                            'COPY {} ({}) FROM STDIN WITH CSV HEADER'
-                        ).format(
-                            table_ident,
-                            sql.SQL(', ').join(
-                                sql.Identifier(c['name']) for c in columns
-                            ),
-                        )
-
-                        with open(csv_path, 'rb') as f:
-                            with cur.copy(query) as copy:
-                                while data := f.read(8192):
-                                    copy.write(data)
-
                         copy_query = sql.SQL(
                             'COPY {} ({}) FROM STDIN WITH CSV HEADER'
                         ).format(
@@ -290,13 +276,14 @@ class InSituDataLoader(SdiLoader):
                                     copy.write(data)
 
                         # Update geom column
-
-                        sql.SQL(
-                            """
-                            UPDATE {}
-                            SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                            """
-                        ).format(table_ident)
+                        cur.execute(
+                            sql.SQL(
+                                """
+                                UPDATE {}
+                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                                """
+                            ).format(table_ident)
+                        )
 
                         # Create spatial index
                         cur.execute(
