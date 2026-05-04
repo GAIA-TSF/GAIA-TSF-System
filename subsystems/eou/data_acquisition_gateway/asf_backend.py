@@ -9,7 +9,13 @@ from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisition
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
     def search(
-        self, aoi: str | BaseGeometry, start: str, end: str, direction: str, path_number: int | None = None, **kwargs
+        self,
+        aoi: str | BaseGeometry,
+        start: str,
+        end: str,
+        direction: str,
+        path_number: int | None = None,
+        **kwargs,
     ) -> GeoDataFrame:
         """Search for Sentinel-1 BURST data using ASF backend.
 
