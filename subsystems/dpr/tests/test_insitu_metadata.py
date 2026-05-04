@@ -5,24 +5,11 @@ Covers InsituDataset, InsituStacItemFactory, and MetadataGenerator for CSV datas
 """
 
 import os
-import sys
 import tempfile
-import types
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
-
-# Stub out osgeo so generator.py can be imported without GDAL installed
-for _mod in ('osgeo', 'osgeo.gdal', 'osgeo.osr'):
-    sys.modules.setdefault(_mod, types.ModuleType(_mod))
-_gdal = sys.modules['osgeo.gdal']
-if not hasattr(_gdal, 'UseExceptions'):
-    _gdal.UseExceptions = lambda: None  # type: ignore[attr-defined]
-
-_sqlalchemy = types.ModuleType('sqlalchemy')
-_sqlalchemy.create_engine = MagicMock()  # type: ignore[attr-defined]
-sys.modules.setdefault('sqlalchemy', _sqlalchemy)
 
 from subsystems.dpr.metadata_processor.generator import (
     InsituDataset,
