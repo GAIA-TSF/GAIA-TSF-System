@@ -383,5 +383,96 @@ class TestSentinel1Workflow:
             val = pipeline.detrend.isel(pair=0).mean().compute()
             assert not np.isnan(val)
 
+    def test_014_compute_displacement(self, pipeline, config):
+        """Test computing displacements."""
+        aoi = loads(config['project']['aoi']['geom'])
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        if pipeline.dem is None:
+            dem_path = data_dir / 'dem.nc'
+            pipeline._download_dem(aoi, dem_path)
+        if pipeline.landmask is None:
+            landmask_path = data_dir / 'landmask.nc'
+            pipeline._download_landmask(aoi, landmask_path)
+        if pipeline.sbas is None:
+            pipeline._stack_scenes(data_dir, work_dir)
+            pipeline._reframe_scenes(aoi)
+
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '6GB',
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            pipeline._load_dem_and_landmask(aoi)
+            pipeline._align_images()
+            pipeline._geocoding_transform()
+            pipeline._find_optimal_network()
+            pipeline._compute_interferograms()
+            pipeline._unwrap_interferograms()
+            pipeline._detrend_phase()
+            pipeline._compute_displacement()
+            assert pipeline.disp_ll is not None
+            assert pipeline.rmse is not None
+            assert "lat" in pipeline.disp_ll.coords
+            assert "lon" in pipeline.disp_ll.coords
+            assert not pipeline.disp_ll.isnull().all()
+            assert pipeline.rmse.min() >= 0
+            t_dim = next((d for d in pipeline.disp_ll.dims if d in ("date", "time", "epoch")), None)
+            assert t_dim is not None
+            assert len(pipeline.disp_ll[t_dim]) > 1
+            first_step = pipeline.disp_ll.isel({t_dim: 0})
+            assert (first_step == 0).any() or first_step.isnull().all()
+
+    def test_015_compute_risk(self, pipeline, config):
+        """Test computing risk map."""
+        aoi = loads(config['project']['aoi']['geom'])
+        data_dir = Path(config['project']['data_dir'])
+        work_dir = data_dir / 'workdir'
+        if pipeline.dem is None:
+            dem_path = data_dir / 'dem.nc'
+            pipeline._download_dem(aoi, dem_path)
+        if pipeline.landmask is None:
+            landmask_path = data_dir / 'landmask.nc'
+            pipeline._download_landmask(aoi, landmask_path)
+        if pipeline.sbas is None:
+            pipeline._stack_scenes(data_dir, work_dir)
+            pipeline._reframe_scenes(aoi)
+
+        dask_kwargs = {
+            'silence_logs': 'CRITICAL',
+            'n_workers': 2,
+            'threads_per_worker': 2,
+            'memory_limit': '8GB',
+        }
+        with pipeline:
+            pipeline._run_dask_cluster(**dask_kwargs)
+            pipeline._load_dem_and_landmask(aoi)
+            pipeline._align_images()
+            pipeline._geocoding_transform()
+            pipeline._find_optimal_network()
+            pipeline._compute_interferograms()
+            pipeline._unwrap_interferograms()
+            pipeline._detrend_phase()
+            pipeline._compute_displacement()
+            pipeline._compute_risk()
+            assert pipeline.risk_map is not None
+            assert not pipeline.risk_map.isnull().all()
+            assert pipeline.failure_flag is not None
+            assert pipeline.risk_map.dims == pipeline.disp_ll.isel(date=0, drop=True).dims
+            assert np.allclose(pipeline.risk_map.lat.values, pipeline.disp_ll.lat.values)
+            assert np.allclose(pipeline.risk_map.lon.values, pipeline.disp_ll.lon.values)
+            risk_min = pipeline.risk_map.min().compute()
+            risk_max = pipeline.risk_map.max().compute()
+            assert risk_min >= 0
+            assert risk_max <= 9
+            unique_flags = np.unique(pipeline.failure_flag.compute())
+            assert all(flag in [0, 1] for flag in unique_flags)
+            high_risk_areas = pipeline.risk_map.where(pipeline.failure_flag == 1)
+            if not high_risk_areas.isnull().all():
+                assert high_risk_areas.min(skipna=True) >= 6
+
     def test_run_workflow(self, pipeline, config):
         pass
