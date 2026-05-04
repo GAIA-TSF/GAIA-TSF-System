@@ -61,7 +61,7 @@ class TestSentinel1Workflow:
         }
 
         module = DataAcquisitionGateway()
-        results = module.search(
+        results = module.backend.search(
             geom=config['project']['aoi']['geom'],
             **search_filter,
         )
@@ -71,10 +71,10 @@ class TestSentinel1Workflow:
         data_path = None
 
         try:
-            data_path = module.download(
-                results[0], quicklook=False, output_dir=output_directory
+            ql_path = module.backend.download(
+                results[0], target_dir='sentinel1', quicklook=False
             )
-            assert Path(data_path).exists()
+            assert Path(ql_path).exists()
         finally:
             if data_path and Path(data_path).exists():
                 Path(data_path).unlink()

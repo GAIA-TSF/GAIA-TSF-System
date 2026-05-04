@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - develop
+    paths:
+      - "**.py"
+      - ".github/workflows/code-quality.yml"
+      - "ruff.toml"
   pull_request:
     paths:
       - "**.py"
@@ -16,6 +20,7 @@ jobs:
     if: startsWith(github.head_ref, 'automated-ruff-fixes') == false
     permissions:
       # grant GITHUB_TOKEN write permission to create a PR
+      actions: write
       contents: write
       pull-requests: write
 

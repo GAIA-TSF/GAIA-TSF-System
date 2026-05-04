@@ -1,4 +1,4 @@
-from .base import BasePipeline
+from .base import PreprocessingBasePipeline
 
 from pathlib import Path
 from pygmtsar import ASF, S1, Tiles, Stack
@@ -7,10 +7,11 @@ from dask.distributed import Client
 from collections import defaultdict
 import numpy as np
 
-class Sentinel1Pipeline(BasePipeline):
+class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
+        'params': {},
     }
 
     def __init__(self, *args, **kwargs):
@@ -299,5 +300,7 @@ class Sentinel1Pipeline(BasePipeline):
         # 4. Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
 
-    def run(self):
-        pass
+    def _run(self):
+        self._build_sbas_stack()
+        self._reframe_sbas
+        # ...

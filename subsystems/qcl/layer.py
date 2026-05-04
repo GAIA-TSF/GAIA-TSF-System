@@ -5,25 +5,51 @@ from typing import Dict, Any, List, Tuple
 from .logger import Logger
 
 from lib.base import GaiaBase, SubsystemId
+from lib.dispatcher import (
+    SdiOutputDispatcher,
+    NotificationDispatcher,
+    VidOutputDispatcher,
+)
+
+
+_DEFAULT_RULES: Dict[str, Any] = {
+    'in_situ': {
+        'require_unique_id': True,
+        'ph_range': {'min': 0, 'max': 14},
+        'do_range': {'min': 0, 'max': 20},
+        'conductivity_range': {'min': 0, 'max': 5000},
+        'turbidity_range': {'min': 0, 'max': 1000},
+        'temperature_range': {'min': -5, 'max': 50},
+    },
+    'eo_raster': {
+        'max_null_pixels': 0.02,
+        'min_snr': 30,
+        'require_geo_alignment': True,
+    },
+}
+
+# Mapping from column name keywords to rule keys
+_COLUMN_RULE_MAP: Dict[str, str] = {
+    'ph': 'ph_range',
+    'do': 'do_range',
+    'conductivity': 'conductivity_range',
+    'turbidity': 'turbidity_range',
+    'temperature': 'temperature_range',
+}
 
 
 class RuleRepository:
     """
     Rule Repository module to define thresholds specific to each data type.
+    Rules are loaded from config.yaml (qcl.validation_rules) with hardcoded
+    defaults as fallback.
     """
 
-    def __init__(self):
-        self._rules = {
-            'in_situ': {
-                'ph_range': {'min': 0, 'max': 14},
-                'require_unique_id': True,
-            },
-            'eo_raster': {
-                'max_null_pixels': 0.02,
-                'min_snr': 30,
-                'require_geo_alignment': True,
-            },
-        }
+    def __init__(self, settings: Any = None):
+        config_rules = {}
+        if settings:
+            config_rules = settings.get('qcl', {}).get('validation_rules', {})
+        self._rules = {**_DEFAULT_RULES, **config_rules}
 
     def get_rules(self, data_type: str) -> Dict[str, Any]:
         """
@@ -109,8 +135,10 @@ class InSituQualityController:
         status = 'Pass'
         errors = []
         actions_applied = [
-            'Missing Values Check',
             'Unique ID Check',
+            'Office Record Detection (metadata or QC=0+PLATFORM=*OFFICE*)',
+            'Sensor Fault Detection (QC=0+PLATFORM!=*OFFICE*)',
+            'Sensor NaN Check',
             'Physical Range Check',
         ]
 
@@ -119,12 +147,88 @@ class InSituQualityController:
             status = 'Fail'
             errors.append('Duplicate identifiers found.')
 
-        # 2. Check Physical Ranges (e.g., pH)
-        if 'ph' in df.columns:
-            ph_rule = self._rules.get('ph_range', {'min': 0, 'max': 14})
-            if not df['ph'].between(ph_rule['min'], ph_rule['max']).all():
-                status = 'Fail'
-                errors.append('pH values out of 0-14 physical range.')
+        # 2. Identify office-interpreted records
+        # Primary: read from metadata['ingestion']['data_source'] set by ISU.
+        # TODO: ISU to populate data_source field (pending PR review).
+        # Fallback: detect via QC=0 + PLATFORM=*OFFICE* columns for datasets
+        # that include these fields (e.g. Lukáš's water quality format).
+        if metadata.get('ingestion', {}).get('data_source') == 'office_interpreted':
+            if status != 'Fail':
+                status = 'Warn'
+            errors.append(
+                'Office-interpreted record (data_source=office_interpreted): '
+                'no measurements available, skipping range checks.'
+            )
+            metrics = self._metrics_engine.compute_in_situ_metrics(df)
+            return status, metrics, errors, actions_applied
+
+        qc_col = next((c for c in df.columns if c.upper() == 'QC'), None)
+        platform_col = next((c for c in df.columns if c.upper() == 'PLATFORM'), None)
+
+        if qc_col and platform_col:
+            office_mask = (df[qc_col] == 0) & df[platform_col].str.contains(
+                'OFFICE', case=False, na=False
+            )
+            fault_mask = (df[qc_col] == 0) & ~df[platform_col].str.contains(
+                'OFFICE', case=False, na=False
+            )
+            sensor_mask = ~office_mask & ~fault_mask
+        else:
+            office_mask = df.index != df.index  # all False
+            fault_mask = df.index != df.index  # all False
+            sensor_mask = ~office_mask
+
+        office_count = office_mask.sum()
+        if office_count > 0:
+            if status != 'Fail':
+                status = 'Warn'
+            errors.append(
+                f'{office_count} office-interpreted row(s) (QC=0, PLATFORM=*OFFICE*): '
+                'no measurements available, skipping range checks for these rows.'
+            )
+
+        fault_count = fault_mask.sum()
+        if fault_count > 0:
+            status = 'Fail'
+            errors.append(
+                f'{fault_count} sensor fault row(s) detected (QC=0, PLATFORM!=*OFFICE*): '
+                'invalid or missing sensor data.'
+            )
+
+        # 3. Sensor rows: check for unexpected NaN (real data loss)
+        sensor_df = df[sensor_mask]
+        non_meta_cols = [
+            c
+            for c in sensor_df.columns
+            if not any(
+                k in c.lower()
+                for k in ('lat', 'lon', 'timestamp', 'date', 'platform', 'qc')
+            )
+        ]
+        if not sensor_df.empty and non_meta_cols:
+            nan_rows = sensor_df[non_meta_cols].isnull().any(axis=1).sum()
+            if nan_rows > 0:
+                if status != 'Fail':
+                    status = 'Warn'
+                errors.append(
+                    f'{nan_rows} sensor row(s) contain missing measurement values.'
+                )
+
+        # 4. Physical range checks — sensor rows only, skip NaN
+        for col in sensor_df.columns:
+            col_lower = col.lower().split(' ')[0]
+            rule_key = _COLUMN_RULE_MAP.get(col_lower)
+            if rule_key and rule_key in self._rules:
+                rule = self._rules[rule_key]
+                valid = sensor_df[col].dropna()
+                if (
+                    not valid.empty
+                    and not valid.between(rule['min'], rule['max']).all()
+                ):
+                    status = 'Fail'
+                    errors.append(
+                        f'{col} values out of range [{rule["min"]}, {rule["max"]}].'
+                    )
 
         metrics = self._metrics_engine.compute_in_situ_metrics(df)
         return status, metrics, errors, actions_applied
@@ -214,10 +318,15 @@ class QualityControlLoggingLayer(GaiaBase):
     processes and the Spatial Data Infrastructure (SDI) storage.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        sdi_service: Any = None,
+        notification_service: Any = None,
+        vid_service: Any = None,
+    ):
         super().__init__(SubsystemId.QCL)
 
-        self._rule_repo = RuleRepository()
+        self._rule_repo = RuleRepository(settings=self.settings)
         self._lineage_logger = DataLineageLogger(self.logger)
         self._notifier = ErrorNotification(self.logger)
 
@@ -235,6 +344,16 @@ class QualityControlLoggingLayer(GaiaBase):
             self.logger,
         )
 
+        # Active output dispatchers (QCL_I_1, QC_IR_04, QCL_I_2)
+        self._sdi_dispatcher = SdiOutputDispatcher(logger=self.logger)
+        self._notification_dispatcher = NotificationDispatcher(logger=self.logger)
+        self._vid_dispatcher = VidOutputDispatcher(logger=self.logger)
+
+        # Injected downstream service references
+        self._sdi_service = sdi_service
+        self._notification_service = notification_service
+        self._vid_service = vid_service
+
     def process_incoming_data(
         self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str
     ) -> Dict[str, Any]:
@@ -249,16 +368,30 @@ class QualityControlLoggingLayer(GaiaBase):
         # Always log lineage
         self._lineage_logger.log(dataset_id, actions, status)
 
-        # Trigger notification on critical failure
+        # Trigger notification on critical failure (legacy internal log)
         if status == 'Fail':
             self._notifier.send_alert(dataset_id, errors)
 
-        return {
+        qc_result = {
             'dataset_id': dataset_id,
             'final_status': status,
             'metrics': metrics,
             'errors': errors,
         }
+
+        # --- Active outputs ---
+        # QCL_I_1: Push QC result to SDI
+        self._sdi_dispatcher.dispatch(qc_result, self._sdi_service)
+
+        # QC_IR_04: Trigger NTF alert on Fail or Warn
+        self._notification_dispatcher.dispatch(
+            dataset_id, status, errors, self._notification_service
+        )
+
+        # QCL_I_2: Push health status to VID dashboard
+        self._vid_dispatcher.dispatch(qc_result, self._vid_service)
+
+        return qc_result
 
     def manual_review(
         self, dataset_id: str, action: str, new_status: str = None

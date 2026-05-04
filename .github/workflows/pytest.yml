@@ -1,4 +1,4 @@
-name: pytest
+name: Unit and integration tests
 
 on:
   push:
@@ -25,7 +25,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run ALE test suite
         run: |
@@ -44,7 +45,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run DAG test suite
         run: |
@@ -63,13 +65,16 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
+
+      - name: Update config.yaml
+        run: |
+          pip install ruamel.yaml
+          python3 .github/utils/update_config.py --password "${{secrets.CDSE_PASS}}"
 
       - name: Run DPR test suite
-        env:
-          CDSE: ${{secrets.CDSE}}
         run: |
-          echo "$CDSE" > config.yaml
           for i in $(ls subsystems/dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
@@ -85,13 +90,16 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
+
+      - name: Update config.yaml
+        run: |
+          pip install ruamel.yaml
+          python3 .github/utils/update_config.py --password "${{secrets.CDSE_PASS}}"
 
       - name: Run EOU test suite
-        env:
-          CDSE: ${{secrets.CDSE}}
         run: |
-          echo "$CDSE" > config.yaml
           for i in $(ls subsystems/eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
@@ -107,7 +115,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run ISU test suite
         run: |
@@ -126,7 +135,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run MAP test suite
         run: |
@@ -145,7 +155,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run NTF test suite
         run: |
@@ -164,7 +175,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run QCL test suite
         run: |
@@ -183,7 +195,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run REP test suite
         run: |
@@ -202,7 +215,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run SDI test suite
         run: |
@@ -221,7 +235,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run VID test suite
         run: |
@@ -240,7 +255,8 @@ jobs:
       - name: Build docker
         run: |
           cd docker
-          docker compose up --build --wait --detach
+          docker compose pull
+          docker compose up --wait --detach
 
       - name: Run general tests
         run: |

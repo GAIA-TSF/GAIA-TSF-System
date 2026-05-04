@@ -1,18 +1,16 @@
-pytest==9.0.2  # all modules
-boto3==1.42.60  # eou
-gdal==3.10.3  # eou, dpr
-requests==2.32.5  # eou, sdi
-psycopg==3.2.13  # sdi
-eodag==3.10.1 # eou
-pandas==3.0.1 # isu
-openpyxl==3.1.5 # isu
-pyyaml==6.0.3 # lib.config, eou
-shapely==2.1.2 # lib.config
-insardev==2026.3.21.post1 # dpr
-insardev_pygmtsar==2026.3.21 # dpr
-insardev_toolkit==2026.3.21 # dpr
-xarray==2026.2.0 # dpr
-rioxarray==0.22.0 # dpr
-numpy==2.4.3 # dpr
-geopandas==1.1.3 # dpr
-dask==2026.3.0 # dpr
+pytest~=9.0.2  # all modules
+boto3~=1.42.60  # eou
+gdal~=3.10.3  # eou, dpr
+requests~=2.32.5  # eou, sdi
+psycopg~=3.2.13  # sdi
+eodag~=3.10.1  # eou
+pandas~=3.0.1  # isu
+openpyxl~=3.1.5  # isu
+pyyaml~=6.0.3  # lib.config, eou
+shapely~=2.1.2  # lib.config
+sqlalchemy~=2.0.48  # qcl.logger.db
+sqlalchemy_utils~=0.42.1  # qcl.logger.db
+geopandas~=1.1.3  # eou
+pygmtsar~=2025.4.8.post1  # eou
+stactools~=0.5.3  # dpr
+stactools-sentinel2~= 0.8.0  # dpr

@@ -2,12 +2,15 @@ import os
 import requests
 
 from subsystems.qcl.logger import Logger
+from lib.base import SubsystemId
+from lib.config import SettingsReader
 
 STAC_URL = os.environ.get(
     'STAC_URL', 'http://ip-172-31-19-31.eu-central-1.compute.internal:8080'
 )
-id = 'SDI'
-logger = Logger(subsystem=id)
+logger = Logger(
+    subsystem=SubsystemId.SDI, db_config=SettingsReader()['qcl']['logger']['db']
+)
 
 
 def stac(event, context):
