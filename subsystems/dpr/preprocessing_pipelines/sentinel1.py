@@ -15,11 +15,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
-        'params': {},
+        'params': {
+            'aoi': {
+                dtype: str,
+                'description': 'POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)',
+            }
+        },
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def _configure(self):
         self.client = None
         self.s1 = None
         self.stack = None
@@ -428,6 +432,5 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         )
 
     def _run(self):
-        self._build_sbas_stack()
-        self._reframe_sbas
-        # ...
+        # self._download_dem(self.aoi, ...)
+        pass

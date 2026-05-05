@@ -484,4 +484,6 @@ class TestSentinel1Workflow:
                 assert high_risk_areas.min(skipna=True) >= 6
 
     def test_run_workflow(self, pipeline, config):
+        # pipeline.configure('WKT...', ...)
+        # pipeline.run()
         pass
