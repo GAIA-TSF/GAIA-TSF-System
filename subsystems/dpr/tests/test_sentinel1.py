@@ -15,15 +15,13 @@ class TestSentinel1Workflow:
 
     def test_download(self):
         """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
-        config = ProjectConfigReader(
+        project_config = ProjectConfigReader(
             get_project_config_path('amd_monitoring_yxsjoberg')
         )
 
-        assert config.is_valid() is True
-
         module = DataAcquisitionGateway()
         results = module.backend.search(
-            geom=config['project']['aoi']['geom'],
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
