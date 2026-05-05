@@ -5,6 +5,7 @@ from pathlib import Path
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
+from tests.utils import get_data_path
 
 
 class TestModules:
@@ -76,18 +77,11 @@ class TestModules:
             return item_dict
 
         module = MetadataGenerator()
-        module.set_datasource(
-            Path(__file__).parent.parent.parent
-            / 'eou'
-            / 'tests'
-            / 'sample_data'
-            / ('ENMAP01_sample.tif')
+        data_dir = get_data_path('eou')
+        module.set_datasource(data_dir / ('ENMAP01_sample.tif')
         )
         item_dict = module.stac.create_item()
 
-        with open(
-            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
-            'r',
-        ) as f:
+        with open(data_dir / 'ENMAP01_sample.json', 'r') as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
