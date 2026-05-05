@@ -14,6 +14,7 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from tests.utils import get_data_path
 
+
 class TestSentinel2Workflow:
     def test_sentinel2_safe_processor(self):
         """Test the Sentinel2SafeProcessor."""
