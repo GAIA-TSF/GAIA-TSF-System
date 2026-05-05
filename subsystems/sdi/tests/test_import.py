@@ -121,9 +121,9 @@ class TestEarthObservationDataLoader:
 
         md5_input = utils.file_md5(importer.raster_files[0])
         md5_downloaded = utils.file_md5(temp_file.name)
-        assert md5_input == md5_downloaded, (
-            'Downloaded file does not match the original GeoTIFF'
-        )
+        assert (
+            md5_input == md5_downloaded
+        ), 'Downloaded file does not match the original GeoTIFF'
 
     def test_failing_import(self):
         base_dir = Path(__file__).parent

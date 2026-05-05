@@ -1,41 +1,16 @@
 import shutil
 from pathlib import Path
 
-from osgeo import gdal
-
-gdal.UseExceptions()
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import SettingsReader
+from lib.config import SettingsReader, ProjectConfigReader
 from tests.utils import get_data_path
-
-def load_geom(file_path):
-    ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
-    layer = ds.GetLayer(0)
-
-    srs = layer.GetSpatialRef()
-    srs.AutoIdentifyEPSG()
-    auth = srs.GetAuthorityName(None)
-    code = srs.GetAuthorityCode(None)
-    if auth != 'EPSG' or code != '4326':
-        raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
-
-    feature = layer.GetNextFeature()
-    if feature is None:
-        ds = None
-        raise RuntimeError('No features found')
-
-    wkt = feature.GetGeometryRef().ExportToWkt()
-    ds = None
-
-    return wkt
 
 
 class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
-        'start': '2026-01-01',
-        'end': '2026-01-10',
+        'start': '2025-06-01',
+        'end': '2025-08-30',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -47,7 +22,9 @@ class TestModules:
         from subsystems.eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
-        result = module.check_file_validity(get_data_path('data/eou/ENMAP01_sample.tif'))
+        result = module.check_file_validity(
+            get_data_path('data/eou/ENMAP01_sample.tif')
+        )
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
@@ -60,10 +37,14 @@ class TestModules:
         """
         from eodag.api.search_result import SearchResult
 
+        project = ProjectConfigReader(
+            get_data_path('projects/amd_monitoring_yxsjoberg/config.yaml')
+        )
+        print(project.aoi())
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            geom=load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')),
+            geom=project.aoi(),
             **self.search_filter,
         )
 
@@ -79,7 +60,9 @@ class TestModules:
         from geopandas import GeoDataFrame
 
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg'))
+        aoi_geom = load_geom(
+            get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
+        )
         result = module.backend.search(
             aoi=aoi_geom,
             start=self.search_filter['start'],
@@ -100,7 +83,9 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')),
+            geom=load_geom(
+                get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
+            ),
             **self.search_filter,
         )
 
@@ -130,7 +115,9 @@ class TestModules:
         Test download capability using ASF backend.
         """
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg'))
+        aoi_geom = load_geom(
+            get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
+        )
         result = module.backend.search(
             aoi=aoi_geom,
             start=self.search_filter['start'],
