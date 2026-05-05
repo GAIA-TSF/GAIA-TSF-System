@@ -5,7 +5,6 @@ Tests how the Facade, Scheduler, and ETL Engine work together.
 
 import shutil
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from subsystems.isu import InSituDataUploader
