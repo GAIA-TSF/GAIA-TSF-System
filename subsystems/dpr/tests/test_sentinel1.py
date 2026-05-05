@@ -416,11 +416,14 @@ class TestSentinel1Workflow:
             pipeline._compute_displacement()
             assert pipeline.disp_ll is not None
             assert pipeline.rmse is not None
-            assert "lat" in pipeline.disp_ll.coords
-            assert "lon" in pipeline.disp_ll.coords
+            assert 'lat' in pipeline.disp_ll.coords
+            assert 'lon' in pipeline.disp_ll.coords
             assert not pipeline.disp_ll.isnull().all()
             assert pipeline.rmse.min() >= 0
-            t_dim = next((d for d in pipeline.disp_ll.dims if d in ("date", "time", "epoch")), None)
+            t_dim = next(
+                (d for d in pipeline.disp_ll.dims if d in ('date', 'time', 'epoch')),
+                None,
+            )
             assert t_dim is not None
             assert len(pipeline.disp_ll[t_dim]) > 1
             first_step = pipeline.disp_ll.isel({t_dim: 0})
@@ -461,9 +464,15 @@ class TestSentinel1Workflow:
             assert pipeline.risk_map is not None
             assert not pipeline.risk_map.isnull().all()
             assert pipeline.failure_flag is not None
-            assert pipeline.risk_map.dims == pipeline.disp_ll.isel(date=0, drop=True).dims
-            assert np.allclose(pipeline.risk_map.lat.values, pipeline.disp_ll.lat.values)
-            assert np.allclose(pipeline.risk_map.lon.values, pipeline.disp_ll.lon.values)
+            assert (
+                pipeline.risk_map.dims == pipeline.disp_ll.isel(date=0, drop=True).dims
+            )
+            assert np.allclose(
+                pipeline.risk_map.lat.values, pipeline.disp_ll.lat.values
+            )
+            assert np.allclose(
+                pipeline.risk_map.lon.values, pipeline.disp_ll.lon.values
+            )
             risk_min = pipeline.risk_map.min().compute()
             risk_max = pipeline.risk_map.max().compute()
             assert risk_min >= 0
