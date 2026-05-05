@@ -1,7 +1,6 @@
 import pytest
-from pathlib import Path
 
-from lib.config import ConfigReader, ProjectConfigReader
+from lib.config import ProjectConfigReader
 from tests.utils import get_project_config_path
 
 
