@@ -4,14 +4,12 @@ from pathlib import Path
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader, ProjectConfigReader
-from tests.utils import get_data_path
+from tests.utils import get_data_path, get_project_config_path
 
 
 @pytest.fixture(scope='class')
 def project_config():
-    return ProjectConfigReader(
-        get_data_path('projects/amd_monitoring_yxsjoberg/config.yaml')
-    )
+    return ProjectConfigReader(get_project_config_path('amd_monitoring_yxsjoberg'))
 
 
 class TestModules:
@@ -30,9 +28,7 @@ class TestModules:
         from subsystems.eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
-        result = module.check_file_validity(
-            get_data_path('data/eou/ENMAP01_sample.tif')
-        )
+        result = module.check_file_validity(get_data_path('eou/ENMAP01_sample.tif'))
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
