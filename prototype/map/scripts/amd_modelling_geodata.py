@@ -370,8 +370,126 @@ def compute_regime(y_true, cusum):
 
     return p_clean, p_trans, p_amd, regime
 
+### --- ### 
+# 3D ARRAY 
+def stack_timeseries(data):
+    """
+    Convert list of dicts into 3D arrays
+    Returns:
+        amd_stack: (T, H, W)
+        cloud_stack: (T, H, W)
+        dates: list
+        meta: raster metadata
+    """
+    imgs = []
+    clouds = []
+    dates = []
+
+    for d in data:
+        img = d["img"]
+        cloud = d["cloud"]
+
+        B2 = img[1]
+        B4 = img[3]
+
+        amd = B4 / (B2 + 1e-6)
+
+        imgs.append(amd)
+        clouds.append(cloud)
+        dates.append(d["date"])
+
+    amd_stack = np.stack(imgs)       # (T, H, W)
+    cloud_stack = np.stack(clouds)
+
+    return amd_stack, cloud_stack, dates
+
+def preprocess_stack(amd_stack, cloud_stack):
+    amd_stack = amd_stack.copy()
+
+    amd_stack[cloud_stack == 1] = np.nan
+
+    # interpolate over time (vectorized)
+    T, H, W = amd_stack.shape
+
+    for i in range(H):
+        for j in range(W):
+            ts = amd_stack[:, i, j]
+
+            if np.all(np.isnan(ts)):
+                continue
+
+            s = pd.Series(ts).interpolate(limit_direction="both")
+            amd_stack[:, i, j] = s.values
+
+    return amd_stack
+
+def apply_baseline_stack(amd_stack, dates, baseline, upper):
+    T, H, W = amd_stack.shape
+
+    doy = np.array([d.timetuple().tm_yday for d in dates])
+
+    baseline_vals = baseline.reindex(doy).values
+    upper_vals = upper.reindex(doy).values
+
+    # expand to spatial
+    baseline_3d = baseline_vals[:, None, None]
+    upper_3d = upper_vals[:, None, None]
+
+    anomaly = amd_stack - baseline_3d
+    uncertainty = upper_3d - baseline_3d
+
+    return anomaly, uncertainty
+
+def cusum_stack(anomaly, k):
+    T, H, W = anomaly.shape
+
+    S = np.zeros_like(anomaly)
+
+    for t in range(1, T):
+        S[t] = np.maximum(
+            0,
+            S[t-1] + (anomaly[t] - k)
+        )
+
+    return S
+
+def regime_stack(amd_stack, cusum):
+    amd_excess = np.maximum(0, amd_stack - AMD_THRESHOLD)
+
+    p_amd_raw = 1 / (1 + np.exp(-3 * (amd_stack - AMD_THRESHOLD)))
+    p_amd = 0.7 * p_amd_raw + 0.3 * np.clip(cusum / CUSUM_H, 0, 1)
+
+    p_clean = np.exp(-amd_stack / 0.8)
+    p_trans = (1 - p_clean) * (1 - p_amd)
+
+    total = p_clean + p_trans + p_amd
+
+    p_clean /= total
+    p_trans /= total
+    p_amd /= total
+
+    return p_clean, p_trans, p_amd
+
+def save_geotiff_series(output_dir, template_path, data_stack, dates, prefix):
+    with rasterio.open(template_path) as src:
+        meta = src.meta.copy()
+
+    meta.update(count=1, dtype="float32")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    for i, date in enumerate(dates):
+        out_path = os.path.join(
+            output_dir,
+            f"{prefix}_{date.strftime('%Y%m%d')}.tif"
+        )
+
+        with rasterio.open(out_path, "w", **meta) as dst:
+            dst.write(data_stack[i].astype("float32"), 1)
 
 
+
+### --- ### 
 # PLOTTING
 def plot_feature_diagnostics(feat_df):
     import matplotlib.pyplot as plt
@@ -713,6 +831,47 @@ def main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path):
         CUSUM_H=CUSUM_H
     )
 
+def main_spatial_full(tif_dir, cloud_dir, clean_mask_path, output_dir):
+
+    print(f'[INFO] Loading data.')
+    data = load_geotiff_series(tif_dir, cloud_dir)
+
+    # STACK
+    print(f'[INFO] Stacking spatiotemporal data.') 
+    amd_stack, cloud_stack, dates = stack_timeseries(data)
+
+    # PREPROCESS
+    print(f'[INFO] Preprocessing stacks.')
+    amd_stack = preprocess_stack(amd_stack, cloud_stack)
+
+    # CLEAN BASELINE
+    clean_mask = load_mask(clean_mask_path)
+
+    clean_pixels = amd_stack[:, clean_mask > 0]
+    clean_series = pd.DataFrame({
+        "AMD_smooth": np.nanmedian(clean_pixels, axis=1)
+    }, index=pd.to_datetime(dates))
+
+    baseline, upper = build_clean_baseline(clean_series)
+
+    # APPLY BASELINE
+    anomaly, uncertainty = apply_baseline_stack(
+        amd_stack, dates, baseline, upper
+    )
+
+    # CUSUM
+    cusum = cusum_stack(anomaly, CUSUM_K)
+
+    # REGIME
+    _, _, p_amd = regime_stack(amd_stack, cusum)
+
+    # SAVE OUTPUTS
+    template = glob.glob(os.path.join(tif_dir, "*.tif"))[0]
+
+    save_geotiff_series(output_dir, template, anomaly, dates, "anomaly")
+    save_geotiff_series(output_dir, template, cusum, dates, "cusum")
+    save_geotiff_series(output_dir, template, p_amd, dates, "p_amd") 
+
 
 if __name__ == "__main__":
     # csv data 
@@ -730,5 +889,12 @@ if __name__ == "__main__":
     clean_mask_path = os.path.join(static_dir, 'yxsjoberg_clean_water_mask.tif')
     tsf_mask_path = os.path.join(static_dir, 'yxsjoberg_tsf_water_mask.tif')
 
-    main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path) 
+    # results
+    output_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/monitoring'
+
+    main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path)
+
+    # main_spatial_full(tif_dir, cloud_dir, clean_mask_path, output_dir)   
+
+
 
