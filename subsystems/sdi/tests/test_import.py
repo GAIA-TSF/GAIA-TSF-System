@@ -13,6 +13,9 @@ from lib.config import SettingsReader
 
 from config import INSITU_COLLECTION, INSITU_ITEM_ID
 from config import EO_COLLECTION, EO_ITEM_ID
+from tests.utils import get_data_path
+
+TEST_DATA_DIR = get_data_path('sdi')
 
 
 class TestInSituDataLoader:
@@ -26,8 +29,7 @@ class TestInSituDataLoader:
     def test_import(self, db_connection):
         utils = SdiUtils()
 
-        base_dir = Path(__file__).parent
-        zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
+        zip_path = TEST_DATA_DIR / 'isu_sample_data.zip'
 
         assert zip_path.exists()
 
@@ -49,8 +51,7 @@ class TestInSituDataLoader:
     def test_import_append_data(self, db_connection):
         utils = SdiUtils()
 
-        base_dir = Path(__file__).parent
-        zip_path = base_dir / 'assets' / 'isu_sample_data.zip'
+        zip_path = TEST_DATA_DIR / 'isu_sample_data.zip'
 
         assert zip_path.exists()
 
@@ -75,8 +76,7 @@ class TestEarthObservationDataLoader:
     def test_import_via_stac(self):
         utils = SdiUtils()
 
-        base_dir = Path(__file__).parent
-        zip_path = base_dir / 'assets' / 'eou_sample_data.zip'
+        zip_path = TEST_DATA_DIR / 'eou_sample_data.zip'
         assert zip_path.exists()
 
         # Run the import: uploads raster to S3 and updates STAC
@@ -121,13 +121,12 @@ class TestEarthObservationDataLoader:
 
         md5_input = utils.file_md5(importer.raster_files[0])
         md5_downloaded = utils.file_md5(temp_file.name)
-        assert md5_input == md5_downloaded, (
-            'Downloaded file does not match the original GeoTIFF'
-        )
+        assert (
+            md5_input == md5_downloaded
+        ), 'Downloaded file does not match the original GeoTIFF'
 
     def test_failing_import(self):
-        base_dir = Path(__file__).parent
-        zip_path = base_dir / 'assets' / 'eou_sample_data_bad_metadata.zip'
+        zip_path = TEST_DATA_DIR / 'eou_sample_data_bad_metadata.zip'
         assert zip_path.exists()
 
         importer = EarthObservationDataLoader(zip_path=zip_path)
