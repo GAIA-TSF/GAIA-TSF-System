@@ -7,7 +7,7 @@ gdal.UseExceptions()
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader
-
+from tests.utils import get_data_path
 
 def load_geom(file_path):
     ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
@@ -39,10 +39,6 @@ class TestModules:
         'productType': 'S2_MSI_L2A',
     }
 
-    @staticmethod
-    def _get_data_path(filename):
-        return str(Path(__file__).parent / 'sample_data' / filename)
-
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
 
@@ -51,7 +47,7 @@ class TestModules:
         from subsystems.eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
-        result = module.check_file_validity(self._get_data_path('ENMAP01_sample.tif'))
+        result = module.check_file_validity(get_data_path('data/eou/ENMAP01_sample.tif'))
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
@@ -67,7 +63,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            geom=load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')),
             **self.search_filter,
         )
 
@@ -83,7 +79,7 @@ class TestModules:
         from geopandas import GeoDataFrame
 
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        aoi_geom = load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg'))
         result = module.backend.search(
             aoi=aoi_geom,
             start=self.search_filter['start'],
@@ -104,7 +100,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            geom=load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')),
             **self.search_filter,
         )
 
@@ -134,7 +130,7 @@ class TestModules:
         Test download capability using ASF backend.
         """
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
+        aoi_geom = load_geom(get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg'))
         result = module.backend.search(
             aoi=aoi_geom,
             start=self.search_filter['start'],
