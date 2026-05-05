@@ -158,10 +158,6 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
             raise RuntimeError('AOI: Only one feature expected')
 
         srs = layer.GetSpatialRef()
-        srs.AutoIdentifyEPSG()
-        auth = srs.GetAuthorityName(None)
-        code = srs.GetAuthorityCode(None)
-
         target_srs = osr.SpatialReference()
         target_srs.ImportFromEPSG(target_epsg)
         target_srs.SetAxisMappingStrategy(
