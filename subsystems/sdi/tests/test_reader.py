@@ -46,6 +46,6 @@ class TestEarthObservationDataReader:
         md5_input = utils.file_md5(importer.raster_files[0])
         md5_downloaded = utils.file_md5(downloaded_path)
 
-        assert md5_input == md5_downloaded, (
-            'Downloaded file does not match the original GeoTIFF'
-        )
+        assert (
+            md5_input == md5_downloaded
+        ), 'Downloaded file does not match the original GeoTIFF'

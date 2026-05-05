@@ -12,6 +12,7 @@ from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.data_export import DataExporter
 from subsystems.isu import InSituDataUploader
 from subsystems.sdi.loader import EarthObservationDataLoader, InSituDataLoader
+from tests.utils import get_project_config_path
 
 
 def generate_eou_metadata_and_import(product_path, metadata_path, output_file_path):
@@ -29,6 +30,11 @@ def generate_eou_metadata_and_import(product_path, metadata_path, output_file_pa
 def create_sdi_package(product_path, metadata_path, output_file_path):
     extractor = DataExporter(product_path, metadata_path)
     extractor.create_sdi_package(output_file_path)
+
+
+@pytest.fixture(scope='class')
+def project_config():
+    return ProjectConfigReader(get_project_config_path('amd_monitoring_yxsjoberg'))
 
 
 class TestConfig:
@@ -54,7 +60,7 @@ class TestConfig:
         )
 
     @pytest.mark.skip(reason='MetadataGenerator does not support S1 so far')
-    def test_integration_EOU_002(self, tmp_path):
+    def test_integration_EOU_002(self, tmp_path, project_config):
         """Test full-system integration for S1 from EOU -> DPR -> SDI."""
         metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
         exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
@@ -67,16 +73,13 @@ class TestConfig:
             'orbitDirection': 'ascending',
         }
 
-        config = ProjectConfigReader(
-            Path(__file__).parent / 'projects' / 'jagersfontein.yml'
-        )
         credentials = 'subsystems/eou/tests/eodag_config.yml'
 
         module = DataAcquisitionGateway()
         module.set_config(credentials)
 
         results = module.search(
-            geom=config['project']['aoi']['geom'],
+            geom=project_config.aoi(),
             **search_filter,
         )
 
@@ -87,7 +90,7 @@ class TestConfig:
         )
 
     @pytest.mark.skip(reason='MetadataGenerator does not support S2 so far')
-    def test_integration_EOU_003(self, tmp_path):
+    def test_integration_EOU_003(self, tmp_path, project_config):
         """Test full-system integration for S2 from EOU -> DPR -> SDI."""
         metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
         exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
@@ -99,16 +102,13 @@ class TestConfig:
             'productType': 'S2_MSI_L2A',
         }
 
-        config = ProjectConfigReader(
-            Path(__file__).parent / 'projects' / 'jagersfontein.yml'
-        )
         credentials = 'subsystems/eou/tests/eodag_config.yml'
 
         module = DataAcquisitionGateway()
         module.set_config(credentials)
 
         results = module.search(
-            geom=config['project']['aoi']['geom'],
+            geom=project_config.aoi(),
             **search_filter,
         )
 
