@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 
 from lib.config import ConfigReader, ProjectConfigReader
@@ -30,6 +31,6 @@ class TestConfig:
         config = ProjectConfigReader(
             get_project_config_path('amd_monitoring_yxsjoberg')
         )
-        config['project']['aoi']['geom'] = 'X'
+        config['project']['aoi'] = 'X'
         config.validate(dict(config))  # re-validate config after modification
         assert config.is_valid() is False

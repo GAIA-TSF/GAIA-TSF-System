@@ -97,9 +97,12 @@ class YamlValidator:
             # opt == None -> only check existence
             if value is None:
                 errors.append(f"Key '{current_path}' must not be None.")
-            if key == 'geom':
-                if self._is_valid_wkt(value) is False:
-                    errors.append(f"Geometry in '{current_path}' is not valid.")
+            if key == 'aoi':
+                if Path(self.config_path.parent / value).exists() is False:
+                    errors.append(f"AOI '{current_path}' not found.")
+                else:
+                    if self._is_valid_wkt(self.aoi()) is False:
+                        errors.append(f"Geometry in '{current_path}' is not valid.")
 
     @staticmethod
     def _is_valid_wkt(wkt_string: str) -> bool:
@@ -138,7 +141,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         :param str config_path: path to config file
         """
         ConfigReader.__init__(self, config_path)
-        YamlValidator.__init__(self, {'project': {'name': None, 'aoi': {'geom': None}}})
+        YamlValidator.__init__(self, {'project': {'name': None, 'aoi': None}})
 
         self.validate(dict(self))
 
