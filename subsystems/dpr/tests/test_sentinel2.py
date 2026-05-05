@@ -103,9 +103,9 @@ class TestSentinel2Workflow:
 
         # Checks if Geotiff was produced with all the bands and according to inputs
         ds = gdal.Open(tiff_path, gdal.GA_Update)
-        assert (
-            ds.RasterCount == 13
-        ), 'The Geotiff does not contain the right amount of bands.'
+        assert ds.RasterCount == 13, (
+            'The Geotiff does not contain the right amount of bands.'
+        )
 
         # Check if output resolution is same as input
         gt = ds.GetGeoTransform()
@@ -185,17 +185,17 @@ class TestSentinel2Workflow:
             processed_metadata = json.load(f)
 
         # Check if the 'cloud_cover_pct' key exists
-        assert (
-            'cloud_cover_pct' in processed_metadata
-        ), "Key 'cloud_cover_pct' missing from metadata."
+        assert 'cloud_cover_pct' in processed_metadata, (
+            "Key 'cloud_cover_pct' missing from metadata."
+        )
 
         # Check if the value is a valid number between 0 and 1
         cloud_pct = processed_metadata['cloud_cover_pct']
-        assert isinstance(
-            cloud_pct, (int, float)
-        ), f'Expected number for cloud cover, got {type(cloud_pct)}'
-        assert (
-            0 <= cloud_pct <= 1
-        ), f'Cloud cover percentage {cloud_pct} is out of bounds (0-1).'
+        assert isinstance(cloud_pct, (int, float)), (
+            f'Expected number for cloud cover, got {type(cloud_pct)}'
+        )
+        assert 0 <= cloud_pct <= 1, (
+            f'Cloud cover percentage {cloud_pct} is out of bounds (0-1).'
+        )
 
         print(f'Test Passed: Cloud cover derived from SCL band is {cloud_pct}%')
