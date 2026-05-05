@@ -15,17 +15,16 @@ class TestModules:
         """
         module = PreprocessingPipelines()
         data = module.metadata
-        assert (
-            isinstance(data, dict)
-            and all(
-                isinstance(k, str)
-                and isinstance(v, dict)
-                and isinstance(v.get('title'), str)
-                and isinstance(v.get('abstract'), str)
-                and isinstance(v.get('params'), dict)
-                for k, v in data.items()
-            )
-        ), "Invalid structure: expected {str: {'title': str, 'abstract': str, 'params': dict}}"
+        assert isinstance(data, dict) and all(
+            isinstance(k, str)
+            and isinstance(v, dict)
+            and isinstance(v.get('title'), str)
+            and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
+            for k, v in data.items()
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'params': dict}}"
+        )
 
         assert len(module.pipelines) > 0
         for name, pipeline in module.pipelines.items():
@@ -40,17 +39,16 @@ class TestModules:
         """
         module = DataAnalysisPipelines()
         data = module.metadata
-        assert (
-            isinstance(data, dict)
-            and all(
-                isinstance(k, str)
-                and isinstance(v, dict)
-                and isinstance(v.get('title'), str)
-                and isinstance(v.get('abstract'), str)
-                and isinstance(v.get('params'), dict)
-                for k, v in data.items()
-            )
-        ), "Invalid structure: expected {str: {'title': str, 'abstract': str, 'param': dict}}"
+        assert isinstance(data, dict) and all(
+            isinstance(k, str)
+            and isinstance(v, dict)
+            and isinstance(v.get('title'), str)
+            and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
+            for k, v in data.items()
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'param': dict}}"
+        )
 
         assert len(module.pipelines) > 0
         for name, pipeline in module.pipelines.items():
