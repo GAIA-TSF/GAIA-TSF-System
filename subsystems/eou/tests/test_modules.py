@@ -1,9 +1,17 @@
+import pytest
 import shutil
 from pathlib import Path
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader, ProjectConfigReader
 from tests.utils import get_data_path
+
+
+@pytest.fixture(scope='class')
+def project_config():
+    return ProjectConfigReader(
+        get_data_path('projects/amd_monitoring_yxsjoberg/config.yaml')
+    )
 
 
 class TestModules:
@@ -30,21 +38,17 @@ class TestModules:
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
 
-    def test_DataAcquisitionGateway_001_eodag_search(self):
+    def test_DataAcquisitionGateway_001_eodag_search(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test search capability using default backend (eodag).
         """
         from eodag.api.search_result import SearchResult
 
-        project = ProjectConfigReader(
-            get_data_path('projects/amd_monitoring_yxsjoberg/config.yaml')
-        )
-        print(project.aoi())
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            geom=project.aoi(),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -52,7 +56,7 @@ class TestModules:
         assert len(result) > 0
         assert result[0].product_type == self.search_filter['productType']
 
-    def test_DataAcquisitionGateway_001_asf_search(self):
+    def test_DataAcquisitionGateway_001_asf_search(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test search capability using ASF backend.
@@ -60,11 +64,8 @@ class TestModules:
         from geopandas import GeoDataFrame
 
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(
-            get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
-        )
         result = module.backend.search(
-            aoi=aoi_geom,
+            aoi=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -75,7 +76,7 @@ class TestModules:
         assert result is not None
         assert len(result) > 0
 
-    def test_DataAcquisitionGateway_002_eodag_download(self):
+    def test_DataAcquisitionGateway_002_eodag_download(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test download capability using default backend (eodag).
@@ -83,9 +84,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=load_geom(
-                get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
-            ),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -109,17 +108,14 @@ class TestModules:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
 
-    def test_DataAcquisitionGateway_002_asf_download(self):
+    def test_DataAcquisitionGateway_002_asf_download(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test download capability using ASF backend.
         """
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(
-            get_data_path('projects/amd_monitoring_yxsjoberg/static/aoi.gpkg')
-        )
         result = module.backend.search(
-            aoi=aoi_geom,
+            aoi=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',

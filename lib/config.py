@@ -164,6 +164,9 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         target_srs = osr.SpatialReference()
         target_srs.ImportFromEPSG(target_epsg)
+        target_srs.SetAxisMappingStrategy(
+            osr.OAMS_TRADITIONAL_GIS_ORDER
+        )  # EODAG expects long, lat
         transform = None
         if not srs.IsSame(target_srs):
             transform = osr.CoordinateTransformation(srs, target_srs)
