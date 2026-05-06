@@ -35,6 +35,7 @@ def config():
 @dataclass
 class ProjectContext:
     """A container for shared project variables."""
+
     aoi: BaseGeometry
     data_dir: Path
     dem_path: Path
@@ -52,7 +53,7 @@ def ctx(config):
         data_dir=data_dir,
         dem_path=data_dir / 'dem.nc',
         landmask_path=data_dir / 'landmask.nc',
-        work_dir=data_dir / 'workdir'
+        work_dir=data_dir / 'workdir',
     )
 
 
@@ -239,15 +240,9 @@ class TestSentinel1Workflow:
         assert pipeline.risk_map is not None
         assert not pipeline.risk_map.isnull().all()
         assert pipeline.failure_flag is not None
-        assert (
-            pipeline.risk_map.dims == pipeline.disp_ll.isel(date=0, drop=True).dims
-        )
-        assert np.allclose(
-            pipeline.risk_map.lat.values, pipeline.disp_ll.lat.values
-        )
-        assert np.allclose(
-            pipeline.risk_map.lon.values, pipeline.disp_ll.lon.values
-        )
+        assert pipeline.risk_map.dims == pipeline.disp_ll.isel(date=0, drop=True).dims
+        assert np.allclose(pipeline.risk_map.lat.values, pipeline.disp_ll.lat.values)
+        assert np.allclose(pipeline.risk_map.lon.values, pipeline.disp_ll.lon.values)
         risk_min = pipeline.risk_map.min().compute()
         risk_max = pipeline.risk_map.max().compute()
         assert risk_min >= 0
