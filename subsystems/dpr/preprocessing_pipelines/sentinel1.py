@@ -17,7 +17,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
             'aoi': {
-                dtype: str,
+                'dtype': str,
                 'description': 'POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)',
             }
         },
