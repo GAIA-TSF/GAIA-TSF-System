@@ -9,6 +9,7 @@ from collections import defaultdict
 import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
+from shapely.geometry.base import BaseGeometry
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -16,21 +17,32 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
+            'datadir':{
+                'dtype': Path,
+                'description': 'Path to the directory with Sentinel-1 SLC BURST data',
+            },
             'aoi': {
-                'dtype': str,
-                'description': 'POLYGON wkt string, coordinates must be in WGS84 (EPSG:4326)',
-            }
+                'dtype': str | BaseGeometry,
+                'description': 'POLYGON wkt string or Shapely Polygon, coordinates must be in WGS84 (EPSG:4326)',
+            },
+            'dem_path': {
+                'dtype': Path,
+                'description': 'Path where the DEM file will be downloaded and later used',
+            },
+            'landmask_path':{
+                'dtype': Path,
+                'description': 'Path where the landmask file will be downloaded and later used',
+            },
+            'workdir':{
+                'dtype': Path,
+                'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
+            },
         },
     }
 
     def _configure(self):
         self.client = None
-        self.s1 = None
-        self.stack = None
-        self.dem = None
-        self.landmask = None
         self.sbas = None
-        self.dem_masked = None
         self.baseline_pairs = None
         self.corr = None
         self.intf = None
@@ -55,39 +67,41 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     def _download_orbits(self, datadir):
         """Download precise orbit files for Sentinel-1 BURST data.
 
-        :param str datadir: Path to directory with downloaded BURST data
+        :param Path datadir: Path to the directory with Sentinel-1 SLC BURST data.
         :return: None.
         """
-        self.s1 = S1.scan_slc(datadir)
-        S1.download_orbits(datadir, self.s1)
+        if not any(datadir.glob('*.SAFE/')):
+            raise FileNotFoundError(
+                f"No '.SAFE' directories found in {datadir}."
+            )
+        s1 = S1.scan_slc(datadir)
+        S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
         """Download DEM.
+
         :param str | Polygon aoi: WKT string or Shapely Polygon representing the area of interest.
         :param Path output_dem: Path to output DEM file.
         :return: None
         """
-        if not output_dem.exists():
-            Tiles().download_dem(aoi, filename=output_dem, skip_exist=True)
-        self.dem = output_dem
+        Tiles().download_dem(aoi, filename=output_dem, skip_exist=True)
 
     def _download_landmask(self, aoi, output_landmask):
         """Download landmask.
+
         :param str | Polygon aoi: WKT string or Shapely Polygon representing the area of interest.
         :param Path output_landmask: Path to output landmask file.
         :return: None
         """
-        if not output_landmask.exists():
-            Tiles().download_landmask(
-                aoi, filename=output_landmask, skip_exist=True
-            ).fillna(0)
-        self.landmask = output_landmask
+        Tiles().download_landmask(aoi, filename=output_landmask, skip_exist=True).fillna(0)
 
     def _run_dask_cluster(self, **kwargs):
         """Run Dask Cluster Client for computation.
 
         :return: None
         """
+        if not hasattr(self, 'client'):
+            self._configure()
         if self.client is None:
             self.client = Client(**kwargs)
 
@@ -112,8 +126,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'Aborting to prevent accidental data deletion.'
             )
 
-        self.s1 = S1.scan_slc(datadir)
-        self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(self.s1)
+        s1 = S1.scan_slc(datadir)
+        self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(s1)
 
     def _reframe_scenes(self, aoi):
         """Reframe stacked Sentinel-1 data to smaller area of interest and stitch them together.
@@ -123,17 +137,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         self.sbas.compute_reframe(aoi)
 
-    def _load_dem_and_landmask(self, aoi):
+    def _load_dem_and_landmask(self, aoi, dem, landmask):
         """Load DEM and landmask to stacked and reframed Sentinel-1 data.
 
         :param str | Polygon aoi: WKT string or Shapely Polygon representing the area of interest.
+        :param Path dem: Path to DEM file.
+        :param Path landmask: Path to landmask file.
         :return: None
         """
-        self.sbas.load_dem(str(self.dem), aoi)
-        self.sbas.load_landmask(str(self.landmask))
-        self.dem_masked = self.sbas.get_dem().where(
-            self.sbas.get_landmask()
-        )  # maybe not needed
+        self.sbas.load_dem(str(dem), aoi)
+        self.sbas.load_landmask(str(landmask))
 
     def _align_images(self):
         """Align Sentinel-1 images.
@@ -142,21 +155,22 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         self.sbas.compute_align()
 
-    def _geocoding_transform(self):
+    def _geocoding_transform(self, coarsen=10.0):
         """Geocode Sentinel-1 images.
 
+        :param float coarsen: Downsampling factor used to control the output pixel size.
+                              A higher value results in faster processing and smaller files but lower spatial detail.
         :return: None
         """
-        self.sbas.compute_geocode(coarsen=10.0)
+        self.sbas.compute_geocode(coarsen=coarsen)
 
-    def _find_optimal_network(self):
+    def _find_optimal_network(self, basedays=(36, 48, 60, 80), basemeters=(80, 100, 120, 150)):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
 
+        :param tuple basedays: Possible values for maximum temporal baseline (days).
+        :param tuple basemeters: Possible values for maximum perpendicular baseline (m).
         :return: None
         """
-        basedays = [36, 48, 60, 80]
-        basemeters = [80, 100, 120, 150]
-
         stack_df = self.sbas.to_dataframe()
         all_dates = list(stack_df.index.astype(str))
         results = []
@@ -170,7 +184,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     else self.sbas.baseline_pairs(days=days, meters=meters)
                 )
 
-                # Connectivity check (DFS)
+                # Connectivity check
                 adj = defaultdict(set)
                 for a, b in pairs_df.iloc[:, :2].astype(str).values:
                     adj[a].add(b)
@@ -204,39 +218,37 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
 
-    def _compute_interferograms(self):
+    def _compute_interferograms(self, intensity_wavelength=20, phase_wavelength=30, coarsen=(1, 4), goldstein_patch=8):
         """Compute interferograms from baseline pairs.
 
+        :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity.
+        :param int phase_wavelength: Gaussian smoothing cut-off wavelength (metres) for wrapped phase.
+        :param tuple coarsen: Radar coordinate downsampling (range_factor, azimuth_factor).
+        :param int goldstein_patch: Window size (pixels) for Goldstein filtering.
         :return: None
         """
-        intensity_wavelength = 20  # metres
-        phase_wavelength = 30  # metres
-        coarsen = (1, 4)
-        goldstein_patch = 8  # pixels
-
-        # 1. Load Data
         topo = self.sbas.get_topo()
         data = self.sbas.open_data()
 
-        # 2. Process Intensity (for correlation weights)
+        # Process Intensity (for correlation weights)
         intensity = self.sbas.multilooking(
             np.square(np.abs(data)), wavelength=intensity_wavelength, coarsen=coarsen
         )
 
-        # 3. Compute Phase Difference
+        # Compute Phase Difference
         phase = self.sbas.phasediff(self.baseline_pairs, data, topo)
         phase = self.sbas.multilooking(
             phase, wavelength=phase_wavelength, coarsen=coarsen
         )
 
-        # 4. Filter & Synthesis
+        # Filter & Synthesis
         self.corr = self.sbas.correlation(phase, intensity)
         phase_goldstein = self.sbas.goldstein(phase, self.corr, goldstein_patch)
 
         self.intf = self.sbas.interferogram(phase_goldstein)
 
-    def _unwrap_interferograms(self, corr_limit=0.20, unwrap_m=10.0):
-        """Unwrap interferograms using SNAPHU.
+    def _unwrap_phase(self, corr_limit=0.20, unwrap_m=10.0):
+        """Unwrap phases using SNAPHU.
 
         :param float corr_limit: Minimum correlation threshold for masking.
         :param float unwrap_m: Target spatial resolution for unwrapping in meters.
@@ -247,11 +259,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'Interferograms and correlation must be computed before unwrapping.'
             )
 
-        # 1. Decimate to target unwrap spacing
+        # Decimate to target unwrap spacing
         dec_u = self.sbas.decimator(unwrap_m)
         corr_u, intf_u = dask.persist(dec_u(self.corr), dec_u(self.intf))
 
-        # 2. Build Correlation Mask
+        # Build Correlation Mask
         corr_mask = corr_u.where(corr_u >= corr_limit)
 
         # Verify we have valid pixels to unwrap
@@ -261,7 +273,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
             )
 
-        # 3. Run SNAPHU Unwrapping
+        # Run SNAPHU Unwrapping
         self.unwrap = self.sbas.unwrap_snaphu(
             intf_u.where(corr_mask), corr_mask
         ).persist()
@@ -269,33 +281,33 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Trigger computation to catch SNAPHU execution errors immediately
         _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
 
-    def _detrend_phase(self, ramp_factor=3.0):
+    def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
         """Remove long-wavelength ramps from the unwrapped phase in radar geometry.
 
-        :param float ramp_factor: Multiplier for the smoothing wavelength. Higher values remove only very broad trends.
+        :param float ramp_factor: Multiplier applied to base_wavelength to define the ramp scale.
+        :param int base_wavelength: Reference smoothing wavelength (m).
+        :param int chunksize: Size of spatial blocks for Dask processing to optimize memory usage.
         :return: None
         """
         if self.unwrap is None:
             raise RuntimeError('Phase must be unwrapped before detrending.')
 
-        # 1. Determine spatial scales
-        base_wavelength = 30
+        # Determine spatial scales
         ramp_wavelength = ramp_factor * base_wavelength
 
-        # 2. Ensure Dask chunking
-        chunksize = 256
+        # Ensure Dask chunking
         phase_data = self.unwrap.phase
         chunk_spec = {d: chunksize for d in phase_data.dims if d in ('y', 'x')}
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
-        # 3. Build and subtract the ramp
+        # Build and subtract the ramp
         ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
 
         # Subtracting the ramp leaves only the localized displacement signal
         self.detrend = (phase_data - ramp).persist()
 
-        # 4. Trigger computation
+        # Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
 
     def _compute_displacement(self, target_m=10.0):
@@ -432,5 +444,19 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         )
 
     def _run(self):
-        # self._download_dem(self.aoi, ...)
+        self._download_orbits(self._config['datadir'])
+        self._download_dem(self._config['aoi'], self._config['dem_path'])
+        self._download_landmask(self._config['aoi'], self._config['landmask_path'])
+        self._run_dask_cluster() #TODO: how to handle **kwargs?
+        self._stack_scenes(self._config['datadir'], self._config['workdir'])
+        self._reframe_scenes(self._config['aoi'])
+        self._load_dem_and_landmask(self._config['aoi'], self._config['dem_path'], self._config['landmask_path'])
+        self._align_images()
+        self._geocoding_transform()
+        self._find_optimal_network()
+        self._compute_interferograms()
+        self._unwrap_phase()
+        self._detrend_phase()
+        self._compute_displacement()
+        self._compute_risk()
         pass
