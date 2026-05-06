@@ -17,7 +17,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
-            'datadir':{
+            'datadir': {
                 'dtype': Path,
                 'description': 'Path to the directory with Sentinel-1 SLC BURST data',
             },
@@ -29,11 +29,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'dtype': Path,
                 'description': 'Path where the DEM file will be downloaded and later used',
             },
-            'landmask_path':{
+            'landmask_path': {
                 'dtype': Path,
                 'description': 'Path where the landmask file will be downloaded and later used',
             },
-            'workdir':{
+            'workdir': {
                 'dtype': Path,
                 'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
             },
@@ -71,9 +71,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None.
         """
         if not any(datadir.glob('*.SAFE/')):
-            raise FileNotFoundError(
-                f"No '.SAFE' directories found in {datadir}."
-            )
+            raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
         s1 = S1.scan_slc(datadir)
         S1.download_orbits(datadir, s1)
 
@@ -93,7 +91,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param Path output_landmask: Path to output landmask file.
         :return: None
         """
-        Tiles().download_landmask(aoi, filename=output_landmask, skip_exist=True).fillna(0)
+        Tiles().download_landmask(
+            aoi, filename=output_landmask, skip_exist=True
+        ).fillna(0)
 
     def _run_dask_cluster(self, **kwargs):
         """Run Dask Cluster Client for computation.
@@ -164,7 +164,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         self.sbas.compute_geocode(coarsen=coarsen)
 
-    def _find_optimal_network(self, basedays=(36, 48, 60, 80), basemeters=(80, 100, 120, 150)):
+    def _find_optimal_network(
+        self, basedays=(36, 48, 60, 80), basemeters=(80, 100, 120, 150)
+    ):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
 
         :param tuple basedays: Possible values for maximum temporal baseline (days).
@@ -218,7 +220,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
 
-    def _compute_interferograms(self, intensity_wavelength=20, phase_wavelength=30, coarsen=(1, 4), goldstein_patch=8):
+    def _compute_interferograms(
+        self,
+        intensity_wavelength=20,
+        phase_wavelength=30,
+        coarsen=(1, 4),
+        goldstein_patch=8,
+    ):
         """Compute interferograms from baseline pairs.
 
         :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity.
@@ -447,10 +455,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._download_orbits(self._config['datadir'])
         self._download_dem(self._config['aoi'], self._config['dem_path'])
         self._download_landmask(self._config['aoi'], self._config['landmask_path'])
-        self._run_dask_cluster() #TODO: how to handle **kwargs?
+        self._run_dask_cluster()  # TODO: how to handle **kwargs?
         self._stack_scenes(self._config['datadir'], self._config['workdir'])
         self._reframe_scenes(self._config['aoi'])
-        self._load_dem_and_landmask(self._config['aoi'], self._config['dem_path'], self._config['landmask_path'])
+        self._load_dem_and_landmask(
+            self._config['aoi'], self._config['dem_path'], self._config['landmask_path']
+        )
         self._align_images()
         self._geocoding_transform()
         self._find_optimal_network()
