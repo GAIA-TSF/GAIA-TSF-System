@@ -671,7 +671,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         air["date"] = pd.to_datetime(air["date"]).dt.normalize()
 
         # Risk Thresholds and Weights
-        TH = {
+        th = {
             "VEL_DAY_LO": 0.5, "VEL_DAY_HI": 2.0,
             "DLOS_DAY_LO": 0.5, "DLOS_DAY_HI": 2.0,
             "LOS_LO": 20.0, "LOS_HI": 60.0,
@@ -681,7 +681,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             "PM25_LO": 15.0, "PM25_HI": 35.0,
             "RISK_MODERATE": 35.0, "RISK_HIGH": 60.0, "RISK_CRITICAL": 80.0,
         }
-        W = {"motion": 0.45, "terrain": 0.15, "hydroclimate": 0.25, "atmosphere": 0.15}
+        w = {"motion": 0.45, "terrain": 0.15, "hydroclimate": 0.25, "atmosphere": 0.15}
 
         def _lin_score(x, lo, hi):
             return np.clip((np.asarray(x, dtype="float64") - lo) / (hi - lo + 1e-12), 0.0, 1.0)
@@ -720,29 +720,29 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Compute Composite Risk Score
         # Motion
-        v_s = _lin_score(df_merged["vel_mm_per_day"], TH["VEL_DAY_LO"], TH["VEL_DAY_HI"])
-        d_s = _lin_score(np.abs(df_merged["dlos_mm"]), TH["DLOS_DAY_LO"], TH["DLOS_DAY_HI"])
-        l_s = _lin_score(np.abs(df_merged["los_mm"]), TH["LOS_LO"], TH["LOS_HI"])
+        v_s = _lin_score(df_merged["vel_mm_per_day"], th["VEL_DAY_LO"], th["VEL_DAY_HI"])
+        d_s = _lin_score(np.abs(df_merged["dlos_mm"]), th["DLOS_DAY_LO"], th["DLOS_DAY_HI"])
+        l_s = _lin_score(np.abs(df_merged["los_mm"]), th["LOS_LO"], th["LOS_HI"])
         motion_comp = 0.40 * v_s + 0.35 * d_s + 0.25 * l_s
 
         # Other Components
-        hydro_comp = _lin_score(df_merged.get("climate_precip_7d_mm", 0), TH["P7_LO"], TH["P7_HI"])
-        terrain_comp = _lin_score(df_merged.get("slope_deg", 0), TH["SLOPE_LO"], TH["SLOPE_HI"])
-        atmos_comp = _lin_score(df_merged.get("air_pm2_5", 0), TH["PM25_LO"], TH["PM25_HI"])
+        hydro_comp = _lin_score(df_merged.get("climate_precip_7d_mm", 0), th["P7_LO"], th["P7_HI"])
+        terrain_comp = _lin_score(df_merged.get("slope_deg", 0), th["SLOPE_LO"], th["SLOPE_HI"])
+        atmos_comp = _lin_score(df_merged.get("air_pm2_5", 0), th["PM25_LO"], th["PM25_HI"])
 
         # Final Risk Score (0-100)
-        total_risk = 100.0 * (W["motion"] * motion_comp +
-                              W["terrain"] * terrain_comp +
-                              W["hydroclimate"] * hydro_comp +
-                              W["atmosphere"] * atmos_comp)
+        total_risk = 100.0 * (w["motion"] * motion_comp +
+                              w["terrain"] * terrain_comp +
+                              w["hydroclimate"] * hydro_comp +
+                              w["atmosphere"] * atmos_comp)
 
         df_merged["risk_score_0to100"] = total_risk.astype("float32")
 
         # Classification
         level = np.full(len(df_merged), "Low", dtype=object)
-        level[total_risk >= TH["RISK_MODERATE"]] = "Moderate"
-        level[total_risk >= TH["RISK_HIGH"]] = "High"
-        level[total_risk >= TH["RISK_CRITICAL"]] = "Critical"
+        level[total_risk >= th["RISK_MODERATE"]] = "Moderate"
+        level[total_risk >= th["RISK_HIGH"]] = "High"
+        level[total_risk >= th["RISK_CRITICAL"]] = "Critical"
         df_merged["risk_class"] = pd.Categorical(level,
                                                  categories=["Low", "Moderate", "High", "Critical"],
                                                  ordered=True)
@@ -762,8 +762,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Save Metadata
         governance = {
             "calculated_at": datetime.now(timezone.utc).isoformat(),
-            "thresholds": TH,
-            "weights": W,
+            "thresholds": th,
+            "weights": w,
             "utm_epsg": int(epsg)
         }
         with open(output_dir / "risk_governance.json", "w") as f:
