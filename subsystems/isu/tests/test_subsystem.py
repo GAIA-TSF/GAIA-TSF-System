@@ -5,13 +5,13 @@ Tests how the Facade, Scheduler, and ETL Engine work together.
 
 import shutil
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from subsystems.isu import InSituDataUploader
 from lib.base import SubsystemId
+from tests.utils import TestUtils
 
-TEST_DATA_DIR = Path(__file__).parent / 'test_data'
+TEST_DATA_DIR = TestUtils.get_data_path('isu')
 
 
 class TestSubsystem:

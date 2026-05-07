@@ -1,8 +1,11 @@
-from .base import PreprocessingBasePipeline
-from osgeo import gdal
 import os
 import json
+from pathlib import PosixPath
+
 import numpy as np
+from osgeo import gdal
+
+from .base import PreprocessingBasePipeline
 
 
 class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
@@ -12,7 +15,7 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
         'classes from the SCL band, write the percentages to the metadata file.',
         'params': {
             'metadata_path': {
-                'dtype': str,
+                'dtype': PosixPath,
                 'description': 'Path to the JSON file containing the path key.',
             },
             'path_key': {
