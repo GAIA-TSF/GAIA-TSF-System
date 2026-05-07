@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from stactools.sentinel2.stac import create_item
 
-from osgeo import gdal
+from osgeo import gdal, osr
 
 gdal.UseExceptions()
 
