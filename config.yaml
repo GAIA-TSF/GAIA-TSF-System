@@ -47,3 +47,8 @@ qcl:
       require_geo_alignment: true
 storage:
   data_dir: /tmp/gaia_tsf
+dask_parameters:
+  'silence_logs': 'CRITICAL'
+  'n_workers': 2
+  'threads_per_worker': 2
+  'memory_limit': '8GB'
