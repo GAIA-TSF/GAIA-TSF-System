@@ -285,8 +285,8 @@ class TestSentinel1Workflow:
     def test_017_compute_risk_database(self, pipeline, ctx):
         """Test creating risk database based on environmental data and displacements."""
         pipeline._compute_risk_database(ctx.result_dir)
-        parquet_out = ctx.result_dir / "final_risk_database.parquet"
-        gov_path = ctx.result_dir / "risk_governance.json"
+        parquet_out = ctx.result_dir / 'final_risk_database.parquet'
+        gov_path = ctx.result_dir / 'risk_governance.json'
 
         assert parquet_out.is_file()
         assert gov_path.is_file()
@@ -295,28 +295,30 @@ class TestSentinel1Workflow:
         assert not df_result.empty
 
         expected_cols = [
-            "risk_score_0to100",
-            "risk_class",
-            "UTM_E",
-            "UTM_N",
-            "cell_id",
-            "climate_precip_7d_mm"
+            'risk_score_0to100',
+            'risk_class',
+            'UTM_E',
+            'UTM_N',
+            'cell_id',
+            'climate_precip_7d_mm',
         ]
         for col in expected_cols:
             assert col in df_result.columns
 
-        assert df_result["risk_class"].dtype.name == "category"
-        assert set(["Low", "Moderate", "High", "Critical"]).issubset(df_result["risk_class"].cat.categories)
+        assert df_result['risk_class'].dtype.name == 'category'
+        assert set(['Low', 'Moderate', 'High', 'Critical']).issubset(
+            df_result['risk_class'].cat.categories
+        )
 
-        with open(gov_path, "r") as f:
+        with open(gov_path, 'r') as f:
             gov = json.load(f)
 
-        assert "thresholds" in gov
-        assert "weights" in gov
-        assert "utm_epsg" in gov
-        assert "calculated_at" in gov
+        assert 'thresholds' in gov
+        assert 'weights' in gov
+        assert 'utm_epsg' in gov
+        assert 'calculated_at' in gov
 
-        assert 32600 <= gov["utm_epsg"] <= 32760
+        assert 32600 <= gov['utm_epsg'] <= 32760
 
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)
