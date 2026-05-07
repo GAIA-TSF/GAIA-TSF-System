@@ -650,7 +650,7 @@ class EarthObservationDataLoader(SdiLoader):
             overview_levels = [2, 4, 8, 16]
 
         try:
-            # 🌍 Pokud je požadována transformace, provést ji do dočasného souboru
+
             if target_epsg is not None:
                 temp_reprojected = input_file.replace('.tif', f'_epsg{target_epsg}_temp.tif')
 
@@ -676,12 +676,12 @@ class EarthObservationDataLoader(SdiLoader):
                     timeout=600  # 10 min timeout pro reprojekci
                 )
 
-                # Použít reprojektovaný soubor jako vstup pro COG
+
                 source_file = temp_reprojected
             else:
                 source_file = input_file
 
-            # 📦 Konverze do COG formátu
+
             cmd = [
                 'gdal_translate',
                 source_file,
@@ -707,7 +707,7 @@ class EarthObservationDataLoader(SdiLoader):
                 timeout=300  # 5 min timeout
             )
 
-            # 🧹 Cleanup dočasného souboru
+
             if target_epsg is not None and os.path.exists(temp_reprojected):
                 os.remove(temp_reprojected)
                 self.logger.debug(f'Odstraněn dočasný soubor: {temp_reprojected}')
@@ -725,7 +725,7 @@ class EarthObservationDataLoader(SdiLoader):
 
         except subprocess.CalledProcessError as e:
             self.logger.error(f'COG conversion failed: {e.stderr}')
-            # Cleanup při chybě
+
             if target_epsg is not None and os.path.exists(temp_reprojected):
                 os.remove(temp_reprojected)
             return False

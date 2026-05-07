@@ -125,6 +125,15 @@ class TestEarthObservationDataLoader:
             'Downloaded file does not match the original GeoTIFF'
         )
 
+        # Search for COG item
+        for stac_item in items:
+            print(stac_item)
+            if 'B01_cog' in stac_item['assets']:
+                asset = stac_item['assets']['B01_cog']
+                asset_cog_url = asset['href']
+
+        assert asset_cog_url, 'STAC asset for COG does not contain href or assets does not exist'
+
     def test_failing_import(self):
         base_dir = Path(__file__).parent
         zip_path = base_dir / 'assets' / 'eou_sample_data_bad_metadata.zip'
