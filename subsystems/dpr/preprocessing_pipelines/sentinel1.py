@@ -861,4 +861,3 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._compute_risk()
         self._environmental_database(self._config['aoi'], self._config['result_dir'])
         self._compute_risk_database(self._config['result_dir'])
-        pass
