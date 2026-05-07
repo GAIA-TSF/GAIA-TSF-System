@@ -84,7 +84,8 @@ class RasterDataset:
             'links': [],
         }
 
-    def _build_geometry(self, bbox: List[float]) -> Dict[str, Any]:
+    @staticmethod
+    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
         """
         Creates GeoJSON Polygon for the STAC Item.
 
@@ -447,7 +448,8 @@ class InsituStacItemFactory:
         self.dataset = dataset
         self.logger = logger
 
-    def _build_geometry(self, bbox: List[float]) -> Dict[str, Any]:
+    @staticmethod
+    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
         return {
             'type': 'Polygon',
             'coordinates': [
