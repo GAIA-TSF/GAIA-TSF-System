@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 import os
 import json
+from datetime import datetime, UTC
 from pathlib import Path
 from stactools.sentinel2.stac import create_item
 
@@ -26,9 +27,93 @@ class RasterDataset:
     :raises RuntimeError: If the file cannot be opened.
     """
 
+    MIME_LOOKUP: Dict[str, str] = {
+        'GTiff': 'image/tiff; application=geotiff',
+        'JP2OpenJPEG': 'image/jp2',
+    }
+
     def __init__(self, path: str):
         self.path = path
         self.dataset = gdal.Open(path)
+
+    @property
+    def stac_item(self) -> Dict[str, Any]:
+        """Get the STAC item representation for this path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        return self.get_stac_item(self.path)
+
+    def get_stac_item(self, path: str) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format for
+        Sentinel-2 L2A data.
+
+        :param path: The file path to the granule or product directory.
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        item_id = self.path.stem
+        now = datetime.now(UTC).isoformat()
+
+        bbox = self.get_bbox_wgs84()
+        geometry = self._build_geometry(bbox)
+
+        width, height = self.size
+
+        return {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': [
+                'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+                'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
+            ],
+            'id': item_id,
+            'collection': 'undefined',
+            'properties': {
+                'datetime': now,
+                'proj:epsg': self.get_epsg(),
+                'proj:shape': [height, width],
+                'proj:transform': list(self.geotransform),
+                'raster:bands': self.get_band_metadata(),
+            },
+            'bbox': bbox,
+            'geometry': geometry,
+            'assets': {
+                'data': {
+                    'href': self.path.name,
+                    'type': self.MIME_LOOKUP.get(
+                        self.driver, 'application/octet-stream'
+                    ),
+                    'roles': ['data'],
+                }
+            },
+            'links': [],
+        }
+
+    def _build_geometry(self, bbox: List[float]) -> Dict[str, Any]:
+        """
+        Creates GeoJSON Polygon for the STAC Item.
+
+        :param list[float] bbox: [minx, miny, maxx, maxy]
+
+        :return: GeoJSON Polygon
+        :rtype: dict
+        """
+        return {
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [bbox[0], bbox[1]],
+                    [bbox[0], bbox[3]],
+                    [bbox[2], bbox[3]],
+                    [bbox[2], bbox[1]],
+                    [bbox[0], bbox[1]],
+                ]
+            ],
+        }
 
     @property
     def driver(self) -> str:
