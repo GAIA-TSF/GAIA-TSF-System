@@ -260,9 +260,9 @@ class TestSentinel1Workflow:
     def test_016_environmental_database(self, pipeline, ctx):
         """Test creating environmental database."""
         pipeline._environmental_database(ctx.aoi, ctx.result_dir)
-        climate_path = ctx.result_dir / "climate_daily_db.parquet"
-        air_path = ctx.result_dir / "air_quality_daily_db.parquet"
-        manifest_path = ctx.result_dir / "envdb_manifest.json"
+        climate_path = ctx.result_dir / 'climate_daily_db.parquet'
+        air_path = ctx.result_dir / 'air_quality_daily_db.parquet'
+        manifest_path = ctx.result_dir / 'envdb_manifest.json'
 
         assert climate_path.is_file()
         assert air_path.is_file()
@@ -270,17 +270,17 @@ class TestSentinel1Workflow:
 
         df_climate = pd.read_parquet(climate_path)
         assert not df_climate.empty
-        assert "precip_7d_mm" in df_climate.columns
+        assert 'precip_7d_mm' in df_climate.columns
 
         df_air = pd.read_parquet(air_path)
         assert not df_air.empty
-        assert "pm10" in df_air.columns
+        assert 'pm10' in df_air.columns
 
-        with open(manifest_path, "r") as f:
+        with open(manifest_path, 'r') as f:
             manifest = json.load(f)
-        assert "detected_timezone" in manifest
-        assert "locations" in manifest
-        assert len(manifest["locations"]) >= 1
+        assert 'detected_timezone' in manifest
+        assert 'locations' in manifest
+        assert len(manifest['locations']) >= 1
 
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)

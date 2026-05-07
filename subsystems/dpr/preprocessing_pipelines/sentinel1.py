@@ -47,7 +47,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             },
             'result_dir': {
                 'dtype': Path,
-                'description': "Path to the directory where final results will be stored",
+                'description': 'Path to the directory where final results will be stored',
             },
         },
     }
@@ -382,7 +382,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         t_dim = next((d for d in disp.dims if d in ('date', 'time', 'epoch')), 'date')
 
         # Velocity (mm/day)
-        vel_map = np.abs(self.sbas.velocity(disp)) # TODO: Do we want it as an output?
+        vel_map = np.abs(self.sbas.velocity(disp))  # TODO: Do we want it as an output?
 
         # Recent Change (dlos) - Difference between last two acquisitions
         dlos_map = np.abs(disp.isel({t_dim: -1}) - disp.isel({t_dim: -2}))
@@ -453,7 +453,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 np.zeros(sample.shape), coords=sample.coords, dims=sample.dims
             )
 
-        risk_score = xr.where(vel_map >= 2.0, 3, 0)     # |vel| >= 2 mm/day
+        risk_score = xr.where(vel_map >= 2.0, 3, 0)  # |vel| >= 2 mm/day
         risk_score += xr.where(dlos_map >= 10.0, 3, 0)  # |dlos| >= 10 mm
         risk_score += xr.where(max_disp >= 50.0, 2, 0)  # |los| >= 50 mm
         risk_score += xr.where(slope_da >= 15.0, 1, 0)  # slope >= 15°
@@ -463,7 +463,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             xr.where(self.risk_map >= 6, 1, 0).rename('failure_flag').persist()
         )
 
-    def _environmental_database(self, aoi, output_dir, grid_rows=3, grid_cols=3, model="era5"):
+    def _environmental_database(
+        self, aoi, output_dir, grid_rows=3, grid_cols=3, model='era5'
+    ):
         """Extracts daily climate and air quality data for the provided AOI.
 
         :param str | BaseGeometry aoi: WKT string or Shapely Polygon representing the area of interest.
@@ -486,20 +488,22 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         center_lat = (bounds[1] + bounds[3]) / 2
 
         tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lng=center_lon, lat=center_lat) or "UTC"
+        tz_name = tf.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
 
         # Initialize Open-Meteo API Client with Cache/Retry
-        cache_session = requests_cache.CachedSession(str(output_dir / "openmeteo_cache"), expire_after=3600)
+        cache_session = requests_cache.CachedSession(
+            str(output_dir / 'openmeteo_cache'), expire_after=3600
+        )
         retry_session = retry(cache_session, retries=5, backoff_factor=0.3)
         om_client = openmeteo_requests.Client(session=retry_session)
 
         # Build Spatial Sampling Grid
         lats = np.linspace(bounds[1], bounds[3], grid_rows)
         lons = np.linspace(bounds[0], bounds[2], grid_cols)
-        locations = {"center": {"lat": center_lat, "lon": center_lon}}
+        locations = {'center': {'lat': center_lat, 'lon': center_lon}}
         for i, lat in enumerate(lats):
             for j, lon in enumerate(lons):
-                locations[f"grid_{i}_{j}"] = {"lat": float(lat), "lon": float(lon)}
+                locations[f'grid_{i}_{j}'] = {'lat': float(lat), 'lon': float(lon)}
 
         # Sample Altitudes from pipeline DEM
         try:
@@ -512,18 +516,27 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 except Exception:
                     locations[k]['alt'] = 0
         except Exception as e:
-            print(f"[ENVDB] Altitude sampling skipped: {e}")
+            print(f'[ENVDB] Altitude sampling skipped: {e}')
 
         # Fetch Climate Data
-        climate_url = "https://archive-api.open-meteo.com/v1/archive"
-        climate_vars = ["temperature_2m_mean", "precipitation_sum", "et0_fao_evapotranspiration", "wind_speed_10m_max"]
+        climate_url = 'https://archive-api.open-meteo.com/v1/archive'
+        climate_vars = [
+            'temperature_2m_mean',
+            'precipitation_sum',
+            'et0_fao_evapotranspiration',
+            'wind_speed_10m_max',
+        ]
         all_climate = []
 
         for name, loc in locations.items():
             params = {
-                "latitude": loc["lat"], "longitude": loc["lon"],
-                "start_date": start_date.isoformat(), "end_date": stop_date.isoformat(),
-                "daily": climate_vars, "timezone": tz_name, "models": model
+                'latitude': loc['lat'],
+                'longitude': loc['lon'],
+                'start_date': start_date.isoformat(),
+                'end_date': stop_date.isoformat(),
+                'daily': climate_vars,
+                'timezone': tz_name,
+                'models': model,
             }
             res = om_client.weather_api(climate_url, params=params)[0]
             daily = res.Daily()
@@ -534,63 +547,72 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
             # Create date range based on the actual length of returned data
             dates = pd.date_range(
-                start=pd.to_datetime(daily.Time(), unit="s", utc=True).tz_convert(tz_name).tz_localize(None),
+                start=pd.to_datetime(daily.Time(), unit='s', utc=True)
+                .tz_convert(tz_name)
+                .tz_localize(None),
                 periods=num_days,
-                freq="D"
+                freq='D',
             )
 
-            c_data = {"date": dates, "location": name}
+            c_data = {'date': dates, 'location': name}
             for idx, var in enumerate(climate_vars):
                 c_data[var] = daily.Variables(idx).ValuesAsNumpy()
 
             df = pd.DataFrame(c_data)
-            df["precip_7d_mm"] = df["precipitation_sum"].rolling(7, min_periods=1).sum()
+            df['precip_7d_mm'] = df['precipitation_sum'].rolling(7, min_periods=1).sum()
             all_climate.append(df)
 
         climate_df = pd.concat(all_climate).reset_index(drop=True)
 
         # Fetch Air Quality Data
-        aq_url = "https://air-quality-api.open-meteo.com/v1/air-quality"
-        aq_vars = ["pm10", "pm2_5"]
+        aq_url = 'https://air-quality-api.open-meteo.com/v1/air-quality'
+        aq_vars = ['pm10', 'pm2_5']
         all_aq = []
 
         for name, loc in locations.items():
             params = {
-                "latitude": loc["lat"], "longitude": loc["lon"],
-                "start_date": start_date.isoformat(), "end_date": stop_date.isoformat(),
-                "hourly": aq_vars, "timezone": tz_name
+                'latitude': loc['lat'],
+                'longitude': loc['lon'],
+                'start_date': start_date.isoformat(),
+                'end_date': stop_date.isoformat(),
+                'hourly': aq_vars,
+                'timezone': tz_name,
             }
             res = om_client.weather_api(aq_url, params=params)[0]
             hourly = res.Hourly()
 
             dates = pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit="s", utc=True).tz_convert(tz_name).tz_localize(None),
+                start=pd.to_datetime(hourly.Time(), unit='s', utc=True)
+                .tz_convert(tz_name)
+                .tz_localize(None),
                 periods=len(hourly.Variables(0).ValuesAsNumpy()),
-                freq="h"
+                freq='h',
             )
 
-            a_data = {"datetime": dates}
+            a_data = {'datetime': dates}
             for idx, var in enumerate(aq_vars):
                 a_data[var] = hourly.Variables(idx).ValuesAsNumpy()
 
             # Resample to daily max for safety thresholds
-            df_aq = pd.DataFrame(a_data).resample('D', on='datetime').max().reset_index()
-            df_aq["location"] = name
+            df_aq = (
+                pd.DataFrame(a_data).resample('D', on='datetime').max().reset_index()
+            )
+            df_aq['location'] = name
             all_aq.append(df_aq)
 
         air_df = pd.concat(all_aq).reset_index(drop=True)
 
         # Save and Manifest
-        climate_df.to_parquet(output_dir / "climate_daily_db.parquet", index=False)
-        air_df.to_parquet(output_dir / "air_quality_daily_db.parquet", index=False)
+        climate_df.to_parquet(output_dir / 'climate_daily_db.parquet', index=False)
+        air_df.to_parquet(output_dir / 'air_quality_daily_db.parquet', index=False)
 
         manifest = {
-            "created_utc": datetime.now(timezone.utc).isoformat(),
-            "detected_timezone": tz_name,
-            "date_range": [start_date.isoformat(), stop_date.isoformat()],
-            "locations": locations
+            'created_utc': datetime.now(timezone.utc).isoformat(),
+            'detected_timezone': tz_name,
+            'date_range': [start_date.isoformat(), stop_date.isoformat()],
+            'locations': locations,
         }
-        with open(output_dir / "envdb_manifest.json", "w") as f:
+        with open(output_dir / 'envdb_manifest.json', 'w') as f:
             json.dump(manifest, f, indent=2)
 
     def _run(self):
