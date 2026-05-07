@@ -16,7 +16,7 @@ class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2025-06-01',
-        'end': '2025-08-30',
+        'end': '2025-06-10',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -65,7 +65,6 @@ class TestModules:
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
-            path_number=147,
         )
 
         assert isinstance(result, GeoDataFrame)
