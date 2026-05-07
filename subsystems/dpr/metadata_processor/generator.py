@@ -406,10 +406,69 @@ class InsituDataset:
     :param dict metadata: Metadata dict from ISU containing time_range, location, schema, crs, sensor_type
     """
 
+    STAC_EXTENSIONS: List[str] = [
+        'https://stac-extensions.github.io/table/v1.2.0/schema.json',
+        'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+    ]
+
     def __init__(self, path: str, metadata: Dict[str, Any]):
         self.path = Path(path)
         self._meta = metadata
         self._data = metadata.get('data', {})
+
+    @property
+    def stac_item(self) -> Dict[str, Any]:
+        """Get the STAC item representation for this path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        return self.get_stac_item()
+
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format for
+        Sentinel-2 L2A data.
+
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        bbox = self.get_bbox()
+        time_range = self.get_time_range()
+        schema = self.get_schema()
+
+        properties: Dict[str, Any] = {
+            'datetime': time_range['start'] if time_range else None,
+            'start_datetime': time_range['start'] if time_range else None,
+            'end_datetime': time_range['end'] if time_range else None,
+            'proj:epsg': self.epsg,
+        }
+        sensor_type = self.get_sensor_type()
+        if sensor_type:
+            properties['sensor_type'] = sensor_type
+
+        stac_item: Dict[str, Any] = {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': self.STAC_EXTENSIONS,
+            'id': self.path.stem,
+            'collection': 'undefined',
+            'properties': properties,
+            'geometry': self._build_geometry(bbox) if bbox else None,
+            'bbox': bbox,
+            'assets': {
+                'data': {
+                    'href': self.path.name,
+                    'type': 'text/csv',
+                    'roles': ['data'],
+                    'table:columns': [{'name': c} for c in schema],
+                }
+            },
+            'links': [],
+        }
+        self.logger.debug(f'STAC item created: {stac_item}')
+        return stac_item
 
     @property
     def epsg(self) -> int:
@@ -433,21 +492,6 @@ class InsituDataset:
         """Returns sensor type string or None."""
         return self._data.get('sensor_type')
 
-
-class InsituStacItemFactory:
-    """
-    Creates STAC Item metadata from an InsituDataset.
-    """
-
-    STAC_EXTENSIONS: List[str] = [
-        'https://stac-extensions.github.io/table/v1.2.0/schema.json',
-        'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
-    ]
-
-    def __init__(self, dataset: InsituDataset, logger: Any):
-        self.dataset = dataset
-        self.logger = logger
-
     @staticmethod
     def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
         return {
@@ -463,6 +507,16 @@ class InsituStacItemFactory:
             ],
         }
 
+
+class InsituStacItemFactory:
+    """
+    Creates STAC Item metadata from an InsituDataset.
+    """
+
+    def __init__(self, dataset: InsituDataset, logger: Any):
+        self.dataset = dataset
+        self.logger = logger
+
     def create_item(self) -> Dict[str, Any]:
         """
         Creates a STAC Item as a dictionary.
@@ -470,40 +524,10 @@ class InsituStacItemFactory:
         :return: STAC Item
         :rtype: dict
         """
-        bbox = self.dataset.get_bbox()
-        time_range = self.dataset.get_time_range()
-        schema = self.dataset.get_schema()
+        stac_item = self.dataset.stac_item
 
-        properties: Dict[str, Any] = {
-            'datetime': time_range['start'] if time_range else None,
-            'start_datetime': time_range['start'] if time_range else None,
-            'end_datetime': time_range['end'] if time_range else None,
-            'proj:epsg': self.dataset.epsg,
-        }
-        sensor_type = self.dataset.get_sensor_type()
-        if sensor_type:
-            properties['sensor_type'] = sensor_type
-
-        stac_item: Dict[str, Any] = {
-            'type': 'Feature',
-            'stac_version': '1.0.0',
-            'stac_extensions': self.STAC_EXTENSIONS,
-            'id': self.dataset.path.stem,
-            'collection': 'undefined',
-            'properties': properties,
-            'geometry': self._build_geometry(bbox) if bbox else None,
-            'bbox': bbox,
-            'assets': {
-                'data': {
-                    'href': self.dataset.path.name,
-                    'type': 'text/csv',
-                    'roles': ['data'],
-                    'table:columns': [{'name': c} for c in schema],
-                }
-            },
-            'links': [],
-        }
         self.logger.debug(f'STAC item created: {stac_item}')
+
         return stac_item
 
     def save(self, output_path: str) -> str:
