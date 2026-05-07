@@ -1,7 +1,7 @@
 import pytest
 
 from lib.config import ProjectConfigReader
-from tests.utils import TestUtils.get_project_config_path
+from tests.utils import TestUtils
 
 
 @pytest.fixture(scope='class')

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from tests.utils import TestUtils.get_project_config_path
+from tests.utils import TestUtils
 
 
 class TestSentinel1Workflow:
