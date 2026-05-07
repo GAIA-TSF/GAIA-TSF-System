@@ -8,6 +8,8 @@ import pytest
 import xarray as xr
 from dask.distributed import Client
 import numpy as np
+import pandas as pd
+import json
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -41,6 +43,7 @@ class ProjectContext:
     dem_path: Path
     landmask_path: Path
     work_dir: Path
+    result_dir: Path
 
 
 @pytest.fixture(scope='class')
@@ -54,6 +57,7 @@ def ctx(config):
         dem_path=data_dir / 'dem.nc',
         landmask_path=data_dir / 'landmask.nc',
         work_dir=data_dir / 'workdir',
+        result_dir=data_dir / 'results',
     )
 
 
@@ -64,7 +68,7 @@ def dask_cluster(pipeline):
         'silence_logs': 'CRITICAL',
         'n_workers': 2,
         'threads_per_worker': 2,
-        'memory_limit': '6GB',
+        'memory_limit': '8GB',
     }
 
     pipeline._run_dask_cluster(**dask_kwargs)
@@ -252,6 +256,31 @@ class TestSentinel1Workflow:
         high_risk_areas = pipeline.risk_map.where(pipeline.failure_flag == 1)
         if not high_risk_areas.isnull().all():
             assert high_risk_areas.min(skipna=True) >= 6
+
+    def test_016_environmental_database(self, pipeline, ctx):
+        """Test creating environmental database."""
+        pipeline._environmental_database(ctx.aoi, ctx.result_dir)
+        climate_path = ctx.result_dir / "climate_daily_db.parquet"
+        air_path = ctx.result_dir / "air_quality_daily_db.parquet"
+        manifest_path = ctx.result_dir / "envdb_manifest.json"
+
+        assert climate_path.is_file()
+        assert air_path.is_file()
+        assert manifest_path.is_file()
+
+        df_climate = pd.read_parquet(climate_path)
+        assert not df_climate.empty
+        assert "precip_7d_mm" in df_climate.columns
+
+        df_air = pd.read_parquet(air_path)
+        assert not df_air.empty
+        assert "pm10" in df_air.columns
+
+        with open(manifest_path, "r") as f:
+            manifest = json.load(f)
+        assert "detected_timezone" in manifest
+        assert "locations" in manifest
+        assert len(manifest["locations"]) >= 1
 
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)
