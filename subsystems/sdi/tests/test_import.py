@@ -132,7 +132,9 @@ class TestEarthObservationDataLoader:
                 asset = stac_item['assets']['B01_cog']
                 asset_cog_url = asset['href']
 
-        assert asset_cog_url, 'STAC asset for COG does not contain href or assets does not exist'
+        assert asset_cog_url, (
+            'STAC asset for COG does not contain href or assets does not exist'
+        )
 
     def test_failing_import(self):
         base_dir = Path(__file__).parent
