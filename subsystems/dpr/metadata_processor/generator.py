@@ -467,7 +467,7 @@ class InsituDataset:
             },
             'links': [],
         }
-        self.logger.debug(f'STAC item created: {stac_item}')
+
         return stac_item
 
     @property
