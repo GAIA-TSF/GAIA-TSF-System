@@ -506,7 +506,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 try:
                     val = dem.sel(lat=v['lat'], lon=v['lon'], method='nearest').values
                     locations[k]['alt'] = float(np.nan_to_num(val))
-                except:
+                except Exception:
                     locations[k]['alt'] = 0
         except Exception as e:
             print(f'[ENVDB] Altitude sampling skipped: {e}')
@@ -565,10 +565,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Helper: US-AQI calculation for PM2.5
         def calculate_aqi(pm25):
-            if pm25 < 0: return 0
-            if pm25 <= 12.0: return ((50 - 0) / (12.0 - 0)) * (pm25 - 0) + 0
-            if pm25 <= 35.4: return ((100 - 51) / (35.4 - 12.1)) * (pm25 - 12.1) + 51
-            if pm25 <= 55.4: return ((150 - 101) / (55.4 - 35.5)) * (pm25 - 35.5) + 101
+            if pm25 < 0:
+                return 0
+            if pm25 <= 12.0:
+                return ((50 - 0) / (12.0 - 0)) * (pm25 - 0) + 0
+            if pm25 <= 35.4:
+                return ((100 - 51) / (35.4 - 12.1)) * (pm25 - 12.1) + 51
+            if pm25 <= 55.4:
+                return ((150 - 101) / (55.4 - 35.5)) * (pm25 - 35.5) + 101
             return 200  # Cap for simplified model
 
         for name, loc in locations.items():
