@@ -42,19 +42,10 @@ class RasterDataset:
 
         :return: A dictionary representing the STAC item with
         """
-        return self.get_stac_item(self.path)
+        return self.get_stac_item()
 
-    def get_stac_item(self, path: str) -> Dict[str, Any]:
-        """Retrieve and transform a STAC item from the given path.
-
-        This method creates a standard STAC item using the stactools library,
-        then applies custom transformations to match the desired format for
-        Sentinel-2 L2A data.
-
-        :param path: The file path to the granule or product directory.
-        :return: A dictionary containing the transformed STAC item with band
-            assets, metadata assets, and updated properties.
-        """
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path."""
         item_id = self.path.stem
         now = datetime.now(UTC).isoformat()
 
@@ -246,27 +237,26 @@ class SentinelDataset:
 
         :return: A dictionary representing the STAC item with
         """
-        return self.get_stac_item(self.path)
+        return self.get_stac_item()
 
-    def get_stac_item(self, path: str) -> Dict[str, Any]:
+    def get_stac_item(self) -> Dict[str, Any]:
         """Retrieve and transform a STAC item from the given path.
 
         This method creates a standard STAC item using the stactools library,
         then applies custom transformations to match the desired format for
         Sentinel-2 L2A data.
 
-        :param path: The file path to the granule or product directory.
         :return: A dictionary containing the transformed STAC item with band
             assets, metadata assets, and updated properties.
         """
         # common STAC definition
         item_standard = create_item(
-            granule_href=str(path),
+            granule_href=str(self.path),
             additional_providers=None,
             tolerance=None,
             asset_href_prefix=None,
         )
-        item_standard.set_self_href(os.path.split(path)[0])
+        item_standard.set_self_href(os.path.split(self.path)[0])
         # make HREFs relative; otherwise, it wouldn't be possible to test it
         # locally (comparison would fail for HREFs)
         item_standard.make_asset_hrefs_relative()
