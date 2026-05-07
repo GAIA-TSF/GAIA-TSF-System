@@ -1,12 +1,12 @@
 import pytest
 
 from lib.config import ProjectConfigReader
-from tests.utils import get_project_config_path
+from tests.utils import TestUtils.get_project_config_path
 
 
 @pytest.fixture(scope='class')
 def project_config():
-    return ProjectConfigReader(get_project_config_path('amd_monitoring_yxsjoberg'))
+    return ProjectConfigReader(TestUtils.get_project_config_path('amd_monitoring_yxsjoberg'))
 
 
 class TestConfig:
@@ -20,7 +20,7 @@ class TestConfig:
 
         # delete required option
         config = ProjectConfigReader(
-            get_project_config_path('amd_monitoring_yxsjoberg')
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
         del config['project']['name']
         config.validate(dict(config))  # re-validate config after modification
@@ -28,7 +28,7 @@ class TestConfig:
 
         # make WKT invalid
         config = ProjectConfigReader(
-            get_project_config_path('amd_monitoring_yxsjoberg')
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
         config['project']['aoi'] = 'X'
         config.validate(dict(config))  # re-validate config after modification

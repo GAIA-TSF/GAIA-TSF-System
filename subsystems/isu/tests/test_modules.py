@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import MagicMock
 
 from subsystems.isu.etl_engine.parsers import ParsingEngine
-from tests.utils import get_data_path
+from tests.utils import TestUtils
 
-TEST_DATA_DIR = get_data_path('isu')
+TEST_DATA_DIR = TestUtils.get_data_path('isu')
 
 
 @pytest.fixture

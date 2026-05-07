@@ -12,7 +12,7 @@ from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.data_export import DataExporter
 from subsystems.isu import InSituDataUploader
 from subsystems.sdi.loader import EarthObservationDataLoader, InSituDataLoader
-from tests.utils import get_data_path, get_project_config_path
+from tests.utils import TestUtils
 
 
 def generate_eou_metadata_and_import(product_path, metadata_path, output_file_path):
@@ -34,7 +34,7 @@ def create_sdi_package(product_path, metadata_path, output_file_path):
 
 @pytest.fixture(scope='class')
 def project_config():
-    return ProjectConfigReader(get_project_config_path('amd_monitoring_yxsjoberg'))
+    return ProjectConfigReader(TestUtils.get_project_config_path('amd_monitoring_yxsjoberg'))
 
 
 class TestConfig:
@@ -43,7 +43,7 @@ class TestConfig:
         metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
         exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
 
-        test_file = get_data_path('eou/ENMAP01_sample.tif')
+        test_file = TestUtils.get_data_path('eou/ENMAP01_sample.tif')
 
         module = ManualFileLoader()
         module.check_file_validity(test_file)

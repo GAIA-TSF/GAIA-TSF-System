@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 
 from subsystems.isu import InSituDataUploader
 from lib.base import SubsystemId
-from tests.utils import get_data_path
+from tests.utils import TestUtils
 
-TEST_DATA_DIR = get_data_path('isu')
+TEST_DATA_DIR = TestUtils.get_data_path('isu')
 
 
 class TestSubsystem:

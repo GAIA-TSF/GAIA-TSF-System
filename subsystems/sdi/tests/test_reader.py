@@ -3,9 +3,9 @@ from subsystems.sdi.utils import SdiUtils
 from subsystems.sdi.reader import SdiReader
 
 from config import EO_COLLECTION, EO_ITEM_ID
-from tests.utils import get_data_path
+from tests.utils import TestUtils
 
-TEST_DATA_DIR = get_data_path('sdi')
+TEST_DATA_DIR = TestUtils.get_data_path('sdi')
 
 
 class TestEarthObservationDataReader:

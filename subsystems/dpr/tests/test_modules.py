@@ -4,7 +4,7 @@ import json
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
-from tests.utils import get_data_path
+from tests.utils import TestUtils
 
 
 class TestModules:
@@ -76,7 +76,7 @@ class TestModules:
             return item_dict
 
         module = MetadataGenerator()
-        data_dir = get_data_path('eou')
+        data_dir = TestUtils.get_data_path('eou')
         module.set_datasource(data_dir / ('ENMAP01_sample.tif'))
         item_dict = module.stac.create_item()
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from tests.utils import get_project_config_path
+from tests.utils import TestUtils.get_project_config_path
 
 
 class TestSentinel1Workflow:
@@ -16,7 +16,7 @@ class TestSentinel1Workflow:
     def test_download(self):
         """Test EOU Data Acquisition Gateway to download Sentinel-1 data."""
         project_config = ProjectConfigReader(
-            get_project_config_path('amd_monitoring_yxsjoberg')
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
 
         module = DataAcquisitionGateway()
