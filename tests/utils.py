@@ -1,7 +1,9 @@
 from pathlib import Path
 
+
 class TestUtils:
     """Test utils."""
+
     @staticmethod
     def get_data_path(filename):
         """Get test data path.

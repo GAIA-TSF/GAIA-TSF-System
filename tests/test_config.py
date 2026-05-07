@@ -6,7 +6,9 @@ from tests.utils import TestUtils
 
 @pytest.fixture(scope='class')
 def project_config():
-    return ProjectConfigReader(TestUtils.get_project_config_path('amd_monitoring_yxsjoberg'))
+    return ProjectConfigReader(
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
 
 
 class TestConfig:
