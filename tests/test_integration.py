@@ -34,7 +34,9 @@ def create_sdi_package(product_path, metadata_path, output_file_path):
 
 @pytest.fixture(scope='class')
 def project_config():
-    return ProjectConfigReader(TestUtils.get_project_config_path('amd_monitoring_yxsjoberg'))
+    return ProjectConfigReader(
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
 
 
 class TestConfig:
