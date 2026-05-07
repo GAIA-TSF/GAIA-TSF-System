@@ -368,8 +368,10 @@ class EarthObservationDataLoader(SdiLoader):
         # Create bucket if missing
         try:
             s3.create_bucket(Bucket=bucket_name)
-        except (s3.exceptions.BucketAlreadyOwnedByYou,
-                s3.exceptions.BucketAlreadyExists):
+        except (
+            s3.exceptions.BucketAlreadyOwnedByYou,
+            s3.exceptions.BucketAlreadyExists,
+        ):
             pass
 
         # Process each asset
@@ -389,21 +391,20 @@ class EarthObservationDataLoader(SdiLoader):
 
             # Check if SAFE format or GeoTIFF
             if self._is_safe_format(raster_path):
-                self._process_safe_to_cog(raster_path, asset_key, s3, bucket_name, asset)
+                self._process_safe_to_cog(
+                    raster_path, asset_key, s3, bucket_name, asset
+                )
             else:
-                self._process_geotiff_to_cog(raster_path, asset_key, s3, bucket_name, asset)
+                self._process_geotiff_to_cog(
+                    raster_path, asset_key, s3, bucket_name, asset
+                )
 
     def _is_safe_format(self, path: str) -> bool:
         """Check if path is Sentinel-2 SAFE format"""
         return path.endswith('.SAFE') or 'SAFE' in path
 
     def _process_geotiff_to_cog(
-            self,
-            raster_path: str,
-            asset_key: str,
-            s3,
-            bucket_name: str,
-            asset: Dict
+        self, raster_path: str, asset_key: str, s3, bucket_name: str, asset: Dict
     ):
         """
         Upload original GeoTIFF AND create COG version
@@ -432,7 +433,7 @@ class EarthObservationDataLoader(SdiLoader):
         # CREATE AND UPLOAD COG VERSION
         self.logger.info(f'Converting to COG: {raster_path}')
 
-        cog_filename = f"{os.path.splitext(filename)[0]}_cog.tif"
+        cog_filename = f'{os.path.splitext(filename)[0]}_cog.tif'
         cog_path = os.path.join(self.cog_temp_dir, cog_filename)
 
         # Convert to COG
@@ -444,13 +445,13 @@ class EarthObservationDataLoader(SdiLoader):
             s3.upload_file(Filename=cog_path, Bucket=bucket_name, Key=s3_key_cog)
 
             # Add COG as NEW asset (not replacing original)
-            cog_asset_key = f"{asset_key}_cog"
+            cog_asset_key = f'{asset_key}_cog'
             self.stac_json['assets'][cog_asset_key] = {
                 'href': f'http://localstack:4566/{bucket_name}/{s3_key_cog}',
                 'type': 'image/tiff; application=geotiff; profile=cloud-optimized',
                 'title': f'{asset.get("title", asset_key)} (COG)',
                 'roles': ['data', 'visual', 'cloud-optimized'],
-                'derived_from': asset_key  # Reference to original
+                'derived_from': asset_key,  # Reference to original
             }
 
             self.logger.info(f'COG uploaded to s3://{bucket_name}/{s3_key_cog}')
@@ -458,12 +459,7 @@ class EarthObservationDataLoader(SdiLoader):
             self.logger.warning(f'COG conversion failed for {filename}')
 
     def _process_safe_to_cog(
-            self,
-            safe_path: str,
-            asset_key: str,
-            s3,
-            bucket_name: str,
-            asset: Dict
+        self, safe_path: str, asset_key: str, s3, bucket_name: str, asset: Dict
     ):
         """
         Upload original SAFE AND create COG files for each band
@@ -497,21 +493,25 @@ class EarthObservationDataLoader(SdiLoader):
 
             # A) Upload original JP2 band
             original_filename = os.path.basename(band_path)
-            s3_key_original = f'rasters/safe_original/{safe_name}/{band_name}/{original_filename}'
+            s3_key_original = (
+                f'rasters/safe_original/{safe_name}/{band_name}/{original_filename}'
+            )
 
             s3.upload_file(Filename=band_path, Bucket=bucket_name, Key=s3_key_original)
 
             # Add original band asset
-            original_asset_key = f"{asset_key}_{band_name}_original"
+            original_asset_key = f'{asset_key}_{band_name}_original'
             self.stac_json['assets'][original_asset_key] = {
                 'href': f'http://localstack:4566/{bucket_name}/{s3_key_original}',
                 'type': 'image/jp2',
                 'title': f'{band_name} Band (Original JP2)',
                 'roles': ['data'],
-                'eo:bands': [{
-                    'name': band_name,
-                    'common_name': self._get_common_band_name(band_name)
-                }]
+                'eo:bands': [
+                    {
+                        'name': band_name,
+                        'common_name': self._get_common_band_name(band_name),
+                    }
+                ],
             }
 
             self.logger.info(f'Original {band_name} uploaded')
@@ -519,7 +519,7 @@ class EarthObservationDataLoader(SdiLoader):
             # B) Convert to COG and upload
             self.logger.info(f'Converting {band_name} to COG')
 
-            cog_filename = f"{safe_name}_{band_name}_cog.tif"
+            cog_filename = f'{safe_name}_{band_name}_cog.tif'
             cog_path = os.path.join(self.cog_temp_dir, cog_filename)
 
             success = self._convert_to_cog(
@@ -527,7 +527,7 @@ class EarthObservationDataLoader(SdiLoader):
                 cog_path,
                 compression='JPEG',
                 overview_levels=[2, 4, 8, 16, 32],
-                target_epsg=3857
+                target_epsg=3857,
             )
 
             if success:
@@ -536,17 +536,19 @@ class EarthObservationDataLoader(SdiLoader):
                 s3.upload_file(Filename=cog_path, Bucket=bucket_name, Key=s3_key_cog)
 
                 # Add COG asset
-                cog_asset_key = f"{asset_key}_{band_name}_cog"
+                cog_asset_key = f'{asset_key}_{band_name}_cog'
                 self.stac_json['assets'][cog_asset_key] = {
                     'href': f'http://localstack:4566/{bucket_name}/{s3_key_cog}',
                     'type': 'image/tiff; application=geotiff; profile=cloud-optimized',
                     'title': f'{band_name} Band (COG)',
                     'roles': ['data', 'visual', 'cloud-optimized'],
-                    'eo:bands': [{
-                        'name': band_name,
-                        'common_name': self._get_common_band_name(band_name)
-                    }],
-                    'derived_from': original_asset_key  # Link to original
+                    'eo:bands': [
+                        {
+                            'name': band_name,
+                            'common_name': self._get_common_band_name(band_name),
+                        }
+                    ],
+                    'derived_from': original_asset_key,  # Link to original
                 }
 
                 self.logger.info(f'COG {band_name} uploaded')
@@ -597,10 +599,7 @@ class EarthObservationDataLoader(SdiLoader):
                         break
 
                 if band_name:
-                    bands.append({
-                        'name': band_name,
-                        'path': str(band_file)
-                    })
+                    bands.append({'name': band_name, 'path': str(band_file)})
 
         return bands
 
@@ -619,19 +618,19 @@ class EarthObservationDataLoader(SdiLoader):
             'B09': 'nir09',
             'B10': 'cirrus',
             'B11': 'swir16',
-            'B12': 'swir22'
+            'B12': 'swir22',
         }
         return band_mapping.get(band_name)
 
     def _convert_to_cog(
-            self,
-            input_file: str,
-            output_file: str,
-            compression: str = 'DEFLATE',
-            overview_levels: Optional[List[int]] = None,
-            blocksize: int = 512,
-            target_epsg: Optional[int] = None,
-            resampling: str = 'BILINEAR'
+        self,
+        input_file: str,
+        output_file: str,
+        compression: str = 'DEFLATE',
+        overview_levels: Optional[List[int]] = None,
+        blocksize: int = 512,
+        target_epsg: Optional[int] = None,
+        resampling: str = 'BILINEAR',
     ) -> bool:
         """
         Convert GeoTIFF to Cloud Optimized GeoTIFF (COG)
@@ -649,22 +648,28 @@ class EarthObservationDataLoader(SdiLoader):
             overview_levels = [2, 4, 8, 16]
 
         try:
-
             if target_epsg is not None:
-                temp_reprojected = input_file.replace('.tif', f'_epsg{target_epsg}_temp.tif')
+                temp_reprojected = input_file.replace(
+                    '.tif', f'_epsg{target_epsg}_temp.tif'
+                )
 
                 self.logger.info(f'Reprojectování do EPSG:{target_epsg}...')
 
                 reproject_cmd = [
                     'gdalwarp',
-                    '-t_srs', f'EPSG:{target_epsg}',
-                    '-r', resampling,
-                    '-co', 'TILED=YES',
-                    '-co', 'COMPRESS=LZW',
+                    '-t_srs',
+                    f'EPSG:{target_epsg}',
+                    '-r',
+                    resampling,
+                    '-co',
+                    'TILED=YES',
+                    '-co',
+                    'COMPRESS=LZW',
                     '-multi',
-                    '-wo', 'NUM_THREADS=ALL_CPUS',
+                    '-wo',
+                    'NUM_THREADS=ALL_CPUS',
                     input_file,
-                    temp_reprojected
+                    temp_reprojected,
                 ]
 
                 result = subprocess.run(
@@ -672,26 +677,31 @@ class EarthObservationDataLoader(SdiLoader):
                     check=True,
                     capture_output=True,
                     text=True,
-                    timeout=600  # 10 min timeout pro reprojekci
+                    timeout=600,  # 10 min timeout pro reprojekci
                 )
-
 
                 source_file = temp_reprojected
             else:
                 source_file = input_file
 
-
             cmd = [
                 'gdal_translate',
                 source_file,
                 output_file,
-                '-of', 'COG',
-                '-co', f'COMPRESS={compression}',
-                '-co', f'BLOCKSIZE={blocksize}',
-                '-co', 'TILED=YES',
-                '-co', 'NUM_THREADS=ALL_CPUS',
-                '-co', f'OVERVIEWS={",".join(map(str, overview_levels))}',
-                '-co', 'BIGTIFF=IF_SAFER'
+                '-of',
+                'COG',
+                '-co',
+                f'COMPRESS={compression}',
+                '-co',
+                f'BLOCKSIZE={blocksize}',
+                '-co',
+                'TILED=YES',
+                '-co',
+                'NUM_THREADS=ALL_CPUS',
+                '-co',
+                f'OVERVIEWS={",".join(map(str, overview_levels))}',
+                '-co',
+                'BIGTIFF=IF_SAFER',
             ]
 
             # Add JPEG quality for JPEG compression
@@ -703,9 +713,8 @@ class EarthObservationDataLoader(SdiLoader):
                 check=True,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 min timeout
+                timeout=300,  # 5 min timeout
             )
-
 
             if target_epsg is not None and os.path.exists(temp_reprojected):
                 os.remove(temp_reprojected)
@@ -737,7 +746,11 @@ class EarthObservationDataLoader(SdiLoader):
 
         except Exception as e:
             self.logger.error(f'COG conversion error: {str(e)}')
-            if target_epsg is not None and 'temp_reprojected' in locals() and os.path.exists(temp_reprojected):
+            if (
+                target_epsg is not None
+                and 'temp_reprojected' in locals()
+                and os.path.exists(temp_reprojected)
+            ):
                 os.remove(temp_reprojected)
             return False
 
@@ -759,7 +772,5 @@ class EarthObservationDataLoader(SdiLoader):
             self.stac_json['properties'] = {}
 
         self.stac_json['properties']['processing:level'] = 'L2A'
-        self.stac_json['properties']['processing:software'] = {
-            'gdal': 'COG conversion'
-        }
+        self.stac_json['properties']['processing:software'] = {'gdal': 'COG conversion'}
         self.stac_json['properties']['updated'] = datetime.utcnow().isoformat() + 'Z'
