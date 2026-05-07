@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from timezonefinder import TimezoneFinder
 from retry_requests import retry
 from shapely.wkt import loads
+from pyproj import Transformer
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -339,7 +340,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if self.detrend is None or self.corr is None:
             raise RuntimeError('Missing detrended phase or correlation data.')
 
-        # 1. Grid Alignment & SBAS Solve
+        # Grid Alignment & SBAS Solve
         corr_ra = self.corr
         if self.detrend.sizes != self.corr.sizes:
             corr_ra = self.sbas.decimator(float(target_m))(self.corr).persist()
@@ -348,7 +349,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             sol = self.sbas.lstsq(self.detrend, corr_ra)
             disp_ra = self.sbas.los_displacement_mm(sol).persist()
 
-        # 2. Reference to Zero (Inline Time-Dim Selection)
+        # Reference to Zero (Inline Time-Dim Selection)
         t_dim = next(
             (d for d in disp_ra.dims if d in ('date', 'time', 'epoch', 'pair')), None
         )
@@ -357,13 +358,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 disp_ra[t_dim] != disp_ra[t_dim].values[0], other=np.nan
             )
 
-        # 3. Geocoding & Coordinate Transformation
+        # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
         self.disp_ll = self.sbas.cropna(
             self.sbas.ra2ll(disp_ra)
         ).compute()  # can be switched to .persist()
 
-        # 4. RMSE Calculation
+        # RMSE Calculation
         disp_pairs_ra = self.sbas.los_displacement_mm(self.detrend).persist()
         self.rmse = self.sbas.rmse(disp_pairs_ra, disp_ra, corr_ra).persist()
 
@@ -473,131 +474,127 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param int grid_rows: Number of horizontal sampling points across the AOI. Defaults to 3.
         :param int grid_cols: Number of vertical sampling points across the AOI. Defaults to 3.
         :param str model: The atmospheric reanalysis model to use for historical climate data. Defaults to "era5".
+        :return: None
         """
-        # Resolve Temporal Bounds from the InSAR stack
+        # Temporal & Spatial Setup
         stack_df = self.sbas.to_dataframe()
         dt_index = pd.to_datetime(stack_df.index)
-        start_date = dt_index.min().date()
-        stop_date = dt_index.max().date()
+        start_date, stop_date = dt_index.min().date(), dt_index.max().date()
 
-        # Resolve AOI & Automatic Timezone Detection
         aoi = loads(aoi) if isinstance(aoi, str) else aoi
-        bounds = aoi.bounds  # (min_lon, min_lat, max_lon, max_lat)
-
-        center_lon = (bounds[0] + bounds[2]) / 2
-        center_lat = (bounds[1] + bounds[3]) / 2
+        bounds = aoi.bounds
+        center_lon, center_lat = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
 
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
 
-        # Initialize Open-Meteo API Client with Cache/Retry
-        cache_session = requests_cache.CachedSession(
-            str(output_dir / 'openmeteo_cache'), expire_after=3600
-        )
+        # API Client Setup
+        cache_session = requests_cache.CachedSession(str(output_dir / 'openmeteo_cache'), expire_after=3600)
         retry_session = retry(cache_session, retries=5, backoff_factor=0.3)
         om_client = openmeteo_requests.Client(session=retry_session)
 
-        # Build Spatial Sampling Grid
-        lats = np.linspace(bounds[1], bounds[3], grid_rows)
-        lons = np.linspace(bounds[0], bounds[2], grid_cols)
+        # Build Grid & Sample Altitudes
+        lats, lons = np.linspace(bounds[1], bounds[3], grid_rows), np.linspace(bounds[0], bounds[2], grid_cols)
         locations = {'center': {'lat': center_lat, 'lon': center_lon}}
         for i, lat in enumerate(lats):
             for j, lon in enumerate(lons):
                 locations[f'grid_{i}_{j}'] = {'lat': float(lat), 'lon': float(lon)}
 
-        # Sample Altitudes from pipeline DEM
         try:
             dem = self.sbas.get_dem()
             for k, v in locations.items():
                 try:
-                    # Assuming DEM has 'lat'/'lon' or 'y'/'x' coordinates
                     val = dem.sel(lat=v['lat'], lon=v['lon'], method='nearest').values
                     locations[k]['alt'] = float(np.nan_to_num(val))
-                except Exception:
+                except:
                     locations[k]['alt'] = 0
         except Exception as e:
             print(f'[ENVDB] Altitude sampling skipped: {e}')
 
-        # Fetch Climate Data
+        # Fetch & Process Climate Data
         climate_url = 'https://archive-api.open-meteo.com/v1/archive'
         climate_vars = [
-            'temperature_2m_mean',
-            'precipitation_sum',
-            'et0_fao_evapotranspiration',
-            'wind_speed_10m_max',
+            'temperature_2m_max', 'precipitation_sum',
+            'et0_fao_evapotranspiration', 'wind_gusts_10m_max'
         ]
         all_climate = []
 
         for name, loc in locations.items():
             params = {
-                'latitude': loc['lat'],
-                'longitude': loc['lon'],
-                'start_date': start_date.isoformat(),
-                'end_date': stop_date.isoformat(),
-                'daily': climate_vars,
-                'timezone': tz_name,
-                'models': model,
+                'latitude': loc['lat'], 'longitude': loc['lon'],
+                'start_date': start_date.isoformat(), 'end_date': stop_date.isoformat(),
+                'daily': climate_vars, 'timezone': tz_name, 'models': model,
             }
             res = om_client.weather_api(climate_url, params=params)[0]
             daily = res.Daily()
 
-            # Get one of the data arrays to determine the actual number of days returned
-            temp_array = daily.Variables(0).ValuesAsNumpy()
-            num_days = len(temp_array)
-
-            # Create date range based on the actual length of returned data
+            num_days = len(daily.Variables(0).ValuesAsNumpy())
             dates = pd.date_range(
-                start=pd.to_datetime(daily.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=num_days,
-                freq='D',
+                start=pd.to_datetime(daily.Time(), unit='s', utc=True).tz_convert(tz_name).tz_localize(None),
+                periods=num_days, freq='D'
             )
 
-            c_data = {'date': dates, 'location': name}
+            df = pd.DataFrame({'date': dates, 'location': name})
             for idx, var in enumerate(climate_vars):
-                c_data[var] = daily.Variables(idx).ValuesAsNumpy()
+                df[var] = daily.Variables(idx).ValuesAsNumpy()
 
-            df = pd.DataFrame(c_data)
+            # Rainfall indicators
             df['precip_7d_mm'] = df['precipitation_sum'].rolling(7, min_periods=1).sum()
+            df['precip_30d_mm'] = df['precipitation_sum'].rolling(30, min_periods=1).sum()
+            df['wet_days_30d'] = (df['precipitation_sum'] > 1.0).rolling(30, min_periods=1).sum()
+
+            # Hydrological balance (Precip - Evapotranspiration)
+            df['daily_wb'] = df['precipitation_sum'] - df['et0_fao_evapotranspiration']
+            df['water_balance_30d_mm'] = df['daily_wb'].rolling(30, min_periods=1).sum()
+
+            # Wind Gusts
+            df['wind_gust_kmh'] = df['wind_gusts_10m_max']
+
+            # Temperature Anomaly (Current Max vs 30-day average)
+            df['temp_max_C_month_anom'] = df['temperature_2m_max'] - df['temperature_2m_max'].rolling(30,
+                                                                                                      min_periods=1).mean()
+
             all_climate.append(df)
 
         climate_df = pd.concat(all_climate).reset_index(drop=True)
 
-        # Fetch Air Quality Data
+        # Fetch & Process Air Quality Data
         aq_url = 'https://air-quality-api.open-meteo.com/v1/air-quality'
         aq_vars = ['pm10', 'pm2_5']
         all_aq = []
 
+        # Helper: US-AQI calculation for PM2.5
+        def calculate_aqi(pm25):
+            if pm25 < 0: return 0
+            if pm25 <= 12.0: return ((50 - 0) / (12.0 - 0)) * (pm25 - 0) + 0
+            if pm25 <= 35.4: return ((100 - 51) / (35.4 - 12.1)) * (pm25 - 12.1) + 51
+            if pm25 <= 55.4: return ((150 - 101) / (55.4 - 35.5)) * (pm25 - 35.5) + 101
+            return 200  # Cap for simplified model
+
         for name, loc in locations.items():
             params = {
-                'latitude': loc['lat'],
-                'longitude': loc['lon'],
-                'start_date': start_date.isoformat(),
-                'end_date': stop_date.isoformat(),
-                'hourly': aq_vars,
-                'timezone': tz_name,
+                'latitude': loc['lat'], 'longitude': loc['lon'],
+                'start_date': start_date.isoformat(), 'end_date': stop_date.isoformat(),
+                'hourly': aq_vars, 'timezone': tz_name,
             }
             res = om_client.weather_api(aq_url, params=params)[0]
             hourly = res.Hourly()
 
             dates = pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=len(hourly.Variables(0).ValuesAsNumpy()),
-                freq='h',
+                start=pd.to_datetime(hourly.Time(), unit='s', utc=True).tz_convert(tz_name).tz_localize(None),
+                periods=len(hourly.Variables(0).ValuesAsNumpy()), freq='h'
             )
 
-            a_data = {'datetime': dates}
+            df_h = pd.DataFrame({'datetime': dates})
             for idx, var in enumerate(aq_vars):
-                a_data[var] = hourly.Variables(idx).ValuesAsNumpy()
+                df_h[var] = hourly.Variables(idx).ValuesAsNumpy()
 
-            # Resample to daily max for safety thresholds
-            df_aq = (
-                pd.DataFrame(a_data).resample('D', on='datetime').max().reset_index()
-            )
+            # Resample to daily max and calculate AQI
+            df_aq = df_h.resample('D', on='datetime').max().reset_index()
+            df_aq['us_aqi'] = df_aq['pm2_5'].apply(calculate_aqi)
             df_aq['location'] = name
+            # Fix column name for resample consistency
+            df_aq = df_aq.rename(columns={'datetime': 'date'})
             all_aq.append(df_aq)
 
         air_df = pd.concat(all_aq).reset_index(drop=True)
@@ -614,6 +611,163 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         }
         with open(output_dir / 'envdb_manifest.json', 'w') as f:
             json.dump(manifest, f, indent=2)
+
+    def _compute_risk_database(self, output_dir):
+        """Merges InSAR monitoring data with environmental data and computes
+        a multi-hazard composite risk score for every measurement point.
+
+        :param Path output_dir: Directory path where final results will be saved and 'climate_daily_db.parquet'
+                                and 'air_quality_daily_db.parquet' are already stored.
+        :return: None
+        """
+        # Extract and Merge InSAR Layers
+        if self.disp_ll is None or self.risk_map is None:
+            raise RuntimeError("InSAR displacement or risk map not found. Run previous steps first.")
+
+        # Convert xarray datasets to long-form DataFrames
+        df_disp = self.disp_ll.to_dataframe().reset_index()
+        df_risk = self.risk_map.to_dataframe().reset_index()
+
+        if "date" in df_risk.columns:
+            df_risk = df_risk.drop(columns=["date"])
+
+        # Merge on spatial coordinates (lat, lon)
+        df_base = df_disp.merge(df_risk, on=["lat", "lon"])
+
+        # Normalize and Calculate Missing Motion Columns
+        rename_map = {
+            "displacement": "los_mm",
+            "los": "los_mm",
+            "slope": "slope_deg",
+            "risk_score": "insar_risk_score_base"
+        }
+        df_base = df_base.rename(columns={k: v for k, v in rename_map.items() if k in df_base.columns})
+
+        # Suffix Fallback: If 'date' was somehow still renamed by pandas
+        if "date" not in df_base.columns:
+            if "date_x" in df_base.columns:
+                df_base = df_base.rename(columns={"date_x": "date"})
+            elif "date_y" in df_base.columns:
+                df_base = df_base.rename(columns={"date_y": "date"})
+
+        # Ensure cell_id exists for time-series grouping
+        df_base["cell_id"] = df_base["lat"].astype(str) + "_" + df_base["lon"].astype(str)
+        df_base["date"] = pd.to_datetime(df_base["date"]).dt.normalize()
+
+        # Calculate dlos (daily change) and velocity (rate)
+        df_base = df_base.sort_values(["cell_id", "date"])
+        df_base["dlos_mm"] = df_base.groupby("cell_id")["los_mm"].diff().fillna(0)
+
+        # Calculate days between acquisitions to get true velocity
+        date_diff = df_base.groupby("cell_id")["date"].diff().dt.days.fillna(1)
+        date_diff = date_diff.replace(0, 1)  # Prevent division by zero
+        df_base["vel_mm_per_day"] = (df_base["dlos_mm"] / date_diff).abs()
+
+        # Load Environmental Data
+        clim = pd.read_parquet(output_dir / "climate_daily_db.parquet")
+        air = pd.read_parquet(output_dir / "air_quality_daily_db.parquet")
+
+        clim["date"] = pd.to_datetime(clim["date"]).dt.normalize()
+        air["date"] = pd.to_datetime(air["date"]).dt.normalize()
+
+        # Risk Thresholds and Weights
+        TH = {
+            "VEL_DAY_LO": 0.5, "VEL_DAY_HI": 2.0,
+            "DLOS_DAY_LO": 0.5, "DLOS_DAY_HI": 2.0,
+            "LOS_LO": 20.0, "LOS_HI": 60.0,
+            "SLOPE_LO": 10.0, "SLOPE_HI": 20.0,
+            "P7_LO": 20.0, "P7_HI": 60.0,
+            "P30_LO": 60.0, "P30_HI": 150.0,
+            "PM25_LO": 15.0, "PM25_HI": 35.0,
+            "RISK_MODERATE": 35.0, "RISK_HIGH": 60.0, "RISK_CRITICAL": 80.0,
+        }
+        W = {"motion": 0.45, "terrain": 0.15, "hydroclimate": 0.25, "atmosphere": 0.15}
+
+        def _lin_score(x, lo, hi):
+            return np.clip((np.asarray(x, dtype="float64") - lo) / (hi - lo + 1e-12), 0.0, 1.0)
+
+        # Spatial Matching (Robust Nearest Neighbor)
+        cell_lut = df_base[["cell_id", "lat", "lon"]].drop_duplicates("cell_id")
+
+        # Check if environmental data has coordinates for distance matching
+        has_env_coords = "lat" in clim.columns and "lon" in clim.columns
+
+        if has_env_coords:
+            env_pts = clim[["location", "lat", "lon"]].drop_duplicates("location")
+            p_lat, p_lon = env_pts["lat"].values, env_pts["lon"].values
+            c_lat, c_lon = cell_lut["lat"].values, cell_lut["lon"].values
+
+            dist = (c_lat[:, None] - p_lat[None, :]) ** 2 + (c_lon[:, None] - p_lon[None, :]) ** 2
+            cell_lut["env_location"] = env_pts["location"].values[dist.argmin(axis=1)]
+        else:
+            # Fallback: Map to the first location name if coordinates are missing
+            primary_loc = clim["location"].iloc[0]
+            cell_lut["env_location"] = primary_loc
+
+        # Merge Databases
+        df_merged = df_base.merge(cell_lut[["cell_id", "env_location"]], on="cell_id")
+
+        # Prefix columns to avoid collisions
+        clim_cols = {c: f"climate_{c}" for c in clim.columns if c not in ["date", "location"]}
+        air_cols = {c: f"air_{c}" for c in air.columns if c not in ["date", "location"]}
+
+        df_merged = df_merged.merge(clim.rename(columns=clim_cols),
+                                    left_on=["date", "env_location"],
+                                    right_on=["date", "location"], how="left")
+        df_merged = df_merged.merge(air.rename(columns=air_cols),
+                                    left_on=["date", "env_location"],
+                                    right_on=["date", "location"], how="left")
+
+        # Compute Composite Risk Score
+        # Motion
+        v_s = _lin_score(df_merged["vel_mm_per_day"], TH["VEL_DAY_LO"], TH["VEL_DAY_HI"])
+        d_s = _lin_score(np.abs(df_merged["dlos_mm"]), TH["DLOS_DAY_LO"], TH["DLOS_DAY_HI"])
+        l_s = _lin_score(np.abs(df_merged["los_mm"]), TH["LOS_LO"], TH["LOS_HI"])
+        motion_comp = 0.40 * v_s + 0.35 * d_s + 0.25 * l_s
+
+        # Other Components
+        hydro_comp = _lin_score(df_merged.get("climate_precip_7d_mm", 0), TH["P7_LO"], TH["P7_HI"])
+        terrain_comp = _lin_score(df_merged.get("slope_deg", 0), TH["SLOPE_LO"], TH["SLOPE_HI"])
+        atmos_comp = _lin_score(df_merged.get("air_pm2_5", 0), TH["PM25_LO"], TH["PM25_HI"])
+
+        # Final Risk Score (0-100)
+        total_risk = 100.0 * (W["motion"] * motion_comp +
+                              W["terrain"] * terrain_comp +
+                              W["hydroclimate"] * hydro_comp +
+                              W["atmosphere"] * atmos_comp)
+
+        df_merged["risk_score_0to100"] = total_risk.astype("float32")
+
+        # Classification
+        level = np.full(len(df_merged), "Low", dtype=object)
+        level[total_risk >= TH["RISK_MODERATE"]] = "Moderate"
+        level[total_risk >= TH["RISK_HIGH"]] = "High"
+        level[total_risk >= TH["RISK_CRITICAL"]] = "Critical"
+        df_merged["risk_class"] = pd.Categorical(level,
+                                                 categories=["Low", "Moderate", "High", "Critical"],
+                                                 ordered=True)
+
+        # UTM Projection
+        mean_lat, mean_lon = df_merged["lat"].mean(), df_merged["lon"].mean()
+        utm_zone = int(np.floor((mean_lon + 180.0) / 6.0) + 1)
+        epsg = 32700 + utm_zone if mean_lat < 0 else 32600 + utm_zone
+
+        transformer = Transformer.from_crs("EPSG:4326", f"EPSG:{epsg}", always_xy=True)
+        xe, yn = transformer.transform(df_merged["lon"].values, df_merged["lat"].values)
+        df_merged["UTM_E"], df_merged["UTM_N"] = xe, yn
+
+        # Export
+        df_merged.to_parquet(output_dir / "final_risk_database.parquet", index=False)
+
+        # Save Metadata
+        governance = {
+            "calculated_at": datetime.now(timezone.utc).isoformat(),
+            "thresholds": TH,
+            "weights": W,
+            "utm_epsg": int(epsg)
+        }
+        with open(output_dir / "risk_governance.json", "w") as f:
+            json.dump(governance, f, indent=2)
 
     def _run(self):
         self._download_orbits(self._config['datadir'])
@@ -634,4 +788,5 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._compute_displacement()
         self._compute_risk()
         self._environmental_database(self._config['aoi'], self._config['result_dir'])
+        self._compute_risk_database(self._config['result_dir'])
         pass
