@@ -14,7 +14,7 @@ class SdiReader(GaiaBase):
         super().__init__(SubsystemId.SDI)
 
     def search_assets(
-            self, query_string: str, asset_name: Optional[str] = None
+        self, query_string: str, asset_name: Optional[str] = None
     ) -> List[Dict]:
         """
         Perform a STAC search request and return a list of matching assets with metadata.
@@ -53,30 +53,34 @@ class SdiReader(GaiaBase):
                 # Return only the specified asset
                 if asset_name in assets:
                     asset = assets[asset_name].copy()
-                    asset.update({
-                        'bbox': bbox,
-                        'timestamp': timestamp,
-                        'item_id': item_id,
-                        'collection': collection,
-                        'cloud_cover': cloud_cover,
-                        'platform': platform,
-                        'instruments': instruments,
-                        'asset_key': asset_name
-                    })
+                    asset.update(
+                        {
+                            'bbox': bbox,
+                            'timestamp': timestamp,
+                            'item_id': item_id,
+                            'collection': collection,
+                            'cloud_cover': cloud_cover,
+                            'platform': platform,
+                            'instruments': instruments,
+                            'asset_key': asset_name,
+                        }
+                    )
                     results.append(asset)
             else:
                 # Return all assets
                 for key, asset_data in assets.items():
                     asset = asset_data.copy()
-                    asset.update({
-                        'timestamp': timestamp,
-                        'item_id': item_id,
-                        'collection': collection,
-                        'cloud_cover': cloud_cover,
-                        'platform': platform,
-                        'instruments': instruments,
-                        'asset_key': key
-                    })
+                    asset.update(
+                        {
+                            'timestamp': timestamp,
+                            'item_id': item_id,
+                            'collection': collection,
+                            'cloud_cover': cloud_cover,
+                            'platform': platform,
+                            'instruments': instruments,
+                            'asset_key': key,
+                        }
+                    )
                     results.append(asset)
 
         return results
