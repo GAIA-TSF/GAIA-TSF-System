@@ -54,7 +54,7 @@
     },
     "assets": {
         "B02": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B02_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B02_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -62,7 +62,7 @@
             ]
         },
         "B03": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B03_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B03_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -70,7 +70,7 @@
             ]
         },
         "B04": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B04_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B04_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -78,7 +78,7 @@
             ]
         },
         "B08": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B08_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B08_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -86,7 +86,7 @@
             ]
         },
         "B05": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B05_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B05_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -94,7 +94,7 @@
             ]
         },
         "B06": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B06_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B06_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -102,7 +102,7 @@
             ]
         },
         "B07": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B07_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B07_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -110,7 +110,7 @@
             ]
         },
         "B8A": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B8A_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B8A_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -118,7 +118,7 @@
             ]
         },
         "B11": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B11_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B11_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -126,7 +126,7 @@
             ]
         },
         "B12": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B12_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B12_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -134,7 +134,7 @@
             ]
         },
         "B01": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B01_60m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B01_60m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -142,7 +142,7 @@
             ]
         },
         "B09": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B09_60m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B09_60m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -150,21 +150,21 @@
             ]
         },
         "safe_manifest": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/manifest.safe",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/manifest.safe",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "scene_metadata": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/MTD_MSIL2A.xml",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/MTD_MSIL2A.xml",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "granule_metadata": {
-            "href": "./test_MetadataProcessor_0010/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/MTD_TL.xml",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/MTD_TL.xml",
             "type": "application/xml",
             "roles": [
                 "metadata"
