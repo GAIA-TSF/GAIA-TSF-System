@@ -2,7 +2,6 @@ import requests
 import tempfile
 from pathlib import Path
 from typing import Optional, List, Dict
-from datetime import datetime
 
 from lib.base import GaiaBase, SubsystemId
 
@@ -39,6 +38,7 @@ class SdiReader(GaiaBase):
             # Extract metadata from item
             properties = item.get('properties', {})
             timestamp = properties.get('datetime')
+            bbox = item.get('bbox')
             item_id = item.get('id')
             collection = item.get('collection')
 
@@ -54,6 +54,7 @@ class SdiReader(GaiaBase):
                 if asset_name in assets:
                     asset = assets[asset_name].copy()
                     asset.update({
+                        'bbox': bbox,
                         'timestamp': timestamp,
                         'item_id': item_id,
                         'collection': collection,
