@@ -37,7 +37,6 @@ def config():
 @dataclass
 class ProjectContext:
     """A container for shared project variables."""
-
     aoi: BaseGeometry
     data_dir: Path
     dem_path: Path
@@ -47,10 +46,10 @@ class ProjectContext:
 
 
 @pytest.fixture(scope='class')
-def ctx(config):
+def ctx(config, glob_config):
     """Bundles multiple config values into one object."""
-    project = config['project']
-    data_dir = Path(project['data_dir']).resolve()
+    base_dir = Path(glob_config['storage']['data_dir']).resolve()
+    data_dir = base_dir / 'Sentinel1'
     return ProjectContext(
         aoi=loads(config['project']['aoi']['geom']),
         data_dir=data_dir,
@@ -61,14 +60,24 @@ def ctx(config):
     )
 
 
+@pytest.fixture(scope='class')
+def glob_config():
+    return ProjectConfigReader(
+        str(
+            Path(__file__).parent.parent.parent.parent
+            / 'config.yaml'
+        )
+    )
+
+
 @pytest.fixture(scope='class', autouse=True)
-def dask_cluster(pipeline):
+def dask_cluster(pipeline, glob_config):
     """Starts a Dask cluster for the duration of the test class."""
     dask_kwargs = {
-        'silence_logs': 'CRITICAL',
-        'n_workers': 2,
-        'threads_per_worker': 2,
-        'memory_limit': '8GB',
+        'silence_logs': glob_config['dask_parameters']['silence_logs'],
+        'n_workers': glob_config['dask_parameters']['n_workers'],
+        'threads_per_worker': glob_config['dask_parameters']['threads_per_worker'],
+        'memory_limit': glob_config['dask_parameters']['memory_limit'],
     }
 
     pipeline._run_dask_cluster(**dask_kwargs)
@@ -80,7 +89,7 @@ def dask_cluster(pipeline):
 
 
 class TestSentinel1Workflow:
-    def test_config(self, config):
+    def test_config(self, config, glob_config):
         """Test project configuration."""
         assert config.is_valid() is True
 
