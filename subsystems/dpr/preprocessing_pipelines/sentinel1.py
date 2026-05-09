@@ -841,6 +841,40 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         with open(output_dir / 'risk_governance.json', 'w') as f:
             json.dump(governance, f, indent=2)
 
+    def _export_displacements(self, output_dir):
+        """Export the displacement time-series to GeoTIFFs.
+
+        :param Path output_dir: Output directory to store the results.
+        :return: None
+        """
+        export_path = Path(output_dir) / "displacements"
+        export_path.mkdir(parents=True, exist_ok=True)
+
+        t_dim = next(
+            (d for d in self.disp_ll.dims if d in ('date', 'time', 'epoch', 'pair')), None
+        )
+
+        if not t_dim:
+            raise ValueError("Could not find a valid time/date dimension in self.disp_ll.")
+
+        data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
+        num_dates = len(data_to_export[t_dim])
+
+        for i in range(1, num_dates):
+            slice_data = data_to_export.isel({t_dim: i})
+
+            # Format the date for the filename (e.g., disp_20240509.tif)
+            date_val = pd.to_datetime(slice_data[t_dim].values)
+            date_str = date_val.strftime('%Y%m%d')
+            filename = export_path / f"disp_{date_str}.tif"
+
+            # Ensure CRS is set to WGS84 (EPSG:4326)
+            if slice_data.rio.crs is None:
+                slice_data.rio.write_crs("EPSG:4326", inplace=True)
+
+            # Export to GeoTIFF
+            slice_data.rio.to_raster(filename)
+
     def _run(self):
         self._download_orbits(self._config['datadir'])
         self._download_dem(self._config['aoi'], self._config['dem_path'])
@@ -861,3 +895,4 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._compute_risk()
         self._environmental_database(self._config['aoi'], self._config['result_dir'])
         self._compute_risk_database(self._config['result_dir'])
+        self._export_displacements(self._config['result_dir'])

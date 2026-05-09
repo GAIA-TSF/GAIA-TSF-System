@@ -329,6 +329,14 @@ class TestSentinel1Workflow:
 
         assert 32600 <= gov['utm_epsg'] <= 32760
 
+    def test_018_export_displacements(self, pipeline, ctx):
+        """Test exporting displacements to tif files."""
+        pipeline._export_displacements(ctx.result_dir)
+        tiff_dir = ctx.result_dir / 'displacements'
+        assert tiff_dir.is_dir()
+        tif_files = [f for f in os.listdir(tiff_dir) if f.endswith('.tif')]
+        assert len(tif_files) > 0
+
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)
         # pipeline.run()
