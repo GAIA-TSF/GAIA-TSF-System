@@ -132,10 +132,10 @@ class TestModules:
         module.set_datasource(os.path.splitext(s2_path)[0] + '.SAFE')
         item_dict = module.stac.create_item()
 
+        data_dir = TestUtils.get_data_path('dpr')
         with open(
-            Path(__file__).parent
-            / 'sample_data'
-            / 'S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.json',
+            Path(data_dir)
+            / 'S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.json',
             'r',
         ) as f:
             json_dict = json.load(f)
