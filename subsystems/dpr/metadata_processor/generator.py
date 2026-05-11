@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 import os
 import json
+from abc import ABC, abstractmethod
 from datetime import datetime, UTC
 from pathlib import Path
 from stactools.sentinel2.stac import create_item
@@ -18,7 +19,55 @@ gdal.UseExceptions()
 from lib.base import GaiaBase, SubsystemId
 
 
-class RasterDataset:
+class BaseDataset(ABC):
+    """
+    Abstract base class for datasets providing spatial and temporal metadata.
+    """
+
+    def __init__(self, path: str):
+        self.path = Path(path)
+
+    @property
+    @abstractmethod
+    def stac_item(self) -> Dict[str, Any]:
+        """Get the STAC item representation for this path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        pass
+
+    @abstractmethod
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        pass
+
+    @staticmethod
+    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
+        """Create GeoJSON Polygon for the STAC Item.
+
+        :param list[float] bbox: [minx, miny, maxx, maxy]
+
+        :return: GeoJSON Polygon
+        :rtype: dict
+        """
+        return {
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [bbox[0], bbox[1]],
+                    [bbox[0], bbox[3]],
+                    [bbox[2], bbox[3]],
+                    [bbox[2], bbox[1]],
+                    [bbox[0], bbox[1]],
+                ]
+            ],
+        }
+
+
+class RasterDataset(BaseDataset):
     """
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
@@ -45,7 +94,10 @@ class RasterDataset:
         return self.get_stac_item()
 
     def get_stac_item(self) -> Dict[str, Any]:
-        """Retrieve and transform a STAC item from the given path."""
+        """Retrieve and transform a STAC item from the given path.
+
+        :return: A dictionary representing the STAC item with
+        """
         item_id = self.path.stem
         now = datetime.now(UTC).isoformat()
 
@@ -82,29 +134,6 @@ class RasterDataset:
                 }
             },
             'links': [],
-        }
-
-    @staticmethod
-    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
-        """
-        Creates GeoJSON Polygon for the STAC Item.
-
-        :param list[float] bbox: [minx, miny, maxx, maxy]
-
-        :return: GeoJSON Polygon
-        :rtype: dict
-        """
-        return {
-            'type': 'Polygon',
-            'coordinates': [
-                [
-                    [bbox[0], bbox[1]],
-                    [bbox[0], bbox[3]],
-                    [bbox[2], bbox[3]],
-                    [bbox[2], bbox[1]],
-                    [bbox[0], bbox[1]],
-                ]
-            ],
         }
 
     @property
@@ -220,7 +249,7 @@ class RasterDataset:
         return bands
 
 
-class SentinelDataset:
+class SentinelDataset(BaseDataset):
     """
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
@@ -396,7 +425,7 @@ class SentinelDataset:
         return new_item
 
 
-class InsituDataset:
+class InsituDataset(BaseDataset):
     """
     Wrapper for in-situ CSV datasets providing spatial and temporal metadata
     for STAC item generation. Relies on the metadata dict provided by ISU,
@@ -491,21 +520,6 @@ class InsituDataset:
     def get_sensor_type(self) -> Optional[str]:
         """Returns sensor type string or None."""
         return self._data.get('sensor_type')
-
-    @staticmethod
-    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
-        return {
-            'type': 'Polygon',
-            'coordinates': [
-                [
-                    [bbox[0], bbox[1]],
-                    [bbox[0], bbox[3]],
-                    [bbox[2], bbox[3]],
-                    [bbox[2], bbox[1]],
-                    [bbox[0], bbox[1]],
-                ]
-            ],
-        }
 
 
 class InsituStacItemFactory:
