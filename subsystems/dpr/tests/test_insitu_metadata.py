@@ -13,7 +13,7 @@ import pytest
 
 from subsystems.dpr.metadata_processor.generator import (
     InsituDataset,
-    InsituStacItemFactory,
+    StacItemFactory,
 )
 
 
@@ -120,7 +120,7 @@ class TestInsituDataset:
 class TestInsituStacItemFactory:
     def test_stac_item_structure(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
 
         assert item['type'] == 'Feature'
@@ -133,21 +133,21 @@ class TestInsituStacItemFactory:
 
     def test_stac_item_table_columns(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         col_names = [c['name'] for c in item['assets']['data']['table:columns']]
         assert 'pressure' in col_names
 
     def test_stac_item_null_geometry_when_no_location(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_NO_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         assert item['geometry'] is None
         assert item['bbox'] is None
 
     def test_stac_item_sensor_type_in_properties(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         assert item['properties']['sensor_type'] == 'piezometer'
 
