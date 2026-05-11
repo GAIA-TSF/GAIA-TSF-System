@@ -110,6 +110,7 @@ class TestModules:
         }
 
         from tests.utils import TestUtils
+
         config = ProjectConfigReader(
             TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
