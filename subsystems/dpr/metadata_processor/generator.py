@@ -522,12 +522,18 @@ class InsituDataset(BaseDataset):
         return self._data.get('sensor_type')
 
 
-class InsituStacItemFactory:
+class StacItemFactory:
     """
-    Creates STAC Item metadata from an InsituDataset.
+    Creates STAC Item metadata from a RasterDataset.
     """
 
-    def __init__(self, dataset: InsituDataset, logger: Any):
+    def __init__(self, dataset: BaseDataset, logger: Logger):
+        """
+        Initialize StacItemFactory.
+
+        :param BaseDataset dataset: BaseDataset instance
+        :param Logger logger: specified logger to be used
+        """
         self.dataset = dataset
         self.logger = logger
 
@@ -539,49 +545,6 @@ class InsituStacItemFactory:
         :rtype: dict
         """
         stac_item = self.dataset.stac_item
-
-        self.logger.debug(f'STAC item created: {stac_item}')
-
-        return stac_item
-
-    def save(self, output_path: str) -> str:
-        """
-        Saves the STAC Item to a JSON file.
-
-        :param str output_path: Path to the output JSON
-        :return: output path
-        :rtype: str
-        """
-        item = self.create_item()
-        with open(output_path, 'w') as f:
-            json.dump(item, f, indent=4)
-        self.logger.info(f'STAC item saved: {output_path}')
-        return output_path
-
-
-class StacItemFactory:
-    """
-    Creates STAC Item metadata from a RasterDataset.
-    """
-
-    def __init__(self, raster: RasterDataset, logger: Logger):
-        """
-        Initialize StacItemFactory.
-
-        :param RasterDataset raster: RasterDataset instance
-        :param Logger logger: specified logger to be used
-        """
-        self.raster = raster
-        self.logger = logger
-
-    def create_item(self) -> Dict[str, Any]:
-        """
-        Creates a STAC Item as a dictionary.
-
-        :return: STAC Item
-        :rtype: dict
-        """
-        stac_item = self.raster.stac_item
 
         self.logger.debug(f'STAC item created: {stac_item}')
 
@@ -629,7 +592,7 @@ class MetadataGenerator(GaiaBase):
         self.logger.info(f'Metadata generator datasource: {data_source}')
         if Path(data_source).suffix in ('.csv',):
             self._ds = InsituDataset(data_source, self._isu_metadata)
-            self._factory = InsituStacItemFactory(self._ds, self.logger)
+            self._factory = StacItemFactory(self._ds, self.logger)
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
