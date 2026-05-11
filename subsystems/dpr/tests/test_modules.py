@@ -109,8 +109,6 @@ class TestModules:
             'productType': 'S2_MSI_L2A',
         }
 
-        from tests.utils import TestUtils
-
         config = ProjectConfigReader(
             TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
