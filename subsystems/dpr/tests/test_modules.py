@@ -3,9 +3,9 @@ import os
 import zipfile
 
 from pathlib import Path
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import ProjectConfigReader
 
+from lib.config import ProjectConfigReader
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
@@ -104,22 +104,20 @@ class TestModules:
         # first, we need to download the S2 product
         search_filter = {
             'provider': 'cop_dataspace',
-            'start': '2026-01-01',
-            'end': '2026-01-29',
+            'start': '2025-06-01',
+            'end': '2025-06-10',
             'productType': 'S2_MSI_L2A',
         }
 
+        from tests.utils import TestUtils
         config = ProjectConfigReader(
-            Path(__file__).parent.parent.parent.parent
-            / 'tests'
-            / 'projects'
-            / 'jagersfontein.yml'
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
 
         dag = DataAcquisitionGateway()
 
         results = dag.backend.search(
-            geom=config['project']['aoi']['geom'],
+            geom=config.aoi(),
             **search_filter,
         )
 
