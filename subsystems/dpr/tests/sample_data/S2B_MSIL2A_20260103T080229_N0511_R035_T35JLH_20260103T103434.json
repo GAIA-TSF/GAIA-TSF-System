@@ -1,60 +1,61 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
-    "id": "S2B_T35JLH_20260103T082553_L2A",
+    "id": "S2B_T33VVG_20260103T082553_L2A",
     "bbox": [
-        24.928589,
-        -29.915419,
-        26.074614,
-        -28.912113
+        13.182993,
+        59.438616,
+        15.177321,
+        60.436339,
     ],
     "geometry": {
         "type": "Polygon",
         "coordinates": [
             [
                 [
-                    24.948578999999995,
-                    -28.912113
+
+                    13.18299300000001,
+                    60.424068,
                 ],
                 [
-                    24.928588999999988,
-                    -29.90246
+                    13.236111999999991,
+                    59.438616,
                 ],
                 [
-                    26.065589999999986,
-                    -29.915419
+                    15.172134,
+                    59.450412,
                 ],
                 [
-                    26.074613999999997,
-                    -28.924561
+                    15.177321000000006,
+                    60.436339,
                 ],
                 [
-                    24.948578999999995,
-                    -28.912113
+                    13.18299300000001,
+                    60.424068,
                 ]
             ]
         ]
     },
     "properties": {
-        "datetime": "2026-01-03T08:02:29.024000Z",
-        "start_datetime": "2026-01-03T08:02:29.024000Z",
-        "end_datetime": "2026-01-03T08:02:29.024000Z",
+        "datetime": "2025-06-02T10:25:59.024000Z",
+        "start_datetime": "2025-06-02T10:25:59.024000Z",
+        "end_datetime": "2025-06-02T10:25:59.024000Z",
         "platform": "sentinel-2b",
         "constellation": "sentinel-2",
         "instruments": [
             "msi"
         ],
         "processing:level": "L2A",
-        "eo:cloud_cover": 0.868361,
-        "view:sun_azimuth": 82.1969568861813,
-        "view:sun_elevation": 63.6440344127889,
-        "sat:relative_orbit": 35,
-        "s2:tile_id": "35JLH",
-        "s2:product_uri": "S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE"
+        "eo:cloud_cover": 67.796576,
+        "view:sun_azimuth": 169.793365994332,
+        "view:sun_elevation": 52.0046041476423,
+        "sat:relative_orbit": 108,
+        "s2:tile_id": "33VVG",
+        "s2:product_uri": "S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE"
     },
     "assets": {
         "B02": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B02_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R10m/T33VVG_20250602T102559_B02_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -62,7 +63,7 @@
             ]
         },
         "B03": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B03_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R10m/T33VVG_20250602T102559_B03_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -70,7 +71,7 @@
             ]
         },
         "B04": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B04_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R10m/T33VVG_20250602T102559_B04_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -78,7 +79,7 @@
             ]
         },
         "B08": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R10m/T35JLH_20260103T080229_B08_10m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R10m/T33VVG_20250602T102559_B08_10m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -86,7 +87,7 @@
             ]
         },
         "B05": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B05_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B05_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -94,7 +95,7 @@
             ]
         },
         "B06": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B06_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B06_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -102,7 +103,7 @@
             ]
         },
         "B07": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B07_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B07_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -110,7 +111,7 @@
             ]
         },
         "B8A": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B8A_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B8A_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -118,7 +119,7 @@
             ]
         },
         "B11": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B11_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B11_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -126,7 +127,7 @@
             ]
         },
         "B12": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R20m/T35JLH_20260103T080229_B12_20m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R20m/T33VVG_20250602T102559_B12_20m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -134,7 +135,7 @@
             ]
         },
         "B01": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B01_60m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R60m/T33VVG_20250602T102559_B01_60m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -142,7 +143,7 @@
             ]
         },
         "B09": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/IMG_DATA/R60m/T35JLH_20260103T080229_B09_60m.jp2",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/IMG_DATA/R60m/T33VVG_20250602T102559_B09_60m.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -150,21 +151,21 @@
             ]
         },
         "safe_manifest": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/manifest.safe",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/manifest.safe",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "scene_metadata": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/MTD_MSIL2A.xml",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/MTD_MSIL2A.xml",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "granule_metadata": {
-            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20260103T080229_N0511_R035_T35JLH_20260103T103434.SAFE/GRANULE/L2A_T35JLH_A046107_20260103T082553/MTD_TL.xml",
+            "href": "./test_MetadataProcessor_0020/S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.SAFE/GRANULE/L2A_T33VVG_A046107_20260103T082553/MTD_TL.xml",
             "type": "application/xml",
             "roles": [
                 "metadata"
@@ -175,7 +176,7 @@
     "links": [
         {
             "rel": "self",
-            "href": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/S2B_T35JLH_20260103T082553_L2A"
+            "href": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/S2B_T33VVG_20260103T082553_L2A"
         }
     ],
     "eo:bands": [
