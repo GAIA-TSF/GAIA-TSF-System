@@ -233,6 +233,7 @@ class TestSentinel1Workflow:
         """Test computing displacements."""
         pipeline._compute_displacement()
         assert pipeline.disp_ll is not None
+        assert pipeline.vel_ll is not None
         assert pipeline.rmse is not None
         assert 'lat' in pipeline.disp_ll.coords
         assert 'lon' in pipeline.disp_ll.coords
@@ -333,9 +334,11 @@ class TestSentinel1Workflow:
         """Test exporting displacements to tif files."""
         pipeline._export_displacements(ctx.result_dir)
         tiff_dir = ctx.result_dir / 'displacements'
+        velocity = ctx.result_dir / 'velocity' / 'velocity.tif'
         assert tiff_dir.is_dir()
         tif_files = [f for f in os.listdir(tiff_dir) if f.endswith('.tif')]
         assert len(tif_files) > 0
+        assert velocity.is_file()
 
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)

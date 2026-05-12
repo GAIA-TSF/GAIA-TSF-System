@@ -62,6 +62,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.unwrap = None
         self.detrend = None
         self.disp_ll = None
+        self.vel_ll = None
         self.rmse = None
         self.risk_map = None
         self.failure_flag = None
@@ -348,6 +349,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         with ProgressBar():
             sol = self.sbas.lstsq(self.detrend, corr_ra)
             disp_ra = self.sbas.los_displacement_mm(sol).persist()
+            vel_ra = self.sbas.velocity(sol).persist()
 
         # Reference to Zero (Inline Time-Dim Selection)
         t_dim = next(
@@ -360,9 +362,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
-        self.disp_ll = self.sbas.cropna(
-            self.sbas.ra2ll(disp_ra)
-        ).compute()  # can be switched to .persist()
+        self.disp_ll = self.sbas.cropna(self.sbas.ra2ll(disp_ra)).persist()
+        self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
 
         # RMSE Calculation
         disp_pairs_ra = self.sbas.los_displacement_mm(self.detrend).persist()
@@ -383,7 +384,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         t_dim = next((d for d in disp.dims if d in ('date', 'time', 'epoch')), 'date')
 
         # Velocity (mm/day)
-        vel_map = np.abs(self.sbas.velocity(disp))  # TODO: Do we want it as an output?
+        vel_map = np.abs(self.sbas.velocity(disp))
 
         # Recent Change (dlos) - Difference between last two acquisitions
         dlos_map = np.abs(disp.isel({t_dim: -1}) - disp.isel({t_dim: -2}))
@@ -842,38 +843,49 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             json.dump(governance, f, indent=2)
 
     def _export_displacements(self, output_dir):
-        """Export the displacement time-series to GeoTIFFs.
+        """Export displacement time-series and velocity maps.
 
-        :param Path output_dir: Output directory to store the results.
+        :param Path output_dir: Base output directory.
         :return: None
         """
-        export_path = Path(output_dir) / "displacements"
-        export_path.mkdir(parents=True, exist_ok=True)
+        base_path = Path(output_dir)
+        disp_path = base_path / "displacements"
+        vel_path = base_path / "velocity"
 
-        t_dim = next(
-            (d for d in self.disp_ll.dims if d in ('date', 'time', 'epoch', 'pair')), None
-        )
+        disp_path.mkdir(parents=True, exist_ok=True)
+        vel_path.mkdir(parents=True, exist_ok=True)
 
-        if not t_dim:
-            raise ValueError("Could not find a valid time/date dimension in self.disp_ll.")
+        if hasattr(self, 'vel_ll') and self.vel_ll is not None:
+            vel_to_export = self.vel_ll.rename({'lat': 'y', 'lon': 'x'})
 
-        data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
-        num_dates = len(data_to_export[t_dim])
+            if vel_to_export.rio.crs is None:
+                vel_to_export.rio.write_crs("EPSG:4326", inplace=True)
 
-        for i in range(1, num_dates):
-            slice_data = data_to_export.isel({t_dim: i})
+            vel_filename = vel_path / "velocity.tif"
+            vel_to_export.rio.to_raster(vel_filename)
 
-            # Format the date for the filename (e.g., disp_20240509.tif)
-            date_val = pd.to_datetime(slice_data[t_dim].values)
-            date_str = date_val.strftime('%Y%m%d')
-            filename = export_path / f"disp_{date_str}.tif"
+        if self.disp_ll is not None:
+            t_dim = next(
+                (d for d in self.disp_ll.dims if d in ('date', 'time', 'epoch', 'pair')), None
+            )
 
-            # Ensure CRS is set to WGS84 (EPSG:4326)
-            if slice_data.rio.crs is None:
-                slice_data.rio.write_crs("EPSG:4326", inplace=True)
+            if not t_dim:
+                raise ValueError("Could not find a valid time/date dimension in self.disp_ll.")
 
-            # Export to GeoTIFF
-            slice_data.rio.to_raster(filename)
+            data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
+            num_dates = len(data_to_export[t_dim])
+
+            for i in range(1, num_dates):
+                slice_data = data_to_export.isel({t_dim: i})
+
+                date_val = pd.to_datetime(slice_data[t_dim].values)
+                date_str = date_val.strftime('%Y%m%d')
+                filename = disp_path / f"disp_{date_str}.tif"
+
+                if slice_data.rio.crs is None:
+                    slice_data.rio.write_crs("EPSG:4326", inplace=True)
+
+                slice_data.rio.to_raster(filename)
 
     def _run(self):
         self._download_orbits(self._config['datadir'])
