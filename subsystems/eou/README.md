@@ -50,7 +50,6 @@ results = dag_module.backend.search(
     **search_filter,
 )
 data_path = dag_module.backend.download(results[0], target_dir='sentinel2', quicklook=False)
-print(data_dir)
 ```
 
 For data that cannot be automatically retrieved via
