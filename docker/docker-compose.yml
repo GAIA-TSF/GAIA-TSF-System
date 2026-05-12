@@ -13,7 +13,7 @@ services:
       - pgstacdb
     volumes:
       - ..:/opt/gaia_tsf
-      - ../tests/data/:/data/gaia_tsf:rw
+      - data:/data/gaia_tsf
     networks:
       - gaia_net
     command: tail -f /dev/null
@@ -98,6 +98,12 @@ services:
 volumes:
   pgstac_data:
   pgdata:
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ../tests/data
+      o: bind
 
 networks:
   gaia_net:

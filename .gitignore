@@ -210,4 +210,4 @@ __marimo__/
 *~
 .idea/
 config.yaml
-tests/data
+tests/data/*
