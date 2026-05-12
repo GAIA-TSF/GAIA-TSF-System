@@ -46,4 +46,4 @@ qcl:
       min_snr: 30
       require_geo_alignment: true
 storage:
-  data_dir: /tmp/gaia_tsf
+  data_dir: /data/gaia_tsf
