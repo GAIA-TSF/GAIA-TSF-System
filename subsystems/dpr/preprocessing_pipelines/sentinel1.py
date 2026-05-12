@@ -634,8 +634,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         air_df = pd.concat(all_aq).reset_index(drop=True)
 
         # Save and Manifest
-        climate_df.to_parquet(output_dir / 'climate_daily_db.parquet', index=False)
-        air_df.to_parquet(output_dir / 'air_quality_daily_db.parquet', index=False)
+        climate_df.to_csv(output_dir / 'climate_daily_db.csv', index=False)
+        air_df.to_csv(output_dir / 'air_quality_daily_db.csv', index=False)
 
         manifest = {
             'created_utc': datetime.now(timezone.utc).isoformat(),
@@ -650,8 +650,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """Merges InSAR monitoring data with environmental data and computes
         a multi-hazard composite risk score for every measurement point.
 
-        :param Path output_dir: Directory path where final results will be saved and 'climate_daily_db.parquet'
-                                and 'air_quality_daily_db.parquet' are already stored.
+        :param Path output_dir: Directory path where final results will be saved and 'climate_daily_db.csv'
+                                and 'air_quality_daily_db.csv' are already stored.
         :return: None
         """
         # Extract and Merge InSAR Layers
@@ -704,8 +704,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         df_base['vel_mm_per_day'] = (df_base['dlos_mm'] / date_diff).abs()
 
         # Load Environmental Data
-        clim = pd.read_parquet(output_dir / 'climate_daily_db.parquet')
-        air = pd.read_parquet(output_dir / 'air_quality_daily_db.parquet')
+        clim = pd.read_csv(output_dir / 'climate_daily_db.csv')
+        air = pd.read_csv(output_dir / 'air_quality_daily_db.csv')
 
         clim['date'] = pd.to_datetime(clim['date']).dt.normalize()
         air['date'] = pd.to_datetime(air['date']).dt.normalize()
@@ -830,7 +830,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         df_merged['UTM_E'], df_merged['UTM_N'] = xe, yn
 
         # Export
-        df_merged.to_parquet(output_dir / 'final_risk_database.parquet', index=False)
+        df_merged.to_csv(output_dir / 'final_risk_database.csv', index=False)
 
         # Save Metadata
         governance = {

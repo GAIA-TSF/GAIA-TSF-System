@@ -270,19 +270,19 @@ class TestSentinel1Workflow:
     def test_016_environmental_database(self, pipeline, ctx):
         """Test creating environmental database."""
         pipeline._environmental_database(ctx.aoi, ctx.result_dir)
-        climate_path = ctx.result_dir / 'climate_daily_db.parquet'
-        air_path = ctx.result_dir / 'air_quality_daily_db.parquet'
+        climate_path = ctx.result_dir / 'climate_daily_db.csv'
+        air_path = ctx.result_dir / 'air_quality_daily_db.csv'
         manifest_path = ctx.result_dir / 'envdb_manifest.json'
 
         assert climate_path.is_file()
         assert air_path.is_file()
         assert manifest_path.is_file()
 
-        df_climate = pd.read_parquet(climate_path)
+        df_climate = pd.read_csv(climate_path)
         assert not df_climate.empty
         assert 'precip_7d_mm' in df_climate.columns
 
-        df_air = pd.read_parquet(air_path)
+        df_air = pd.read_csv(air_path)
         assert not df_air.empty
         assert 'pm10' in df_air.columns
 
@@ -295,13 +295,13 @@ class TestSentinel1Workflow:
     def test_017_compute_risk_database(self, pipeline, ctx):
         """Test creating risk database based on environmental data and displacements."""
         pipeline._compute_risk_database(ctx.result_dir)
-        parquet_out = ctx.result_dir / 'final_risk_database.parquet'
+        csv_out = ctx.result_dir / 'final_risk_database.csv'
         gov_path = ctx.result_dir / 'risk_governance.json'
 
-        assert parquet_out.is_file()
+        assert csv_out.is_file()
         assert gov_path.is_file()
 
-        df_result = pd.read_parquet(parquet_out)
+        df_result = pd.read_csv(csv_out)
         assert not df_result.empty
 
         expected_cols = [
@@ -314,11 +314,6 @@ class TestSentinel1Workflow:
         ]
         for col in expected_cols:
             assert col in df_result.columns
-
-        assert df_result['risk_class'].dtype.name == 'category'
-        assert set(['Low', 'Moderate', 'High', 'Critical']).issubset(
-            df_result['risk_class'].cat.categories
-        )
 
         with open(gov_path, 'r') as f:
             gov = json.load(f)
