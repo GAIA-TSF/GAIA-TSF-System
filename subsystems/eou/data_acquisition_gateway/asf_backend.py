@@ -56,3 +56,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         asf.download(target_dir, search_results.fileID.tolist(), **kwargs)
 
         return target_dir
+
+    def _download_all(self, *args, **kwargs):
+        pass
