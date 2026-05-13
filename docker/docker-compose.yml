@@ -102,7 +102,7 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: ../tests/data
+      device: ${HOST_DATA_DIR:-../tests/data}
       o: bind
 
 networks:
