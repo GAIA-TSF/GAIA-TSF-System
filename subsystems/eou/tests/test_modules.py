@@ -134,6 +134,43 @@ class TestModules:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
 
+    def test_DataAcquisitionGateway_003_eodag_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using default backend (eodag).
+        """
+        module = DataAcquisitionGateway()
+
+        results = module.backend.search(
+            geom=project_config.aoi(),
+            **self.search_filter,
+        )
+
+        assert len(results) > 0
+
+        target_dir = 'sentinel2'
+        try:
+            ql_dir = Path(
+                module.backend.download_all(
+                    results, target_dir=target_dir, quicklook=True
+                )
+            )
+
+            assert ql_dir.exists()
+            assert any(ql_dir.iterdir())
+            assert ql_dir.stat().st_size > 0
+            assert (
+                ql_dir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+        finally:
+            if ql_dir and ql_dir.is_dir():
+                for item in ql_dir.iterdir():
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
 
