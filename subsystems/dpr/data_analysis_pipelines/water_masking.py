@@ -7,6 +7,7 @@ import pandas as pd
 import geopandas as gpd
 from osgeo import gdal, osr, ogr
 from scipy.ndimage import label
+from shapely.geometry import box as sbox
 
 from .base import DataAnalysisBasePipeline
 
@@ -14,7 +15,23 @@ from .base import DataAnalysisBasePipeline
 class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
     metadata = {
         'title': 'Sentinel-2 Water Masking',
-        'abstract': 'TBD',
+        'abstract': 'This pipeline generates water masks for Sentinel-2 scenes.'
+                    'Main processing steps include:'
+                    '(1) Parsing metadata from input folder and create a list of scenes. The user can apply a temporal'
+                    '    filter (optional) using "start_date" and "end_date" parameters.'
+                    '    (A) Optional. The user can provide a vector file (e.g., *.shp, *.gpkg) with digitized water'
+                    '        bodies (it is recommended to map the maximum extent of the water features) using the'
+                    '        "input_water_mask" parameter. This shapefile will be converted into a labeled array.'
+                    '    (B) Default. Filtered scenes (according to the percentage of cloud/snow/dark pixels using'
+                    '        "max_cloud_snow_dark" parameter) will be aggregated into a median raster. A water mask'
+                    '        will be derived by thresholding spectral indices. This mask is then converted into a'
+                    '        labeled array. This method is sensitive to topographic shadows. Winter months should be'
+                    '        avoided. The optional "input_months" parameter can be used to filter scenes by months.'
+                    '(3) Generation of a water mask for each Sentinel-2 scenes. Thresholding on spectral indices'
+                    '    (similar to step 2B) will be used to check the global water mask validity for a given scene.'
+                    '    Pixels that do not fulfill thresholding conditions are removed to create a scene mask.'
+                    '    If the scene mask contains valid pixels, it will be appended to the Sentinel-2 bands and the'
+                    '    merged raster will be exported to the output folder.',
         'params': {
             'input_folder': {
                 'dtype': PosixPath,
@@ -34,7 +51,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             'input_water_mask': {
                 'dtype': PosixPath,
                 'description': 'OPTIONAL. The user can provide a vector file (e.g., .shp, .gpkg) for water bodies '
-                               'instead of relying on the pipeline s filtering.',
+                               'instead of relying on the pipeline filtering.',
                 'default': None,
             },
             'input_months': {
@@ -72,11 +89,16 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         ('scenes_metadata_filtered') based on the maximum percentage of clouds/snow/dark pixels (max_cloud_snow_dark
         parameter).
         """
-        records = []
-        json_files = glob.glob(os.path.join(self._config['input_folder'], "**/*.json"), recursive=True)
-        print(f"Parsing metadata. Input folder: {self._config['input_folder']}.")
-        print(f"The input folder contains {len(json_files)} entries.")
+        self.logger.info(f"Parsing metadata. Input folder: {self._config['input_folder']}.")
 
+        try:
+            json_files = glob.glob(os.path.join(self._config['input_folder'], "**/*.json"), recursive=True)
+        except Exception as e:
+            self.logger.error(f"Error parsing {self._config['input_folder']}: {e}")
+
+        self.logger.info(f"--- The input folder contains {len(json_files)} entries.")
+
+        records = []
         for json_path in json_files:
             try:
                 with open(json_path, 'r') as f:
@@ -93,7 +115,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 }
                 records.append(record)
             except Exception as e:
-                print(f"Error parsing {json_path}: {e}")
+                self.logger.warning(f"Error parsing {json_path}: {e}")
 
         self.scenes_metadata = pd.DataFrame(records)
 
@@ -114,7 +136,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     else:
                         start_dt = pd.to_datetime(self._config['start_date'])
                     df = df[df['DATATAKE_SENSING_START'] >= start_dt]
-                    print(f"Applied start date filter: {start_dt}")
+                    self.logger.info(f"--- Applied start date filter: {start_dt}")
 
                 # Apply end date filter
                 if self._config['end_date'] is not None:
@@ -123,11 +145,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     else:
                         end_dt = pd.to_datetime(self._config['end_date'])
                     df = df[df['DATATAKE_SENSING_START'] <= end_dt]
-                    print(f"Applied end date filter: {end_dt}")
+                    self.logger.info(f"--- Applied end date filter: {end_dt}")
 
                 # Update the filtered metadata attribute
                 self.scenes_metadata = df.reset_index(drop=True)
-            print(f"Temporal filtering. {len(self.scenes_metadata)} entries remains.")
+                self.logger.info(f"--- Temporal filter applied. {len(self.scenes_metadata)} entries remains.")
 
             # Cloud/Snow/Dark pixels filtering
             self.scenes_metadata["cloud_snow_dark"] = (
@@ -146,16 +168,20 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.scenes_metadata_filtered = self.scenes_metadata_filtered.sort_values(
                 "DATATAKE_SENSING_START").reset_index(drop=True)
 
-            print(f"Cloud/Snow/Dark pixels filtering. {len(self.scenes_metadata_filtered)} entries remains.")
-
-        print(f"Metadata parsed.")
+            self.logger.info(f"Cloud/Snow/Dark entries filtered out. {len(self.scenes_metadata_filtered)} entries "
+                             f"remains.")
 
     def _get_geotransform(self):
         """
         Retrieve spatial data from first GeoTIFF in the input folder. Assumes that all scenes in the input folder share
         the same EPSG and geotransform. Only used if a vector file is provided (input_water_mask is not None).
         """
-        tiff_files = glob.glob(os.path.join(self._config['input_folder'], "*.tif*"))
+        self.logger.info('Retrieving spatial data from GeoTIFFs in input folder')
+        try:
+            tiff_files = glob.glob(os.path.join(self._config['input_folder'], "*.tif*"))
+        except Exception as e:
+            self.logger.warning(f"Error locating GeoTIFFs: {e}")
+
         if tiff_files:
             ds = gdal.Open(tiff_files[0])
             if ds:
@@ -180,8 +206,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         """
         Ingests vector, reprojects, crops to bounds, and creates a size-labeled binary mask.
         """
+
+        self.logger.info('Generating global water mask from vector file.')
+
         if not self.bounds:
-            raise ValueError("Could not retrieve the bounding box.")
+            self.logger.error("Bounding box is missing.")
 
         # Load vector
         gdf = gpd.read_file(self._config['input_water_mask'])
@@ -192,18 +221,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             gdf = gdf.to_crs(target_crs)
 
         # Crop to Bounding Box
-        from shapely.geometry import box as sbox
         bbox_geom = sbox(*self.bounds)
         gdf = gdf.clip(bbox_geom)
 
         if gdf.empty:
-            raise ValueError("Could not parse the input water mask vectors.")
+            self.logger.error("Could not parse the input water mask vectors.")
 
         # Optional Buffer
         if buffer_m != 0:
             gdf['geometry'] = gdf.buffer(buffer_m)
 
-        # Rasterize and Label by Area (1 = largest)
+        # Rasterize and Label by area (1 = largest)
         gdf['area'] = gdf.geometry.area
 
         # Sort descending by area so the first elements are the largest
@@ -243,13 +271,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         target_ds = None
         mem_ds = None
 
+        self.logger.info("Global water mask generated successfully.")
+
     def _process_watermask(self):
         """
         Creates a median water mask by processing scenes listed in scenes_metadata_filtered.
         """
 
+        self.logger.info('Generating global water mask from median raster.')
+
         if self.scenes_metadata_filtered is None or self.scenes_metadata_filtered.empty:
-            print("No filtered scenes available to compute median water mask.")
+            self.logger.info("No filtered scenes available to compute median water mask.")
             return
 
         df = self.scenes_metadata_filtered.copy()
@@ -259,12 +291,12 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             # Ensure DATATAKE_SENSING_START is datetime (already handled in _parse_metadata, but being safe)
             df['month'] = df['DATATAKE_SENSING_START'].dt.month
             df = df[df['month'].isin(self._config['input_months'])]
-            print(f"Filtered {len(df)} scenes matching months: {self._config['input_months']}")
+            self.logger.info(f"Filtered {len(df)} scenes matching months: {self._config['input_months']}")
 
             if df.empty:
-                raise ValueError("No scenes found for the selected month range.")
+                self.logger.error("No scenes found for the selected month range.")
 
-        print(f"Computing median water mask from {len(df)} scenes...")
+        self.logger.info(f"Computing median raster from {len(df)} scenes...")
 
         # Initialize stack for median calculation
         stack = []
@@ -278,7 +310,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             stack.append(ds.ReadAsArray().astype(np.int16))
             ds = None
         if not stack:
-            raise ValueError("Failed to read data from any scenes for water mask generation.")
+            self.logger.error("Failed to read data from any scenes for median raster generation.")
 
         # Calculate pixel-wise median
         stack = np.array(stack)
@@ -335,7 +367,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         else:
             self.global_watermask = binary_mask
 
-        print("Median water mask generated successfully.")
+        self.logger.info("Global water mask generated successfully.")
 
     def _calculate_spectral_angle(self, reference_spectrum, dataset, bands=None):
         """
@@ -431,11 +463,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         Iterates through GeoTIFFs, applies spectral refinement to the base mask,
         and exports a multi-band result.
         """
+        self.logger.info('Generating water masks for all scenes.')
+        self.logger.info(f'Merged raster will be exported to {self._config["output_folder"]}')
 
-        tiffs = list(self.scenes_metadata_filtered["source_path"])
+        if self._config['start_date'] is not None or self._config['end_date'] is not None:
+            self.logger.info(f'Temporal filter start = {self._config["start_date"]}')
+            self.logger.info(f'Temporal filter end = {self._config["enddate"]}')
+
+        tiffs = list(self.scenes_metadata["source_path"])
 
         for tiff_path in tiffs:
-            print(tiff_path)
+            self.logger.info(f"Processing {os.path.basename(tiff_path)}")
 
             gdal_dataset = gdal.Open(tiff_path)
             if gdal_dataset is None:
@@ -458,7 +496,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             refined_mask[remove_conditions] = 0
 
             if np.nansum(refined_mask) > 0:
-                # Export
+                # Export if mask contains valid pixels
                 out_name = os.path.basename(tiff_path)
                 out_path = os.path.join(self._config['output_folder'], out_name)
 
@@ -476,7 +514,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds.GetRasterBand(gdal_dataset.RasterCount + 1).WriteArray(refined_mask)
                 out_ds.FlushCache()
                 out_ds = None
-                ds = None
+
+        self.logger.info('Processing complete.')
 
     def _run(self):
         """
