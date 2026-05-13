@@ -90,7 +90,5 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
                 product.get_quicklook(output_dir=target_dir, **kwargs)
             return target_dir
 
-        self._dag.download_all(
-            products, extract=False, output_dir=target_dir, **kwargs
-        )
+        self._dag.download_all(products, extract=False, output_dir=target_dir, **kwargs)
         return target_dir
