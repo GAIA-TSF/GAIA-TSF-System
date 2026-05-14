@@ -16,11 +16,16 @@ class BasePipeline(ABC, GaiaBase):
         GaiaBase.__init__(self, SubsystemId.DPR)
         self._config = None
 
+    def _configure(self):
+        """Set internal properties (to be overridden by pipeline implementation)"""
+        pass
+
     def configure(self, **kwargs) -> None:
         """Configure pipeline using structured config.
 
         param Mapping[str, Any]: pipeline configuration in YAML structure
         """
+        self._configure()
         self._config = kwargs
 
     def _check_config(self):
@@ -45,7 +50,9 @@ class BasePipeline(ABC, GaiaBase):
                 else:
                     raise RuntimeError(f"Parameter '{k}' not defined")
             if type(self._config[k]) is not v['dtype']:
-                raise RuntimeError(f"Paramater '{k}' type mismatch")
+                raise RuntimeError(
+                    f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})"
+                )
 
     @abstractmethod
     def _run(self) -> None:

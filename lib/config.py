@@ -5,6 +5,9 @@ from pathlib import Path
 
 from shapely import wkt
 from shapely.errors import ShapelyError
+from osgeo import gdal, osr
+
+gdal.UseExceptions()
 
 
 class ConfigReader(dict):
@@ -13,7 +16,7 @@ class ConfigReader(dict):
 
         :param str config_path: path to config file
         """
-        self.config_path = config_path
+        self.config_path = Path(config_path)
         super().__init__()
 
         with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -94,9 +97,12 @@ class YamlValidator:
             # opt == None -> only check existence
             if value is None:
                 errors.append(f"Key '{current_path}' must not be None.")
-            if key == 'geom':
-                if self._is_valid_wkt(value) is False:
-                    errors.append(f"Geometry in '{current_path}' is not valid.")
+            if key == 'aoi':
+                if Path(self.config_path.parent / value).exists() is False:
+                    errors.append(f"AOI '{current_path}' not found.")
+                else:
+                    if self._is_valid_wkt(self.aoi()) is False:
+                        errors.append(f"Geometry in '{current_path}' is not valid.")
 
     @staticmethod
     def _is_valid_wkt(wkt_string: str) -> bool:
@@ -135,9 +141,48 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         :param str config_path: path to config file
         """
         ConfigReader.__init__(self, config_path)
-        YamlValidator.__init__(self, {'project': {'name': None, 'aoi': {'geom': None}}})
+        YamlValidator.__init__(self, {'project': {'name': None, 'aoi': None}})
 
         self.validate(dict(self))
+
+    def aoi(self, target_epsg: int = 4326):
+        """Get area of interest as WKT string in specified CRS.
+
+        :param int epsg: EPSG code for target CRS
+
+        :return WKT string
+        :rtype str
+        """
+        file_path = self.config_path.parent / self['project']['aoi']
+        ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
+        layer = ds.GetLayer(0)
+
+        if layer.GetFeatureCount() > 1:
+            raise RuntimeError('AOI: Only one feature expected')
+
+        srs = layer.GetSpatialRef()
+        target_srs = osr.SpatialReference()
+        target_srs.ImportFromEPSG(target_epsg)
+        target_srs.SetAxisMappingStrategy(
+            osr.OAMS_TRADITIONAL_GIS_ORDER
+        )  # EODAG expects long, lat
+        transform = None
+        if not srs.IsSame(target_srs):
+            transform = osr.CoordinateTransformation(srs, target_srs)
+
+        feature = layer.GetNextFeature()
+        if feature is None:
+            ds = None
+            raise RuntimeError('No features found')
+
+        geom = feature.GetGeometryRef().Clone()
+        if transform is not None:
+            geom.Transform(transform)
+
+        wkt = geom.ExportToWkt()
+        ds = None
+
+        return wkt
 
 
 class SettingsReader(ConfigReader):

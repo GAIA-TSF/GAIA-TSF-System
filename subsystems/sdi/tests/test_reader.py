@@ -1,18 +1,18 @@
-from pathlib import Path
-
 from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 from subsystems.sdi.reader import SdiReader
 
 from config import EO_COLLECTION, EO_ITEM_ID
+from tests.utils import TestUtils
+
+TEST_DATA_DIR = TestUtils.get_data_path('sdi')
 
 
 class TestEarthObservationDataReader:
     def test_import_via_stac(self):
         utils = SdiUtils()
 
-        base_dir = Path(__file__).parent
-        zip_path = base_dir / 'assets' / 'eou_sample_data.zip'
+        zip_path = TEST_DATA_DIR / 'eou_sample_data.zip'
         assert zip_path.exists()
 
         # Run the import: uploads raster to S3 and updates STAC
