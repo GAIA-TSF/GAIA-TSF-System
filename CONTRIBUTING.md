@@ -82,19 +82,41 @@ Build docker:
 
 ```sh
 cd docker
-docker compose up --build
+docker compose build
 ```
 
-Run tests for the testfile wished:
+Start GAIA-TSF services on background:
+
+```
+docker compose up -d
+```
+
+Run tests for the testfile wished from a root directory:
 
 ```sh
-docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
+docker exec gaiatesting python3 -m pytest subsystems/subsystem/tests/testfile.py -v
 ```
 
 For executing long-running tests (which are excluded from CI), use the slow pytest marker.
 
 ```sh
-docker exec gaiatesting python3 -m pytest -m slow /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
+docker exec gaiatesting python3 -m pytest -m slow subsystems/subsystem/tests/testfile.py -v
+```
+
+Stop GAIA-TSF services:
+
+```
+cd docker/
+docker compose down
+```
+
+### Virtual environment
+
+```
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r docker/requirements.txt 
+python3 -m pytest subsystems/subsystem/tests/testfile.py -v
 ```
 
 ## Push docker images into GitHub container repository
