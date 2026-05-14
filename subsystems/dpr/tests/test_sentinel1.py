@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import json
 
-from lib.config import ProjectConfigReader
+from lib.config import ProjectConfigReader, SettingsReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 
@@ -148,7 +148,7 @@ class TestSentinel1Workflow:
         assert pipeline.client.status == 'running'
 
         worker_info = pipeline.client.scheduler_info()['workers']
-        assert len(worker_info) == 2
+        assert len(worker_info) == SettingsReader()['dask_parameters']['n_workers']
 
         def square(x):
             return x**2
