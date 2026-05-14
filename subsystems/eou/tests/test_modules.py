@@ -125,7 +125,9 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download(result.iloc[[0]], target_dir=target_dir))
+            datadir = Path(
+                module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            )
             assert any(datadir.iterdir())
             assert (
                 datadir.resolve()
