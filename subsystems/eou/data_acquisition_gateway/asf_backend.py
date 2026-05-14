@@ -57,7 +57,9 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
 
         return target_dir
 
-    def _download_all(self, search_results: GeoDataFrame, target_dir: str, **kwargs) -> str:
+    def _download_all(
+        self, search_results: GeoDataFrame, target_dir: str, **kwargs
+    ) -> str:
         """Download all selected Sentinel-1 BURST data using ASF backend.
         This acts as a wrapper that redirects to the standard _download method.
 
