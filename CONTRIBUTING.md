@@ -104,12 +104,19 @@ custom scripts by setting up a local Python virtual environment. This
 approach is useful if you prefer a lighter-weight setup or need more
 direct control over dependencies and execution.
 
-First, create and activate a virtual environment, then install the
-required Python dependencies:
+First, create and activate a virtual environment:
 
 ```sh
 python3 -m venv venv
 source venv/bin/activate
+```
+
+Before installing the Python dependencies, verify which version of
+GDAL is installed on your system. Make sure that the same version is
+specified in docker/requirements.txt to avoid compatibility
+issues. Once aligned, proceed with installing the Python dependencies.
+
+```sh
 pip3 install -r docker/requirements.txt 
 ```
 
