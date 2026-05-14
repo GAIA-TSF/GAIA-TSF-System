@@ -79,7 +79,7 @@ jobs:
           for i in $(ls subsystems/dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec gaiatesting python3 -m pytest -vv $i
             cd ..
           done
 

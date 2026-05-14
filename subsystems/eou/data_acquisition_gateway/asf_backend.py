@@ -3,13 +3,19 @@ from __future__ import annotations
 from geopandas import GeoDataFrame
 from shapely.wkt import loads
 from shapely.geometry.base import BaseGeometry
-from insardev_toolkit import ASF
+from pygmtsar import ASF
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
     def search(
-        self, aoi: str | BaseGeometry, start: str, end: str, direction: str, **kwargs
+        self,
+        aoi: str | BaseGeometry,
+        start: str,
+        end: str,
+        direction: str,
+        path_number: int | None = None,
+        **kwargs,
     ) -> GeoDataFrame:
         """Search for Sentinel-1 BURST data using ASF backend.
 
@@ -17,6 +23,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filter
         :param str direction: flight direction of Sentinel-1 satellites ('A' - ascending, 'D' - descending).
+        :param int path_number: orbit path number to be searched for (if None, the most common path number is selected)
         :return: a collection of BURST data matching the criteria
         :rtype: GeoDataFrame
         """
@@ -26,10 +33,14 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             except Exception as e:
                 raise ValueError(f'Failed to parse AOI WKT string: {e}')
 
-        results = ASF.search(
+        all_results = ASF.search(
             aoi, startTime=start, stopTime=end, flightDirection=direction, **kwargs
         )
-        return results
+        if path_number is None:
+            best_orbit = all_results['pathNumber'].value_counts().idxmax()
+            return all_results[all_results['pathNumber'] == best_orbit]
+        else:
+            return all_results[all_results['pathNumber'] == path_number]
 
     def _download(self, search_results: GeoDataFrame, target_dir: str, **kwargs) -> str:
         """Download selected Sentinel-1 BURST data using ASF backend.

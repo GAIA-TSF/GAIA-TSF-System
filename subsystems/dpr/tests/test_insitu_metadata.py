@@ -1,32 +1,19 @@
 """
 Tests for in-situ CSV metadata generation (Issue #200).
 
-Covers InsituDataset, InsituStacItemFactory, and MetadataGenerator for CSV datasources.
+Covers InsituDataset, StacItemFactory, and MetadataGenerator for CSV datasources.
 """
 
 import os
-import sys
 import tempfile
-import types
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
 
-# Stub out osgeo so generator.py can be imported without GDAL installed
-for _mod in ('osgeo', 'osgeo.gdal', 'osgeo.osr'):
-    sys.modules.setdefault(_mod, types.ModuleType(_mod))
-_gdal = sys.modules['osgeo.gdal']
-if not hasattr(_gdal, 'UseExceptions'):
-    _gdal.UseExceptions = lambda: None  # type: ignore[attr-defined]
-
-_sqlalchemy = types.ModuleType('sqlalchemy')
-_sqlalchemy.create_engine = MagicMock()  # type: ignore[attr-defined]
-sys.modules.setdefault('sqlalchemy', _sqlalchemy)
-
 from subsystems.dpr.metadata_processor.generator import (
     InsituDataset,
-    InsituStacItemFactory,
+    StacItemFactory,
 )
 
 
@@ -126,14 +113,14 @@ class TestInsituDataset:
 
 
 # ---------------------------------------------------------------------------
-# InsituStacItemFactory
+# StacItemFactory
 # ---------------------------------------------------------------------------
 
 
-class TestInsituStacItemFactory:
+class TestStacItemFactory:
     def test_stac_item_structure(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
 
         assert item['type'] == 'Feature'
@@ -146,36 +133,36 @@ class TestInsituStacItemFactory:
 
     def test_stac_item_table_columns(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         col_names = [c['name'] for c in item['assets']['data']['table:columns']]
         assert 'pressure' in col_names
 
     def test_stac_item_null_geometry_when_no_location(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_NO_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         assert item['geometry'] is None
         assert item['bbox'] is None
 
     def test_stac_item_sensor_type_in_properties(self, tmp_csv):
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         item = factory.create_item()
         assert item['properties']['sensor_type'] == 'piezometer'
 
 
 # ---------------------------------------------------------------------------
-# process_in_situ() — tests the full pipeline using InsituDataset + InsituStacItemFactory
+# process_in_situ() — tests the full pipeline using InsituDataset + StacItemFactory
 # directly, bypassing GaiaBase/sqlalchemy dependencies
 # ---------------------------------------------------------------------------
 
 
 class TestProcessInSitu:
     def test_process_in_situ_returns_valid_stac(self, tmp_csv):
-        """Full pipeline: InsituDataset → InsituStacItemFactory → STAC item."""
+        """Full pipeline: InsituDataset → StacItemFactory → STAC item."""
         ds = InsituDataset(tmp_csv, METADATA_WITH_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         stac_item = factory.create_item()
 
         assert stac_item['type'] == 'Feature'
@@ -185,7 +172,7 @@ class TestProcessInSitu:
     def test_process_in_situ_no_location_null_geometry(self, tmp_csv):
         """Pipeline with no location: geometry and bbox should be None."""
         ds = InsituDataset(tmp_csv, METADATA_NO_LOCATION)
-        factory = InsituStacItemFactory(ds, MagicMock())
+        factory = StacItemFactory(ds, MagicMock())
         stac_item = factory.create_item()
 
         assert stac_item['geometry'] is None
