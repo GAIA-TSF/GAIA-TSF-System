@@ -47,6 +47,14 @@ class BaseParser(ABC):
         """Parse content into structured dictionary."""
         pass
 
+    def ensure_qc_column(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add default QC=1 column if absent. QC=1 means valid sensor data."""
+        if not any(c.upper() == 'QC' for c in df.columns):
+            df = df.copy()
+            df['QC'] = 1
+            self.logger.debug(f'[{self.get_parser_name()}] Added default QC=1 column.')
+        return df
+
     def standardize_timestamp(
         self,
         df: pd.DataFrame,
