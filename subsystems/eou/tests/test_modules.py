@@ -18,7 +18,7 @@ class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2025-06-01',
-        'end': '2025-06-10',
+        'end': '2025-06-05',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -103,6 +103,7 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
+            assert len(list(ql_path.parent.iterdir())) == 1
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
@@ -124,12 +125,81 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download(result, target_dir=target_dir))
+            datadir = Path(
+                module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            )
             assert any(datadir.iterdir())
             assert (
                 datadir.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
+            assert len(list(datadir.iterdir())) == 1
+        finally:
+            if datadir.exists() and datadir.is_dir():
+                shutil.rmtree(datadir)
+
+    def test_DataAcquisitionGateway_003_eodag_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using default backend (eodag).
+        """
+        module = DataAcquisitionGateway()
+
+        results = module.backend.search(
+            geom=project_config.aoi(),
+            **self.search_filter,
+        )
+
+        assert len(results) > 1
+
+        target_dir = 'sentinel2'
+        try:
+            ql_dir = Path(
+                module.backend.download_all(
+                    results, target_dir=target_dir, quicklook=True
+                )
+            )
+
+            assert ql_dir.exists()
+            assert any(ql_dir.iterdir())
+            assert ql_dir.stat().st_size > 0
+            assert (
+                ql_dir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+            assert len(results) == len(list(ql_dir.iterdir()))
+        finally:
+            if ql_dir and ql_dir.is_dir():
+                for item in ql_dir.iterdir():
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+
+    def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using ASF backend.
+        """
+        module = DataAcquisitionGateway(backend='asf')
+        result = module.backend.search(
+            aoi=project_config.aoi(),
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert len(result) > 1
+
+        target_dir = 'sentinel1'
+        try:
+            datadir = Path(module.backend.download_all(result, target_dir=target_dir))
+            assert any(datadir.iterdir())
+            assert (
+                datadir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+            assert len(result) == len(list(datadir.iterdir()))
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
