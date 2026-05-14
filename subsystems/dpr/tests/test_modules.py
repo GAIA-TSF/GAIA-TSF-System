@@ -145,5 +145,5 @@ class TestModules:
     def test_MetadataProcessor_003(self):
         """Test MetadataValidator module."""
         module = MetadataValidator()
-        module.validate(Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json')
+        module.validate(TestUtils.get_data_path('eou') / 'ENMAP01_sample.json')
         # TODO: assert
