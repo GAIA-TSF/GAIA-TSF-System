@@ -41,7 +41,7 @@ dag_module = DataAcquisitionGateway(backend='eodag')
 search_filter = {
     'provider': 'cop_dataspace',
     'start': '2025-06-01',
-    'end': '2025-06-15',
+    'end': '2025-06-05',
     'productType': 'S2_MSI_L2A',
 }
 
