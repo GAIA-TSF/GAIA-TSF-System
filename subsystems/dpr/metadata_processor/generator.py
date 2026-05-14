@@ -10,7 +10,6 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime, UTC
 from pathlib import Path
-from stactools.sentinel2.stac import create_item
 
 from osgeo import gdal, osr
 
@@ -280,7 +279,7 @@ class SentinelDataset(BaseDataset):
             assets, metadata assets, and updated properties.
         """
         # common STAC definition
-        item_standard = create_item(
+        item_standard = self.create_item(
             granule_href=str(self.path),
             additional_providers=None,
             tolerance=None,
@@ -296,6 +295,146 @@ class SentinelDataset(BaseDataset):
         item_dict_transformed = self._transform_item(item_dict_standard)
 
         return item_dict_transformed
+
+
+class Sentinel1Dataset(SentinelDataset):
+
+    def __init__(self, path: str):
+        from stactools.sentinel1.slc.stac import create_item
+        self.create_item = create_item
+        super().__init__(path)
+
+    @staticmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools Sentinel-2 item to the desired format.
+
+        This method reshapes a standard Sentinel-2 STAC item by:
+        - Remapping band assets from semantic names (e.g., 'nir') to band
+          numbers (e.g., 'B08')
+        - Collecting EO band information as a section separate from raster:bands
+        - Updating properties with processing-level and tile information
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+
+        TODO: Probably going to be renamed once support for S1 will be on the table
+        """
+
+        # Mapping from semantic band names to band numbers
+        band_mapping = {
+            'coastal': 'B01',
+            'blue': 'B02',
+            'green': 'B03',
+            'red': 'B04',
+            'rededge1': 'B05',
+            'rededge2': 'B06',
+            'rededge3': 'B07',
+            'nir': 'B08',
+            'nir08': 'B8A',
+            'nir09': 'B09',
+            # band 10 missing
+            'swir16': 'B11',
+            'swir22': 'B12',
+        }
+
+        # create new assets dictionary with band number keys
+        new_assets = {}
+        eo_bands = []
+
+        for asset_key, asset_value in item.get('assets', {}).items():
+            # metadata assets section
+            if asset_key in ['product_metadata', 'granule_metadata', 'safe_manifest']:
+                role = 'metadata'
+                if asset_key == 'product_metadata':
+                    # we want it called scene_metadata, not product_metadata
+                    new_key = 'scene_metadata'
+                else:
+                    new_key = asset_key
+
+                new_assets[new_key] = {
+                    'href': asset_value.get('href'),
+                    'type': asset_value.get('type'),
+                    'roles': [role],
+                }
+
+            # bands assets section
+            if asset_key not in band_mapping.keys():
+                continue
+
+            band_info = asset_value['eo:bands'][0]
+            band_name = band_info.get('name')
+
+            # Create new asset
+            new_asset = {
+                'href': asset_value.get('href'),
+                'type': asset_value.get('type', 'image/jp2'),
+                'roles': asset_value.get('roles', ['data']),
+            }
+
+            # Use the band name as key
+            new_assets[band_name] = new_asset
+
+            eo_bands.append(
+                {
+                    'name': band_name,
+                    'common_name': band_info.get('common_name'),
+                    'center_wavelength': band_info.get('center_wavelength'),
+                    'gsd': asset_value.get('gsd'),
+                }
+            )
+
+        # Build the new item
+        new_item = {
+            'type': item.get('type'),
+            'stac_version': '1.0.0',
+            'id': item.get('id'),
+            'bbox': item.get('bbox'),
+            'geometry': item.get('geometry'),
+            'properties': {
+                'datetime': item.get('properties', {}).get('datetime'),
+                'start_datetime': item.get('properties', {}).get('datetime'),
+                'end_datetime': item.get('properties', {}).get('datetime'),
+                'platform': item.get('properties', {}).get('platform'),
+                'constellation': item.get('properties', {}).get('constellation'),
+                'instruments': item.get('properties', {}).get('instruments'),
+                # TODO: getting none
+                'processing:level': 'L2A',  # TODO: Possible automatically?
+                # TODO: view
+                'sat:relative_orbit': item.get('properties', {}).get(
+                    'sat:relative_orbit'
+                ),
+                # 's2:tile_id': item.get('properties', {}).get('grid:code').split('-')[1],
+                # 's2:product_uri': item.get('properties', {}).get('s2:product_uri'),
+            },
+            'assets': new_assets,
+            'collection': 'sentinel-2-l2a',
+            'links': [
+                {
+                    'rel': 'self',
+                    'href': 'https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/'
+                    + item.get('id'),
+                }
+            ],
+            'eo:bands': sorted(eo_bands, key=lambda x: x['name']),
+            # 'providers': [
+            #     {
+            #         'name': provider.get('name'),
+            #         'roles': provider.get('roles'),
+            #     }
+            #     for provider in item.get('properties', {}).get('providers', [])
+            # ],
+        }
+
+        return new_item
+
+
+class Sentinel2Dataset(SentinelDataset):
+
+    def __init__(self, path: str):
+        from stactools.sentinel2.stac import create_item
+        self.create_item = create_item
+        super().__init__(path)
 
     @staticmethod
     def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -596,8 +735,11 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
+        elif 'S1' in data_source and 'SLC' in data_source:
+            self._ds = Sentinel1Dataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
         else:
-            self._ds = SentinelDataset(data_source)
+            self._ds = Sentinel2Dataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
 
     @property
