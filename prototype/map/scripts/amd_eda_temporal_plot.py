@@ -19,16 +19,21 @@ from matplotlib import dates as matplotlib_dates
 
 
 # INPUT DATA
-# Directory with Sentinel-2 scenes
-scenes_dir = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/sentinel2/"
+# mac
+# proj_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments' 
+# skylake
+proj_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/' 
 
-predictions_dir = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/sentinel2_clouds/"
+# Directory with Sentinel-2 scenes
+scenes_dir = os.path.join(proj_dir, 'AMD_monitoring_Yxsjoberg/inputs/sentinel2/') 
+
+predictions_dir = os.path.join(proj_dir, 'AMD_monitoring_Yxsjoberg/inputs/sentinel2_clouds/')
 
 # AMD mask raster
-amd_mask_path = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/yxsjoberg_binary_amd.tif"
+amd_mask_path = os.path.join(proj_dir, 'AMD_monitoring_Yxsjoberg/static/yxsjoberg_binary_amd.tif')
 
 # Water mask raster
-water_mask_path = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/yxsjoberg_binary_water.tif"
+water_mask_path = os.path.join(proj_dir, 'AMD_monitoring_Yxsjoberg/static/yxsjoberg_binary_water.tif')
 
 # CONSTATNTS 
 codes = [1, 2, 3, 4, 5, 6]
@@ -44,51 +49,58 @@ code_names = [
 
 CLOUD_CODE = 1
 
-
 # LOAD INPUTS
 # List all Sentinel-2 scenes
 # cloudless_scenes = sorted(glob.glob(os.path.join(scenes_dir, "*.tif")))
 # print(f"{len(cloudless_scenes)} scenes found")
 
 # COMPUTE CLOUD COVER
+# Sentinel-2 scenes
 fileList = sorted(glob.glob(os.path.join(scenes_dir, "*.tif")))
 print(f"{len(fileList)} Sentinel-2 scenes found")
 
+# Store cloud cover percentages
 cloud_cover = []
 
-for path in fileList:
+# Iterate through scenes
+for i, path in enumerate(fileList):
+
     filename = os.path.basename(path)
     scene_id = filename.replace(".tif", "")
 
-    # Corresponding prediction raster
-    pred_path = os.path.join(
-        predictions_dir,
-        f"{scene_id}_pred.tif"
-    )
-    if not os.path.exists(pred_path):
+    print(f"Processing {scene_id} ({i+1}/{len(fileList)})")
 
-        print(f"Prediction missing for {scene_id}")
-        cloud_cover.append(np.nan)
-        continue
+    # Open Sentinel-2 scene
+    with rasterio.open(path) as raster:
 
-    # Open classification raster
-    with rasterio.open(pred_path) as src:
-        pred = src.read(1)
+        # Cloud mask from Band 2 threshold
+        # Pixels < 1000 are considered clouds
+        cloud_mask = (raster.read(2) < 1000).astype("uint8")
 
-    # Total valid pixels
-    total_pixels = pred.size
+        # Count cloud and non-cloud pixels
+        values, counts = np.unique(cloud_mask, return_counts=True)
 
-    # Cloud pixels
-    cloud_pixels = np.sum(pred == CLOUD_CODE)
+        # Ensure both classes exist
+        count_dict = dict(zip(values, counts))
 
-    # Cloud percentage
-    cloud_percent = (cloud_pixels / total_pixels) * 100
-    cloud_cover.append(cloud_percent)
-    print(f"{scene_id}: {cloud_percent:.2f}% clouds")
+        # cloud_mask:
+        # 0 = cloud
+        # 1 = non-cloud
+        cloud_pixels = count_dict.get(0, 0)
+        total_pixels = np.sum(counts)
 
+        # Cloud percentage
+        cloud_percent = (cloud_pixels / total_pixels) * 100
+
+        cloud_cover.append(cloud_percent)
+
+        print(f"{scene_id}: {cloud_percent:.2f}% clouds")
+
+# Convert to numpy array if needed
+cloud_cover = np.array(cloud_cover)
 
 # SELECT CLOUDLESS SCENES
-cloud_threshold = 10
+cloud_threshold = 10 
 indices = np.where(np.array(cloud_cover) < cloud_threshold)[0]
 cloudless_scenes = [fileList[i] for i in indices]
 print(len(cloudless_scenes), 'scenes were kept')
@@ -105,18 +117,11 @@ with rasterio.open(water_mask_path) as src:
 
 
 
-# GET PIXEL INDICES
-# Pixels affected by AMD
-# binary_amd.shape
+# GET PIXELs
 ay, ax = np.where(binary_amd[0, :, :] == 1)
-# plt.imshow()
 
 # Reference lake pixels
 wy, wx = np.where(binary_water[0, :, :] == 1)
-
-
-
-
 
 # CREATE ARRAYS FOR TEMPORAL VALUES
 peak_amd = np.zeros((len(cloudless_scenes), len(ax)))
@@ -127,17 +132,12 @@ valid_water_pixels = []
 
 # PROCESS EACH SCENE
 for i, path in enumerate(cloudless_scenes):
+    # break 
 
     print(f"Processing scene {i+1}/{len(cloudless_scenes)}")
 
     filename = os.path.basename(path)
     scene_id = filename.replace(".tif", "")
-
-    # Corresponding prediction raster
-    pred_path = os.path.join(
-        predictions_dir,
-        f"{scene_id}_pred.tif"
-    )
 
 
     # LOAD DATA
@@ -146,16 +146,6 @@ for i, path in enumerate(cloudless_scenes):
         # Compute spectral difference
         diff = raster.read(4).astype(np.float32) - raster.read(2).astype(np.float32)
 
-    # Load classification prediction
-    with rasterio.open(pred_path) as src:
-
-        pred = src.read(1)
-
-
-    # PIXEL-LEVEL CLOUD MASKING
-
-    # Set cloud pixels to NaN
-    diff[pred == CLOUD_CODE] = np.nan
 
     # track number of valid pixels 
     amd_values = diff[ay, ax]
@@ -166,19 +156,13 @@ for i, path in enumerate(cloudless_scenes):
 
     valid_amd_pixels.append(np.sum(~np.isnan(amd_values)))
     valid_water_pixels.append(np.sum(~np.isnan(water_values)))
-    
 
 # TEMPORAL AVERAGES
 peak_amd = np.nanmean(peak_amd, axis=1)
 peak_water = np.nanmean(peak_water, axis=1)
 
-# Remove unstable dates 
-
-
-
 # EXTRACT DATES FROM FILENAMES
 # Expected filename example: 20180615T103021.tif
-
 dates = []
 
 for path in cloudless_scenes:
@@ -196,8 +180,6 @@ for path in cloudless_scenes:
 # Convert dates to matplotlib format
 
 date2num = matplotlib_dates.date2num(dates)
-
-
 
 
 ### --- PLOT RESULTS --- ### 
