@@ -171,6 +171,33 @@ class TestModules:
                     else:
                         item.unlink()
 
+    def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using ASF backend.
+        """
+        module = DataAcquisitionGateway(backend='asf')
+        result = module.backend.search(
+            aoi=project_config.aoi(),
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert len(result) > 0
+
+        target_dir = 'sentinel1'
+        try:
+            datadir = Path(module.backend.download_all(result, target_dir=target_dir))
+            assert any(datadir.iterdir())
+            assert (
+                datadir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+        finally:
+            if datadir.exists() and datadir.is_dir():
+                shutil.rmtree(datadir)
+
     def test_DataExtraction_001(self):
         """Test DataExtraction module.
 
