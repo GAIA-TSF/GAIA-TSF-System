@@ -86,6 +86,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         if not any(datadir.glob('*.SAFE/')):
             raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
+        self.logger.info('Downloading precise orbit files.')
         s1 = S1.scan_slc(datadir)
         S1.download_orbits(datadir, s1)
 
@@ -96,6 +97,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param Path output_dem: Path to output DEM file.
         :return: None
         """
+        self.logger.info('Downloading DEM for AOI.')
         Tiles().download_dem(aoi, filename=output_dem, skip_exist=True)
 
     def _download_landmask(self, aoi, output_landmask):
@@ -105,6 +107,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param Path output_landmask: Path to output landmask file.
         :return: None
         """
+        self.logger.info('Downloading landmask for AOI.')
         Tiles().download_landmask(
             aoi, filename=output_landmask, skip_exist=True
         ).fillna(0)
@@ -141,6 +144,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
         s1 = S1.scan_slc(datadir)
+        self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(s1)
 
     def _reframe_scenes(self, aoi):
@@ -149,6 +153,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param str | BaseGeometry aoi: WKT string or Shapely Polygon representing the area of interest.
         :return: None
         """
+        self.logger.info('Reframing Sentinel-1 data.')
         self.sbas.compute_reframe(aoi)
 
     def _load_dem_and_landmask(self, aoi, dem, landmask):
@@ -159,6 +164,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param Path landmask: Path to landmask file.
         :return: None
         """
+        self.logger.info('Loading DEM and landmask to reframed Sentinel-1 data.')
         self.sbas.load_dem(str(dem), aoi)
         self.sbas.load_landmask(str(landmask))
 
@@ -167,6 +173,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         :return: None
         """
+        self.logger.info('Aligning Sentinel-1 data.')
         self.sbas.compute_align()
 
     def _geocoding_transform(self, coarsen=10.0):
@@ -176,6 +183,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                               A higher value results in faster processing and smaller files but lower spatial detail. Defaults to 10.
         :return: None
         """
+        self.logger.info('Geocoding Sentinel-1 data.')
         self.sbas.compute_geocode(coarsen=coarsen)
 
     def _find_optimal_network(
@@ -191,6 +199,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         all_dates = list(stack_df.index.astype(str))
         results = []
 
+        self.logger.info('Finding optimal SBAS network.')
         for days in basedays:
             for meters in basemeters:
                 # Build candidate pairs
@@ -267,6 +276,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.corr = self.sbas.correlation(phase, intensity)
         phase_goldstein = self.sbas.goldstein(phase, self.corr, goldstein_patch)
 
+        self.logger.info('Computing interferograms.')
         self.intf = self.sbas.interferogram(phase_goldstein)
 
     def _unwrap_phase(self, corr_limit=0.20, unwrap_m=10.0):
@@ -295,7 +305,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
             )
 
-        # Run SNAPHU Unwrapping
+        self.logger.info('Unwrapping phases.')
         self.unwrap = self.sbas.unwrap_snaphu(
             intf_u.where(corr_mask), corr_mask
         ).persist()
@@ -327,6 +337,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
 
         # Subtracting the ramp leaves only the localized displacement signal
+        self.logger.info('Detrending phases.')
         self.detrend = (phase_data - ramp).persist()
 
         # Trigger computation
@@ -362,6 +373,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
+        self.logger.info('Computing displacements.')
         self.disp_ll = self.sbas.cropna(self.sbas.ra2ll(disp_ra)).persist()
         self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
 
@@ -379,6 +391,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'Missing displacement data. Run _compute_displacement first.'
             )
 
+        self.logger.info('Computing risk map..')
         # Setup Data Layers
         disp = self.disp_ll
         t_dim = next((d for d in disp.dims if d in ('date', 'time', 'epoch')), 'date')
@@ -477,6 +490,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :param str model: The atmospheric reanalysis model to use for historical climate data. Defaults to "era5".
         :return: None
         """
+        self.logger.info('Creating environmental database.')
         # Temporal & Spatial Setup
         stack_df = self.sbas.to_dataframe()
         dt_index = pd.to_datetime(stack_df.index)
@@ -660,6 +674,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'InSAR displacement or risk map not found. Run previous steps first.'
             )
 
+        self.logger.info('Computing risk database.')
         # Convert xarray datasets to long-form DataFrames
         df_disp = self.disp_ll.to_dataframe().reset_index()
         df_risk = self.risk_map.to_dataframe().reset_index()
@@ -855,6 +870,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         disp_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
 
+        self.logger.info('Exporting displacements and velocity.')
         if hasattr(self, 'vel_ll') and self.vel_ll is not None:
             vel_to_export = self.vel_ll.rename({'lat': 'y', 'lon': 'x'})
 
