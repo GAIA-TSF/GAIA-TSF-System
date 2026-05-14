@@ -82,32 +82,19 @@ Build docker:
 
 ```sh
 cd docker
-docker compose build
+docker compose up --build
 ```
 
-Start GAIA-TSF services on background:
-
-```
-docker compose up -d
-```
-
-Run tests for the testfile wished from a root directory:
+Run tests for the testfile wished:
 
 ```sh
-docker exec gaiatesting python3 -m pytest subsystems/subsystem/tests/testfile.py -v
+docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
 ```
 
 For executing long-running tests (which are excluded from CI), use the slow pytest marker.
 
 ```sh
-docker exec gaiatesting python3 -m pytest -m slow subsystems/subsystem/tests/testfile.py -v
-```
-
-Stop GAIA-TSF services:
-
-```
-cd docker/
-docker compose down
+docker exec gaiatesting python3 -m pytest -m slow /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
 ```
 
 ### Virtual environment
