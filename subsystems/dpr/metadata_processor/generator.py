@@ -298,9 +298,9 @@ class SentinelDataset(BaseDataset):
 
 
 class Sentinel1Dataset(SentinelDataset):
-
     def __init__(self, path: str):
         from stactools.sentinel1.slc.stac import create_item
+
         self.create_item = create_item
         super().__init__(path)
 
@@ -430,9 +430,9 @@ class Sentinel1Dataset(SentinelDataset):
 
 
 class Sentinel2Dataset(SentinelDataset):
-
     def __init__(self, path: str):
         from stactools.sentinel2.stac import create_item
+
         self.create_item = create_item
         super().__init__(path)
 
