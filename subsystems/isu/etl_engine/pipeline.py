@@ -151,6 +151,8 @@ class ETLEngine(GaiaBase):
             )
 
             # Assemble structured metadata
+            # TODO: set data_source='office_interpreted' for manually created records
+            # once the UI/API layer can pass this information to process_file().
             metadata = {
                 'ingestion': {
                     'mode': ingestion_mode,
@@ -277,6 +279,7 @@ class ETLEngine(GaiaBase):
         ingestion_meta = metadata.setdefault('ingestion', {})
         ingestion_meta.setdefault('mode', 'streaming')
         ingestion_meta.setdefault('source', dataset_id)
+        ingestion_meta.setdefault('data_source', 'sensor')
 
         sensor_type = data_meta.get('sensor_type', 'unknown')
 
