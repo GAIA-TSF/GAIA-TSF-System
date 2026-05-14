@@ -99,10 +99,34 @@ docker exec gaiatesting python3 -m pytest -m slow /opt/gaia_tsf/subsystems/subsy
 
 ### Virtual environment
 
-```
+As an alternative to using Docker, you can run tests or your own
+custom scripts by setting up a local Python virtual environment. This
+approach is useful if you prefer a lighter-weight setup or need more
+direct control over dependencies and execution.
+
+First, create and activate a virtual environment, then install the
+required Python dependencies:
+
+```sh
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r docker/requirements.txt 
+```
+
+Next, disable database logging in the `config.yaml` file to avoid
+connection issues during local execution. You can do this by
+commenting out the relevant section:
+
+```yaml
+    # db:
+    #   <<: *sdi_db
+    #   dbname: 'logging'
+```
+
+Finally, run the desired test or your own script. For example, to
+execute a specific pytest file:
+
+```sh
 python3 -m pytest subsystems/subsystem/tests/testfile.py -v
 ```
 
