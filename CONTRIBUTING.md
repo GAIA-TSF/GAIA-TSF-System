@@ -97,6 +97,46 @@ For executing long-running tests (which are excluded from CI), use the slow pyte
 docker exec gaiatesting python3 -m pytest -m slow /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
 ```
 
+### Virtual environment
+
+As an alternative to using Docker, you can run tests or your own
+custom scripts by setting up a local Python virtual environment. This
+approach is useful if you prefer a lighter-weight setup or need more
+direct control over dependencies and execution.
+
+First, create and activate a virtual environment:
+
+```sh
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Before installing the Python dependencies, verify which version of
+GDAL is installed on your system. Make sure that the same version is
+specified in docker/requirements.txt to avoid compatibility
+issues. Once aligned, proceed with installing the Python dependencies.
+
+```sh
+pip3 install -r docker/requirements.txt 
+```
+
+Next, disable database logging in the `config.yaml` file to avoid
+connection issues during local execution. You can do this by
+commenting out the relevant section:
+
+```yaml
+    # db:
+    #   <<: *sdi_db
+    #   dbname: 'logging'
+```
+
+Finally, run the desired test or your own script. For example, to
+execute a specific pytest file:
+
+```sh
+python3 -m pytest subsystems/subsystem/tests/testfile.py -v
+```
+
 ## Push docker images into GitHub container repository
 
 Here is the simplest way how to push the images into GitHub container repository.
