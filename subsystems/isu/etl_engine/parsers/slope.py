@@ -90,6 +90,7 @@ class SlopeStabilityParser(BaseParser):
             df = self.standardize_timestamp(
                 df, ['timestamp', 'date', 'time', 'reading_time', 'epoch']
             )
+            df = self.ensure_qc_column(df)
 
             # Return cleaned DataFrame
             return df
