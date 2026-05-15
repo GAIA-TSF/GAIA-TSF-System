@@ -383,7 +383,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         median_ds = mem_driver.Create('median', cols, rows, 12, gdal.GDT_Float32)
         median_ds.SetGeoTransform(self.geotransform)
         median_ds.SetProjection(self.projection)
-        
+
         # Copy original bands
         for i in range(1, 12 + 1):
             median_ds.GetRasterBand(i).WriteArray(median[i - 1])
@@ -625,7 +625,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
                     rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
-                    metadata['water_mask_pct'] = round(np.nansum((refined_mask > 0).astype('uint8'))/(rows*cols), 4)
+                    metadata['water_mask_pct'] = round(
+                        np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
+                    )
                     with open(out_path.replace('.tiff', '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)
 

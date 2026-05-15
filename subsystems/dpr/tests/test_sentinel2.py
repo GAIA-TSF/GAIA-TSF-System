@@ -210,16 +210,24 @@ class TestSentinel2Workflow:
         input_folder = TestUtils.get_data_path('tests/data/dpr/sentinel2_yxsjoberg')
 
         # Check if the folder has been located
-        assert os.path.exists(input_folder), 'The Sentinel-2 input folder was not found.'
+        assert os.path.exists(input_folder), (
+            'The Sentinel-2 input folder was not found.'
+        )
 
         # Set path to the vector file containing the water bodies
-        input_water_mask = TestUtils.get_data_path('tests/data/dpr/yxsjoberg_lakes.gpkg')
+        input_water_mask = TestUtils.get_data_path(
+            'tests/data/dpr/yxsjoberg_lakes.gpkg'
+        )
 
         # Check if the folder has been located
-        assert os.path.exists(input_water_mask), 'The vector file containing the water bodies was not found.'
+        assert os.path.exists(input_water_mask), (
+            'The vector file containing the water bodies was not found.'
+        )
 
         # Set path to output folder (delete pre-existing folder)
-        output_folder = TestUtils.get_data_path('tests/data/dpr/temp_water_masking_test')
+        output_folder = TestUtils.get_data_path(
+            'tests/data/dpr/temp_water_masking_test'
+        )
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
             shutil.rmtree(output_folder)
 
@@ -232,10 +240,10 @@ class TestSentinel2Workflow:
         pipeline.run()
 
         # Search for metadata and geotiff files in output folder
-        input_json_files = glob.glob(os.path.join(input_folder, "*.json"))
-        input_tiff_files = glob.glob(os.path.join(input_folder, "*.tif*"))
-        output_json_files = glob.glob(os.path.join(output_folder, "*.json"))
-        output_tiff_files = glob.glob(os.path.join(output_folder, "*.tif*"))
+        input_json_files = glob.glob(os.path.join(input_folder, '*.json'))
+        input_tiff_files = glob.glob(os.path.join(input_folder, '*.tif*'))
+        output_json_files = glob.glob(os.path.join(output_folder, '*.json'))
+        output_tiff_files = glob.glob(os.path.join(output_folder, '*.tif*'))
 
         # Check that all the files were processed and exported correctly
         assert len(input_json_files) == len(output_json_files), (
@@ -249,12 +257,12 @@ class TestSentinel2Workflow:
 
         # Check that metadata were updated and that the water mask ratio is below 5%
         for metadata in output_json_files:
-            with open(metadata, "r") as f:
+            with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert "water_mask_pct" in data, (
+                assert 'water_mask_pct' in data, (
                     f'TEST 1: The key "water_mask_pct" is missing from metadata file: {metadata}.'
                 )
-                assert data["water_mask_pct"] < 0.05,  (
+                assert data['water_mask_pct'] < 0.05, (
                     f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
                 )
 
@@ -268,7 +276,7 @@ class TestSentinel2Workflow:
             mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
             n_bodies = numpy.nanmax(mask)
             assert 16 <= numpy.nanmax(n_bodies) <= 17, (
-                f"TEST 1: Expected 16 or 17 water bodies, but count is {n_bodies}."
+                f'TEST 1: Expected 16 or 17 water bodies, but count is {n_bodies}.'
             )
 
         # Clear the output folder before running TEST 2
@@ -285,10 +293,10 @@ class TestSentinel2Workflow:
         pipeline.run()
 
         # Search for metadata and geotiff files in output folder
-        input_json_files = glob.glob(os.path.join(input_folder, "*.json"))
-        input_tiff_files = glob.glob(os.path.join(input_folder, "*.tif*"))
-        output_json_files = glob.glob(os.path.join(output_folder, "*.json"))
-        output_tiff_files = glob.glob(os.path.join(output_folder, "*.tif*"))
+        input_json_files = glob.glob(os.path.join(input_folder, '*.json'))
+        input_tiff_files = glob.glob(os.path.join(input_folder, '*.tif*'))
+        output_json_files = glob.glob(os.path.join(output_folder, '*.json'))
+        output_tiff_files = glob.glob(os.path.join(output_folder, '*.tif*'))
 
         # Check that all the files were processed and exported correctly
         assert len(input_json_files) == len(output_json_files), (
@@ -302,12 +310,12 @@ class TestSentinel2Workflow:
 
         # Check that metadata were updated and that the water mask ratio is below 5%
         for metadata in output_json_files:
-            with open(metadata, "r") as f:
+            with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert "water_mask_pct" in data, (
+                assert 'water_mask_pct' in data, (
                     f'TEST 2: The key "water_mask_pct" is missing from metadata file: {metadata}.'
                 )
-                assert data["water_mask_pct"] < 0.05, (
+                assert data['water_mask_pct'] < 0.05, (
                     f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
                 )
 
@@ -321,7 +329,7 @@ class TestSentinel2Workflow:
             mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
             n_bodies = numpy.nanmax(mask)
             assert n_bodies == 10, (
-                f"TEST 2: Expected 10 water bodies, but count is {n_bodies}."
+                f'TEST 2: Expected 10 water bodies, but count is {n_bodies}.'
             )
 
         # Clear the output folder
