@@ -383,6 +383,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         median_ds = mem_driver.Create('median', cols, rows, 12, gdal.GDT_Float32)
         median_ds.SetGeoTransform(self.geotransform)
         median_ds.SetProjection(self.projection)
+        
         # Copy original bands
         for i in range(1, 12 + 1):
             median_ds.GetRasterBand(i).WriteArray(median[i - 1])
@@ -391,6 +392,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         si = self._calculate_shadow_index(median_ds)
         slope, intercept = self._calculate_vectorized_regression(median_ds)
         swir_reflect = self._get_swir_reflectance(median_ds)
+        band1 = median_ds.GetRasterBand(1).ReadAsArray().astype(np.int16)
 
         # Prepare data for SAM (Sentinel-2's Band 9 is excluded)
         sam_bands_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]
@@ -407,6 +409,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             & (sam_soil > 0.15)
             & (sam_veg > 0.15)
             & (swir_reflect < 1000)
+            & (band1 < 2000)
         ).astype(np.uint8)
 
         # Label components (we want the largest body to be 1)
@@ -546,12 +549,12 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             or self._config['end_date'] is not None
         ):
             self.logger.info(f'Temporal filter start = {self._config["start_date"]}')
-            self.logger.info(f'Temporal filter end = {self._config["enddate"]}')
+            self.logger.info(f'Temporal filter end = {self._config["end_date"]}')
 
         tiffs = list(self.scenes_metadata['source_path'])
 
         for tiff_path in tiffs:
-            self.logger.info(f'Processing {os.path.basename(tiff_path)}')
+            self.logger.info(f'--- Processing {os.path.basename(tiff_path)}')
 
             gdal_dataset = gdal.Open(tiff_path)
             if gdal_dataset is None:
@@ -569,6 +572,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             sam_veg = self._calculate_spectral_angle(
                 self.ref_veg, gdal_dataset, sam_bands_idx
             )
+            band1 = gdal_dataset.GetRasterBand(1).ReadAsArray().astype(np.int16)
 
             # Spectral refinement condition (pixels to be REMOVED from the global water mask)
             remove_conditions = (
@@ -578,6 +582,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 | (sam_soil < 0.15)
                 | (sam_veg < 0.15)
                 | (swir_reflect > 1000)
+                | (band1 > 2000)
             )
 
             refined_mask = self.global_watermask.copy()
@@ -609,8 +614,20 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds.GetRasterBand(gdal_dataset.RasterCount + 1).WriteArray(
                     refined_mask
                 )
+
+                # clean up
                 out_ds.FlushCache()
                 out_ds = None
+
+                # Copy and update metadata
+                json_path = tiff_path.replace('.tiff', '.json')
+                if os.path.exists(json_path):
+                    with open(json_path, 'r') as f:
+                        metadata = json.load(f)
+                    rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
+                    metadata['water_mask_pct'] = round(np.nansum((refined_mask > 0).astype('uint8'))/(rows*cols), 4)
+                    with open(out_path.replace('.tiff', '.json'), 'w') as f:
+                        json.dump(metadata, f, indent=4)
 
         self.logger.info('Processing complete.')
 

@@ -1,0 +1,131 @@
+{
+    "Input_SAFE_path": "s2eodag\\S2B_MSIL2A_20180726T102019_N0500_R065_T33VVG_20230811T184149.zip",
+    "PRODUCT_START_TIME": "2018-07-26T10:20:19.024Z",
+    "PRODUCT_STOP_TIME": "2018-07-26T10:20:19.024Z",
+    "PRODUCT_URI": "S2B_MSIL2A_20180726T102019_N0500_R065_T33VVG_20230811T184149.SAFE",
+    "PROCESSING_LEVEL": "Level-2A",
+    "PRODUCT_TYPE": "S2MSI2A",
+    "PRODUCT_DOI": "https://doi.org/10.5270/S2_-znk9xsj",
+    "GENERATION_TIME": "2023-08-11T18:41:49.000000Z",
+    "SPACECRAFT_NAME": "Sentinel-2B",
+    "DATATAKE_SENSING_START": "2018-07-26T10:20:19.024Z",
+    "DATATAKE_TYPE": "INS-NOBS",
+    "SENSING_ORBIT_NUMBER": "65",
+    "SENSING_ORBIT_DIRECTION": "DESCENDING",
+    "Reflectance_Conversion": {
+        "U": "0.968840131034636",
+        "Solar_Irradiance_List": "\n          "
+    },
+    "Wavelengths": {
+        "B1": {
+            "bandId": "0",
+            "min": "411",
+            "max": "456",
+            "central": "442.3",
+            "unit": "nm"
+        },
+        "B2": {
+            "bandId": "1",
+            "min": "456",
+            "max": "532",
+            "central": "492.3",
+            "unit": "nm"
+        },
+        "B3": {
+            "bandId": "2",
+            "min": "536",
+            "max": "582",
+            "central": "559",
+            "unit": "nm"
+        },
+        "B4": {
+            "bandId": "3",
+            "min": "646",
+            "max": "685",
+            "central": "665",
+            "unit": "nm"
+        },
+        "B5": {
+            "bandId": "4",
+            "min": "694",
+            "max": "714",
+            "central": "703.8",
+            "unit": "nm"
+        },
+        "B6": {
+            "bandId": "5",
+            "min": "730",
+            "max": "748",
+            "central": "739.1",
+            "unit": "nm"
+        },
+        "B7": {
+            "bandId": "6",
+            "min": "766",
+            "max": "794",
+            "central": "779.7",
+            "unit": "nm"
+        },
+        "B8": {
+            "bandId": "7",
+            "min": "774",
+            "max": "907",
+            "central": "833",
+            "unit": "nm"
+        },
+        "B8A": {
+            "bandId": "8",
+            "min": "848",
+            "max": "880",
+            "central": "864",
+            "unit": "nm"
+        },
+        "B9": {
+            "bandId": "9",
+            "min": "930",
+            "max": "957",
+            "central": "943.2",
+            "unit": "nm"
+        },
+        "B10": {
+            "bandId": "10",
+            "min": "1339",
+            "max": "1415",
+            "central": "1376.9",
+            "unit": "nm"
+        },
+        "B11": {
+            "bandId": "11",
+            "min": "1538",
+            "max": "1679",
+            "central": "1610.4",
+            "unit": "nm"
+        },
+        "B12": {
+            "bandId": "12",
+            "min": "2065",
+            "max": "2303",
+            "central": "2185.7",
+            "unit": "nm"
+        }
+    },
+    "HORIZONTAL_CS_NAME": "WGS84 / UTM zone 33N",
+    "HORIZONTAL_CS_CODE": "EPSG:32633",
+    "source_path": "s2eodag_processed\\S2B_MSIL2A_20180726T102019_N0500_R065_T33VVG_20230811T184149.tiff",
+    "SCL_classes_pct": {
+        "SCL_no_data": 0.0,
+        "SCL_saturated_or_defective": 0.0,
+        "SCL_dark_areas": 0.0005,
+        "SCL_cloud_shadows": 0.0028,
+        "SCL_vegetation": 0.9323,
+        "SCL_non_vegetated": 0.0151,
+        "SCL_water": 0.0419,
+        "SCL_unclassified": 0.0074,
+        "SCL_cloud_medium_probability": 0.0,
+        "SCL_cloud_high_probability": 0.0,
+        "SCL_thin_cirrus": 0.0,
+        "SCL_snow_or_ice": 0.0
+    },
+    "cloud_cover_pct": 0.0,
+    "null_pixel_pct": 0.0
+}

@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 import numpy
+import glob
 from osgeo import gdal
 from shapely import wkt
 from shapely.ops import transform
@@ -12,6 +13,7 @@ from pyproj import Transformer
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
+from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
 
 
@@ -198,3 +200,130 @@ class TestSentinel2Workflow:
         )
 
         print(f'Test Passed: Cloud cover derived from SCL band is {cloud_pct}%')
+
+    def test_sentinel2_water_masking(self):
+        """Test the Sentinel2 water masking pipeline."""
+        # GDAL configuration to handle errors
+        gdal.UseExceptions()
+
+        # Set path to folder containing sentinel-2 sample scenes
+        input_folder = TestUtils.get_data_path('tests/data/dpr/sentinel2_yxsjoberg')
+
+        # Check if the folder has been located
+        assert os.path.exists(input_folder), 'The Sentinel-2 input folder was not found.'
+
+        # Set path to the vector file containing the water bodies
+        input_water_mask = TestUtils.get_data_path('tests/data/dpr/yxsjoberg_lakes.gpkg')
+
+        # Check if the folder has been located
+        assert os.path.exists(input_water_mask), 'The vector file containing the water bodies was not found.'
+
+        # Set path to output folder (delete pre-existing folder)
+        output_folder = TestUtils.get_data_path('tests/data/dpr/temp_water_masking_test')
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            shutil.rmtree(output_folder)
+
+        # TEST 1: Run the pipeline in default mode (without user input file)
+        pipeline = Sentinel2WaterMaskingPipeline()
+        pipeline.configure(
+            input_folder=Path(input_folder),
+            output_folder=Path(output_folder),
+        )
+        pipeline.run()
+
+        # Search for metadata and geotiff files in output folder
+        input_json_files = glob.glob(os.path.join(input_folder, "*.json"))
+        input_tiff_files = glob.glob(os.path.join(input_folder, "*.tif*"))
+        output_json_files = glob.glob(os.path.join(output_folder, "*.json"))
+        output_tiff_files = glob.glob(os.path.join(output_folder, "*.tif*"))
+
+        # Check that all the files were processed and exported correctly
+        assert len(input_json_files) == len(output_json_files), (
+            f'TEST 1: The number of output metadata files {len(output_json_files)}) is not the same as input metadata '
+            f'files ({len(input_json_files)}).'
+        )
+        assert len(input_tiff_files) == len(output_tiff_files), (
+            f'TEST 1: The number of output geotiff files ({len(output_tiff_files)}) is not the same as input geotiff '
+            f'files ({len(input_tiff_files)}).'
+        )
+
+        # Check that metadata were updated and that the water mask ratio is below 5%
+        for metadata in output_json_files:
+            with open(metadata, "r") as f:
+                data = json.load(f)
+                assert "water_mask_pct" in data, (
+                    f'TEST 1: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                )
+                assert data["water_mask_pct"] < 0.05,  (
+                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                )
+
+        # Check that Geotiff files were produced with all the bands and that the mask band (14) contains the expected
+        # number of water bodies (16 to 17 for the default workflow).
+        for geotiff in output_tiff_files:
+            ds = gdal.Open(geotiff, gdal.GA_Update)
+            assert ds.RasterCount == 14, (
+                f'TEST 1: The Geotiff does not contain the right amount of bands ({ds.RasterCount} instead of 14).'
+            )
+            mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
+            n_bodies = numpy.nanmax(mask)
+            assert 16 <= numpy.nanmax(n_bodies) <= 17, (
+                f"TEST 1: Expected 16 or 17 water bodies, but count is {n_bodies}."
+            )
+
+        # Clear the output folder before running TEST 2
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            shutil.rmtree(output_folder)
+
+        # TEST 2: Run the pipeline with vector file as input
+        pipeline = Sentinel2WaterMaskingPipeline()
+        pipeline.configure(
+            input_folder=Path(input_folder),
+            output_folder=Path(output_folder),
+            input_water_mask=Path(input_water_mask),
+        )
+        pipeline.run()
+
+        # Search for metadata and geotiff files in output folder
+        input_json_files = glob.glob(os.path.join(input_folder, "*.json"))
+        input_tiff_files = glob.glob(os.path.join(input_folder, "*.tif*"))
+        output_json_files = glob.glob(os.path.join(output_folder, "*.json"))
+        output_tiff_files = glob.glob(os.path.join(output_folder, "*.tif*"))
+
+        # Check that all the files were processed and exported correctly
+        assert len(input_json_files) == len(output_json_files), (
+            f'TEST 2: The number of output metadata files {len(output_json_files)}) is not the same as input metadata '
+            f'files ({len(input_json_files)}).'
+        )
+        assert len(input_tiff_files) == len(output_tiff_files), (
+            f'TEST 2: The number of output geotiff files ({len(output_tiff_files)}) is not the same as input geotiff '
+            f'files ({len(input_tiff_files)}).'
+        )
+
+        # Check that metadata were updated and that the water mask ratio is below 5%
+        for metadata in output_json_files:
+            with open(metadata, "r") as f:
+                data = json.load(f)
+                assert "water_mask_pct" in data, (
+                    f'TEST 2: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                )
+                assert data["water_mask_pct"] < 0.05, (
+                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                )
+
+        # Check that Geotiff files were produced with all the bands and that the mask band (14) contains the expected
+        # number of water bodies (10 with the vector file workflow).
+        for geotiff in output_tiff_files:
+            ds = gdal.Open(geotiff, gdal.GA_Update)
+            assert ds.RasterCount == 14, (
+                f'TEST 2: The Geotiff does not contain the right amount of bands ({ds.RasterCount} instead of 14).'
+            )
+            mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
+            n_bodies = numpy.nanmax(mask)
+            assert n_bodies == 10, (
+                f"TEST 2: Expected 10 water bodies, but count is {n_bodies}."
+            )
+
+        # Clear the output folder
+        if os.path.exists(output_folder) and os.path.isdir(output_folder):
+            shutil.rmtree(output_folder)
