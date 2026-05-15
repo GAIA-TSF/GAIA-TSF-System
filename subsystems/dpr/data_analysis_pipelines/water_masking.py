@@ -52,29 +52,41 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 'dtype': PosixPath,
                 'description': 'OPTIONAL. The user can provide a vector file (e.g., .shp, .gpkg) for water bodies '
                 'instead of relying on the pipeline filtering.',
-                'default': None,
+                'default': 'None',
             },
             'input_months': {
                 'dtype': list,
                 'description': 'OPTIONAL. List of months (e.g., [1, 2, 5, 6]) to use for water masking. Only applies'
                 'if no vector file is provided by the "input_water_mask" parameter. ',
-                'default': None,
+                'default': [],
             },
             'start_date': {
                 'dtype': str,
                 'description': 'OPTIONAL. Starting date for temporal filtering as "YYYY-MM-DD".',
-                'default': None,
+                'default': 'None',
             },
             'end_date': {
                 'dtype': str,
                 'description': 'OPTIONAL. End date for temporal filtering as "YYYY-MM-DD".',
-                'default': None,
+                'default': 'None',
             },
         },
     }
 
     def _configure(self):
         """Initialize the processor with None values."""
+        if self._config['input_water_mask'] == 'None':
+            self._config['input_water_mask'] = None
+
+        if self._config['start_date'] == 'None':
+            self._config['start_date'] = None
+
+        if self._config['end_date'] == 'None':
+            self._config['end_date'] = None
+
+        if not self._config['input_months']:
+            self._config['input_months'] = None
+
         self.global_watermask = None
         self.scenes_metadata = None
         self.scenes_metadata_filtered = None
