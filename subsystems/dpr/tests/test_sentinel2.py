@@ -207,9 +207,7 @@ class TestSentinel2Workflow:
         gdal.UseExceptions()
 
         # Set path to folder containing sentinel-2 sample scenes
-        input_folder = os.path.abspath(
-            'tests/data/dpr/sentinel2_yxsjoberg'
-        )
+        input_folder = os.path.abspath('tests/data/dpr/sentinel2_yxsjoberg')
 
         # Check if the folder has been located
         assert os.path.exists(input_folder), (
@@ -217,9 +215,7 @@ class TestSentinel2Workflow:
         )
 
         # Set path to the vector file containing the water bodies
-        input_water_mask = os.path.abspath(
-            'tests/data/dpr/yxsjoberg_lakes.gpkg'
-        )
+        input_water_mask = os.path.abspath('tests/data/dpr/yxsjoberg_lakes.gpkg')
 
         # Check if the folder has been located
         assert os.path.exists(input_water_mask), (
@@ -227,9 +223,7 @@ class TestSentinel2Workflow:
         )
 
         # Set path to output folder (delete pre-existing folder)
-        output_folder = os.path.abspath(
-            'tests/data/dpr/temp_water_masking_test'
-        )
+        output_folder = os.path.abspath('tests/data/dpr/temp_water_masking_test')
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
             shutil.rmtree(output_folder)
 
