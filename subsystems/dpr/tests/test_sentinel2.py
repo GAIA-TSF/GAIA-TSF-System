@@ -232,6 +232,11 @@ class TestSentinel2Workflow:
         pipeline.configure(
             input_folder=Path(input_folder),
             output_folder=Path(output_folder),
+            input_water_mask=None,
+            input_months=None,
+            start_date=None,
+            end_date=None,
+            max_cloud_snow_dark=None,
         )
         pipeline.run()
 
@@ -285,6 +290,10 @@ class TestSentinel2Workflow:
             input_folder=Path(input_folder),
             output_folder=Path(output_folder),
             input_water_mask=Path(input_water_mask),
+            input_months=None,
+            start_date=None,
+            end_date=None,
+            max_cloud_snow_dark=None,
         )
         pipeline.run()
 
