@@ -12,6 +12,12 @@ from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
 from tests.utils import TestUtils
 
 
+def item_dict_no_datetime(item_dict):
+    if 'properties' in item_dict and 'datetime' in item_dict['properties']:
+        del item_dict['properties']['datetime']
+    return item_dict
+
+
 class TestModules:
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
@@ -95,12 +101,6 @@ class TestModules:
         Generate data-driven metadata using MetadataGenerator for
         raster-based datasource.
         """
-
-        def item_dict_no_datetime(item_dict):
-            if 'properties' in item_dict and 'datetime' in item_dict['properties']:
-                del item_dict['properties']['datetime']
-            return item_dict
-
         # first, we need to download the S2 product
         search_filter = {
             'provider': 'cop_dataspace',
