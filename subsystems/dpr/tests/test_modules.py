@@ -19,6 +19,13 @@ def item_dict_no_datetime(item_dict):
 
 
 class TestModules:
+
+    search_filter = {
+        'provider': 'cop_dataspace',
+        'start': '2025-06-01',
+        'end': '2025-06-10',
+    }
+
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
 
@@ -102,13 +109,6 @@ class TestModules:
         raster-based datasource.
         """
         # first, we need to download the S2 product
-        search_filter = {
-            'provider': 'cop_dataspace',
-            'start': '2025-06-01',
-            'end': '2025-06-10',
-            'productType': 'S2_MSI_L2A',
-        }
-
         config = ProjectConfigReader(
             TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
@@ -117,7 +117,8 @@ class TestModules:
 
         results = dag.backend.search(
             geom=config.aoi(),
-            **search_filter,
+            productType='S2_MSI_L2A',
+            **self.search_filter,
         )
 
         # S2 product must be extracted for stactools
