@@ -449,8 +449,6 @@ class Sentinel2Dataset(SentinelDataset):
         :param item: The dictionary representation of a standard STAC item as
             produced by stactools.
         :return: A transformed STAC item dictionary with
-
-        TODO: Probably going to be renamed once support for S1 will be on the table
         """
 
         # Mapping from semantic band names to band numbers
