@@ -25,6 +25,10 @@ class TestModules:
         'start': '2025-06-01',
         'end': '2025-06-10',
     }
+    config = ProjectConfigReader(
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
+
 
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
@@ -109,14 +113,10 @@ class TestModules:
         raster-based datasource.
         """
         # first, we need to download the S2 product
-        config = ProjectConfigReader(
-            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
-        )
-
         dag = DataAcquisitionGateway()
 
         results = dag.backend.search(
-            geom=config.aoi(),
+            geom=self.config.aoi(),
             productType='S2_MSI_L2A',
             **self.search_filter,
         )
