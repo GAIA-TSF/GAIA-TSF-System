@@ -211,4 +211,5 @@ __marimo__/
 *~
 .idea/
 config.yaml
+tests/data/*
 venv/
