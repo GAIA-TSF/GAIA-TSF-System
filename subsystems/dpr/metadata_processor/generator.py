@@ -399,7 +399,9 @@ class Sentinel1Dataset(SentinelDataset):
                 'constellation': item.get('properties', {}).get('constellation'),
                 'instruments': item.get('properties', {}).get('instruments'),
                 # TODO: getting none
-                'processing:level': 'L2A',  # TODO: Possible automatically?
+                'processing:level': item.get('properties', {}).get(
+                    'processing:level'
+                ),
                 # TODO: view
                 'sat:relative_orbit': item.get('properties', {}).get(
                     'sat:relative_orbit'
