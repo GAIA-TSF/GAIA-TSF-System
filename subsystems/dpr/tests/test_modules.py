@@ -108,7 +108,7 @@ class TestModules:
         """Test MetadataProcessor module.
 
         Generate data-driven metadata using MetadataGenerator for
-        raster-based datasource.
+        Sentinel-2-based datasource.
         """
         # first, we need to download the S2 product
         dag = DataAcquisitionGateway()
