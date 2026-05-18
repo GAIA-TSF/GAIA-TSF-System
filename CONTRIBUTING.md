@@ -162,10 +162,10 @@ while persisting data on the host. By default, it uses the
 To use a different host directory, you can either run:
 
 ```
-HOST_DATA_DIR=/data/gaia_tsf docker-compose up
+HOST_DATA_DIR=/data/gaia_tsf docker compose up
 ```
 
-or create a `.env` file and run `docker-compose up` to pick up
+or create a `.env` file and run `docker compose up` to pick up
 `HOST_DATA_DIR` from the file.
 
 ## Recommended code subsystem layout
