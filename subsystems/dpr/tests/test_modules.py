@@ -19,7 +19,6 @@ def item_dict_no_datetime(item_dict):
 
 
 class TestModules:
-
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2025-06-01',
@@ -28,7 +27,6 @@ class TestModules:
     config = ProjectConfigReader(
         TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
     )
-
 
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
