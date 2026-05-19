@@ -1,47 +1,26 @@
+import pytest
 import shutil
 from pathlib import Path
 
-from osgeo import gdal
-
-gdal.UseExceptions()
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import SettingsReader
+from lib.config import SettingsReader, ProjectConfigReader
+from tests.utils import TestUtils
 
 
-def load_geom(file_path):
-    ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
-    layer = ds.GetLayer(0)
-
-    srs = layer.GetSpatialRef()
-    srs.AutoIdentifyEPSG()
-    auth = srs.GetAuthorityName(None)
-    code = srs.GetAuthorityCode(None)
-    if auth != 'EPSG' or code != '4326':
-        raise RuntimeError(f'Unsupported CRS: {auth}:{code}')
-
-    feature = layer.GetNextFeature()
-    if feature is None:
-        ds = None
-        raise RuntimeError('No features found')
-
-    wkt = feature.GetGeometryRef().ExportToWkt()
-    ds = None
-
-    return wkt
+@pytest.fixture(scope='class')
+def project_config():
+    return ProjectConfigReader(
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
 
 
 class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
-        'start': '2026-01-01',
-        'end': '2026-01-10',
+        'start': '2025-06-01',
+        'end': '2025-06-05',
         'productType': 'S2_MSI_L2A',
     }
-
-    @staticmethod
-    def _get_data_path(filename):
-        return str(Path(__file__).parent / 'sample_data' / filename)
 
     def test_ManualFileLoader_001(self):
         """Test ManualFileLoader module.
@@ -51,13 +30,15 @@ class TestModules:
         from subsystems.eou.manual_file_loader import ManualFileLoader
 
         module = ManualFileLoader()
-        result = module.check_file_validity(self._get_data_path('ENMAP01_sample.tif'))
+        result = module.check_file_validity(
+            TestUtils.get_data_path('eou/ENMAP01_sample.tif')
+        )
 
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
 
-    def test_DataAcquisitionGateway_001_eodag_search(self):
+    def test_DataAcquisitionGateway_001_eodag_search(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test search capability using default backend (eodag).
@@ -67,7 +48,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -75,7 +56,7 @@ class TestModules:
         assert len(result) > 0
         assert result[0].product_type == self.search_filter['productType']
 
-    def test_DataAcquisitionGateway_001_asf_search(self):
+    def test_DataAcquisitionGateway_001_asf_search(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test search capability using ASF backend.
@@ -83,20 +64,18 @@ class TestModules:
         from geopandas import GeoDataFrame
 
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
         result = module.backend.search(
-            aoi=aoi_geom,
+            aoi=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
-            path_number=147,
         )
 
         assert isinstance(result, GeoDataFrame)
         assert result is not None
         assert len(result) > 0
 
-    def test_DataAcquisitionGateway_002_eodag_download(self):
+    def test_DataAcquisitionGateway_002_eodag_download(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test download capability using default backend (eodag).
@@ -104,7 +83,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=load_geom(self._get_data_path('area_intervencao.kmz')),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -124,19 +103,19 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
+            assert len(list(ql_path.parent.iterdir())) == 1
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
 
-    def test_DataAcquisitionGateway_002_asf_download(self):
+    def test_DataAcquisitionGateway_002_asf_download(self, project_config):
         """Test DataAcquisitionGateway module.
 
         Test download capability using ASF backend.
         """
         module = DataAcquisitionGateway(backend='asf')
-        aoi_geom = load_geom(self._get_data_path('area_intervencao.kmz'))
         result = module.backend.search(
-            aoi=aoi_geom,
+            aoi=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -146,12 +125,81 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download(result, target_dir=target_dir))
+            datadir = Path(
+                module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            )
             assert any(datadir.iterdir())
             assert (
                 datadir.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
+            assert len(list(datadir.iterdir())) == 1
+        finally:
+            if datadir.exists() and datadir.is_dir():
+                shutil.rmtree(datadir)
+
+    def test_DataAcquisitionGateway_003_eodag_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using default backend (eodag).
+        """
+        module = DataAcquisitionGateway()
+
+        results = module.backend.search(
+            geom=project_config.aoi(),
+            **self.search_filter,
+        )
+
+        assert len(results) > 1
+
+        target_dir = 'sentinel2'
+        try:
+            ql_dir = Path(
+                module.backend.download_all(
+                    results, target_dir=target_dir, quicklook=True
+                )
+            )
+
+            assert ql_dir.exists()
+            assert any(ql_dir.iterdir())
+            assert ql_dir.stat().st_size > 0
+            assert (
+                ql_dir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+            assert len(results) == len(list(ql_dir.iterdir()))
+        finally:
+            if ql_dir and ql_dir.is_dir():
+                for item in ql_dir.iterdir():
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+
+    def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using ASF backend.
+        """
+        module = DataAcquisitionGateway(backend='asf')
+        result = module.backend.search(
+            aoi=project_config.aoi(),
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert len(result) > 1
+
+        target_dir = 'sentinel1'
+        try:
+            datadir = Path(module.backend.download_all(result, target_dir=target_dir))
+            assert any(datadir.iterdir())
+            assert (
+                datadir.resolve()
+                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
+            )
+            assert len(result) == len(list(datadir.iterdir()))
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
