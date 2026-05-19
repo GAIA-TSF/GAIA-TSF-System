@@ -1,0 +1,117 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE",
+    "bbox": [
+        10.33678,
+        59.952492,
+        15.738438,
+        61.883476
+    ],
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    15.047955,
+                    59.952492
+                ],
+                [
+                    10.33678,
+                    60.393147
+                ],
+                [
+                    10.806122,
+                    61.883476
+                ],
+                [
+                    15.738438,
+                    61.434338
+                ],
+                [
+                    15.047955,
+                    59.952492
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "datetime": "2025-06-02T05:31:40.588725Z",
+        "platform": "sentinel-1a",
+        "constellation": "sentinel-1",
+        "instruments": [
+            "C-SAR"
+        ],
+        "processing:level": "1",
+        "sar:instrument_mode": "IW",
+        "sar:product_type": "GRD",
+        "sar:polarizations": [
+            "VV",
+            "VH"
+        ],
+        "sar:frequency_band": "C",
+        "sar:resolution_range": 20,
+        "sar:resolution_azimuth": 22,
+        "sat:orbit_state": "descending",
+        "sat:relative_orbit": 66,
+        "view:incident_angle": 39.5,
+        "s1:product_uri": "S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE.SAFE"
+    },
+    "assets": {
+        "metadata": {
+            "href": "./Downloads/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/manifest.safe",
+            "type": "application/xml",
+            "roles": [
+                "metadata"
+            ]
+        },
+        "VH": {
+            "href": "./Downloads/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vh-20250602t053128-20250602t053153-059463-0761ae-002.tiff",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ],
+            "sar:polarizations": "VH"
+        },
+        "VV": {
+            "href": "./Downloads/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vv-20250602t053128-20250602t053153-059463-0761ae-001.tiff",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ],
+            "sar:polarizations": "VV"
+        }
+    },
+    "collection": "sentinel-1-grd",
+    "links": [
+        {
+            "rel": "about",
+            "href": "https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/ground-range-detected",
+            "title": "Sentinel-1 Ground Range Detected (GRD) Technical Guide"
+        }
+    ],
+    "sar:bands": [
+        {
+            "name": "VH",
+            "description": "VH band: vertical transmit and horizontal receive",
+            "center_frequency": 5.405,
+            "gsd": 10
+        },
+        {
+            "name": "VV",
+            "description": "VV band: vertical transmit and vertical receive",
+            "center_frequency": 5.405,
+            "gsd": 10
+        }
+    ],
+    "providers": [
+        {
+            "name": "ESA",
+            "roles": [
+                "producer",
+                "processor",
+                "licensor"
+            ]
+        }
+    ]
+}
