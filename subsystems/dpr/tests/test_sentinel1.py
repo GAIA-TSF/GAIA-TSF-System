@@ -94,7 +94,7 @@ class TestSentinel1Workflow:
 
         module = DataAcquisitionGateway(backend='asf')
         results = module.backend.search(
-            aoi=ctx.aoi,
+            geom=ctx.aoi,
             start=search_filter['start'],
             end=search_filter['end'],
             direction=search_filter['orbitDirection'],
