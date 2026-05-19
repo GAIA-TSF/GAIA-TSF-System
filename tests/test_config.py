@@ -35,3 +35,7 @@ class TestConfig:
         config['project']['aoi'] = 'X'
         config.validate(dict(config))  # re-validate config after modification
         assert config.is_valid() is False
+
+    def test_config_003_aoi_geom(self, project_config):
+        """Test AOI definitions provided by ProjectConfigReader."""
+        assert project_config.aoi().wkt.startswith('POLYGON')
