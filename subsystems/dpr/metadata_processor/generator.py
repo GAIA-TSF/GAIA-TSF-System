@@ -397,13 +397,11 @@ class Sentinel1Dataset(SentinelDataset):
                     'sat:relative_orbit'
                 ),
                 'view:incident_angle': 39.5,
-                's1:product_uri': item.get('id') + '.SAFE'
+                's1:product_uri': item.get('id') + '.SAFE',
             },
             'assets': new_assets,
             'collection': 'sentinel-1-grd',
-            'links': [
-                item.get('links')[1]
-            ],
+            'links': [item.get('links')[1]],
             'sar:bands': sar_bands,
             'providers': [
                 {
