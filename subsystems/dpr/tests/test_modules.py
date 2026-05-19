@@ -154,7 +154,7 @@ class TestModules:
         # S1 product must be extracted for stactools
         s1_path = dag.backend.download(results[0], target_dir=tmp_path)
         with zipfile.ZipFile(s1_path, 'r') as zip_ref:
-            zip_ref.extractall('/home/ondrej/Downloads')
+            zip_ref.extractall(tmp_path)
 
         # finally, let's generate the metadata
         module = MetadataGenerator()
