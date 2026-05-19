@@ -28,15 +28,15 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         self._dag.update_providers_config(yaml.dump(config))
 
     def search(
-        self, provider: str, start: str, end: str, geom: str | BaseGeometry, **kwargs
+        self, geom: str | BaseGeometry, start: str, end: str, provider: str, **kwargs
     ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using eodag backend.
 
-        :param str provider: the provider to be used
+        :param str | BaseGeometry geom: geometry as WKT or shapely BaseGeometry object
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filer
-        :param str geom: geometry as WKT or shapely BaseGeometry object
+        :param str provider: the provider to be used
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
@@ -48,9 +48,9 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         # Build search parameters
         search_params = {
+            'geom': geom,
             'start': start,
             'end': end,
-            'geom': geom,
         }
         search_params.update(kwargs)
 
