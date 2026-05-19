@@ -48,7 +48,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            geom=project_config.aoi(),
+            aoi=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -83,7 +83,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=project_config.aoi(),
+            aoi=project_config.aoi(),
             **self.search_filter,
         )
 
