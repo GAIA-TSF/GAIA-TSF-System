@@ -299,7 +299,7 @@ class SentinelDataset(BaseDataset):
 
 class Sentinel1Dataset(SentinelDataset):
     def __init__(self, path: str):
-        from stactools.sentinel1.slc.stac import create_item
+        from stactools.sentinel1.grd.stac import create_item
 
         self.create_item = create_item
         super().__init__(path)
@@ -321,68 +321,45 @@ class Sentinel1Dataset(SentinelDataset):
         TODO: Probably going to be renamed once support for S1 will be on the table
         """
 
-        # Mapping from semantic band names to band numbers
-        band_mapping = {
-            'coastal': 'B01',
-            'blue': 'B02',
-            'green': 'B03',
-            'red': 'B04',
-            'rededge1': 'B05',
-            'rededge2': 'B06',
-            'rededge3': 'B07',
-            'nir': 'B08',
-            'nir08': 'B8A',
-            'nir09': 'B09',
-            # band 10 missing
-            'swir16': 'B11',
-            'swir22': 'B12',
+        # Mapping original asset names to our nomenclature
+        asset_mappings = {
+            'safe-manifest': 'metadata',
+            'vv': 'VV',
+            'vh': 'VH',
         }
+        asset_mapping_keys = asset_mappings.keys()
+        sar_bands_keys = ('VV', 'VH')
 
         # create new assets dictionary with band number keys
         new_assets = {}
-        eo_bands = []
+        sar_bands = []
 
         for asset_key, asset_value in item.get('assets', {}).items():
-            # metadata assets section
-            if asset_key in ['product_metadata', 'granule_metadata', 'safe_manifest']:
-                role = 'metadata'
-                if asset_key == 'product_metadata':
-                    # we want it called scene_metadata, not product_metadata
-                    new_key = 'scene_metadata'
-                else:
-                    new_key = asset_key
+            if asset_key in asset_mapping_keys:
+                # assets section
+                new_key = asset_mappings[asset_key]
 
                 new_assets[new_key] = {
                     'href': asset_value.get('href'),
                     'type': asset_value.get('type'),
-                    'roles': [role],
+                    'roles': asset_value.get('roles'),
                 }
 
-            # bands assets section
-            if asset_key not in band_mapping.keys():
-                continue
+                if new_key in sar_bands_keys:
+                    new_assets[new_key].update({'sar:polarizations': new_key})
 
-            band_info = asset_value['eo:bands'][0]
-            band_name = band_info.get('name')
-
-            # Create new asset
-            new_asset = {
-                'href': asset_value.get('href'),
-                'type': asset_value.get('type', 'image/jp2'),
-                'roles': asset_value.get('roles', ['data']),
-            }
-
-            # Use the band name as key
-            new_assets[band_name] = new_asset
-
-            eo_bands.append(
-                {
-                    'name': band_name,
-                    'common_name': band_info.get('common_name'),
-                    'center_wavelength': band_info.get('center_wavelength'),
-                    'gsd': asset_value.get('gsd'),
-                }
-            )
+                    # sar:bands section
+                    sar_bands.append(
+                        {
+                            **asset_value.get('eo:bands')[0],
+                            'center_frequency': item.get('properties').get(
+                                'sar:center_frequency'
+                            ),
+                            'gsd': item.get('properties').get(
+                                'sar:pixel_spacing_range'
+                            ),
+                        }
+                    )
 
         # Build the new item
         new_item = {
@@ -393,37 +370,48 @@ class Sentinel1Dataset(SentinelDataset):
             'geometry': item.get('geometry'),
             'properties': {
                 'datetime': item.get('properties', {}).get('datetime'),
-                'start_datetime': item.get('properties', {}).get('datetime'),
-                'end_datetime': item.get('properties', {}).get('datetime'),
                 'platform': item.get('properties', {}).get('platform'),
                 'constellation': item.get('properties', {}).get('constellation'),
-                'instruments': item.get('properties', {}).get('instruments'),
-                # TODO: getting none
-                'processing:level': item.get('properties', {}).get('processing:level'),
-                # TODO: view
+                'instruments': ['C-SAR'],
+                'processing:level': item.get('properties', {}).get(
+                    's1:processing_level'
+                ),
+                'sar:instrument_mode': item.get('properties', {}).get(
+                    'sar:instrument_mode'
+                ),
+                'sar:product_type': item.get('properties', {}).get('sar:product_type'),
+                'sar:polarizations': item.get('properties', {}).get(
+                    'sar:polarizations'
+                ),
+                'sar:frequency_band': item.get('properties', {}).get(
+                    'sar:frequency_band'
+                ),
+                'sar:resolution_range': item.get('properties', {}).get(
+                    'sar:resolution_range'
+                ),
+                'sar:resolution_azimuth': item.get('properties', {}).get(
+                    'sar:resolution_azimuth'
+                ),
+                'sat:orbit_state': item.get('properties', {}).get('sat:orbit_state'),
                 'sat:relative_orbit': item.get('properties', {}).get(
                     'sat:relative_orbit'
                 ),
-                # 's2:tile_id': item.get('properties', {}).get('grid:code').split('-')[1],
-                # 's2:product_uri': item.get('properties', {}).get('s2:product_uri'),
+                'view:incident_angle': 39.5,
+                's1:product_uri': item.get('id') + '.SAFE'
             },
             'assets': new_assets,
-            'collection': 'sentinel-2-l2a',
+            'collection': 'sentinel-1-grd',
             'links': [
-                {
-                    'rel': 'self',
-                    'href': 'https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/'
-                    + item.get('id'),
-                }
+                item.get('links')[1]
             ],
-            'eo:bands': sorted(eo_bands, key=lambda x: x['name']),
-            # 'providers': [
-            #     {
-            #         'name': provider.get('name'),
-            #         'roles': provider.get('roles'),
-            #     }
-            #     for provider in item.get('properties', {}).get('providers', [])
-            # ],
+            'sar:bands': sar_bands,
+            'providers': [
+                {
+                    'name': provider.get('name'),
+                    'roles': provider.get('roles'),
+                }
+                for provider in item.get('properties', {}).get('providers', [])
+            ],
         }
 
         return new_item
@@ -733,7 +721,7 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and 'SLC' in data_source:
+        elif 'S1' in data_source and 'GRD' in data_source:
             self._ds = Sentinel1Dataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         else:
