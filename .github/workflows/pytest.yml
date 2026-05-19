@@ -5,12 +5,14 @@ on:
     branches:
       - develop
     paths:
+      - 'lib/**'
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
       - "!**.md"
   pull_request:
     paths:
+      - 'lib/**'
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
