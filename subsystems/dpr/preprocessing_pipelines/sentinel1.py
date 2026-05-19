@@ -864,8 +864,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         base_path = Path(output_dir)
-        disp_path = base_path / "displacements"
-        vel_path = base_path / "velocity"
+        disp_path = base_path / 'displacements'
+        vel_path = base_path / 'velocity'
 
         disp_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
@@ -875,18 +875,25 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             vel_to_export = self.vel_ll.rename({'lat': 'y', 'lon': 'x'})
 
             if vel_to_export.rio.crs is None:
-                vel_to_export.rio.write_crs("EPSG:4326", inplace=True)
+                vel_to_export.rio.write_crs('EPSG:4326', inplace=True)
 
-            vel_filename = vel_path / "velocity.tif"
+            vel_filename = vel_path / 'velocity.tif'
             vel_to_export.rio.to_raster(vel_filename)
 
         if self.disp_ll is not None:
             t_dim = next(
-                (d for d in self.disp_ll.dims if d in ('date', 'time', 'epoch', 'pair')), None
+                (
+                    d
+                    for d in self.disp_ll.dims
+                    if d in ('date', 'time', 'epoch', 'pair')
+                ),
+                None,
             )
 
             if not t_dim:
-                raise ValueError("Could not find a valid time/date dimension in self.disp_ll.")
+                raise ValueError(
+                    'Could not find a valid time/date dimension in self.disp_ll.'
+                )
 
             data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
             num_dates = len(data_to_export[t_dim])
@@ -896,10 +903,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
                 date_val = pd.to_datetime(slice_data[t_dim].values)
                 date_str = date_val.strftime('%Y%m%d')
-                filename = disp_path / f"disp_{date_str}.tif"
+                filename = disp_path / f'disp_{date_str}.tif'
 
                 if slice_data.rio.crs is None:
-                    slice_data.rio.write_crs("EPSG:4326", inplace=True)
+                    slice_data.rio.write_crs('EPSG:4326', inplace=True)
 
                 slice_data.rio.to_raster(filename)
 

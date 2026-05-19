@@ -2,7 +2,6 @@ from pathlib import Path
 import os
 from dataclasses import dataclass
 
-from shapely.wkt import loads
 from shapely.geometry.base import BaseGeometry
 import pytest
 import xarray as xr
@@ -26,13 +25,14 @@ def pipeline():
 @pytest.fixture(scope='class')
 def config():
     return ProjectConfigReader(
-            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
-        )
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
 
 
 @dataclass
 class ProjectContext:
     """A container for shared project variables."""
+
     aoi: BaseGeometry
     data_dir: Path
     dem_path: Path
