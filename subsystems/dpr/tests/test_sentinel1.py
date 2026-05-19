@@ -45,9 +45,9 @@ class ProjectContext:
 def ctx(config, glob_config):
     """Bundles multiple config values into one object."""
     base_dir = Path(glob_config['storage']['data_dir']).resolve()
-    data_dir = base_dir / 'Sentinel1'
+    data_dir = base_dir / 'sentinel1'
     return ProjectContext(
-        aoi=loads(config['project']['aoi']['geom']),
+        aoi=config.aoi(),
         data_dir=data_dir,
         dem_path=data_dir / 'dem.nc',
         landmask_path=data_dir / 'landmask.nc',
@@ -58,12 +58,7 @@ def ctx(config, glob_config):
 
 @pytest.fixture(scope='class')
 def glob_config():
-    return ProjectConfigReader(
-        str(
-            Path(__file__).parent.parent.parent.parent
-            / 'config.yaml'
-        )
-    )
+    return SettingsReader()
 
 
 @pytest.fixture(scope='class', autouse=True)
