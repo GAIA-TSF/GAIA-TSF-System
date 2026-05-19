@@ -721,7 +721,7 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and 'GRD' in data_source:
+        elif 'S1' in data_source and '_GRD' in data_source:
             self._ds = Sentinel1Dataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         else:
