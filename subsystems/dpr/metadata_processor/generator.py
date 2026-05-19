@@ -297,7 +297,7 @@ class SentinelDataset(BaseDataset):
         return item_dict_transformed
 
 
-class Sentinel1Dataset(SentinelDataset):
+class Sentinel1GRDDataset(SentinelDataset):
     def __init__(self, path: str):
         from stactools.sentinel1.grd.stac import create_item
 
@@ -719,8 +719,11 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
+        elif 'S1' in data_source and '_SLC' in data_source:
+            self._ds = Sentinel1SLCDataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
         elif 'S1' in data_source and '_GRD' in data_source:
-            self._ds = Sentinel1Dataset(data_source)
+            self._ds = Sentinel1GRDDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         else:
             self._ds = Sentinel2Dataset(data_source)
