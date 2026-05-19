@@ -90,11 +90,6 @@ class TestModules:
         raster-based datasource.
         """
 
-        def item_dict_no_datetime(item_dict):
-            if 'properties' in item_dict and 'datetime' in item_dict['properties']:
-                del item_dict['properties']['datetime']
-            return item_dict
-
         module = MetadataGenerator()
         data_dir = TestUtils.get_data_path('eou')
         module.set_datasource(data_dir / ('ENMAP01_sample.tif'))
