@@ -36,7 +36,7 @@ class TestSentinel2Workflow:
         }
 
         results = dag_module.backend.search(
-            aoi=roi,
+            geom=roi,
             **search_filter,
         )
         data_path = dag_module.backend.download(

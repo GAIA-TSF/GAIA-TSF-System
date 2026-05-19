@@ -116,7 +116,7 @@ class TestModules:
         dag = DataAcquisitionGateway()
 
         results = dag.backend.search(
-            aoi=config.aoi(),
+            geom=config.aoi(),
             **search_filter,
         )
 

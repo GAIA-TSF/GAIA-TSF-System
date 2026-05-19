@@ -48,7 +48,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -65,7 +65,7 @@ class TestModules:
 
         module = DataAcquisitionGateway(backend='asf')
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -83,7 +83,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -115,7 +115,7 @@ class TestModules:
         """
         module = DataAcquisitionGateway(backend='asf')
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -146,7 +146,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
@@ -183,7 +183,7 @@ class TestModules:
         """
         module = DataAcquisitionGateway(backend='asf')
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',

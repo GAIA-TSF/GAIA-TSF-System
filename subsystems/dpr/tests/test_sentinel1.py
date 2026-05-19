@@ -21,7 +21,7 @@ class TestSentinel1Workflow:
 
         module = DataAcquisitionGateway()
         results = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             **self.search_filter,
         )
 
