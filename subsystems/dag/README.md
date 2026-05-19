@@ -75,9 +75,3 @@ python3 -m pytest subsystems/dag/tests/test_amd_pipeline.py
 python3 -m pytest subsystems/dag/tests/test_slope_pipeline.py  
 
 ```
-
-```
-cd docker
-docker compose up --build
-docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/dag/tests -v
-```
