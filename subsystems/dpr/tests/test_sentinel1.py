@@ -14,6 +14,7 @@ import json
 from lib.config import ProjectConfigReader, SettingsReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from tests.utils import TestUtils
 
 
 @pytest.fixture(scope='class')
@@ -25,13 +26,8 @@ def pipeline():
 @pytest.fixture(scope='class')
 def config():
     return ProjectConfigReader(
-        str(
-            Path(__file__).parent.parent.parent.parent
-            / 'tests'
-            / 'projects'
-            / 'jagersfontein.yml'
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
         )
-    )
 
 
 @dataclass

@@ -49,7 +49,7 @@ class GaiaBase:
         self.settings = SettingsReader()
         # initialize logger
         self.logger = Logger(
-            subsystem=sid.name, db_config=self.settings['qcl']['logger']['db']
+            subsystem=sid.name, db_config=self.settings['qcl']['logger'].get('db')
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
         if project_file is not None:

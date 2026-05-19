@@ -12,6 +12,7 @@ from pyproj import Transformer
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
+from tests.utils import TestUtils
 
 
 class TestSentinel2Workflow:
@@ -146,10 +147,8 @@ class TestSentinel2Workflow:
         """Test the Sentinel2CloudCoverPipeline."""
 
         # Get path for sentinel-2 sample scene and create a path for test metadata
-        raster_path = os.path.abspath(
-            'subsystems/dpr/tests/sample_data/sentinel2_clouds.tif'
-        )
-        metadata_path = raster_path.replace('.tif', '.json')
+        raster_path = TestUtils.get_data_path('dpr/sentinel2_clouds.tif')
+        metadata_path = raster_path.with_suffix('.json')
 
         # Check if the raster has been located
         assert os.path.exists(raster_path), 'The Sentinel-2 geotiff was not found.'
