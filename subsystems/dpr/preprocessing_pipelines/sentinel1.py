@@ -98,7 +98,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         self.logger.info('Downloading DEM for AOI.')
-        Tiles().download_dem(aoi, filename=output_dem, skip_exist=True)
+        # inconsistent tile shapes detected with GLO -> switching to SRTM
+        Tiles().download_dem(aoi, filename=output_dem, provider="SRTM", skip_exist=True)
 
     def _download_landmask(self, aoi, output_landmask):
         """Download landmask.
