@@ -16,7 +16,7 @@ RUN make && make install
 FROM python:3.14-slim-trixie
 
 RUN apt-get update
-RUN apt-get install -y gdal-bin libgdal-dev
+RUN apt-get install -y gdal-bin libgdal-dev libgmt6t64
 
 RUN apt-get install -y python3-pip
 RUN rm -rf /var/lib/apt/lists/*
