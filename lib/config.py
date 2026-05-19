@@ -145,15 +145,6 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         self.validate(dict(self))
 
-    def aoi_geom(self, aoi: str) -> BaseGeometry:
-        """Get area of interest as shapely geometry.
-
-        :param str aoi: WKT string provided by aoi()
-
-        :return: BaseGeometry
-        """
-        return wkt.loads(aoi)
-
     def aoi(self, target_epsg: int = 4326) -> BaseGeometry:
         """Get area of interest as WKT string in specified CRS.
 
