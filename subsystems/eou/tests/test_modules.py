@@ -146,7 +146,7 @@ class TestModules:
         module = DataAcquisitionGateway()
 
         results = module.backend.search(
-            geom=project_config.aoi(),
+            aoi=project_config.aoi(),
             **self.search_filter,
         )
 
