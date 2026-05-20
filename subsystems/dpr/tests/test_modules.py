@@ -116,20 +116,18 @@ class TestModules:
 
         # S2 product must be extracted for stactools
         s2_path = dag.backend.download(results[0], target_dir=tmp_path)
+        s2_path_base = os.path.splitext(s2_path)[0]
+        product_id = os.path.basename(s2_path_base)
         with zipfile.ZipFile(s2_path, 'r') as zip_ref:
             zip_ref.extractall(tmp_path)
 
         # finally, let's generate the metadata
         module = MetadataGenerator()
-        module.set_datasource(os.path.splitext(s2_path)[0] + '.SAFE')
+        module.set_datasource(s2_path_base + '.SAFE')
         item_dict = module.stac.create_item()
 
         data_dir = TestUtils.get_data_path('dpr')
-        with open(
-            Path(data_dir)
-            / 'S2B_MSIL2A_20250602T102559_N0511_R108_T33VVG_20250602T124635.json',
-            'r',
-        ) as f:
+        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
             json_dict = json.load(f)
 
         assert item_dict_no_datetime(
@@ -140,7 +138,7 @@ class TestModules:
         """Test MetadataProcessor module.
 
         Generate data-driven metadata using MetadataGenerator for
-        Sentinel-1-based datasource.
+        Sentinel-1-GRD-based datasource.
         """
         # first, we need to download the S1 product
         dag = DataAcquisitionGateway()
@@ -153,20 +151,53 @@ class TestModules:
 
         # S1 product must be extracted for stactools
         s1_path = dag.backend.download(results[0], target_dir=tmp_path)
+        s1_path_base = os.path.splitext(s1_path)[0]
+        product_id = os.path.basename(s1_path_base)
         with zipfile.ZipFile(s1_path, 'r') as zip_ref:
             zip_ref.extractall(tmp_path)
 
         # finally, let's generate the metadata
         module = MetadataGenerator()
-        module.set_datasource(os.path.splitext(s1_path)[0] + '.SAFE')
+        module.set_datasource(s1_path_base + '.SAFE')
         item_dict = module.stac.create_item()
 
         data_dir = TestUtils.get_data_path('dpr')
-        with open(
-            Path(data_dir)
-            / 'S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.json',
-            'r',
-        ) as f:
+        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
+            json_dict = json.load(f)
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataProcessor_004(self, tmp_path):
+        """Test MetadataProcessor module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-1-SLC-based datasource.
+        """
+        # first, we need to download the S1 product
+        dag = DataAcquisitionGateway()
+
+        results = dag.backend.search(
+            geom=self.config.aoi(),
+            productType='S1_SAR_SLC',
+            **self.search_filter,
+        )
+
+        # S1 product must be extracted for stactools
+        s1_path = dag.backend.download(results[0], target_dir=tmp_path)
+        s1_path_base = os.path.splitext(s1_path)[0]
+        product_id = os.path.basename(s1_path_base)
+        with zipfile.ZipFile(s1_path, 'r') as zip_ref:
+            zip_ref.extractall(tmp_path)
+
+        # finally, let's generate the metadata
+        module = MetadataGenerator()
+        module.set_datasource(s1_path_base + '.SAFE')
+        item_dict = module.stac.create_item()
+
+        data_dir = TestUtils.get_data_path('dpr')
+        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
             json_dict = json.load(f)
 
         assert item_dict_no_datetime(

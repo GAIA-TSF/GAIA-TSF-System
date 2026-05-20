@@ -297,6 +297,120 @@ class SentinelDataset(BaseDataset):
         return item_dict_transformed
 
 
+class Sentinel1SLCDataset(SentinelDataset):
+    def __init__(self, path: str):
+        from stactools.sentinel1.slc.stac import create_item
+
+        self.create_item = create_item
+        super().__init__(path)
+
+    @staticmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools Sentinel-1 SLC item to the desired format.
+
+        This method reshapes a standard Sentinel-1 STAC item by:
+        - Remapping band assets from semantic names (e.g., 'nir') to band
+          numbers (e.g., 'B08')
+        - Collecting EO band information as a section separate from raster:bands
+        - Updating properties with processing-level and tile information
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+
+        # Mapping original asset names to our nomenclature
+        asset_mappings = {
+            'safe-manifest': 'metadata',
+            'iw3-vv': 'VV',
+            'iw3-vh': 'VH',
+        }
+        asset_mapping_keys = asset_mappings.keys()
+        sar_bands_keys = ('VV', 'VH')
+
+        # create new assets dictionary with band number keys
+        new_assets = {}
+        sar_bands = []
+
+        for asset_key, asset_value in item.get('assets', {}).items():
+            if asset_key in asset_mapping_keys:
+                # assets section
+                new_key = asset_mappings[asset_key]
+
+                new_assets[new_key] = {
+                    'href': asset_value.get('href'),
+                    'type': asset_value.get('type'),
+                    'roles': asset_value.get('roles'),
+                }
+
+                if new_key in sar_bands_keys:
+                    new_assets[new_key].update({'sar:polarizations': new_key})
+
+                    # sar:bands section
+                    sar_bands.append(
+                        {
+                            **asset_value.get('eo:bands')[0],
+                            'center_frequency': item.get('properties').get(
+                                'sar:center_frequency'
+                            ),
+                            'gsd': 10,
+                        }
+                    )
+
+        # Build the new item
+        new_item = {
+            'type': item.get('type'),
+            'stac_version': '1.0.0',
+            'id': item.get('id'),
+            'bbox': item.get('bbox'),
+            'geometry': item.get('geometry'),
+            'properties': {
+                'datetime': item.get('properties', {}).get('datetime'),
+                'platform': item.get('properties', {}).get('platform'),
+                'constellation': item.get('properties', {}).get('constellation'),
+                'instruments': ['C-SAR'],
+                'processing:level': item.get('properties', {}).get(
+                    's1:processing_level'
+                ),
+                'sar:instrument_mode': item.get('properties', {}).get(
+                    'sar:instrument_mode'
+                ),
+                'sar:product_type': item.get('properties', {}).get('sar:product_type'),
+                'sar:polarizations': item.get('properties', {}).get(
+                    'sar:polarizations'
+                ),
+                'sar:frequency_band': item.get('properties', {}).get(
+                    'sar:frequency_band'
+                ),
+                'sar:resolution_range': item.get('assets', {}).get('iw3-vh', {}).get(
+                    'sar:resolution_range'
+                ),
+                'sar:resolution_azimuth': item.get('assets', {}).get('iw3-vh', {}).get(
+                    'sar:resolution_azimuth'
+                ),
+                'sat:orbit_state': item.get('properties', {}).get('sat:orbit_state'),
+                'sat:relative_orbit': item.get('properties', {}).get(
+                    'sat:relative_orbit'
+                ),
+                'view:incident_angle': 39.5,
+                's1:product_uri': item.get('id') + '.SAFE',
+            },
+            'assets': new_assets,
+            'collection': 'sentinel-1-grd',
+            'links': [item.get('links')[1]],
+            'sar:bands': sar_bands,
+            'providers': [
+                {
+                    'name': provider.get('name'),
+                    'roles': provider.get('roles'),
+                }
+                for provider in item.get('properties', {}).get('providers', [])
+            ],
+        }
+
+        return new_item
+
+
 class Sentinel1GRDDataset(SentinelDataset):
     def __init__(self, path: str):
         from stactools.sentinel1.grd.stac import create_item
@@ -308,7 +422,7 @@ class Sentinel1GRDDataset(SentinelDataset):
     def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
         """Transform a stactools Sentinel-2 item to the desired format.
 
-        This method reshapes a standard Sentinel-2 STAC item by:
+        This method reshapes a standard Sentinel-1 STAC item by:
         - Remapping band assets from semantic names (e.g., 'nir') to band
           numbers (e.g., 'B08')
         - Collecting EO band information as a section separate from raster:bands
@@ -317,8 +431,6 @@ class Sentinel1GRDDataset(SentinelDataset):
         :param item: The dictionary representation of a standard STAC item as
             produced by stactools.
         :return: A transformed STAC item dictionary with
-
-        TODO: Probably going to be renamed once support for S1 will be on the table
         """
 
         # Mapping original asset names to our nomenclature
