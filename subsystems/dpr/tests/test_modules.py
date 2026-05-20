@@ -127,7 +127,10 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         data_dir = TestUtils.get_data_path('dpr')
-        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
+        with open(
+            Path(data_dir) / f'{product_id}.json',
+            'r',
+        ) as f:
             json_dict = json.load(f)
 
         assert item_dict_no_datetime(
@@ -162,7 +165,10 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         data_dir = TestUtils.get_data_path('dpr')
-        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
+        with open(
+            Path(data_dir) / f'{product_id}.json',
+            'r',
+        ) as f:
             json_dict = json.load(f)
 
         assert item_dict_no_datetime(
@@ -197,7 +203,10 @@ class TestModules:
         item_dict = module.stac.create_item()
 
         data_dir = TestUtils.get_data_path('dpr')
-        with open(Path(data_dir) / f'{product_id}.json', 'r',) as f:
+        with open(
+            Path(data_dir) / f'{product_id}.json',
+            'r',
+        ) as f:
             json_dict = json.load(f)
 
         assert item_dict_no_datetime(
