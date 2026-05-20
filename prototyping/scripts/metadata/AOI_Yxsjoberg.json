@@ -1,0 +1,63 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "AOI_Yxsjoberg",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          486450.0,
+          6657230.0
+        ],
+        [
+          490310.0,
+          6657230.0
+        ],
+        [
+          490310.0,
+          6654430.0
+        ],
+        [
+          486450.0,
+          6654430.0
+        ],
+        [
+          486450.0,
+          6657230.0
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    486450.0,
+    6654430.0,
+    490310.0,
+    6657230.0
+  ],
+  "properties": {
+    "title": "Area of Interest – Yxsjoberg",
+    "description": "Polygon defining the Area of Interest (AOI) for the AMD Yxsjoberg study site, Sweden. Used as the spatial boundary for analysis and processing.",
+    "proj:epsg": 32633,
+    "datetime": "2026-05-19T10:39:18.575531Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "AOI_Yxsjoberg.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Area of Interest – Yxsjoberg",
+      "description": "Polygon defining the Area of Interest (AOI) for the AMD Yxsjoberg study site, Sweden. Used as the spatial boundary for analysis and processing.",
+      "table:columns": [
+        {
+          "name": "location",
+          "type": "object"
+        }
+      ],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}
