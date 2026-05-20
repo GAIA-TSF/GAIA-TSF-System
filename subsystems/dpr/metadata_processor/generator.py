@@ -382,12 +382,12 @@ class Sentinel1SLCDataset(SentinelDataset):
                 'sar:frequency_band': item.get('properties', {}).get(
                     'sar:frequency_band'
                 ),
-                'sar:resolution_range': item.get('assets', {}).get('iw3-vh', {}).get(
-                    'sar:resolution_range'
-                ),
-                'sar:resolution_azimuth': item.get('assets', {}).get('iw3-vh', {}).get(
-                    'sar:resolution_azimuth'
-                ),
+                'sar:resolution_range': item.get('assets', {})
+                .get('iw3-vh', {})
+                .get('sar:resolution_range'),
+                'sar:resolution_azimuth': item.get('assets', {})
+                .get('iw3-vh', {})
+                .get('sar:resolution_azimuth'),
                 'sat:orbit_state': item.get('properties', {}).get('sat:orbit_state'),
                 'sat:relative_orbit': item.get('properties', {}).get(
                     'sat:relative_orbit'
