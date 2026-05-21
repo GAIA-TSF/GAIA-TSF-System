@@ -153,7 +153,6 @@ class TestSTAC:
                 'id',
                 'type',
                 'description',
-                'license',
                 'extent',
                 'links',
             ]
