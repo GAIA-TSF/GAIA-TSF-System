@@ -1,3 +1,5 @@
+import os
+
 from .base import PreprocessingBasePipeline
 
 from pathlib import Path
@@ -19,6 +21,7 @@ from timezonefinder import TimezoneFinder
 from retry_requests import retry
 from shapely.wkt import loads
 from pyproj import Transformer
+import shutil
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -126,21 +129,18 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     def _stack_scenes(self, datadir, workdir):
         """Stack Sentinel-1 scenes together.
 
-        :param str datadir: Directory path with downloaded Sentinel-1 BURST data.
-        :param str workdir: Directory path where future computed data will be stored (cannot be the same as datadir).
+        :param Path datadir: Directory path with downloaded Sentinel-1 BURST data.
+        :param Path workdir: Directory path where future computed data will be stored (cannot be the same as datadir).
         :return: None
         """
-        data_path = Path(datadir).resolve()
-        work_path = Path(workdir).resolve()
-
-        if data_path == work_path:
+        if datadir == workdir:
             raise ValueError(
-                f'Safety Triggered: datadir and workdir are the same location ({data_path}). '
+                f'Safety Triggered: datadir and workdir are the same location ({datadir}). '
                 'Aborting to prevent accidental data deletion.'
             )
-        if work_path in data_path.parents:
+        if workdir in datadir.parents:
             raise ValueError(
-                f'Safety Triggered: workdir ({work_path}) is a parent of datadir ({data_path}). '
+                f'Safety Triggered: workdir ({workdir}) is a parent of datadir ({datadir}). '
                 'Aborting to prevent accidental data deletion.'
             )
 
@@ -910,6 +910,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     slice_data.rio.write_crs('EPSG:4326', inplace=True)
 
                 slice_data.rio.to_raster(filename)
+
+    def _cleanup(self, workdir):
+        """Remove unnecessary directory with files after computation is done.
+
+        :param Path workdir: Directory path where interim results were stored.
+        :return: None
+        """
+        if os.path.exists(workdir) and os.path.isdir(workdir):
+            shutil.rmtree(workdir)
 
     def _run(self):
         self._download_orbits(self._config['datadir'])

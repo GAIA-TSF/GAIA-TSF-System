@@ -326,6 +326,11 @@ class TestSentinel1Workflow:
         assert len(tif_files) > 0
         assert velocity.is_file()
 
+    def test_019_cleanup(self, pipeline, ctx):
+        """Test cleaning work directory."""
+        pipeline._cleanup(ctx.work_dir)
+        assert not ctx.work_dir.is_dir()
+
     def test_run_workflow(self, pipeline, config):
         # pipeline.configure('WKT...', ...)
         # pipeline.run()
