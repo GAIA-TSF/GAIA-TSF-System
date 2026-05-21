@@ -16,4 +16,6 @@ class DataExporter:
     def create_sdi_package(self, output_file):
         with zipfile.ZipFile(output_file, 'w') as zip:
             zip.write(self.input_file, arcname=os.path.basename(self.input_file))
-            zip.write(self.input_metadata, arcname=os.path.basename(self.input_metadata))
+            zip.write(
+                self.input_metadata, arcname=os.path.basename(self.input_metadata)
+            )

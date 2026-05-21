@@ -18,7 +18,15 @@ _SENSOR_TYPE_FILENAME_KEYWORDS: Dict[str, list] = {
 
 # Fallback: keywords matched against column names
 _SENSOR_TYPE_COLUMN_KEYWORDS: Dict[str, list] = {
-    'piezometer': ['pressure', 'kpa', 'pore_water', 'pore', 'dataset', 'kilopascal', 'pascal'],
+    'piezometer': [
+        'pressure',
+        'kpa',
+        'pore_water',
+        'pore',
+        'dataset',
+        'kilopascal',
+        'pascal',
+    ],
     'inclinometer': ['tilt', 'inclin', 'angle', 'deflection'],
     'gnss': ['displacement', 'velocity', 'def_x', 'def_y', 'def_z'],
     'insar': ['coherence', 'los', 'deformation'],

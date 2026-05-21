@@ -59,8 +59,8 @@ class SlopeStabilityParser(BaseParser):
                 'tilt',
                 'angle',
                 'depth',
-                'dataset',   # dam/structure monitoring: DataSetI, DataSetII, …
-                'celsius',   # temperature paired with pressure sensors
+                'dataset',  # dam/structure monitoring: DataSetI, DataSetII, …
+                'celsius',  # temperature paired with pressure sensors
             }
 
             # Calculate the number of matched keywords
