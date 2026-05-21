@@ -252,6 +252,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 self.bounds = (min_x, min_y, max_x, max_y)
                 ds = None
 
+    # Todo: add buffer to config parameters
     def _process_vector_watermask(self, buffer_m=0):
         """
         Ingests vector, reprojects, crops to bounds, and creates a size-labeled binary mask.
@@ -401,10 +402,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         )
         sam_veg = self._calculate_spectral_angle(self.ref_veg, median_ds, sam_bands_idx)
 
+        # Todo: Set thresholds as config parameters
         # Generate binary mask based on thresholds
         binary_mask = (
             (slope < 1)
-            & (intercept > -400)
+            & (intercept > -500)
             & (si > 900)
             & (sam_soil > 0.15)
             & (sam_veg > 0.15)
@@ -536,10 +538,10 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
     def _process_scenes(self):
         """
-        Iterates through GeoTIFFs, applies spectral refinement to the base mask,
-        and exports a multi-band result.
+        Iterates through GeoTIFFs, update the global water mask based on spectral indices, appends mask to GeoTIFFs
+        and exports merged results to output folder.
         """
-        self.logger.info('Generating water masks for all scenes.')
+        self.logger.info('Generating water masks for filtered scenes.')
         self.logger.info(
             f'Merged raster will be exported to {self._config["output_folder"]}'
         )
@@ -551,7 +553,13 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.logger.info(f'Temporal filter start = {self._config["start_date"]}')
             self.logger.info(f'Temporal filter end = {self._config["end_date"]}')
 
-        tiffs = list(self.scenes_metadata['source_path'])
+        if self._config['input_months']:
+            print(f'Month filter = {self._config["input_months"]}')
+            self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered['DATATAKE_SENSING_START'].dt.month
+            indices = self.scenes_metadata_filtered['month'].isin(self._config['input_months'])
+            self.scenes_metadata_filtered = self.scenes_metadata_filtered[indices]
+
+        tiffs = list(self.scenes_metadata_filtered['source_path'])
 
         for tiff_path in tiffs:
             self.logger.info(f'--- Processing {os.path.basename(tiff_path)}')
@@ -573,6 +581,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 self.ref_veg, gdal_dataset, sam_bands_idx
             )
             band1 = gdal_dataset.GetRasterBand(1).ReadAsArray().astype(np.int16)
+            scl = gdal_dataset.GetRasterBand(13).ReadAsArray().astype(np.int16)
 
             # Spectral refinement condition (pixels to be REMOVED from the global water mask)
             remove_conditions = (
@@ -583,6 +592,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 | (sam_veg < 0.15)
                 | (swir_reflect > 1000)
                 | (band1 > 2000)
+                | (scl >= 8)
+                | (scl <= 3)
             )
 
             refined_mask = self.global_watermask.copy()

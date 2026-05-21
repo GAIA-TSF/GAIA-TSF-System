@@ -227,7 +227,7 @@ class TestSentinel2Workflow:
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
             shutil.rmtree(output_folder)
 
-        # TEST 1: Run the pipeline in default mode (without user input file)
+        # TEST 1: Run the pipeline in default mode (without user input file, input_water_mask=None)
         pipeline = Sentinel2WaterMaskingPipeline()
         pipeline.configure(
             input_folder=Path(input_folder),
@@ -236,7 +236,7 @@ class TestSentinel2Workflow:
             input_months=None,
             start_date=None,
             end_date=None,
-            max_cloud_snow_dark=None,
+            max_cloud_snow_dark=0.1,
         )
         pipeline.run()
 
@@ -284,7 +284,7 @@ class TestSentinel2Workflow:
         if os.path.exists(output_folder) and os.path.isdir(output_folder):
             shutil.rmtree(output_folder)
 
-        # TEST 2: Run the pipeline with vector file as input
+        # TEST 2: Run the pipeline with vector file as input (input_water_mask)
         pipeline = Sentinel2WaterMaskingPipeline()
         pipeline.configure(
             input_folder=Path(input_folder),
@@ -293,7 +293,7 @@ class TestSentinel2Workflow:
             input_months=None,
             start_date=None,
             end_date=None,
-            max_cloud_snow_dark=None,
+            max_cloud_snow_dark=0.1,
         )
         pipeline.run()
 
