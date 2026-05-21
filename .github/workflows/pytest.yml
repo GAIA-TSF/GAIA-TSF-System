@@ -8,12 +8,14 @@ on:
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
+      - '**py'
       - "!**.md"
   pull_request:
     paths:
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
+      - '**py'
       - "!**.md"
 
 jobs:
