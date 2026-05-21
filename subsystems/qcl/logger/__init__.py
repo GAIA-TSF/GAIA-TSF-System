@@ -56,7 +56,8 @@ class Logger:
             )
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)
-            base_logger.addHandler(DbLogger(db_config))
+            if db_config is not None:
+                base_logger.addHandler(DbLogger(db_config))
             base_logger.propagate = False
 
             cls._configured = True

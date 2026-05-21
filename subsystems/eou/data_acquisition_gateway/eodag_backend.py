@@ -28,15 +28,15 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         self._dag.update_providers_config(yaml.dump(config))
 
     def search(
-        self, provider: str, start: str, end: str, geom: str | BaseGeometry, **kwargs
+        self, geom: str | BaseGeometry, start: str, end: str, provider: str, **kwargs
     ) -> SearchResult:
         """Search for data products that match the specified criteria
         across supported providers using eodag backend.
 
-        :param str provider: the provider to be used
+        :param str | BaseGeometry geom: geometry as WKT or shapely BaseGeometry object
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filer
-        :param str geom: geometry as WKT or shapely BaseGeometry object
+        :param str provider: the provider to be used
 
         For other arguments check the backend:
          - eodag: https://eodag.readthedocs.io/en/stable/api_reference/core.html#eodag.api.core.EODataAccessGateway.search
@@ -48,9 +48,9 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         # Build search parameters
         search_params = {
+            'geom': geom,
             'start': start,
             'end': end,
-            'geom': geom,
         }
         search_params.update(kwargs)
 
@@ -73,3 +73,22 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         return self._dag.download(
             product, extract=False, output_dir=target_dir, **kwargs
         )
+
+    def _download_all(
+        self, products: SearchResult, target_dir: str, quicklook: bool = False, **kwargs
+    ) -> str:
+        """Download all selected data products using eodag backend.
+
+        :param SearchResult products: EO products to be downloaded
+        :param str target_dir: target directory to store downloaded products
+        :param bool quicklook: If True, only download the preview images
+        :return: a path to the download data
+        :rtype: str
+        """
+        if quicklook:
+            for product in products:
+                product.get_quicklook(output_dir=target_dir, **kwargs)
+            return target_dir
+
+        self._dag.download_all(products, extract=False, output_dir=target_dir, **kwargs)
+        return target_dir
