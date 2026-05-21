@@ -33,13 +33,15 @@ class TestSTAC:
 
         # Verify each expected collection exists
         for collection_id in expected_collections:
-            assert collection_id in existing_collection_ids, \
+            assert collection_id in existing_collection_ids, (
                 f"Default collection '{collection_id}' was not created"
+            )
 
             # Verify individual collection details
             r = requests.get(f'{stac_url}/collections/{collection_id}')
-            assert r.status_code == 200, \
+            assert r.status_code == 200, (
                 f"Collection '{collection_id}' exists in list but cannot be retrieved"
+            )
 
             collection_data = r.json()
             assert collection_data['id'] == collection_id
@@ -47,7 +49,9 @@ class TestSTAC:
             assert 'description' in collection_data
             assert 'extent' in collection_data
 
-        print(f"All {len(expected_collections)} default collections verified successfully")
+        print(
+            f'All {len(expected_collections)} default collections verified successfully'
+        )
 
     def test_default_collection_details(self, stac_url):
         """Verify specific properties of default collections"""
@@ -130,8 +134,9 @@ class TestSTAC:
 
         data = r.json()
         assert 'collections' in data
-        assert len(data['collections']) >= 2, \
-            "Expected at least 2 default collections (sentinel-2, landsat-8)"
+        assert len(data['collections']) >= 2, (
+            'Expected at least 2 default collections (sentinel-2, landsat-8)'
+        )
 
     def test_default_collections_are_valid_stac(self, stac_url):
         """Verify that default collections conform to STAC spec"""
@@ -146,14 +151,23 @@ class TestSTAC:
             print(collection)
 
             # Check required STAC Collection fields
-            required_fields = ['id', 'type', 'description', 'license', 'extent', 'links']
+            required_fields = [
+                'id',
+                'type',
+                'description',
+                'license',
+                'extent',
+                'links',
+            ]
             for field in required_fields:
-                assert field in collection, \
+                assert field in collection, (
                     f"Collection '{collection_id}' missing required field '{field}'"
+                )
 
             # Verify type is Collection
-            assert collection['type'] == 'Collection', \
+            assert collection['type'] == 'Collection', (
                 f"Collection '{collection_id}' has wrong type: {collection.get('type')}"
+            )
 
             # Verify extent structure
             assert 'spatial' in collection['extent']

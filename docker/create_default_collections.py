@@ -3,64 +3,64 @@
 Create default STAC collections directly in pgSTAC database.
 This script runs after migrations and before API startup.
 """
+
 import asyncio
 import asyncpg
 import json
-from datetime import datetime
 
 # Database connection string
-DSN = "postgresql://stac:stac@pgstacdb:5432/stac"
+DSN = 'postgresql://stac:stac@pgstacdb:5432/stac'
 
 # Define your default collections
 DEFAULT_COLLECTIONS = [
     {
-        "id": "sentinel-2",
-        "type": "Collection",
-        "title": "Sentinel-2 Data",
-        "description": "Sentinel-2 satellite imagery collection",
-        "license": "proprietary",
-        "extent": {
-            "spatial": {"bbox": [[-180, -90, 180, 90]]},
-            "temporal": {"interval": [["2015-06-23T00:00:00Z", None]]}
+        'id': 'sentinel-2',
+        'type': 'Collection',
+        'title': 'Sentinel-2 Data',
+        'description': 'Sentinel-2 satellite imagery collection',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
         },
-        "links": []
+        'links': [],
     },
     {
-        "id": "sentinel-1",
-        "type": "Collection",
-        "title": "Sentinel-1 Data",
-        "description": "Sentinel-1 collection",
-        "license": "proprietary",
-        "extent": {
-            "spatial": {"bbox": [[-180, -90, 180, 90]]},
-            "temporal": {"interval": [["2015-06-23T00:00:00Z", None]]}
+        'id': 'sentinel-1',
+        'type': 'Collection',
+        'title': 'Sentinel-1 Data',
+        'description': 'Sentinel-1 collection',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
         },
-        "links": []
+        'links': [],
     },
     {
-        "id": "in-situ",
-        "type": "Collection",
-        "title": "In-Situ data",
-        "description": "Any In-Situ data collection",
-        "license": "proprietary",
-        "extent": {
-            "spatial": {"bbox": [[-180, -90, 180, 90]]},
-            "temporal": {"interval": [["2015-06-23T00:00:00Z", None]]}
+        'id': 'in-situ',
+        'type': 'Collection',
+        'title': 'In-Situ data',
+        'description': 'Any In-Situ data collection',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
         },
-        "links": []
+        'links': [],
     },
     {
-        "id": "landsat-8",
-        "type": "Collection",
-        "title": "Landsat 8 Data",
-        "description": "Landsat 8 satellite imagery collection",
-        "license": "proprietary",
-        "extent": {
-            "spatial": {"bbox": [[-180, -90, 180, 90]]},
-            "temporal": {"interval": [["2013-04-11T00:00:00Z", None]]}
+        'id': 'landsat-8',
+        'type': 'Collection',
+        'title': 'Landsat 8 Data',
+        'description': 'Landsat 8 satellite imagery collection',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [['2013-04-11T00:00:00Z', None]]},
         },
-        "links": []
-    }
+        'links': [],
+    },
 ]
 
 
@@ -76,8 +76,7 @@ async def collection_exists(conn, collection_id):
         bool: True if collection exists, False otherwise
     """
     exists = await conn.fetchval(
-        "SELECT EXISTS(SELECT 1 FROM pgstac.collections WHERE id = $1)",
-        collection_id
+        'SELECT EXISTS(SELECT 1 FROM pgstac.collections WHERE id = $1)', collection_id
     )
     return exists
 
@@ -90,7 +89,7 @@ async def create_collection(conn, collection):
         conn: Database connection
         collection: Collection object as dictionary
     """
-    collection_id = collection["id"]
+    collection_id = collection['id']
 
     # Check if collection already exists
     if await collection_exists(conn, collection_id):
@@ -100,8 +99,7 @@ async def create_collection(conn, collection):
     # Create collection using pgSTAC function
     try:
         await conn.execute(
-            "SELECT * FROM pgstac.create_collection($1::jsonb)",
-            json.dumps(collection)
+            'SELECT * FROM pgstac.create_collection($1::jsonb)', json.dumps(collection)
         )
         print(f"Successfully created collection '{collection_id}'")
     except Exception as e:
@@ -118,28 +116,28 @@ async def create_default_collections():
 
     try:
         # Connect to database
-        print("Connecting to pgSTAC database...")
+        print('Connecting to pgSTAC database...')
         conn = await asyncpg.connect(DSN)
-        print("Database connection established")
+        print('Database connection established')
 
         # Process each collection
         for collection in DEFAULT_COLLECTIONS:
             await create_collection(conn, collection)
 
-        print("All default collections processed successfully")
+        print('All default collections processed successfully')
 
     except asyncpg.PostgresError as e:
-        print(f"Database error: {e}")
+        print(f'Database error: {e}')
         raise
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f'Unexpected error: {e}')
         raise
     finally:
         # Always close connection
         if conn:
             await conn.close()
-            print("Database connection closed")
+            print('Database connection closed')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     asyncio.run(create_default_collections())
