@@ -17,6 +17,38 @@ def item_dict_no_datetime(item_dict):
         del item_dict['properties']['datetime']
     return item_dict
 
+def get_stac_jsons(product_type: str, search_filter: dict, config, target_dir):
+    # first, we need to download the product
+    dag = DataAcquisitionGateway()
+
+    results = dag.backend.search(
+        geom=config.aoi(),
+        productType=product_type,
+        **search_filter,
+    )
+
+    product_path = dag.backend.download(results[0], target_dir=target_dir)
+    product_path_base = os.path.splitext(product_path)[0]
+    product_id = os.path.basename(product_path_base)
+
+    # the product must be extracted for stactools
+    with zipfile.ZipFile(product_path, 'r') as zip_ref:
+        zip_ref.extractall(target_dir)
+
+    # finally, let's generate the metadata
+    module = MetadataGenerator()
+    module.set_datasource(product_path_base + '.SAFE')
+    item_dict = module.stac.create_item()
+
+    data_dir = TestUtils.get_data_path('dpr')
+    with open(
+        Path(data_dir) / f'{product_id}.json',
+        'r',
+    ) as f:
+        json_dict = json.load(f)
+
+    return item_dict, json_dict
+
 
 class TestModules:
     search_filter = {
@@ -105,33 +137,12 @@ class TestModules:
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-2-based datasource.
         """
-        # first, we need to download the S2 product
-        dag = DataAcquisitionGateway()
-
-        results = dag.backend.search(
-            geom=self.config.aoi(),
-            productType='S2_MSI_L2A',
-            **self.search_filter,
+        item_dict, json_dict = get_stac_jsons(
+            'S2_MSI_L2A',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir=tmp_path,
         )
-
-        # S2 product must be extracted for stactools
-        s2_path = dag.backend.download(results[0], target_dir=tmp_path)
-        s2_path_base = os.path.splitext(s2_path)[0]
-        product_id = os.path.basename(s2_path_base)
-        with zipfile.ZipFile(s2_path, 'r') as zip_ref:
-            zip_ref.extractall(tmp_path)
-
-        # finally, let's generate the metadata
-        module = MetadataGenerator()
-        module.set_datasource(s2_path_base + '.SAFE')
-        item_dict = module.stac.create_item()
-
-        data_dir = TestUtils.get_data_path('dpr')
-        with open(
-            Path(data_dir) / f'{product_id}.json',
-            'r',
-        ) as f:
-            json_dict = json.load(f)
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
@@ -143,33 +154,12 @@ class TestModules:
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-1-GRD-based datasource.
         """
-        # first, we need to download the S1 product
-        dag = DataAcquisitionGateway()
-
-        results = dag.backend.search(
-            geom=self.config.aoi(),
-            productType='S1_SAR_GRD',
-            **self.search_filter,
+        item_dict, json_dict = get_stac_jsons(
+            'S1_SAR_GRD',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir=tmp_path,
         )
-
-        # S1 product must be extracted for stactools
-        s1_path = dag.backend.download(results[0], target_dir=tmp_path)
-        s1_path_base = os.path.splitext(s1_path)[0]
-        product_id = os.path.basename(s1_path_base)
-        with zipfile.ZipFile(s1_path, 'r') as zip_ref:
-            zip_ref.extractall(tmp_path)
-
-        # finally, let's generate the metadata
-        module = MetadataGenerator()
-        module.set_datasource(s1_path_base + '.SAFE')
-        item_dict = module.stac.create_item()
-
-        data_dir = TestUtils.get_data_path('dpr')
-        with open(
-            Path(data_dir) / f'{product_id}.json',
-            'r',
-        ) as f:
-            json_dict = json.load(f)
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
@@ -181,33 +171,12 @@ class TestModules:
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-1-SLC-based datasource.
         """
-        # first, we need to download the S1 product
-        dag = DataAcquisitionGateway()
-
-        results = dag.backend.search(
-            geom=self.config.aoi(),
-            productType='S1_SAR_SLC',
-            **self.search_filter,
+        item_dict, json_dict = get_stac_jsons(
+            'S1_SAR_SLC',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir=tmp_path,
         )
-
-        # S1 product must be extracted for stactools
-        s1_path = dag.backend.download(results[0], target_dir=tmp_path)
-        s1_path_base = os.path.splitext(s1_path)[0]
-        product_id = os.path.basename(s1_path_base)
-        with zipfile.ZipFile(s1_path, 'r') as zip_ref:
-            zip_ref.extractall(tmp_path)
-
-        # finally, let's generate the metadata
-        module = MetadataGenerator()
-        module.set_datasource(s1_path_base + '.SAFE')
-        item_dict = module.stac.create_item()
-
-        data_dir = TestUtils.get_data_path('dpr')
-        with open(
-            Path(data_dir) / f'{product_id}.json',
-            'r',
-        ) as f:
-            json_dict = json.load(f)
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
