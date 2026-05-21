@@ -18,6 +18,7 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Sentinel-2 Data',
         'description': 'Sentinel-2 satellite imagery collection',
+        'license': '',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
@@ -29,6 +30,7 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Sentinel-1 Data',
         'description': 'Sentinel-1 collection',
+        'license': '',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
@@ -52,6 +54,7 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Landsat 8 Data',
         'description': 'Landsat 8 satellite imagery collection',
+        'license': '',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2013-04-11T00:00:00Z', None]]},
