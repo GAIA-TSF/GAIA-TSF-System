@@ -102,7 +102,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         self.logger.info('Downloading DEM for AOI.')
         # inconsistent tile shapes detected with GLO -> switching to SRTM
-        Tiles().download_dem(aoi, filename=output_dem, provider="SRTM", skip_exist=True)
+        Tiles().download_dem(aoi, filename=output_dem, provider='SRTM', skip_exist=True)
 
     def _download_landmask(self, aoi, output_landmask):
         """Download landmask.
