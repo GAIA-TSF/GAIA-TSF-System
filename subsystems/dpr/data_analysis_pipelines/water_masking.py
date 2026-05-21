@@ -555,8 +555,12 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         if self._config['input_months']:
             print(f'Month filter = {self._config["input_months"]}')
-            self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered['DATATAKE_SENSING_START'].dt.month
-            indices = self.scenes_metadata_filtered['month'].isin(self._config['input_months'])
+            self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered[
+                'DATATAKE_SENSING_START'
+            ].dt.month
+            indices = self.scenes_metadata_filtered['month'].isin(
+                self._config['input_months']
+            )
             self.scenes_metadata_filtered = self.scenes_metadata_filtered[indices]
 
         tiffs = list(self.scenes_metadata_filtered['source_path'])
