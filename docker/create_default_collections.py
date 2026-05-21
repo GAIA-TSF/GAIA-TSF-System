@@ -29,7 +29,6 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Sentinel-1 Data',
         'description': 'Sentinel-1 collection',
-        'license': 'proprietary',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
