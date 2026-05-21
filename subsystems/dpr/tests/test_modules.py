@@ -17,6 +17,7 @@ def item_dict_no_datetime(item_dict):
         del item_dict['properties']['datetime']
     return item_dict
 
+
 def get_stac_jsons(product_type: str, search_filter: dict, config, target_dir):
     # first, we need to download the product
     dag = DataAcquisitionGateway()
