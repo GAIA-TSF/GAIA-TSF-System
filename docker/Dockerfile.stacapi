@@ -13,6 +13,5 @@ COPY wait-migrate-start.sh /usr/local/bin/wait-migrate-start.sh
 RUN chmod +x /usr/local/bin/wait-migrate-start.sh
 
 COPY create_default_collections.py /usr/local/bin/create_default_collections.py
-RUN chmod +x /usr/local/bin/create_default_collections.py
 
 ENTRYPOINT ["wait-migrate-start.sh"]
