@@ -3,7 +3,7 @@ FROM python:3.14-slim-trixie AS builder
 
 RUN apt-get update
 RUN apt-get install -y git autoconf g++ make gfortran
-RUN apt-get install -y libgmt-dev libtiff5-dev
+RUN apt-get install -y libgmt-dev libtiff-dev
 
 RUN git clone --branch 6.6 https://github.com/gmtsar/gmtsar /tmp/gmtsar
 WORKDIR /tmp/gmtsar
