@@ -18,7 +18,6 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Sentinel-2 Data',
         'description': 'Sentinel-2 satellite imagery collection',
-        'license': 'proprietary',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
