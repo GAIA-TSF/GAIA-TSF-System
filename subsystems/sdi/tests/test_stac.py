@@ -148,7 +148,6 @@ class TestSTAC:
 
             collection = r.json()
 
-            print(collection)
 
             # Check required STAC Collection fields
             required_fields = [
