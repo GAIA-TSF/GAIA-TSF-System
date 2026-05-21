@@ -149,8 +149,11 @@ class TestConfig:
 
 # Dummy pg/stac config for mocked SDI infrastructure calls
 _SDI_PG_CONFIG = {
-    'host': 'localhost', 'port': 5432,
-    'dbname': 'gaia', 'user': 'gaia', 'password': 'gaia',
+    'host': 'localhost',
+    'port': 5432,
+    'dbname': 'gaia',
+    'user': 'gaia',
+    'password': 'gaia',
 }
 _SDI_STAC_URL = 'http://localhost:8082'
 
@@ -162,10 +165,19 @@ class TestISUIntegration:
     PostGIS and STAC API calls are mocked so the test runs without infrastructure.
     """
 
-    @pytest.mark.parametrize('filename,expected_sensor_type', [
-        ('Piezometer1.csv', 'piezometer'),  # UTF-8, multi-depth T/P deployment sensors
-        ('Piezometer2.csv', 'piezometer'),  # GBK, dam monitoring DataSetI-IV + X/Y(mm)
-    ])
+    @pytest.mark.parametrize(
+        'filename,expected_sensor_type',
+        [
+            (
+                'Piezometer1.csv',
+                'piezometer',
+            ),  # UTF-8, multi-depth T/P deployment sensors
+            (
+                'Piezometer2.csv',
+                'piezometer',
+            ),  # GBK, dam monitoring DataSetI-IV + X/Y(mm)
+        ],
+    )
     def test_integration_ISU_002(self, tmp_path, filename, expected_sensor_type):
         """Full pipeline with real in-situ data: ISU → QCL → DPR → SDI."""
         content = TestUtils.get_data_path(f'isu/{filename}').read_bytes()
@@ -179,7 +191,9 @@ class TestISUIntegration:
         result = etl.process_file(content, filename)
 
         # --- ISU: file parsed and not quarantined ---
-        assert result is not None, f'{filename} was quarantined — parser score below threshold'
+        assert result is not None, (
+            f'{filename} was quarantined — parser score below threshold'
+        )
         meta = result['metadata']['data']
         assert meta['sensor_type'] == expected_sensor_type
         assert meta['time_range'] is not None
@@ -205,11 +219,13 @@ class TestISUIntegration:
         create_sdi_package(str(csv_path), str(stac_path), str(zip_path))
         assert zip_path.exists()
 
-        with patch('subsystems.sdi.loader.psycopg.connect'), \
-             patch('subsystems.sdi.loader.requests.get') as mock_get, \
-             patch('subsystems.sdi.loader.requests.post') as mock_post, \
-             patch('subsystems.sdi.loader.requests.delete'):
-            mock_get.return_value.status_code = 200   # collection already exists
+        with (
+            patch('subsystems.sdi.loader.psycopg.connect'),
+            patch('subsystems.sdi.loader.requests.get') as mock_get,
+            patch('subsystems.sdi.loader.requests.post') as mock_post,
+            patch('subsystems.sdi.loader.requests.delete'),
+        ):
+            mock_get.return_value.status_code = 200  # collection already exists
             mock_post.return_value.status_code = 201  # item posted successfully
 
             loader = InSituDataLoader(

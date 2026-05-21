@@ -104,7 +104,14 @@ class BaseParser(ABC):
         Standardize timestamp columns to ISO-8601 UTC.
         """
         if time_col_candidates is None:
-            time_col_candidates = ['timestamp', 'time', 'date', 'datetime', 'epoch', 'cjtime']
+            time_col_candidates = [
+                'timestamp',
+                'time',
+                'date',
+                'datetime',
+                'epoch',
+                'cjtime',
+            ]
 
         target_col = None
         # Exact match first
