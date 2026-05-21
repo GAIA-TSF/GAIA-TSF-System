@@ -17,7 +17,7 @@ FROM python:3.14-slim-trixie
 
 RUN apt-get update
 RUN apt-get install -y gdal-bin libgdal-dev
-RUN apt-get install -y gmt libxcb1 libgl1
+RUN apt-get install -y gmt libxcb1 libgl1 libglib2.0-0t64
 RUN apt-get install -y python3-pip
 RUN rm -rf /var/lib/apt/lists/*
 
