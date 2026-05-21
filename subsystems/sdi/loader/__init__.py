@@ -205,7 +205,7 @@ class InSituDataLoader(SdiLoader):
             sql_columns = []
             for col in columns:
                 col_name = col['name']
-                col_type = col['type']
+                col_type = col.get('type', 'TEXT')
                 if col_type == 'number':
                     sql_type = 'DOUBLE PRECISION'
                 elif col_type == 'datetime':

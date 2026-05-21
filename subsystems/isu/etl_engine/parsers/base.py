@@ -1,7 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import pandas as pd
 import io
+
+
+_ENCODINGS_TO_TRY = ['utf-8', 'gbk', 'gb18030', 'latin-1']
+
+
+def _read_csv_bytes(content: bytes, **kwargs) -> Tuple[pd.DataFrame, str]:
+    """Try common encodings in order; return (DataFrame, encoding_used)."""
+    last_err = None
+    for enc in _ENCODINGS_TO_TRY:
+        try:
+            df = pd.read_csv(io.BytesIO(content), encoding=enc, **kwargs)
+            return df, enc
+        except (UnicodeDecodeError, pd.errors.ParserError) as e:
+            last_err = e
+    raise ValueError(f'Could not decode CSV with any supported encoding: {last_err}')
 
 
 class BaseParser(ABC):
@@ -26,12 +41,9 @@ class BaseParser(ABC):
         """
         try:
             if ext in ['.csv', '.txt']:
-                return pd.read_csv(io.BytesIO(content), nrows=nrows)
+                return _read_csv_bytes(content, nrows=nrows)[0]
             elif ext in ['.xlsx', '.xls']:
                 return pd.read_excel(io.BytesIO(content), nrows=nrows)
-            return None
-        except (ValueError, pd.errors.ParserError):
-            # Return None if parsing fails (not a valid CSV/Excel)
             return None
         except (ValueError, pd.errors.ParserError, TypeError, OSError) as e:
             self.logger.debug(f'Sample read failed: {str(e)}')
@@ -48,11 +60,39 @@ class BaseParser(ABC):
         pass
 
     def ensure_qc_column(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add default QC=1 column if absent. QC=1 means valid sensor data."""
-        if not any(c.upper() == 'QC' for c in df.columns):
+        """Ensure a valid integer QC column exists. QC=1 means valid sensor data.
+        If the column is absent, add it. If it contains non-integer values such as
+        multi-bit flag strings (e.g. '000000000000000000'), normalise to 1 (pass)."""
+        qc_col = next((c for c in df.columns if c.upper() == 'QC'), None)
+        if qc_col is None:
             df = df.copy()
             df['QC'] = 1
             self.logger.debug(f'[{self.get_parser_name()}] Added default QC=1 column.')
+            return df
+
+        # Detect multi-bit flag strings (e.g. '000000000000000000'):
+        # pd.to_numeric converts them to 0, which QCL reads as sensor-fault.
+        # Check length first: any value longer than 1 char is a bit-string.
+        if df[qc_col].astype(str).str.len().max() > 1:
+            df = df.copy()
+            df[qc_col] = (
+                df[qc_col]
+                .astype(str)
+                .apply(lambda x: 1 if set(x.strip()) <= {'0'} else 0)
+                .astype(int)
+            )
+            self.logger.debug(
+                f'[{self.get_parser_name()}] Normalised multi-bit QC flag strings to 0/1.'
+            )
+            return df
+
+        coerced = pd.to_numeric(df[qc_col], errors='coerce')
+        if coerced.isna().any():
+            df = df.copy()
+            df[qc_col] = coerced.fillna(1).astype(int)
+            self.logger.debug(
+                f'[{self.get_parser_name()}] Normalised non-integer QC values to 1.'
+            )
         return df
 
     def standardize_timestamp(
@@ -64,7 +104,7 @@ class BaseParser(ABC):
         Standardize timestamp columns to ISO-8601 UTC.
         """
         if time_col_candidates is None:
-            time_col_candidates = ['timestamp', 'time', 'date', 'datetime', 'epoch']
+            time_col_candidates = ['timestamp', 'time', 'date', 'datetime', 'epoch', 'cjtime']
 
         target_col = None
         # Exact match first
