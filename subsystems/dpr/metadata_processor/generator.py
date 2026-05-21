@@ -248,7 +248,7 @@ class RasterDataset(BaseDataset):
         return bands
 
 
-class SentinelDataset(BaseDataset):
+class SentinelDataset(BaseDataset, ABC):
     """
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
@@ -272,8 +272,7 @@ class SentinelDataset(BaseDataset):
         """Retrieve and transform a STAC item from the given path.
 
         This method creates a standard STAC item using the stactools library,
-        then applies custom transformations to match the desired format for
-        Sentinel-2 L2A data.
+        then applies custom transformations to match the desired format.
 
         :return: A dictionary containing the transformed STAC item with band
             assets, metadata assets, and updated properties.
@@ -295,6 +294,21 @@ class SentinelDataset(BaseDataset):
         item_dict_transformed = self._transform_item(item_dict_standard)
 
         return item_dict_transformed
+
+    @staticmethod
+    @abstractmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools item to the desired format.
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+        pass
+
+    @abstractmethod
+    def create_item(self, **kwargs) -> Dict[str, Any]:
+        pass
 
 
 class Sentinel1SLCDataset(SentinelDataset):
@@ -819,7 +833,7 @@ class MetadataGenerator(GaiaBase):
         """
         self._isu_metadata = metadata
 
-    def set_datasource(self, data_source: str):
+    def set_datasource(self, data_source: str | Path):
         """Set the data source for which metadata should be generated.
 
         :param str data_source: path to the datasource (raster, tabular data...)

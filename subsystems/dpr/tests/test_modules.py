@@ -125,7 +125,7 @@ class TestModules:
 
         module = MetadataGenerator()
         data_dir = TestUtils.get_data_path('eou')
-        module.set_datasource(data_dir / ('ENMAP01_sample.tif'))
+        module.set_datasource(data_dir / 'ENMAP01_sample.tif')
         item_dict = module.stac.create_item()
 
         with open(data_dir / 'ENMAP01_sample.json', 'r') as f:
