@@ -54,7 +54,6 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Landsat 8 Data',
         'description': 'Landsat 8 satellite imagery collection',
-        'license': 'proprietary',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2013-04-11T00:00:00Z', None]]},
