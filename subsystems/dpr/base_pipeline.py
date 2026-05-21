@@ -48,8 +48,9 @@ class BasePipeline(ABC, GaiaBase):
                 if v.get('default', None) is not None:
                     self._config[k] = v['default']
                 else:
-                    raise RuntimeError(f"Parameter '{k}' not defined")
-            if type(self._config[k]) is not v['dtype']:
+                    if v.get('required', True) is True:
+                        raise RuntimeError(f"Parameter '{k}' not defined")
+            if self._config[k] is not None and type(self._config[k]) is not v['dtype']:
                 raise RuntimeError(
                     f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})"
                 )
