@@ -941,3 +941,4 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._environmental_database(self._config['aoi'], self._config['result_dir'])
         self._compute_risk_database(self._config['result_dir'])
         self._export_displacements(self._config['result_dir'])
+        self._cleanup(self._config['workdir'])
