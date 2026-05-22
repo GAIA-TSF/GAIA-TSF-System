@@ -306,10 +306,6 @@ class SentinelDataset(BaseDataset, ABC):
         """
         pass
 
-    @abstractmethod
-    def create_item(self, **kwargs) -> Dict[str, Any]:
-        pass
-
 
 class Sentinel1SLCDataset(SentinelDataset):
     def __init__(self, path: str):
