@@ -4,7 +4,7 @@ import pytest
 import tempfile
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from lib.config import ProjectConfigReader
 from subsystems.dpr import DataProcessing
@@ -147,22 +147,11 @@ class TestConfig:
         importer.import_zip()
 
 
-# Dummy pg/stac config for mocked SDI infrastructure calls
-_SDI_PG_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'dbname': 'gaia',
-    'user': 'gaia',
-    'password': 'gaia',
-}
-_SDI_STAC_URL = 'http://localhost:8082'
-
-
 class TestISUIntegration:
     """Full-pipeline integration tests using real in-situ datasets.
 
     Pipeline under test: ISU (parse + QC) → QCL (validate + SDI log) → DPR (STAC) → SDI (import).
-    PostGIS and STAC API calls are mocked so the test runs without infrastructure.
+    Runs against live PostGIS and STAC API services in the Docker test environment.
     """
 
     @pytest.mark.parametrize(
@@ -207,7 +196,7 @@ class TestISUIntegration:
         assert stac['type'] == 'Feature'
         assert stac['properties'].get('sensor_type') == expected_sensor_type
 
-        # --- SDI: assemble package and run full import with mocked infrastructure ---
+        # --- SDI: assemble package and run full import against live services ---
         stem = Path(filename).stem
         csv_path = tmp_path / filename
         stac_path = tmp_path / f'{stem}_stac.json'
@@ -219,18 +208,5 @@ class TestISUIntegration:
         create_sdi_package(str(csv_path), str(stac_path), str(zip_path))
         assert zip_path.exists()
 
-        with (
-            patch('subsystems.sdi.loader.psycopg.connect'),
-            patch('subsystems.sdi.loader.requests.get') as mock_get,
-            patch('subsystems.sdi.loader.requests.post') as mock_post,
-            patch('subsystems.sdi.loader.requests.delete'),
-        ):
-            mock_get.return_value.status_code = 200  # collection already exists
-            mock_post.return_value.status_code = 201  # item posted successfully
-
-            loader = InSituDataLoader(
-                zip_path=str(zip_path),
-                pg_config=_SDI_PG_CONFIG,
-                stac_api_url=_SDI_STAC_URL,
-            )
-            loader.import_zip()
+        loader = InSituDataLoader(zip_path=str(zip_path))
+        loader.import_zip()

@@ -1,22 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Tuple
+import re
 import pandas as pd
 import io
-
-
-_ENCODINGS_TO_TRY = ['utf-8', 'gbk', 'gb18030', 'latin-1']
-
-
-def _read_csv_bytes(content: bytes, **kwargs) -> Tuple[pd.DataFrame, str]:
-    """Try common encodings in order; return (DataFrame, encoding_used)."""
-    last_err = None
-    for enc in _ENCODINGS_TO_TRY:
-        try:
-            df = pd.read_csv(io.BytesIO(content), encoding=enc, **kwargs)
-            return df, enc
-        except (UnicodeDecodeError, pd.errors.ParserError) as e:
-            last_err = e
-    raise ValueError(f'Could not decode CSV with any supported encoding: {last_err}')
 
 
 class BaseParser(ABC):
@@ -24,8 +10,43 @@ class BaseParser(ABC):
     Abstract Base Class for all parser plugins.
     """
 
-    def __init__(self, logger):
+    _ENCODINGS_TO_TRY = ['utf-8', 'gbk', 'gb18030', 'latin-1']
+
+    def __init__(self, logger, encodings=None):
         self.logger = logger
+        if encodings:
+            self._ENCODINGS_TO_TRY = encodings
+
+    def _read_csv_bytes(self, content: bytes, **kwargs) -> Tuple[pd.DataFrame, str]:
+        """Try common encodings in order; return (DataFrame, encoding_used)."""
+        last_err = None
+        for enc in self._ENCODINGS_TO_TRY:
+            try:
+                df = pd.read_csv(io.BytesIO(content), encoding=enc, **kwargs)
+                return df, enc
+            except (UnicodeDecodeError, pd.errors.ParserError) as e:
+                last_err = e
+        raise ValueError(f'Could not decode CSV with any supported encoding: {last_err}')
+
+    def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Normalize column names for SDI compatibility.
+
+        Maps latitude/longitude variants to lat/lon, then replaces
+        non-alphanumeric characters with underscores.
+        """
+        rename = {}
+        for col in df.columns:
+            if col.startswith('lat') and col != 'lat':
+                rename[col] = 'lat'
+            elif col.startswith('lon') and col != 'lon':
+                rename[col] = 'lon'
+        if rename:
+            df = df.rename(columns=rename)
+        df.columns = [
+            re.sub(r'[^\w]+', '_', c).strip('_') or c
+            for c in df.columns
+        ]
+        return df
 
     @abstractmethod
     def get_parser_name(self) -> str:
@@ -41,7 +62,7 @@ class BaseParser(ABC):
         """
         try:
             if ext in ['.csv', '.txt']:
-                return _read_csv_bytes(content, nrows=nrows)[0]
+                return self._read_csv_bytes(content, nrows=nrows)[0]
             elif ext in ['.xlsx', '.xls']:
                 return pd.read_excel(io.BytesIO(content), nrows=nrows)
             return None

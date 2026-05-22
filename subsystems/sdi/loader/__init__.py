@@ -84,10 +84,13 @@ class SdiLoader(ABC, GaiaBase):
         """
         headers = {'Content-Type': 'application/json'}
 
+        if not self.stac_json.get('bbox'):
+            self.logger.warning('No bbox in STAC item, skipping STAC post.')
+            return
+
         if (
             'properties' not in self.stac_json
             or 'datetime' not in self.stac_json['properties']
-            or 'bbox' not in self.stac_json
             or 'collection' not in self.stac_json
         ):
             raise ValueError(
@@ -212,10 +215,12 @@ class InSituDataLoader(SdiLoader):
                     sql_type = 'TIMESTAMP'
                 else:
                     sql_type = 'TEXT'
-                sql_columns.append(f'{col_name} {sql_type}')
+                sql_columns.append(
+                    sql.SQL('{} {}').format(sql.Identifier(col_name), sql.SQL(sql_type))
+                )
 
             # Always add geom column
-            sql_columns.append('geom geometry(Point, 4326)')
+            sql_columns.append(sql.SQL('geom geometry(Point, 4326)'))
 
             try:
                 with psycopg.connect(**self.pg_config) as conn:
@@ -237,7 +242,7 @@ class InSituDataLoader(SdiLoader):
                             cur.execute(
                                 sql.SQL('CREATE TABLE {} ({})').format(
                                     table_ident,
-                                    sql.SQL(', ').join(sql.SQL(c) for c in sql_columns),
+                                    sql.SQL(', ').join(sql_columns),
                                 )
                             )
 
@@ -252,9 +257,7 @@ class InSituDataLoader(SdiLoader):
                                 cur.execute(
                                     sql.SQL('CREATE TABLE {} ({})').format(
                                         table_ident,
-                                        sql.SQL(', ').join(
-                                            sql.SQL(c) for c in sql_columns
-                                        ),
+                                        sql.SQL(', ').join(sql_columns),
                                     )
                                 )
 
@@ -275,15 +278,14 @@ class InSituDataLoader(SdiLoader):
                                 while data := f.read(8192):
                                     copy.write(data)
 
-                        # Update geom column
-                        cur.execute(
-                            sql.SQL(
-                                """
-                                UPDATE {}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                                """
-                            ).format(table_ident)
-                        )
+                        # Update geom column if lat/lon columns are present
+                        col_names = {c['name'] for c in columns}
+                        if {'lat', 'lon'}.issubset(col_names):
+                            cur.execute(
+                                sql.SQL(
+                                    'UPDATE {} SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)'
+                                ).format(table_ident)
+                            )
 
                         # Create spatial index
                         cur.execute(

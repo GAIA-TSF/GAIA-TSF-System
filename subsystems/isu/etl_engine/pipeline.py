@@ -117,7 +117,8 @@ class ETLEngine(GaiaBase):
         self.dpr_service = dpr_service
 
         # Step 2: Utilize self.logger automatically provided by GaiaBase
-        self.parsing_engine = ParsingEngine(logger=self.logger)
+        encodings = self.settings.get('isu', {}).get('csv_encodings') if self.settings else None
+        self.parsing_engine = ParsingEngine(logger=self.logger, encodings=encodings)
         self.logger.info('ETL Engine initialized with ParsingEngine.')
 
     def process_file(
@@ -172,8 +173,15 @@ class ETLEngine(GaiaBase):
                     'type': 'in_situ',
                     'format': ext,
                     'sensor_type': _infer_sensor_type(filename, list(df.columns)),
+                    'collection': _infer_sensor_type(filename, list(df.columns)) or 'insitu',
                     'time_range': _extract_time_range(df),
-                    'schema': list(df.columns),
+                    'schema': [
+                        {
+                            'name': c,
+                            'type': 'number' if pd.api.types.is_numeric_dtype(df[c]) else 'text',
+                        }
+                        for c in df.columns
+                    ],
                     'location': _extract_location(df, filename, self.settings),
                     'crs': 'EPSG:4326',
                 },

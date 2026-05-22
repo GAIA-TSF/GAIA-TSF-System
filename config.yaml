@@ -45,5 +45,11 @@ qcl:
       max_null_pixels: 0.02
       min_snr: 30
       require_geo_alignment: true
+isu:
+  csv_encodings:
+    - 'utf-8'
+    - 'gbk'
+    - 'gb18030'
+    - 'latin-1'
 storage:
   data_dir: /data/gaia_tsf
