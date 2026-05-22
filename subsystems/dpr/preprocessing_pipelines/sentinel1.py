@@ -479,6 +479,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             xr.where(self.risk_map >= 6, 1, 0).rename('failure_flag').persist()
         )
 
+    @property
+    def timezonefinder(self):
+        """Get timezonefinder on request.
+
+        Note: avoid GitHub CI runtime numba problem.
+        """
+        from timezonefinder import TimezoneFinder
+        return TimezoneFinder()
+
     def _environmental_database(
         self, aoi, output_dir, grid_rows=3, grid_cols=3, model='era5'
     ):
@@ -504,8 +513,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             (bounds[1] + bounds[3]) / 2,
         )
 
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
+        tz_name = self.timezonefinder.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
 
         # API Client Setup
         cache_session = requests_cache.CachedSession(
