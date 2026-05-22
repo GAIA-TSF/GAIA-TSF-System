@@ -485,6 +485,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         Note: avoid GitHub CI runtime numba problem.
         """
         from timezonefinder import TimezoneFinder
+
         return TimezoneFinder()
 
     def _environmental_database(
@@ -512,7 +513,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             (bounds[1] + bounds[3]) / 2,
         )
 
-        tz_name = self.timezonefinder.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
+        tz_name = (
+            self.timezonefinder.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
+        )
 
         # API Client Setup
         cache_session = requests_cache.CachedSession(
