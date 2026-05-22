@@ -26,7 +26,9 @@ class BaseParser(ABC):
                 return df, enc
             except (UnicodeDecodeError, pd.errors.ParserError) as e:
                 last_err = e
-        raise ValueError(f'Could not decode CSV with any supported encoding: {last_err}')
+        raise ValueError(
+            f'Could not decode CSV with any supported encoding: {last_err}'
+        )
 
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Normalize column names for SDI compatibility.
@@ -42,10 +44,7 @@ class BaseParser(ABC):
                 rename[col] = 'lon'
         if rename:
             df = df.rename(columns=rename)
-        df.columns = [
-            re.sub(r'[^\w]+', '_', c).strip('_') or c
-            for c in df.columns
-        ]
+        df.columns = [re.sub(r'[^\w]+', '_', c).strip('_') or c for c in df.columns]
         return df
 
     @abstractmethod
