@@ -100,6 +100,7 @@ for i, path in enumerate(fileList):
 cloud_cover = np.array(cloud_cover)
 
 # SELECT CLOUDLESS SCENES
+
 cloud_threshold = 10 
 indices = np.where(np.array(cloud_cover) < cloud_threshold)[0]
 cloudless_scenes = [fileList[i] for i in indices]
@@ -115,9 +116,6 @@ with rasterio.open(amd_mask_path) as src:
 with rasterio.open(water_mask_path) as src:
     binary_water = src.read()
 
-
-
-# GET PIXELs
 ay, ax = np.where(binary_amd[0, :, :] == 1)
 
 # Reference lake pixels
@@ -127,8 +125,6 @@ wy, wx = np.where(binary_water[0, :, :] == 1)
 peak_amd = np.zeros((len(cloudless_scenes), len(ax)))
 peak_water = np.zeros((len(cloudless_scenes), len(wx)))
 
-valid_amd_pixels = []
-valid_water_pixels = []
 
 # PROCESS EACH SCENE
 for i, path in enumerate(cloudless_scenes):
@@ -147,12 +143,10 @@ for i, path in enumerate(cloudless_scenes):
         diff = raster.read(4).astype(np.float32) - raster.read(2).astype(np.float32)
 
 
-    # track number of valid pixels 
-    amd_values = diff[ay, ax]
-    water_values = diff[wy, wx]
 
-    peak_amd[i, :] = amd_values
-    peak_water[i, :] = water_values
+    # EXTRACT AMD AND WATER PIXELS
+    peak_amd[i, :] = diff[ay, ax]
+    peak_water[i, :] = diff[wy, wx]
 
     valid_amd_pixels.append(np.sum(~np.isnan(amd_values)))
     valid_water_pixels.append(np.sum(~np.isnan(water_values)))

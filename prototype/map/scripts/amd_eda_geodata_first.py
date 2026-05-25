@@ -7,6 +7,14 @@ Prototype script:
 - applies clean-water and AMD-water static masks
 - detects and removes outliers for clean-water and AMD-water AMD_ratio and AMD_diff
 - saves histograms, temporal plots, and overall JSON summary
+
+TODO: 
+- Are there missing values? How many?  
+- Is the dataset balanced (for regression)? 
+- Are features correlated or redundant? 
+- Are there different regimes or clusters in the data?  REGIONS: Louis 
+- Does the data reflect real-world variability? 
+- Are there spatial or temporal patterns?
 """
 
 import os
