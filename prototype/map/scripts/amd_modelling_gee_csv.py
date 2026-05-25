@@ -3,37 +3,16 @@ Temporary script to model AMD behaviour
 --- 
 Monitor: 'deviation from expected geochemical equilibrium'
 
-Plot 1 — Prediction + uncertainty 
-- Uncertainty = expected variability of AMD under normal conditions e.g. uncertainty = residuals.rolling(20).std() 
+This script reads data extracted from GEE, applies robust outlier filtering, 
+performs gap filling and smoothing, creates temporal features, 
+trains a Gradient Boosting model on clean water data (overfitting problem), 
+predicts AMD dynamics, estimates uncertainty, computes anomaly scores, 
+risk levels and stores plots to modelliing directory. 
 
-Plot 2 — Residuals + threshold 
-residual = observed - expected 
- Residual | Meaning               
- small    | normal water           
- moderate | possible contamination 
- large    | strong AMD event       
-
-Plot 3 — CUSUM for persistent contamination 
-
-Plot 4 — Regime probabilities over time + Rainfall events 
-Bayesian Regime Change Detection:
-Regime 1: clean water
-Regime 2: transitional
-Regime 3: AMD-dominated
-
-- AMD often shows:
-    - episodic spikes (rainfall events)
-    - oscillations (flush–recovery cycles)    
- Pattern     | Interpretation        
- stable      | clean system          
- oscillatory | unstable geochemistry 
- trending    | worsening AMD         
-
-TODO later: 
-Event-driven analysis 
-- rainfall → flushing → spike in AMD_ratio (Does anomaly follow rainfall event?) 
-- Risk scoring
-- Spatial generalization (conceptual step) 
+This is the very first step of the modelling exploration. 
+Problems: 
+- AMD ratio from GEE 
+- overfitting 
 """
 
 
@@ -58,9 +37,8 @@ from sklearn.metrics import (
 # CONSTANTS 
 AMD_THRESHOLD = 2  
 
-# =========================================================
+
 # PATHS
-# =========================================================
 
 # Linux
 proj_dir = "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/"
@@ -75,15 +53,13 @@ input_dir = os.path.join(
 
 res_dir = os.path.join(
     proj_dir,
-    "AMD_monitoring_Yxsjoberg/results/modelling/"
+    "AMD_monitoring_Yxsjoberg/results/proto_modelling/"
 )
 
 os.makedirs(res_dir, exist_ok=True)
 
-# =========================================================
-# LOAD DATA
-# =========================================================
 
+# LOAD DATA
 df_clean = pd.read_csv(
     # os.path.join(input_dir, "yxsjoberg_clean_series.csv"),
     os.path.join(input_dir, "yxsjoberg_clean_series_2018_2025.csv"),
@@ -115,10 +91,8 @@ df_amd = df_amd.set_index("Date")
 df_clean = df_clean.sort_index()
 df_amd = df_amd.sort_index()
 
-# =========================================================
-# ROBUST OUTLIER FILTERING
-# =========================================================
 
+# ROBUST OUTLIER FILTERING
 def robust_filter(
     df,
     variable="AMD",
@@ -163,10 +137,8 @@ df_amd = robust_filter(
     physical_max=500
 )
 
-# =========================================================
-# GAP FILLING + SMOOTHING
-# =========================================================
 
+# GAP FILLING + SMOOTHING
 # Temporal interpolation
 df_clean["AMD"] = df_clean["AMD"].interpolate(
     method="time"
@@ -199,28 +171,21 @@ df_amd["AMD_smooth"] = (
     .mean()
 )
 
-# =========================================================
-# FEATURE ENGINEERING
-# =========================================================
 
+# FEATURE ENGINEERING
 def create_features(df):
 
     df = df.copy()
 
-    # -----------------------------------------------------
     # TEMPORAL MEMORY
-    # -----------------------------------------------------
     df["lag1"] = df["AMD_smooth"].shift(1)
     df["lag2"] = df["AMD_smooth"].shift(2)
 
-    # -----------------------------------------------------
     # TEMPORAL DERIVATIVES
-    # -----------------------------------------------------
     df["diff1"] = df["AMD_smooth"].diff(1)
 
-    # -----------------------------------------------------
+
     # LOCAL TEMPORAL STATISTICS
-    # -----------------------------------------------------
     df["rolling_mean"] = (
         df["AMD_smooth"]
         .rolling(3)
@@ -233,9 +198,8 @@ def create_features(df):
         .std()
     )
 
-    # -----------------------------------------------------
+
     # CYCLICAL SEASONALITY
-    # -----------------------------------------------------
     doy = df.index.dayofyear
 
     df["sin_doy"] = np.sin(
@@ -253,10 +217,8 @@ def create_features(df):
 clean_feat = create_features(df_clean)
 amd_feat = create_features(df_amd)
 
-# =========================================================
-# MODEL TRAINING
-# =========================================================
 
+# MODEL TRAINING
 feature_cols = [
     "lag1",
     "lag2",
@@ -280,20 +242,16 @@ model = GradientBoostingRegressor(
 
 model.fit(X_clean, y_clean)
 
-# =========================================================
-# PREDICT AMD DYNAMICS
-# =========================================================
 
+# PREDICT AMD DYNAMICS
 X_amd = amd_feat[feature_cols]
 
 y_true = amd_feat["AMD_smooth"]
 
 y_pred = model.predict(X_amd)
 
-# =========================================================
-# UNCERTAINTY ESTIMATION
-# =========================================================
 
+# UNCERTAINTY ESTIMATION
 # Residuals on clean baseline
 y_clean_pred = model.predict(X_clean)
 
@@ -313,16 +271,14 @@ uncertainty_clean = (
     .std()
 )
 
-# -----------------------------------------
+
 # REMOVE DUPLICATE TIMESTAMPS
-# -----------------------------------------
 uncertainty_clean = uncertainty_clean.groupby(
     uncertainty_clean.index
 ).mean()
 
-# -----------------------------------------
+
 # GLOBAL FALLBACK
-# -----------------------------------------
 global_unc = np.nanmedian(
     uncertainty_clean
 )
@@ -331,9 +287,7 @@ uncertainty_clean = uncertainty_clean.fillna(
     global_unc
 )
 
-# -----------------------------------------
 # MAP TO AMD TIMELINE
-# -----------------------------------------
 uncertainty_amd = uncertainty_clean.reindex(
     amd_feat.index,
     method="nearest"
@@ -347,28 +301,21 @@ uncertainty_amd = uncertainty_amd.clip(
 )
 
 
-# =========================================================
 # CONFIDENCE INTERVALS
-# =========================================================
-
 k = 3
 
 upper = y_pred + k * uncertainty_amd
 lower = y_pred - k * uncertainty_amd
 
-# =========================================================
-# ANOMALY SCORE
-# =========================================================
 
+# ANOMALY SCORE
 anomaly_score = (
     np.abs(y_true - y_pred)
     / uncertainty_amd
 )
 
-# =========================================================
-# RISK CLASSES
-# =========================================================
 
+# RISK CLASSES
 risk = pd.cut(
     anomaly_score,
     bins=[0, 1, 2, 3, np.inf],
@@ -380,10 +327,9 @@ risk = pd.cut(
     ]
 )
 
-# =========================================================
-# MODEL EVALUATION
-# =========================================================
 
+# MODEL EVALUATION
+# to be removed 
 rmse = np.sqrt(
     mean_squared_error(
         y_true,
@@ -401,39 +347,9 @@ r2 = r2_score(
     y_pred
 )
 
-print("\n==============================")
-print("MODEL EVALUATION")
-print("==============================")
 
-print(f"RMSE: {rmse:.3f}")
-print(f"MAE : {mae:.3f}")
-print(f"R²  : {r2:.3f}")
 
-# =========================================================
-# SAVE METRICS
-# =========================================================
-
-metrics = {
-    "rmse": float(rmse),
-    "mae": float(mae),
-    "r2": float(r2)
-}
-
-with open(
-    os.path.join(res_dir, "metrics.json"),
-    "w"
-) as f:
-
-    json.dump(
-        metrics,
-        f,
-        indent=2
-    )
-
-# =========================================================
 # PLOT 1 — PREDICTION + UNCERTAINTY
-# =========================================================
-
 fig, ax = plt.subplots(
     figsize=(14, 6)
 )
@@ -495,10 +411,8 @@ fig.savefig(
 
 plt.close()
 
-# =========================================================
-# PLOT 2 — OBSERVED AMD INDEX + ANOMALY SCORE
-# =========================================================
 
+# PLOT 2 — OBSERVED AMD INDEX + ANOMALY SCORE
 fig, (ax1, ax2) = plt.subplots(
     2,
     1,
@@ -507,10 +421,8 @@ fig, (ax1, ax2) = plt.subplots(
     gridspec_kw={"height_ratios": [2, 1]}
 )
 
-# =====================================================
-# TOP PANEL — OBSERVED AMD INDEX
-# =====================================================
 
+# TOP PANEL — OBSERVED AMD INDEX
 # Clean water
 ax1.plot(
     df_clean.index,
@@ -592,10 +504,8 @@ ax1.legend(
     loc="upper left"
 )
 
-# =====================================================
-# BOTTOM PANEL — ANOMALY SCORE
-# =====================================================
 
+# BOTTOM PANEL — ANOMALY SCORE
 ax2.plot(
     amd_feat.index,
     anomaly_score,
@@ -668,10 +578,8 @@ ax2.legend(
     loc="upper left"
 )
 
-# =====================================================
-# FINAL LAYOUT
-# =====================================================
 
+# FINAL LAYOUT
 plt.tight_layout()
 
 # Save figure
@@ -690,10 +598,8 @@ print(
     "Saved: amd_observed_vs_anomaly.png"
 )
 
-# =========================================================
-# EXPORT RESULTS
-# =========================================================
 
+# EXPORT RESULTS
 results = pd.DataFrame({
 
     "Date": amd_feat.index,
