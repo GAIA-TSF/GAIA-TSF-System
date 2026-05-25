@@ -5,7 +5,7 @@ Prototype script:
 - reads Sentinel-2 GeoTIFF time series
 - calculate and applies separate cloud masks
 - applies clean-water and AMD-water static masks
-- detects and removes outliers for clean-water and AMD-water AMD_ratio and AMD_diff
+- detects and attempts to remove outliers for clean-water and AMD-water AMD_ratio and AMD_diff
 - saves histograms, temporal plots, and overall JSON summary
 
 TODO: 
@@ -39,7 +39,7 @@ proj_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
 # RESULTS DIRECTORY
 res_dir = os.path.join(
     proj_dir,
-    'AMD_monitoring_Yxsjoberg/results/eda'
+    'AMD_monitoring_Yxsjoberg/results/proto_eda'
 )
 
 # Create directory if it does not exist
