@@ -1,3 +1,6 @@
+"""
+Dasboard idea. 
+"""
 
 import os
 import numpy as np
@@ -464,7 +467,8 @@ def main(dir_path, amd_fn, clean_fn):
 
 
 if __name__ == "__main__":
-    dir_path = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/gee/"
+    # dir_path = "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/gee/"
+    dir_path = "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/gee/"
     amd_fn = "yxsjoberg_amd_series_2018_2025.csv"
     clean_fn = "yxsjoberg_clean_series_2018_2025.csv" 
     main(dir_path, amd_fn, clean_fn)  

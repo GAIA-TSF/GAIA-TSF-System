@@ -1,24 +1,7 @@
 """
-This script applies AMD time series modelling to the 
-spatial data. 
+This script applies AMD time series modelling to the spatial data. 
+It is OLD SCRIPT. Do not use any more. 
 
-TODO: 
-- learn model from 100 pxiels in clean water mask 
-- apply to all pixels in TSF mask
-
-Seasonal effect: 
-- O3: train on normalized clean regime (robust) XXX  
-- O4: seasonal + anomaly decomposition (much more robust for monitoring) 
-
-next: 
-- full raster inference (vectorized, fast)
-    no loops over pixels
-    works on entire image stack
-
-finally: 
-- AMD anomaly map
-- CUSUM map
-- regime probability map
 """
 
 import os
@@ -881,16 +864,19 @@ if __name__ == "__main__":
     # main(dir_path, amd_fn, clean_fn)  
     
     # Spatial data 
-    inputs_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
+    # inputs_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
+    inputs_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
     tif_dir = os.path.join(inputs_dir, 'sentinel2')
     cloud_dir = os.path.join(inputs_dir, 'sentinel2_clouds')
 
-    static_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/'
+    # static_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/'
+    static_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/'
     clean_mask_path = os.path.join(static_dir, 'yxsjoberg_clean_water_mask.tif')
     tsf_mask_path = os.path.join(static_dir, 'yxsjoberg_tsf_water_mask.tif')
 
     # results
-    output_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/monitoring'
+    # output_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/monitoring'
+    output_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/monitoring'
 
     main_spatial(tif_dir, cloud_dir, clean_mask_path, tsf_mask_path)
 
