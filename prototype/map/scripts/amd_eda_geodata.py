@@ -22,7 +22,6 @@ from matplotlib import pyplot as plt
 from matplotlib import dates as matplotlib_dates
 
 
-
 # INPUT DATA
 # mac
 # proj_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments' 
@@ -208,9 +207,8 @@ fig_path = os.path.join(
 # CREATE FIGURE
 fig, ax = plt.subplots(figsize=(12, 6))
 
-# ------------------------------------
+
 # PLOT ALL AMD PIXEL TEMPORAL PROFILES
-# ------------------------------------
 for j in range(peak_amd.shape[1]):
 
     ax.plot(
@@ -221,9 +219,8 @@ for j in range(peak_amd.shape[1]):
         linewidth=0.6
     )
 
-# ----------------------------------------
+
 # PLOT ALL REFERENCE WATERBODY PROFILES
-# ----------------------------------------
 for j in range(peak_water.shape[1]):
 
     ax.plot(
@@ -234,9 +231,8 @@ for j in range(peak_water.shape[1]):
         linewidth=0.5
     )
 
-# ------------------------------------
+
 # OVERLAY TEMPORAL MEANS
-# ------------------------------------
 amd_mean = np.nanmean(peak_amd, axis=1)
 water_mean = np.nanmean(peak_water, axis=1)
 
@@ -256,9 +252,8 @@ ax.plot(
     label='Reference water mean'
 )
 
-# ------------------------------------
+
 # OPTIONAL: PERCENTILE ENVELOPES
-# ------------------------------------
 amd_p05 = np.nanpercentile(peak_amd, 5, axis=1)
 amd_p95 = np.nanpercentile(peak_amd, 95, axis=1)
 
@@ -283,9 +278,8 @@ ax.fill_between(
     label='Reference 5–95%'
 )
 
-# ------------------------------------
+
 # LABELS
-# ------------------------------------
 ax.set_ylabel('(B4 - B2)', fontsize=11)
 
 ax.set_xlabel('Date', fontsize=11)
@@ -296,26 +290,23 @@ ax.set_title(
     fontweight='bold'
 )
 
-# ------------------------------------
+
 # GRID
-# ------------------------------------
 ax.grid(
     True,
     linestyle='--',
     alpha=0.3
 )
 
-# ------------------------------------
+
 # TIME RANGE
-# ------------------------------------
 ax.set_xlim([
     datetime(2018, 4, 15),
     datetime(2018, 10, 31)
 ])
 
-# ------------------------------------
+
 # DATE FORMATTING
-# ------------------------------------
 ax.xaxis.set_major_locator(
     matplotlib_dates.MonthLocator(interval=1)
 )
@@ -326,22 +317,19 @@ ax.xaxis.set_major_formatter(
 
 fig.autofmt_xdate()
 
-# ------------------------------------
+
 # LEGEND
-# ------------------------------------
 ax.legend(
     loc='upper right',
     frameon=True
 )
 
-# ------------------------------------
+
 # FINAL LAYOUT
-# ------------------------------------
 plt.tight_layout()
 
-# ------------------------------------
+
 # SAVE FIGURE
-# ------------------------------------
 plt.savefig(
     fig_path,
     dpi=300,
@@ -363,9 +351,8 @@ hist_path = os.path.join(
     'histogram_amd_vs_clean_water.png'
 )
 
-# ------------------------------------
+
 # FLATTEN ARRAYS
-# ------------------------------------
 amd_values = peak_amd.flatten()
 water_values = peak_water.flatten()
 
@@ -373,14 +360,12 @@ water_values = peak_water.flatten()
 amd_values = amd_values[~np.isnan(amd_values)]
 water_values = water_values[~np.isnan(water_values)]
 
-# ------------------------------------
+
 # CREATE FIGURE
-# ------------------------------------
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# ------------------------------------
+
 # HISTOGRAMS
-# ------------------------------------
 bins = 100
 
 ax.hist(
@@ -401,9 +386,8 @@ ax.hist(
     label='AMD water'
 )
 
-# ------------------------------------
+
 # OPTIONAL: MEAN LINES
-# ------------------------------------
 ax.axvline(
     np.nanmean(water_values),
     color='darkblue',
@@ -418,9 +402,8 @@ ax.axvline(
     linewidth=2
 )
 
-# ------------------------------------
+
 # LABELS
-# ------------------------------------
 ax.set_xlabel('(B4 - B2)', fontsize=11)
 
 ax.set_ylabel('Density', fontsize=11)
@@ -431,28 +414,24 @@ ax.set_title(
     fontweight='bold'
 )
 
-# ------------------------------------
+
 # GRID
-# ------------------------------------
 ax.grid(
     True,
     linestyle='--',
     alpha=0.3
 )
 
-# ------------------------------------
+
 # LEGEND
-# ------------------------------------
 ax.legend()
 
-# ------------------------------------
+
 # FINAL LAYOUT
-# ------------------------------------
 plt.tight_layout()
 
-# ------------------------------------
+
 # SAVE FIGURE
-# ------------------------------------
 plt.savefig(
     hist_path,
     dpi=300,
@@ -465,18 +444,13 @@ plt.close()
 
 
 
-
 ### --- AMD / CLEAN WATER STATISTICS --- ###
-
-# OUTPUT JSON PATH
 json_path = os.path.join(
     res_dir,
     'amd_water_statistics.json'
 )
 
-# ------------------------------------
 # HELPER FUNCTION
-# ------------------------------------
 def compute_statistics(values, variable_name, region_name):
 
     # Flatten
@@ -554,9 +528,8 @@ def compute_statistics(values, variable_name, region_name):
 
     return stats
 
-# ------------------------------------
+
 # COMPUTE STATISTICS
-# ------------------------------------
 stats_list = []
 
 # AMD water statistics
@@ -577,9 +550,7 @@ stats_list.append(
     )
 )
 
-# ------------------------------------
 # SAVE JSON
-# ------------------------------------
 with open(json_path, 'w') as f:
 
     json.dump(
@@ -590,9 +561,8 @@ with open(json_path, 'w') as f:
 
 print(f'Statistics saved to: {json_path}')
 
-# ------------------------------------
+
 # OPTIONAL: PRINT SUMMARY
-# ------------------------------------
 for item in stats_list:
 
     print('\n--------------------------')

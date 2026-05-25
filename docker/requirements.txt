@@ -1,6 +1,6 @@
 pytest==9.0.2  # all modules
 boto3==1.42.60  # eou
-gdal==3.10.3  # eou, dpr
+gdal==3.8.4  # eou, dpr
 requests==2.32.5  # eou, sdi
 psycopg==3.2.13  # sdi
 eodag==3.10.1 # eou
