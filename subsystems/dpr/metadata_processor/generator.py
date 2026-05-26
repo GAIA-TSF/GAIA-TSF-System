@@ -239,7 +239,7 @@ class RasterDataset(BaseDataset):
         return bands
 
 
-class SentinelDataset(BaseDataset, ABC):
+class SentinelCDSEDataset(BaseDataset, ABC):
     """
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
@@ -287,7 +287,7 @@ class SentinelDataset(BaseDataset, ABC):
         pass
 
 
-class Sentinel1SLCDataset(SentinelDataset):
+class Sentinel1SLCDataset(SentinelCDSEDataset):
     def __init__(self, path: str):
         from stactools.sentinel1.slc.stac import create_item
 
@@ -401,7 +401,7 @@ class Sentinel1SLCDataset(SentinelDataset):
         return new_item
 
 
-class Sentinel1GRDDataset(SentinelDataset):
+class Sentinel1GRDDataset(SentinelCDSEDataset):
     def __init__(self, path: str):
         from stactools.sentinel1.grd.stac import create_item
 
@@ -517,7 +517,7 @@ class Sentinel1GRDDataset(SentinelDataset):
         return new_item
 
 
-class Sentinel2Dataset(SentinelDataset):
+class Sentinel2Dataset(SentinelCDSEDataset):
     def __init__(self, path: str):
         from stactools.sentinel2.stac import create_item
 
