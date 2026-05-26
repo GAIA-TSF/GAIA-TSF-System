@@ -651,7 +651,6 @@ class Sentinel2Dataset(SentinelCDSEDataset):
 
 
 class SentinelASFDataset(BaseDataset):
-
     def get_stac_item(self) -> Dict[str, Any]:
         """Retrieve and transform a STAC item from the given path.
 
@@ -677,11 +676,10 @@ class SentinelASFDataset(BaseDataset):
             'type': 'Feature',
             'stac_version': '1.0.0',
             'id': safe_name[:-5],
-            'bbox': [lower_left[0], lower_left[1], upper_left[0],
-                     upper_left[1]],
+            'bbox': [lower_left[0], lower_left[1], upper_left[0], upper_left[1]],
             'geometry': {
                 'type': 'Polygon',
-                'coordinates': [[lower_left, lower_right, upper_right, upper_left]]
+                'coordinates': [[lower_left, lower_right, upper_right, upper_left]],
             },
             'properties': {
                 'datetime': info['metadata']['']['TIFFTAG_DATETIME'],
@@ -702,21 +700,20 @@ class SentinelASFDataset(BaseDataset):
             },
             'assets': {
                 'VH': {
-                    'href': './' + os.path.join(os.path.split(os.path.split(
-                        self.path)[0])[-1],
-                                  safe_name),
+                    'href': './'
+                    + os.path.join(
+                        os.path.split(os.path.split(self.path)[0])[-1], safe_name
+                    ),
                     'type': 'image/tiff; application=geotiff',
-                    'roles': [
-                        'data'
-                    ],
+                    'roles': ['data'],
                 },
             },
             'collection': 'sentinel-1-slc',
             'links': [
                 {
-                    "rel": "about",
-                    "href": "https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex",
-                    "title": "Sentinel-1 Single Look Complex (SLC) Technical Guide"
+                    'rel': 'about',
+                    'href': 'https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex',
+                    'title': 'Sentinel-1 Single Look Complex (SLC) Technical Guide',
                 }
             ],
             'sar:bands': info['stac']['eo:bands'],
@@ -898,10 +895,18 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and '_SLC' in data_source and os.path.isfile(os.path.join(data_source, 'manifest.safe')):
+        elif (
+            'S1' in data_source
+            and '_SLC' in data_source
+            and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
+        ):
             self._ds = Sentinel1SLCDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and '_GRD' in data_source and os.path.isfile(os.path.join(data_source, 'manifest.safe')):
+        elif (
+            'S1' in data_source
+            and '_GRD' in data_source
+            and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
+        ):
             self._ds = Sentinel1GRDDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif os.path.isfile(os.path.join(data_source, 'manifest.safe')):
