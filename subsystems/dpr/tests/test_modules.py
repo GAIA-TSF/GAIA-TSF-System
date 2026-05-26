@@ -203,14 +203,14 @@ class TestModules:
         )
 
         products_path = dag.backend.download(results, target_dir=tmp_path)
-        product_path = str(products_path / sorted(os.listdir(products_path))[0])
-        product_path_base = os.listdir(products_path)[0]
+        basename = sorted(os.listdir(products_path))[0]
+        product_path = str(products_path / basename)
 
         module = MetadataGenerator()
         module.set_datasource(product_path)
         item_dict = module.stac.create_item()
 
-        product_id = os.path.basename(product_path_base)[:-5]
+        product_id = os.path.basename(basename)[:-5]
         data_dir = TestUtils.get_data_path('dpr')
         with open(
             Path(data_dir) / f'{product_id}.json',
