@@ -21,6 +21,8 @@ def generate_eou_metadata_and_import(product_path, metadata_path, output_file_pa
     module.stac.create_item()
     module.stac.save(metadata_path)
 
+    # TODO: MetadataValidator
+
     create_sdi_package(product_path, metadata_path, output_file_path)
 
     importer = EarthObservationDataLoader(zip_path=output_file_path)
@@ -40,7 +42,7 @@ def project_config():
 
 
 class TestConfig:
-    def test_integration_EOU_001(self, tmp_path):
+    def test_integration_EOU_001_manual_loader(self, tmp_path):
         """Test full-system integration for manual data from EOU -> DPR -> SDI."""
         metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
         exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
@@ -53,6 +55,8 @@ class TestConfig:
         generate_eou_metadata_and_import(
             test_file, metadata_temp.name, exported_temp.name
         )
+
+        # TODO: check result by using SDI (get metadata)
 
     @pytest.mark.skip(reason='MetadataGenerator does not support S1 so far')
     def test_integration_EOU_002(self, tmp_path, project_config):
