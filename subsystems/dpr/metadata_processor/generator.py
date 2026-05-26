@@ -27,13 +27,12 @@ class BaseDataset(ABC):
         self.path = Path(path)
 
     @property
-    @abstractmethod
     def stac_item(self) -> Dict[str, Any]:
         """Get the STAC item representation for this path.
 
         :return: A dictionary representing the STAC item with
         """
-        pass
+        return self.get_stac_item()
 
     @abstractmethod
     def get_stac_item(self) -> Dict[str, Any]:
@@ -83,14 +82,6 @@ class RasterDataset(BaseDataset):
     def __init__(self, path: str):
         self.path = path
         self.dataset = gdal.Open(path)
-
-    @property
-    def stac_item(self) -> Dict[str, Any]:
-        """Get the STAC item representation for this path.
-
-        :return: A dictionary representing the STAC item with
-        """
-        return self.get_stac_item()
 
     def get_stac_item(self) -> Dict[str, Any]:
         """Retrieve and transform a STAC item from the given path.
@@ -256,17 +247,6 @@ class SentinelDataset(BaseDataset, ABC):
 
     :raises RuntimeError: If the file cannot be opened.
     """
-
-    def __init__(self, path: str):
-        self.path = path
-
-    @property
-    def stac_item(self) -> Dict[str, Any]:
-        """Get the STAC item representation for this path.
-
-        :return: A dictionary representing the STAC item with
-        """
-        return self.get_stac_item()
 
     def get_stac_item(self) -> Dict[str, Any]:
         """Retrieve and transform a STAC item from the given path.
@@ -689,14 +669,6 @@ class InsituDataset(BaseDataset):
         self.path = Path(path)
         self._meta = metadata
         self._data = metadata.get('data', {})
-
-    @property
-    def stac_item(self) -> Dict[str, Any]:
-        """Get the STAC item representation for this path.
-
-        :return: A dictionary representing the STAC item with
-        """
-        return self.get_stac_item()
 
     def get_stac_item(self) -> Dict[str, Any]:
         """Retrieve and transform a STAC item from the given path.
