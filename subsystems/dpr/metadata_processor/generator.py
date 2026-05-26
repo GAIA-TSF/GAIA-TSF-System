@@ -386,7 +386,7 @@ class Sentinel1SLCDataset(SentinelCDSEDataset):
                 's1:product_uri': item.get('id') + '.SAFE',
             },
             'assets': new_assets,
-            'collection': 'sentinel-1-grd',
+            'collection': 'sentinel-1-slc',
             'links': [item.get('links')[1]],
             'sar:bands': sar_bands,
             'providers': [

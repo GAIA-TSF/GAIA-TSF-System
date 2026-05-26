@@ -82,7 +82,7 @@
             "sar:polarizations": "VV"
         }
     },
-    "collection": "sentinel-1-grd",
+    "collection": "sentinel-1-slc",
     "links": [
         {
             "rel": "about",
