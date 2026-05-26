@@ -125,7 +125,9 @@ class TestSubsystem:
         import logging
         from lib.base import SubsystemId
 
-        os.environ['GAIA_PROJECT_PATH'] = str(TestUtils.get_project_config_path('amd_monitoring_yxsjoberg'))
+        os.environ['GAIA_PROJECT_PATH'] = str(
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+        )
 
         qc = QCLayer()
         log_message = 'Test'

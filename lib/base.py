@@ -49,23 +49,28 @@ class GaiaBase:
         # initialize internal settings
         self.settings = SettingsReader()
 
-        # project file
-        if project_path:
-            if os.environ.get('GAIA_PROJECT_PATH') is not None:
-                self.logger.warning(f"Both project_path and GAIA_PROJECT_PATH defined. Using project_path ({project_path})")
-        elif os.environ.get('GAIA_PROJECT_PATH') is not None:
-            project_path = os.environ.get('GAIA_PROJECT_PATH')
+        _project_path = (
+            project_path
+            if project_path is not None
+            else os.environ.get('GAIA_PROJECT_PATH')
+        )
 
         # initialize logger
         self.logger = Logger(
-            subsystem=sid.name, db_config=self.settings['qcl']['logger'].get('db'),
-            project_path=project_path
+            subsystem=sid.name,
+            db_config=self.settings['qcl']['logger'].get('db'),
+            project_path=_project_path,
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
 
         # read project configuration
-        if project_path is not None:
-            self.project_config = ProjectConfigReader(project_path)
-            self.logger.info(f"Project configuration read from {project_path}")
+        if project_path is not None and os.environ.get('GAIA_PROJECT_PATH') is not None:
+            self.logger.warning(
+                f'Both project_path argument and GAIA_PROJECT_PATH variable defined. Using project_path ({project_path})'
+            )
+
+        if _project_path is not None:
+            self.project_config = ProjectConfigReader(_project_path)
+            self.logger.info(f'Project configuration read from {_project_path}')
         else:
             self.project_config = None
