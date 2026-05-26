@@ -31,7 +31,7 @@ class DbRecord(Base):
     timestamp = Column(DateTime(), nullable=False)
     level_id = Column(Integer, ForeignKey('log_level.id'), nullable=False)
     message = Column(String, nullable=False)
-    project = Column(String(255), nullable=True)
+    project_path = Column(String(255), nullable=True)
     pid = Column(
         Integer,
         nullable=False,
@@ -138,7 +138,7 @@ class DbLogger(logging.Handler):
             timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
             level_id=record.levelno,
             message=record.getMessage(),
-            project=None,
+            project_path=record.project_path,
             pid=os.getpid(),
         )
         self._session.add(db_record)

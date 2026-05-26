@@ -134,7 +134,7 @@ class TestSubsystem:
         with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'SELECT subsystem_id,level_id,message,pid FROM log ORDER BY id DESC LIMIT 1'
+                    'SELECT subsystem_id,level_id,message,pid,project_path FROM log ORDER BY id DESC LIMIT 1'
                 )
                 row = cur.fetchone()
                 # subsystem
@@ -145,3 +145,5 @@ class TestSubsystem:
                 assert row[2] == log_message
                 # pid
                 assert row[3] == os.getpid()
+                # project_path
+                assert row[4] == os.environ['GAIA_PROJECT_PATH']
