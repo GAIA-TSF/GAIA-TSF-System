@@ -84,15 +84,15 @@ class ETLEngine(GaiaBase):
     It orchestrates underlying parsers for data extraction, timestamp
     standardization, and prepares payloads for the external Data Processing module.
 
-    :param project_file: Optional path to a project-specific configuration file.
-    :type project_file: Optional[str]
+    :param project_path: Optional path to a project-specific configuration file.
+    :type project_path: Optional[str]
     :param qc_layer: External Quality Control layer instance for data validation.
     :type qc_layer: Any
     """
 
     def __init__(
         self,
-        project_file: Optional[str] = None,
+        project_path: Optional[str] = None,
         qc_layer: Any = None,
         dpr_service: Any = None,
     ):
@@ -100,7 +100,7 @@ class ETLEngine(GaiaBase):
         Initialize the ETLEngine using GaiaBase.
         """
         # Step 1: Initialize base class and register subsystem identity as ISU
-        super().__init__(SubsystemId.ISU, project_file=project_file)
+        super().__init__(SubsystemId.ISU, project_path=project_path)
 
         # Dependency Injection: Receive external service instances
         # qc_layer  → ISU_I_2: Quality Control and Logging (QCL)

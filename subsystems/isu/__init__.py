@@ -31,22 +31,22 @@ class InSituDataUploader(GaiaBase):
     Note: ISU has **no direct interface with SDI**. SDI integration is indirect,
     via the data products and metadata delivered to DPR through ISU_I_1.
 
-    :param project_file: Optional path to a specific project configuration file.
-    :type project_file: Optional[str]
+    :param project_path: Optional path to a specific project configuration file.
+    :type project_path: Optional[str]
     :param dpr_service: Optional Data Processing subsystem instance (ISU_I_1).
     :type dpr_service: Any
     """
 
     def __init__(
         self,
-        project_file: Optional[str] = None,
+        project_path: Optional[str] = None,
         dpr_service: Any = None,
     ):
         """
         Initialize the InSituDataUploader subsystem and its sub-components.
         """
         # 1. Initialize the base class and strictly bind the ISU subsystem identity
-        super().__init__(SubsystemId.ISU, project_file=project_file)
+        super().__init__(SubsystemId.ISU, project_path=project_path)
 
         self.logger.info('Initializing ISU Subsystem driven by GaiaBase...')
 
@@ -62,24 +62,24 @@ class InSituDataUploader(GaiaBase):
 
         # 4. Initialize the core hub: ETL Engine with all service dependencies
         self.etl_engine = ETLEngine(
-            project_file=project_file,
+            project_path=project_path,
             qc_layer=self.qc_layer,
             dpr_service=self.dpr_service,
         )
 
         # 5. Initialize the three parallel ingestion entries
         self.manual_loader = ManualFileLoader(
-            etl_engine=self.etl_engine, project_file=project_file
+            etl_engine=self.etl_engine, project_path=project_path
         )
 
         self.bulk_scheduler = BulkUploadScheduler(
-            etl_engine=self.etl_engine, project_file=project_file
+            etl_engine=self.etl_engine, project_path=project_path
         )
 
         self.stream_handler = StreamingDataHandler(
             etl_callback=self.etl_engine.process_data,
             qc_layer=self.qc_layer,
-            project_file=project_file,
+            project_path=project_path,
         )
 
         self.logger.debug('ISU Subsystem components initialized.')

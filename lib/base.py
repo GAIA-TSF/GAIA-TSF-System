@@ -34,14 +34,14 @@ class SubsystemId(Enum):
 
 
 class GaiaBase:
-    def __init__(self, sid: SubsystemId, project_file: str = None):
+    def __init__(self, sid: SubsystemId, project_path: str = None):
         """Initialize base GAIA-TSF object.
 
         Reads internal system settings and project configuration file
         if defined. Initialize logger.
 
         :param SubsystemId sid: subsystem id
-        :param str project_file: path to project file to be read or None
+        :param str project_path: path to project file to be read or None
         """
         from subsystems.qcl.logger import Logger  # avoid circular import
 
@@ -50,22 +50,22 @@ class GaiaBase:
         self.settings = SettingsReader()
 
         # project file
-        if project_file:
+        if project_path:
             if os.environ.get('GAIA_PROJECT_PATH') is not None:
-                self.logger.warning(f"Both project_file and GAIA_PROJECT_PATH defined. Using project_file ({project_file})")
+                self.logger.warning(f"Both project_path and GAIA_PROJECT_PATH defined. Using project_path ({project_path})")
         elif os.environ.get('GAIA_PROJECT_PATH') is not None:
-            project_file = os.environ.get('GAIA_PROJECT_PATH')
+            project_path = os.environ.get('GAIA_PROJECT_PATH')
 
         # initialize logger
         self.logger = Logger(
             subsystem=sid.name, db_config=self.settings['qcl']['logger'].get('db'),
-            project_file=project_file
+            project_path=project_path
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
 
         # read project configuration
-        if project_file is not None:
-            self.project_config = ProjectConfigReader(project_file)
-            self.logger.info(f"Project configuration read from {project_file}")
+        if project_path is not None:
+            self.project_config = ProjectConfigReader(project_path)
+            self.logger.info(f"Project configuration read from {project_path}")
         else:
             self.project_config = None
