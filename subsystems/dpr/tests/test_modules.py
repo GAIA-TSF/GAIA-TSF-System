@@ -202,11 +202,12 @@ class TestModules:
             **search_filter,
         )
 
-        product_path = dag.backend.download(results, target_dir=tmp_path)
-        product_path_base = os.path.splitext(product_path)[0]
+        products_path = dag.backend.download(results, target_dir=tmp_path)
+        product_path = str(products_path / os.listdir(products_path)[0])
+        product_path_base = os.listdir(products_path)[0]
 
         module = MetadataGenerator()
-        module.set_datasource(str(product_path / os.listdir(product_path)[0]))
+        module.set_datasource(product_path)
         item_dict = module.stac.create_item()
 
         product_id = os.path.basename(product_path_base)
