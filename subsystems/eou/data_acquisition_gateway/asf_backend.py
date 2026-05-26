@@ -8,7 +8,7 @@ from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisition
 
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
-    def search(
+    def _search(
         self,
         geom: str | BaseGeometry,
         start: str,

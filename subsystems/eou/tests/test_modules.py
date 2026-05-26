@@ -1,4 +1,5 @@
 import pytest
+import os
 import shutil
 from pathlib import Path
 
@@ -203,6 +204,25 @@ class TestModules:
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
+
+    def test_DataAcquisitionGateway_004_project_path(self, project_config):
+        # run using project_config
+        module = DataAcquisitionGateway(backend='eodag')
+        results = module.backend.search(
+            geom=project_config.aoi(),
+            **self.search_filter,
+        )
+        result_count = len(results)
+
+        # run using env. variable
+        os.environ['GAIA_PROJECT_PATH'] = str(
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+        )
+        module = DataAcquisitionGateway(backend='eodag')
+        results = module.backend.search(
+            **self.search_filter,
+        )
+        assert len(results) == result_count
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.

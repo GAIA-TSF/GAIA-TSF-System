@@ -33,3 +33,4 @@ class DataAcquisitionGateway(GaiaBase):
         self.backend = DataAcquisitionBackend()
         self.backend.set_config(self.settings['eou'][backend])
         self.backend.data_dir = self.settings['storage']['data_dir']
+        self.backend.project_config = self.project_config  # defined by GaiaBase
