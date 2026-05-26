@@ -182,3 +182,41 @@ class TestModules:
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataGenerator_005(self, tmp_path):
+        """Test MetadataGenerator module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-1-SLC-based datasource from ASF.
+        """
+        dag = DataAcquisitionGateway(backend='asf')
+
+        search_filter = {
+            'direction': 'A',
+            'start': '2025-06-01',
+            'end': '2025-06-10',
+        }
+
+        results = dag.backend.search(
+            geom=self.config.aoi(),
+            **search_filter,
+        )
+
+        product_path = dag.backend.download(results, target_dir=tmp_path)
+        product_path_base = os.path.splitext(product_path)[0]
+
+        module = MetadataGenerator()
+        module.set_datasource(str(product_path / os.listdir(product_path)[0]))
+        item_dict = module.stac.create_item()
+
+        product_id = os.path.basename(product_path_base)
+        data_dir = TestUtils.get_data_path('dpr')
+        with open(
+            Path(data_dir) / f'{product_id}.json',
+            'r',
+        ) as f:
+            json_dict = json.load(f)
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)

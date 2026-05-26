@@ -650,6 +650,91 @@ class Sentinel2Dataset(SentinelCDSEDataset):
         return new_item
 
 
+class SentinelASFDataset(BaseDataset):
+
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format.
+
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        ds = gdal.Open(self.get_tif_path())
+
+        info = gdal.Info(ds, format='json')
+
+        corner_coords = info['cornerCoordinates']
+        upper_left = corner_coords['upperLeft']
+        lower_left = corner_coords['lowerLeft']
+        upper_right = corner_coords['upperRight']
+        lower_right = corner_coords['lowerRight']
+
+        safe_name = os.path.split(self.path)[-1]
+
+        item = {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'id': safe_name[:-5],
+            'bbox': [lower_left[0], lower_left[1], upper_left[0],
+                     upper_left[1]],
+            'geometry': {
+                'type': 'Polygon',
+                'coordinates': [[lower_left, lower_right, upper_right, upper_left]]
+            },
+            'properties': {
+                'datetime': info['metadata']['']['TIFFTAG_DATETIME'],
+                'platform': 'sentinel-1a',
+                'constellation': 'sentinel-1',
+                'instruments': ['C-SAR'],
+                'processing:level': None,
+                'sar:instrument_mode': 'IW',
+                'sar:product_type': 'SLC',
+                'sar:polarizations': ['VV', 'VH'],
+                'sar:frequency_band': 'C',
+                'sar:resolution_range': 3.5,
+                'sar:resolution_azimuth': 22.6,
+                'sat:orbit_state': 'descending',
+                'sat:relative_orbit': 66,
+                'view:incident_angle': 39.5,
+                's1:product_uri': safe_name,
+            },
+            'assets': {
+                'VH': {
+                    'href': './' + os.path.join(os.path.split(os.path.split(
+                        self.path)[0])[-1],
+                                  safe_name),
+                    'type': 'image/tiff; application=geotiff',
+                    'roles': [
+                        'data'
+                    ],
+                },
+            },
+            'collection': 'sentinel-1-slc',
+            'links': [
+                {
+                    "rel": "about",
+                    "href": "https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex",
+                    "title": "Sentinel-1 Single Look Complex (SLC) Technical Guide"
+                }
+            ],
+            'sar:bands': info['stac']['eo:bands'],
+            'providers': [
+                {
+                    'name': 'ASF',
+                    'roles': 'provider',
+                }
+            ],
+        }
+
+        return item
+
+    def get_tif_path(self):
+        measurement_path = self.path / 'measurement'
+        return measurement_path / os.listdir(measurement_path)[0]
+
+
 class InsituDataset(BaseDataset):
     """
     Wrapper for in-situ CSV datasets providing spatial and temporal metadata
@@ -813,14 +898,17 @@ class MetadataGenerator(GaiaBase):
         elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and '_SLC' in data_source:
+        elif 'S1' in data_source and '_SLC' in data_source and os.path.isfile(os.path.join(data_source, 'manifest.safe')):
             self._ds = Sentinel1SLCDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif 'S1' in data_source and '_GRD' in data_source:
+        elif 'S1' in data_source and '_GRD' in data_source and os.path.isfile(os.path.join(data_source, 'manifest.safe')):
             self._ds = Sentinel1GRDDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        else:
+        elif os.path.isfile(os.path.join(data_source, 'manifest.safe')):
             self._ds = Sentinel2Dataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
+        else:  # ASF
+            self._ds = SentinelASFDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
 
     @property
