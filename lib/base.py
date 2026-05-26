@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 
 from .config import SettingsReader, ProjectConfigReader
@@ -47,12 +48,24 @@ class GaiaBase:
         self.sid = sid
         # initialize internal settings
         self.settings = SettingsReader()
+
+        # project file
+        if project_file:
+            if os.environ.get('GAIA_PROJECT_PATH') is not None:
+                self.logger.warning(f"Both project_file and GAIA_PROJECT_PATH defined. Using project_file ({project_file})")
+        elif os.environ.get('GAIA_PROJECT_PATH') is not None:
+            project_file = os.environ.get('GAIA_PROJECT_PATH')
+
         # initialize logger
         self.logger = Logger(
-            subsystem=sid.name, db_config=self.settings['qcl']['logger'].get('db')
+            subsystem=sid.name, db_config=self.settings['qcl']['logger'].get('db'),
+            project_file=project_file
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
+
+        # read project configuration
         if project_file is not None:
             self.project_config = ProjectConfigReader(project_file)
+            self.logger.info(f"Project configuration read from {project_file}")
         else:
             self.project_config = None
