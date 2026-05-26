@@ -55,7 +55,7 @@
     },
     "assets": {
         "VH": {
-            "href": "./Downloads/S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE",
+            "href": "./test_MetadataGenerator_0050/S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
