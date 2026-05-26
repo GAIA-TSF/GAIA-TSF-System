@@ -136,7 +136,7 @@ class TestModules:
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
-        Sentinel-2-based datasource.
+        Sentinel-2-based datasource from CDSE.
         """
         item_dict, json_dict = get_stac_jsons(
             'S2_MSI_L2A',
@@ -153,7 +153,7 @@ class TestModules:
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
-        Sentinel-1-GRD-based datasource.
+        Sentinel-1-GRD-based datasource from CDSE.
         """
         item_dict, json_dict = get_stac_jsons(
             'S1_SAR_GRD',
