@@ -116,8 +116,8 @@ class TestModules:
         """
         pass
 
-    def test_MetadataProcessor_001(self):
-        """Test MetadataProcessor module.
+    def test_MetadataGenerator_001(self):
+        """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
         raster-based datasource.
@@ -132,8 +132,8 @@ class TestModules:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataProcessor_002(self, tmp_path):
-        """Test MetadataProcessor module.
+    def test_MetadataGenerator_002(self, tmp_path):
+        """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-2-based datasource.
@@ -149,8 +149,8 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataProcessor_003(self, tmp_path):
-        """Test MetadataProcessor module.
+    def test_MetadataGenerator_003(self, tmp_path):
+        """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-1-GRD-based datasource.
@@ -166,8 +166,8 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataProcessor_004(self, tmp_path):
-        """Test MetadataProcessor module.
+    def test_MetadataGenerator_004(self, tmp_path):
+        """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
         Sentinel-1-SLC-based datasource.
