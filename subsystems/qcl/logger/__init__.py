@@ -51,8 +51,11 @@ class Logger:
             base_logger.setLevel(level)
 
             handler = logging.StreamHandler(sys.stdout)
+            formatter_str = '%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s'
+            if 'project_path' in context:
+                formatter_str += ' [%(project_path)s]'
             formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s [%(project_path)s]'
+                formatter_str
             )
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)

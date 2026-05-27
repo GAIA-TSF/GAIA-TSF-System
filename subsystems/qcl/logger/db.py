@@ -133,12 +133,16 @@ class DbLogger(logging.Handler):
         if not self._session_maker or not self._session:
             return
 
+        try:
+            project_path = record.project_path
+        except AttributeError:
+            project_path = None
         db_record = DbRecord(
             subsystem_id=record.subsystem,
             timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
             level_id=record.levelno,
             message=record.getMessage(),
-            project_path=record.project_path,
+            project_path=project_path,
             pid=os.getpid(),
         )
         self._session.add(db_record)
