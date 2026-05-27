@@ -16,6 +16,7 @@ from shapely.geometry.base import BaseGeometry
 import pandas as pd
 import requests_cache
 import openmeteo_requests
+from timezonefinder import TimezoneFinder
 from retry_requests import retry
 from shapely.wkt import loads
 from pyproj import Transformer
