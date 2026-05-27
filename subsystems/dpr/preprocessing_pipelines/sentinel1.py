@@ -75,12 +75,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self.client.close()
             self.client = None
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.client.close()
-
     def _download_orbits(self, datadir):
         """Download precise orbit files for Sentinel-1 BURST data.
 
