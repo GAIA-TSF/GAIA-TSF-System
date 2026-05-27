@@ -17,6 +17,9 @@ services:
     networks:
       - gaia_net
     command: tail -f /dev/null
+    env:
+      # timezonefinder uses Numba JIT caching - this often breaks in Docker/CI environments
+      NUMBA_DISABLE_JIT: 1
 
   postgis:
     image: postgis/postgis:16-3.4
