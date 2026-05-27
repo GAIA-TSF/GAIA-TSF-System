@@ -81,10 +81,3 @@ isu:
   ogc_broker: "mqtt.example.org:1883"
   ogc_datastream_id: "99"
 ```
-
-
-To run the tests, execute the following command in your terminal:
-
-```bash
-docker exec gaiatesting python3 -m pytest subsystems/isu/tests/ -v -p no:cacheprovider --basetemp=test_tmp
-```

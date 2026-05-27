@@ -280,13 +280,14 @@ class InSituDataLoader(SdiLoader):
                                     copy.write(data)
 
                         # Update geom column
-
-                        sql.SQL(
-                            """
-                            UPDATE {}
-                            SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                            """
-                        ).format(table_ident)
+                        cur.execute(
+                            sql.SQL(
+                                """
+                                UPDATE {}
+                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
+                                """
+                            ).format(table_ident)
+                        )
 
                         # Create spatial index
                         cur.execute(

@@ -10,7 +10,7 @@ project:
   risk_indicator: 'amd_index' # derived indicator (e.g. B4/B2 ratio)
 
   # SPATIAL DATA
-  aoi: 'yxsjoberg.gpkg'       # area of interest polygon (./GAIA-TSF-System/tests/projects/)
+  aoi: 'static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
 
   masks:
     tsf_mask: null            # Tailings Storage Facility mask (must-have)
@@ -42,20 +42,20 @@ project:
   # IN-SITU DATA 
   in_situ:
     file_name: null           # path to CSV / database (if available)
-    metadata_file: null 	    # meatadata of the measured vairables 
+    metadata_file: null       # meatadata of the measured vairables 
 
   # REFERENCE DATA (FOR CLASSIFICATION / EVALUATION)
     polygons:
       amd_areas: null         # polygons of known contamination
       clean_areas: null       # polygons of stable conditions
-      failure_areas: null 	  # polygon(s) of TSF slope failure
+      failure_areas: null     # polygon(s) of TSF slope failure
 
   # RISK DEFINITION
   risk:
-  	amd: 
-	    threshold: 2.0          # threshold for AMD indicator
-	slope:     
-		threshold: 200.0          # example threshold for slope stability (mm)
+    amd: 
+      threshold: 2.0          # threshold for AMD indicator
+    slope:     
+      threshold: 200.0        # example threshold for slope stability (mm)
 
   # HISTORICAL EVENTS 
   historical_events: ['2019-10-10', '2020-10-01'] # simulated example 

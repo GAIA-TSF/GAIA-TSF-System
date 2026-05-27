@@ -5,28 +5,24 @@ from typing import Optional, List, Dict
 
 from lib.base import GaiaBase, SubsystemId
 
-STAC_URL = 'http://stacapi:8000'
-
 
 class SdiReader(GaiaBase):
-    def __init__(self):
+    def __init__(self, stac_api_url=None):
         """Simple SDI client for searching and downloading assets."""
-        super().__init__(SubsystemId.SDI)
+        GaiaBase.__init__(self, SubsystemId.SDI)
+        self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
 
     def search_assets(
         self, query_string: str, asset_name: Optional[str] = None
     ) -> List[Dict]:
         """
-        Perform a STAC search request and return a list of matching assets.
+        Perform a STAC search request and return a list of matching assets with metadata.
 
         :param query_string: Query string part for STAC search
-                             (e.g. "bbox=...&datetime=...")
-        :param asset_name: Optional asset key (e.g. 'B01').
-                           If provided, only assets with this name are returned.
-                           If None, all assets from matching items are returned.
-        :return: List of asset dictionaries (each containing at least 'href' and metadata).
+        :param asset_name: Optional asset key (e.g. 'B01')
+        :return: List of asset dictionaries with timestamp, item_id, and other metadata
         """
-        search_url = f'{STAC_URL}/search?{query_string}'
+        search_url = f'{self.stac_api_url}/search?{query_string}'
 
         response = requests.post(search_url, json={})
         response.raise_for_status()
@@ -38,14 +34,53 @@ class SdiReader(GaiaBase):
         results = []
 
         for item in features:
+            # Extract metadata from item
+            properties = item.get('properties', {})
+            timestamp = properties.get('datetime')
+            bbox = item.get('bbox')
+            item_id = item.get('id')
+            collection = item.get('collection')
+
+            # Additional useful metadata
+            cloud_cover = properties.get('eo:cloud_cover')
+            platform = properties.get('platform')
+            instruments = properties.get('instruments', [])
+
             assets = item.get('assets', {})
+
             if asset_name:
-                # Return only the specified asset if it exists
+                # Return only the specified asset
                 if asset_name in assets:
-                    results.append(assets[asset_name])
+                    asset = assets[asset_name].copy()
+                    asset.update(
+                        {
+                            'bbox': bbox,
+                            'timestamp': timestamp,
+                            'item_id': item_id,
+                            'collection': collection,
+                            'cloud_cover': cloud_cover,
+                            'platform': platform,
+                            'instruments': instruments,
+                            'asset_key': asset_name,
+                        }
+                    )
+                    results.append(asset)
             else:
-                # Return all assets from the item
-                results.extend(assets.values())
+                # Return all assets
+                for key, asset_data in assets.items():
+                    asset = asset_data.copy()
+                    asset.update(
+                        {
+                            'timestamp': timestamp,
+                            'item_id': item_id,
+                            'collection': collection,
+                            'cloud_cover': cloud_cover,
+                            'platform': platform,
+                            'instruments': instruments,
+                            'asset_key': key,
+                        }
+                    )
+                    results.append(asset)
 
         return results
 

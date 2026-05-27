@@ -33,5 +33,17 @@ qcl:
     db:
       <<: *sdi_db
       dbname: 'logging'
+  validation_rules:
+    in_situ:
+      require_unique_id: true
+      ph_range: {min: 0, max: 14}
+      do_range: {min: 0, max: 20}
+      conductivity_range: {min: 0, max: 5000}
+      turbidity_range: {min: 0, max: 1000}
+      temperature_range: {min: -5, max: 50}
+    eo_raster:
+      max_null_pixels: 0.02
+      min_snr: 30
+      require_geo_alignment: true
 storage:
-  data_dir: /tmp/gaia_tsf
+  data_dir: /data/gaia_tsf

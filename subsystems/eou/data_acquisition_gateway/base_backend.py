@@ -27,3 +27,15 @@ class DataAcquisitionBackend(ABC):
             kwargs['target_dir'] = os.path.join(self.data_dir, kwargs['target_dir'])
 
         return self._download(*args, **kwargs)
+
+    @abstractmethod
+    def _download_all(self, *args, **kwargs) -> str:
+        """Generic download interface"""
+        pass
+
+    def download_all(self, *args, **kwargs) -> str:
+        """Generic download interface"""
+        if not os.path.isabs(kwargs['target_dir']):
+            kwargs['target_dir'] = os.path.join(self.data_dir, kwargs['target_dir'])
+
+        return self._download_all(*args, **kwargs)
