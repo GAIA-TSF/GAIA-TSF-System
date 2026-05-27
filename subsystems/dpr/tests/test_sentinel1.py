@@ -330,8 +330,3 @@ class TestSentinel1Workflow:
         """Test cleaning work directory."""
         pipeline._cleanup(ctx.work_dir)
         assert not ctx.work_dir.is_dir()
-
-    def test_run_workflow(self, pipeline, config):
-        # pipeline.configure('WKT...', ...)
-        # pipeline.run()
-        pass
