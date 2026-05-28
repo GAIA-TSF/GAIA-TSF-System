@@ -1,37 +1,41 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from lib.base import GaiaBase, SubsystemId
-
 
 _TASK_REQUIRED_TYPES: Dict[str, List[str]] = {
     'amd': ['s2', 'insitu'],
 }
 
+_S2_PLATFORMS = {'sentinel-2a', 'sentinel-2b', 'sentinel-2'}
+_INSITU_MIME_TYPES = {'application/x-postgresql'}
+
 
 def _get_asset_type(asset: Dict) -> str:
     platform = (asset.get('platform') or '').lower()
-    collection = (asset.get('collection') or '').lower()
     mime_type = (asset.get('type') or '').lower()
-    instruments = str(asset.get('instruments', [])).lower()
 
-    if 'sentinel' in platform or 's2' in collection or 'msi' in instruments:
+    if platform in _S2_PLATFORMS:
         return 's2'
-    if 'postgresql' in mime_type or asset.get('asset_key') == 'data':
+    if mime_type in _INSITU_MIME_TYPES:
         return 'insitu'
     return 'unknown'
 
 
-class AssetChecker(GaiaBase):
+class AssetChecker:
     """
     Pre-flight quality check for STAC assets before running downstream computation.
 
     Scores a list of assets on a 100-point scale. A task should only proceed
     if the score meets the configured conformance threshold (default: 80).
-    """
 
-    def __init__(self):
-        super().__init__(SubsystemId.QCL)
+    This class intentionally does not inherit GaiaBase. Asset conformance
+    checking is pure computation — it takes a list of asset dicts and returns
+    a score with no database writes, no logging side effects, and no external
+    calls. Inheriting GaiaBase would require a live database connection just
+    to run a quality check, which is an unnecessary coupling. The calling flow
+    (which already has its own GaiaBase logger) is responsible for logging the
+    conformance result.
+    """
 
     def analyze_assets(
         self,
@@ -44,7 +48,7 @@ class AssetChecker(GaiaBase):
 
         Rules:
           - Must-Have Data (50 pts): all required types present; returns score=0 immediately if any missing
-          - Cloud Cover   (20 pts): avg S2 cloud cover <10%=20, 10-30%=10, >30%=0
+          - Cloud Cover   (20 pts): avg S2 cloud cover <10%=20, 10-30%=10, >30%=0; 10 if data unavailable
           - Time Spread   (20 pts): >=3 distinct acquisition dates = 20, else 0
           - Map Coverage  (10 pts): placeholder, always 10 (full bbox check TBD)
 
@@ -52,13 +56,20 @@ class AssetChecker(GaiaBase):
         :param key_variable: Task type key used to look up required data types
         :param verbose: Print a conformance report to stdout
         :return: {'conformance': int, 'result': dict}
+        :raises ValueError: If key_variable is not a recognised task type
         """
+        if key_variable not in _TASK_REQUIRED_TYPES:
+            raise ValueError(
+                f"Unknown key_variable '{key_variable}'. "
+                f"Supported: {list(_TASK_REQUIRED_TYPES)}"
+            )
+
         if not assets:
             if verbose:
                 print("No assets to analyze")
             return {'conformance': 0, 'result': {}}
 
-        required_types = _TASK_REQUIRED_TYPES.get(key_variable, [])
+        required_types = _TASK_REQUIRED_TYPES[key_variable]
         present_types = {_get_asset_type(a) for a in assets}
 
         # Rule 1: Must-Have Data (50 pts, blocker)
@@ -80,7 +91,7 @@ class AssetChecker(GaiaBase):
                 if _get_asset_type(a) == 's2' and a.get('cloud_cover') is not None
             ]
             if not cloud_values:
-                score_cloud = 20
+                score_cloud = 10  # cloud cover unavailable — uncertain, not perfect
             else:
                 avg_cloud = sum(cloud_values) / len(cloud_values)
                 if avg_cloud < 10:
@@ -102,7 +113,7 @@ class AssetChecker(GaiaBase):
                     continue
         score_time_spread = 20 if len(distinct_dates) >= 3 else 0
 
-        # Rule 4: Map Coverage (10 pts, placeholder)
+        # Rule 4: Map Coverage (10 pts, placeholder — full bbox check TBD)
         score_coverage = 10
 
         total = score_must_have + score_cloud + score_time_spread + score_coverage
