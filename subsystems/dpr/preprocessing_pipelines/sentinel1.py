@@ -1,7 +1,7 @@
 import os
 import json
 import shutil
-from pathlib import Path
+from pathlib import Path, PosixPath
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -13,6 +13,7 @@ import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
 from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import Polygon
 import pandas as pd
 import requests_cache
 import openmeteo_requests
@@ -22,6 +23,7 @@ from shapely.wkt import loads
 from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
+from lib.config import SettingsReader
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -30,27 +32,27 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
             'datadir': {
-                'dtype': Path,
+                'dtype': PosixPath,
                 'description': 'Path to the directory with Sentinel-1 SLC BURST data',
             },
             'aoi': {
-                'dtype': str | BaseGeometry,
+                'dtype': Polygon,
                 'description': 'POLYGON wkt string or Shapely Polygon, coordinates must be in WGS84 (EPSG:4326)',
             },
             'dem_path': {
-                'dtype': Path,
+                'dtype': PosixPath,
                 'description': 'Path where the DEM file will be downloaded and later used',
             },
             'landmask_path': {
-                'dtype': Path,
+                'dtype': PosixPath,
                 'description': 'Path where the landmask file will be downloaded and later used',
             },
             'workdir': {
-                'dtype': Path,
+                'dtype': PosixPath,
                 'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
             },
             'result_dir': {
-                'dtype': Path,
+                'dtype': PosixPath,
                 'description': 'Path to the directory where final results will be stored',
             },
         },
@@ -915,10 +917,18 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             shutil.rmtree(workdir)
 
     def _run(self):
+        glob_config = SettingsReader()
+        dask_kwargs = {
+            'silence_logs': glob_config['dask_parameters']['silence_logs'],
+            'n_workers': glob_config['dask_parameters']['n_workers'],
+            'threads_per_worker': glob_config['dask_parameters']['threads_per_worker'],
+            'memory_limit': glob_config['dask_parameters']['memory_limit'],
+        }
+
         self._download_orbits(self._config['datadir'])
         self._download_dem(self._config['aoi'], self._config['dem_path'])
         self._download_landmask(self._config['aoi'], self._config['landmask_path'])
-        self._run_dask_cluster()  # TODO: how to handle **kwargs?
+        self._run_dask_cluster(**dask_kwargs)
         self._stack_scenes(self._config['datadir'], self._config['workdir'])
         self._reframe_scenes(self._config['aoi'])
         self._load_dem_and_landmask(
