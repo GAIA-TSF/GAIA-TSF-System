@@ -16,22 +16,22 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
     metadata = {
         'title': 'Sentinel-2 Water Masking',
         'abstract': 'This pipeline generates water masks for Sentinel-2 scenes.'
-                    'Main processing steps include:'
-                    '(1) Parsing metadata from input folder and create a list of scenes. The user can apply a temporal'
-                    '    filter (optional) using "start_date" and "end_date" parameters.'
-                    '    (A) Optional. The user can provide a vector file (e.g., *.shp, *.gpkg) with digitized water'
-                    '        bodies (it is recommended to map the maximum extent of the water features) using the'
-                    '        "input_water_mask" parameter. This shapefile will be converted into a labeled array.'
-                    '    (B) Default. Filtered scenes (according to the percentage of cloud/snow/dark pixels using'
-                    '        "max_cloud_snow_dark" parameter) will be aggregated into a median raster. A water mask'
-                    '        will be derived by thresholding spectral indices. This mask is then converted into a'
-                    '        labeled array. This method is sensitive to topographic shadows. Winter months should be'
-                    '        avoided. The optional "input_months" parameter can be used to filter scenes by months.'
-                    '(3) Generation of a water mask for each Sentinel-2 scenes. Thresholding on spectral indices'
-                    '    (similar to step 2B) will be used to check the global water mask validity for a given scene.'
-                    '    Pixels that do not fulfill thresholding conditions are removed to create a scene mask.'
-                    '    If the scene mask contains valid pixels, it will be appended to the Sentinel-2 bands and the'
-                    '    merged raster will be exported to the output folder.',
+        'Main processing steps include:'
+        '(1) Parsing metadata from input folder and create a list of scenes. The user can apply a temporal'
+        '    filter (optional) using "start_date" and "end_date" parameters.'
+        '    (A) Optional. The user can provide a vector file (e.g., *.shp, *.gpkg) with digitized water'
+        '        bodies (it is recommended to map the maximum extent of the water features) using the'
+        '        "input_water_mask" parameter. This shapefile will be converted into a labeled array.'
+        '    (B) Default. Filtered scenes (according to the percentage of cloud/snow/dark pixels using'
+        '        "max_cloud_snow_dark" parameter) will be aggregated into a median raster. A water mask'
+        '        will be derived by thresholding spectral indices. This mask is then converted into a'
+        '        labeled array. This method is sensitive to topographic shadows. Winter months should be'
+        '        avoided. The optional "input_months" parameter can be used to filter scenes by months.'
+        '(3) Generation of a water mask for each Sentinel-2 scenes. Thresholding on spectral indices'
+        '    (similar to step 2B) will be used to check the global water mask validity for a given scene.'
+        '    Pixels that do not fulfill thresholding conditions are removed to create a scene mask.'
+        '    If the scene mask contains valid pixels, it will be appended to the Sentinel-2 bands and the'
+        '    merged raster will be exported to the output folder.',
         'params': {
             'input_folder': {
                 'dtype': PosixPath,
@@ -44,46 +44,46 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             'max_cloud_snow_dark': {
                 'dtype': float,
                 'description': 'Parameter used to filter scenes based on the maximum percentage of pixels containing '
-                               'clouds/snow/shadows. Ratio between 0 and 1. Scenes with a ratio above this value will '
-                               'be filtered out',
+                'clouds/snow/shadows. Ratio between 0 and 1. Scenes with a ratio above this value will '
+                'be filtered out',
                 'default': 0.2,
             },
             'threshold_parameters': {
                 'dtype': dict,
                 'description': 'Thresholds used to tag water bodies:'
-                               'Shadow Index is computed for NIR bands and range between 0 (light pixels) and'
-                               '    1 (darkest pixel). Water bodies absorb light in NIR and are thus expected to'
-                               '    have shadow index values close to 1.'
-                               'Spectral Angle is used to filter out pixels based on provided reference spectra (see'
-                               '    "reference_spectra" parameter). Smaller angles means greater spectral similarity.'
-                               '    Value in radians.'
-                               'VNIR regression slope and intercept are parameters based on the linear regression of'
-                               '    bands 1, 2, 6, 7, 8 and 8A. Water bodies have a relatively flat (or slightly'
-                               '    increasing/decreasing) profile in these bands, with slopes in the range 0-1 and'
-                               '    intercept close to 0. On the other hand soils and vegetation profiles have higher'
-                               '    slopes and strongly negative intercepts.'
-                               'Band 2 reflectance threshold (in scale 0-10000) is mainly used to filter out clouds.'
-                               'SWIR reflectance threshold (in scale 0-10000) is used to filter water bodies based on'
-                               '    the strong water absorption in these wavelengths.',
+                'Shadow Index is computed for NIR bands and range between 0 (light pixels) and'
+                '    1 (darkest pixel). Water bodies absorb light in NIR and are thus expected to'
+                '    have shadow index values close to 1.'
+                'Spectral Angle is used to filter out pixels based on provided reference spectra (see'
+                '    "reference_spectra" parameter). Smaller angles means greater spectral similarity.'
+                '    Value in radians.'
+                'VNIR regression slope and intercept are parameters based on the linear regression of'
+                '    bands 1, 2, 6, 7, 8 and 8A. Water bodies have a relatively flat (or slightly'
+                '    increasing/decreasing) profile in these bands, with slopes in the range 0-1 and'
+                '    intercept close to 0. On the other hand soils and vegetation profiles have higher'
+                '    slopes and strongly negative intercepts.'
+                'Band 2 reflectance threshold (in scale 0-10000) is mainly used to filter out clouds.'
+                'SWIR reflectance threshold (in scale 0-10000) is used to filter water bodies based on'
+                '    the strong water absorption in these wavelengths.',
                 'default': {
-                            'shadow index': 0.9,
-                            'spectral angle': 0.15,
-                            'vnir regression slope': 1,
-                            'vnir regression intercept': -500,
-                            'band 2': 2000,
-                            'swir reflectance': 1000
-                           },
+                    'shadow index': 0.9,
+                    'spectral angle': 0.15,
+                    'vnir regression slope': 1,
+                    'vnir regression intercept': -500,
+                    'band 2': 2000,
+                    'swir reflectance': 1000,
+                },
             },
             'input_water_mask': {
                 'dtype': PosixPath,
                 'description': 'The user can provide a vector file (e.g., .shp, .gpkg) for water bodies '
-                               'instead of relying on the pipeline filtering.',
+                'instead of relying on the pipeline filtering.',
                 'required': False,
             },
             'input_months': {
                 'dtype': list,
                 'description': 'List of months (e.g., [1, 2, 5, 6]) to use for water masking. Only applies'
-                               'if no vector file is provided by the "input_water_mask" parameter. ',
+                'if no vector file is provided by the "input_water_mask" parameter. ',
                 'required': False,
             },
             'start_date': {
@@ -104,36 +104,38 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             'reference_spectra': {
                 'dtype': list,
                 'description': 'List of reference spectra used as input for discarding pixels based on spectral'
-                               'similarity (i.e. Spectral Angle Mapper algorithm). Spectral angle threshold is set in'
-                               'the "threshold_parameters" dictionary and pixels below this threshold will be not be'
-                               'tagged as water pixels. NOTE: Sentinel-2 Band 9 is not used and should not be provided!'
-                               '(i.e. refernce spectra should contain 11 bands).',
-                'default':  [[
-                                261.0,
-                                498.5,
-                                748.5,
-                                971.0,
-                                1385.0,
-                                2026.0,
-                                2310.0,
-                                2550.0,
-                                2691.5,
-                                2933.0,
-                                1845.0,
-                            ],
-                            [
-                                32.0,
-                                124.0,
-                                285.0,
-                                183.0,
-                                531.0,
-                                1603.0,
-                                1903.5,
-                                2018.0,
-                                2081.0,
-                                921.0,
-                                432.0,
-                            ]],
+                'similarity (i.e. Spectral Angle Mapper algorithm). Spectral angle threshold is set in'
+                'the "threshold_parameters" dictionary and pixels below this threshold will be not be'
+                'tagged as water pixels. NOTE: Sentinel-2 Band 9 is not used and should not be provided!'
+                '(i.e. refernce spectra should contain 11 bands).',
+                'default': [
+                    [
+                        261.0,
+                        498.5,
+                        748.5,
+                        971.0,
+                        1385.0,
+                        2026.0,
+                        2310.0,
+                        2550.0,
+                        2691.5,
+                        2933.0,
+                        1845.0,
+                    ],
+                    [
+                        32.0,
+                        124.0,
+                        285.0,
+                        183.0,
+                        531.0,
+                        1603.0,
+                        1903.5,
+                        2018.0,
+                        2081.0,
+                        921.0,
+                        432.0,
+                    ],
+                ],
             },
         },
     }
@@ -187,15 +189,15 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         if not self.scenes_metadata.empty:
             # Temporal filtering
             if (
-                    self._config['start_date'] is not None
-                    or self._config['end_date'] is not None
+                self._config['start_date'] is not None
+                or self._config['end_date'] is not None
             ):
                 # Ensure we are working with a copy to avoid SettingWithCopy warnings
                 df = self.scenes_metadata.copy()
 
                 # Convert column to datetime if not already
                 if not pd.api.types.is_datetime64_any_dtype(
-                        df['DATATAKE_SENSING_START']
+                    df['DATATAKE_SENSING_START']
                 ):
                     df['DATATAKE_SENSING_START'] = pd.to_datetime(
                         df['DATATAKE_SENSING_START']
@@ -231,16 +233,16 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
             # Cloud/Snow/Dark pixels filtering
             self.scenes_metadata['cloud_snow_dark'] = (
-                    self.scenes_metadata['SCL_dark_areas']
-                    + self.scenes_metadata['SCL_snow_or_ice']
-                    + self.scenes_metadata['SCL_cloud_shadows']
-                    + self.scenes_metadata['cloud_cover_pct']
+                self.scenes_metadata['SCL_dark_areas']
+                + self.scenes_metadata['SCL_snow_or_ice']
+                + self.scenes_metadata['SCL_cloud_shadows']
+                + self.scenes_metadata['cloud_cover_pct']
             )
 
             self.scenes_metadata_filtered = self.scenes_metadata[
                 self.scenes_metadata['cloud_snow_dark']
                 < self._config['max_cloud_snow_dark']
-                ].copy()
+            ].copy()
 
             self.scenes_metadata_filtered['DATATAKE_SENSING_START'] = pd.to_datetime(
                 self.scenes_metadata_filtered['DATATAKE_SENSING_START']
@@ -348,7 +350,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         x_diff = x - x_mean
 
         numerator = np.dot(x_diff, y - y_mean)
-        denominator = np.sum(x_diff ** 2)
+        denominator = np.sum(x_diff**2)
 
         m = numerator / denominator
         b = y_mean - (m * x_mean)
@@ -373,7 +375,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             # Simple normalization (assuming 10000 reflectance scale)
             bands.append(b / 10000.0)
 
-        term = (1.0 - bands[0])
+        term = 1.0 - bands[0]
         for i in range(1, len(bands)):
             term = term * (1.0 - bands[i])
 
@@ -392,7 +394,6 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         return swir_reflect
 
     def _label_features(self, binary_mask):
-
         # Label components (we want the largest body to be 1)
         # Using scipy.ndimage.label
         labeled_array, num_features = label(binary_mask)
@@ -405,7 +406,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             feature_labels = labels[non_bg_indices]
             feature_counts = counts[non_bg_indices]
             # Get labels that do not meet minimum area threshold
-            small_labels = feature_labels[feature_counts < self._config['minimum_water_area_pixels']]
+            small_labels = feature_labels[
+                feature_counts < self._config['minimum_water_area_pixels']
+            ]
             # Create a copy of original input array
             filtered_mask = labeled_array.copy()
             # Mask out small features by setting their pixels to 0 (background) and re-label the array.
@@ -560,18 +563,23 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         sam_bands_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]
         angles = []
         for i in range(len(self._config['reference_spectra'])):
-            sam = self._calculate_spectral_angle(self._config['reference_spectra'][i], median_ds, sam_bands_idx)
+            sam = self._calculate_spectral_angle(
+                self._config['reference_spectra'][i], median_ds, sam_bands_idx
+            )
             angles.append(sam)
         min_angles = np.nanmin(np.array(angles), axis=0)
 
         # Spectral refinement condition (pixels to be REMOVED from the global water mask)
         binary_mask = (
-                (si > self._config['threshold_parameters']['shadow index'])
-                & (slope < self._config['threshold_parameters']['vnir regression slope'])
-                & (intercept > self._config['threshold_parameters']['vnir regression intercept'])
-                & (swir_reflect < self._config['threshold_parameters']['swir reflectance'])
-                & (min_angles > self._config['threshold_parameters']['spectral angle'])
-                & (band2 < self._config['threshold_parameters']['band 2'])
+            (si > self._config['threshold_parameters']['shadow index'])
+            & (slope < self._config['threshold_parameters']['vnir regression slope'])
+            & (
+                intercept
+                > self._config['threshold_parameters']['vnir regression intercept']
+            )
+            & (swir_reflect < self._config['threshold_parameters']['swir reflectance'])
+            & (min_angles > self._config['threshold_parameters']['spectral angle'])
+            & (band2 < self._config['threshold_parameters']['band 2'])
         ).astype(np.uint8)
 
         self.global_watermask = self._label_features(binary_mask)
@@ -589,8 +597,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         )
 
         if (
-                self._config['start_date'] is not None
-                or self._config['end_date'] is not None
+            self._config['start_date'] is not None
+            or self._config['end_date'] is not None
         ):
             self.logger.info(f'Temporal filter start = {self._config["start_date"]}')
             self.logger.info(f'Temporal filter end = {self._config["end_date"]}')
@@ -623,20 +631,31 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             sam_bands_idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]
             angles = []
             for i in range(len(self._config['reference_spectra'])):
-                sam = self._calculate_spectral_angle(self._config['reference_spectra'][i], gdal_dataset, sam_bands_idx)
+                sam = self._calculate_spectral_angle(
+                    self._config['reference_spectra'][i], gdal_dataset, sam_bands_idx
+                )
                 angles.append(sam)
             min_angles = np.nanmin(np.array(angles), axis=0)
 
             # Spectral refinement condition (pixels to be REMOVED from the global water mask)
             remove_conditions = (
-                    (si < self._config['threshold_parameters']['shadow index'])
-                    | (slope > self._config['threshold_parameters']['vnir regression slope'])
-                    | (intercept < self._config['threshold_parameters']['vnir regression intercept'])
-                    | (swir_reflect > self._config['threshold_parameters']['swir reflectance'])
-                    | (min_angles < self._config['threshold_parameters']['spectral angle'])
-                    | (band2 > self._config['threshold_parameters']['band 2'])
-                    | (scl >= 8)
-                    | (scl <= 1)
+                (si < self._config['threshold_parameters']['shadow index'])
+                | (
+                    slope
+                    > self._config['threshold_parameters']['vnir regression slope']
+                )
+                | (
+                    intercept
+                    < self._config['threshold_parameters']['vnir regression intercept']
+                )
+                | (
+                    swir_reflect
+                    > self._config['threshold_parameters']['swir reflectance']
+                )
+                | (min_angles < self._config['threshold_parameters']['spectral angle'])
+                | (band2 > self._config['threshold_parameters']['band 2'])
+                | (scl >= 8)
+                | (scl <= 1)
             )
 
             refined_mask = self.global_watermask.copy()

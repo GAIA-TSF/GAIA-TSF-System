@@ -77,8 +77,8 @@ class TestSentinel2Workflow:
 
         # Check if the files were created
         filename = (
-                os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-                + '.tiff'
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+            + '.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
         assert os.path.exists(tiff_path), f'The Geotiff was not created: {tiff_path}'
@@ -235,13 +235,13 @@ class TestSentinel2Workflow:
             max_cloud_snow_dark=0.1,
             input_months=[4, 5, 6, 7, 8, 9, 10],
             threshold_parameters={
-                                    'shadow index': 0.9,
-                                    'spectral angle': 0.15,
-                                    'vnir regression slope': 1,
-                                    'vnir regression intercept': -500,
-                                    'band 2': 2000,
-                                    'swir reflectance': 1000
-                                    }
+                'shadow index': 0.9,
+                'spectral angle': 0.15,
+                'vnir regression slope': 1,
+                'vnir regression intercept': -500,
+                'band 2': 2000,
+                'swir reflectance': 1000,
+            },
         )
         pipeline.run()
 
@@ -298,13 +298,13 @@ class TestSentinel2Workflow:
             max_cloud_snow_dark=0.1,
             input_months=[4, 5, 6, 7, 8, 9, 10],
             threshold_parameters={
-                                    'shadow index': 0.9,
-                                    'spectral angle': 0.15,
-                                    'vnir regression slope': 1,
-                                    'vnir regression intercept': -500,
-                                    'band 2': 2000,
-                                    'swir reflectance': 1000
-                                    }
+                'shadow index': 0.9,
+                'spectral angle': 0.15,
+                'vnir regression slope': 1,
+                'vnir regression intercept': -500,
+                'band 2': 2000,
+                'swir reflectance': 1000,
+            },
         )
         pipeline.run()
 
