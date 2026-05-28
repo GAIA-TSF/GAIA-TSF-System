@@ -268,7 +268,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.logger.warning(f'Error locating GeoTIFFs: {e}')
 
         if tiff_files:
-            ds = gdal.Open(tiff_files[0])
+            path = os.path.abspath(tiff_files[0])
+            ds = gdal.Open(path)
             if ds:
                 self.geotransform = ds.GetGeoTransform()
                 self.projection = ds.GetProjection()
@@ -525,7 +526,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         # Stacking rasters.
         # Note: Depending on memory, we might need to handle this differently (process by bands?) for very large stacks.
         for _, row in df.iterrows():
-            ds = gdal.Open(row['source_path'])
+            path = os.path.abspath(row['source_path'])
+            ds = gdal.Open(path)
             if ds is None:
                 continue
             stack.append(ds.ReadAsArray().astype(np.int16))
@@ -540,7 +542,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         median = np.median(stack, axis=0)
 
         # We use the first scene to get raster dimensions
-        first_tiff = df.iloc[0]['source_path']
+        first_tiff = os.path.abspath(df.iloc[0]['source_path'])
         ds_ref = gdal.Open(first_tiff)
         rows, cols = ds_ref.RasterYSize, ds_ref.RasterXSize
 
@@ -617,7 +619,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         for tiff_path in tiffs:
             self.logger.info(f'--- Processing {os.path.basename(tiff_path)}')
-
+            tiff_path = os.path.abspath(tiff_path)
             gdal_dataset = gdal.Open(tiff_path)
             if gdal_dataset is None:
                 return None
