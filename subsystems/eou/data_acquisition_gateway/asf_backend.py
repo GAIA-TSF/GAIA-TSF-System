@@ -10,7 +10,7 @@ from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisition
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
     def search(
         self,
-        aoi: str | BaseGeometry,
+        geom: str | BaseGeometry,
         start: str,
         end: str,
         direction: str,
@@ -19,7 +19,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
     ) -> GeoDataFrame:
         """Search for Sentinel-1 BURST data using ASF backend.
 
-        :param str | BaseGeometry aoi: geometry as WKT or shapely BaseGeometry object
+        :param str | BaseGeometry geom: geometry as WKT or shapely BaseGeometry object
         :param str start: start date to be used for temporal filter
         :param str end: end date to be used for temporal filter
         :param str direction: flight direction of Sentinel-1 satellites ('A' - ascending, 'D' - descending).
@@ -27,14 +27,14 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         :return: a collection of BURST data matching the criteria
         :rtype: GeoDataFrame
         """
-        if isinstance(aoi, str):
+        if isinstance(geom, str):
             try:
-                aoi = loads(aoi)
+                geom = loads(geom)
             except Exception as e:
                 raise ValueError(f'Failed to parse AOI WKT string: {e}')
 
         all_results = ASF.search(
-            aoi, startTime=start, stopTime=end, flightDirection=direction, **kwargs
+            geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
         )
         if path_number is None:
             best_orbit = all_results['pathNumber'].value_counts().idxmax()
@@ -56,3 +56,16 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         asf.download(target_dir, search_results.fileID.tolist(), **kwargs)
 
         return target_dir
+
+    def _download_all(
+        self, search_results: GeoDataFrame, target_dir: str, **kwargs
+    ) -> str:
+        """Download all selected Sentinel-1 BURST data using ASF backend.
+        This acts as a wrapper that redirects to the standard _download method.
+
+        :param GeoDataFrame search_results: search results to be downloaded returned by search method
+        :param str target_dir: target directory to store downloaded product
+        :return: a path to the directory with downloaded data
+        :rtype: str
+        """
+        return self._download(search_results, target_dir, **kwargs)

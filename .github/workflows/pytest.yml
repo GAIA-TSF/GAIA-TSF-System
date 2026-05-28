@@ -9,12 +9,14 @@ on:
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
+      - '**py'
       - "!**.md"
   pull_request:
     paths:
       - 'subsystems/**'
       - 'docker/**'
       - '.github/workflows/pytest.yml'
+      - '**py'
       - "!**.md"
 
 jobs:
@@ -34,7 +36,7 @@ jobs:
           for i in $(ls subsystems/ale/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -54,7 +56,7 @@ jobs:
           for i in $(ls subsystems/dag/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -79,7 +81,7 @@ jobs:
           for i in $(ls subsystems/dpr/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -vv $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -vv $i
             cd ..
           done
 
@@ -104,7 +106,7 @@ jobs:
           for i in $(ls subsystems/eou/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -124,7 +126,7 @@ jobs:
           for i in $(ls subsystems/isu/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -144,7 +146,7 @@ jobs:
           for i in $(ls subsystems/map/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -164,7 +166,7 @@ jobs:
           for i in $(ls subsystems/ntf/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -184,7 +186,7 @@ jobs:
           for i in $(ls subsystems/qcl/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -204,7 +206,7 @@ jobs:
           for i in $(ls subsystems/rep/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -224,7 +226,7 @@ jobs:
           for i in $(ls subsystems/sdi/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -244,7 +246,7 @@ jobs:
           for i in $(ls subsystems/vid/tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done
 
@@ -264,6 +266,6 @@ jobs:
           for i in $(ls tests/test*py); do
             echo "*** running test suite: $i ***"
             cd docker
-            docker compose exec gaiatesting python3 -m pytest -v $i
+            docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v $i
             cd ..
           done

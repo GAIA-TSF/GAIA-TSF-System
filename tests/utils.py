@@ -13,7 +13,7 @@ class TestUtils:
         :return: full path to test data file
         :rtype: Path
         """
-        return Path(__file__).parent / 'data' / filename
+        return Path(__file__).parent / 'assets' / filename
 
     @staticmethod
     def get_project_config_path(project_name):

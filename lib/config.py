@@ -5,6 +5,7 @@ from pathlib import Path
 
 from shapely import wkt
 from shapely.errors import ShapelyError
+from shapely.geometry.base import BaseGeometry
 from osgeo import gdal, osr
 
 gdal.UseExceptions()
@@ -101,20 +102,19 @@ class YamlValidator:
                 if Path(self.config_path.parent / value).exists() is False:
                     errors.append(f"AOI '{current_path}' not found.")
                 else:
-                    if self._is_valid_wkt(self.aoi()) is False:
+                    if self._is_valid_geom(self.aoi()) is False:
                         errors.append(f"Geometry in '{current_path}' is not valid.")
 
     @staticmethod
-    def _is_valid_wkt(wkt_string: str) -> bool:
+    def _is_valid_geom(geom: BaseGeometry) -> bool:
         """Check WKT by shapely if it's valid.
 
-        :param str wkt_string: WKT to be validated
+        :param BaseGeometry geom: geometry to be validated
 
         :return: validity flag (True/False)
         :rtype: bool
         """
         try:
-            geom = wkt.loads(wkt_string)
             return geom.is_valid
         except (ShapelyError, TypeError):
             return False
@@ -145,13 +145,13 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         self.validate(dict(self))
 
-    def aoi(self, target_epsg: int = 4326):
+    def aoi(self, target_epsg: int = 4326) -> BaseGeometry:
         """Get area of interest as WKT string in specified CRS.
 
         :param int epsg: EPSG code for target CRS
 
-        :return WKT string
-        :rtype str
+        :return: Shapely geometry
+        :rtype BaseGeometry
         """
         file_path = self.config_path.parent / self['project']['aoi']
         ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
@@ -179,10 +179,11 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         if transform is not None:
             geom.Transform(transform)
 
-        wkt = geom.ExportToWkt()
+        aoi_geom = wkt.loads(geom.ExportToWkt())
+
         ds = None
 
-        return wkt
+        return aoi_geom
 
 
 class SettingsReader(ConfigReader):
