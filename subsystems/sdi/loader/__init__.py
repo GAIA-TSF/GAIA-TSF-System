@@ -419,7 +419,7 @@ class EarthObservationDataLoader(SdiLoader):
         filename = os.path.basename(raster_path)
 
         # UPLOAD ORIGINAL GeoTIFF
-        self.logger.info(f'📤 Uploading original GeoTIFF: {filename}')
+        self.logger.info(f'Uploading original GeoTIFF: {filename}')
         s3_key_original = f'rasters/original/{asset_key}_{filename}'
 
         s3.upload_file(Filename=raster_path, Bucket=bucket_name, Key=s3_key_original)
