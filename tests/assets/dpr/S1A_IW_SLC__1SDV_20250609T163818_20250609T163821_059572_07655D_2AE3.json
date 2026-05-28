@@ -1,0 +1,85 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3",
+    "bbox": [
+        0.0,
+        1513.0,
+        0.0,
+        0.0
+    ],
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    0.0,
+                    1513.0
+                ],
+                [
+                    26722.0,
+                    1513.0
+                ],
+                [
+                    26722.0,
+                    0.0
+                ],
+                [
+                    0.0,
+                    0.0
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "datetime": "2025:06:09 17:20:59",
+        "platform": "sentinel-1a",
+        "constellation": "sentinel-1",
+        "instruments": [
+            "C-SAR"
+        ],
+        "processing:level": null,
+        "sar:instrument_mode": "IW",
+        "sar:product_type": "SLC",
+        "sar:polarizations": [
+            "VV",
+            "VH"
+        ],
+        "sar:frequency_band": "C",
+        "sar:resolution_range": 3.5,
+        "sar:resolution_azimuth": 22.6,
+        "sat:orbit_state": "descending",
+        "sat:relative_orbit": 66,
+        "view:incident_angle": 39.5,
+        "s1:product_uri": "S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE"
+    },
+    "assets": {
+        "VH": {
+            "href": "./test_MetadataGenerator_0050/S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ]
+        }
+    },
+    "collection": "sentinel-1-slc",
+    "links": [
+        {
+            "rel": "about",
+            "href": "https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex",
+            "title": "Sentinel-1 Single Look Complex (SLC) Technical Guide"
+        }
+    ],
+    "sar:bands": [
+        {
+            "name": "b1",
+            "description": "Gray"
+        }
+    ],
+    "providers": [
+        {
+            "name": "ASF",
+            "roles": "provider"
+        }
+    ]
+}
