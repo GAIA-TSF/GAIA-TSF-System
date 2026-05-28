@@ -19,7 +19,7 @@ sub-systems.
 
 ## Usage
 
-### Sentinel-1 pipeline
+### Sentinel-1 preprocessing pipeline
 
 Utilize the `Sentinel1Pipeline` from `PreprocessingPipelines` to automatically
 process Sentinel-1 SLC BURST data to compute displacement maps. The example also
@@ -42,6 +42,7 @@ base_dir = Path(SettingsReader()['storage']['data_dir']).resolve()
 data_dir = base_dir / 'sentinel1'
 
 if __name__ == '__main__':
+    # download input data
     dag_module = DataAcquisitionGateway(backend='asf')
     results = dag_module.backend.search(
         geom=project_config.aoi(),
@@ -49,10 +50,9 @@ if __name__ == '__main__':
         end='2022-01-31',
         direction='A',
     )
+    dag_module.backend.download_all(results, target_dir=data_dir)
 
-    data_path = Path(dag_module.backend.download_all(results, target_dir=data_dir))
-    print(data_path)
-
+    # configure & run the pipeline
     pipeline = PreprocessingPipelines().pipelines['sentinel1']
 
     pipeline.configure(
@@ -71,15 +71,7 @@ The results are stored in the `results` directory, which contains both
 displacement and velocity data as well as environmental and risk
 databases in CSV format.
 
-`Sentinel1Pipeline` uses a Dask Cluster for its computations. The parameters
-for this Dask Cluster can be configured in the global `config.yaml` file.
-The default values are as follows. These should be increased when processing
-larger volumes of data.
-
-```yaml
-dask_parameters:
-  silence_logs: 'CRITICAL'
-  n_workers: 2
-  threads_per_worker: 2
-  memory_limit: '8GB'
-```
+`Sentinel1Pipeline` uses a Dask Cluster for its computations. The
+parameters for this Dask Cluster can be configured in the global
+`config.yaml` file (`dask_parameters` section). These should be
+increased when processing larger volumes of data.
