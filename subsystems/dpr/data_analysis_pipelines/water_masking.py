@@ -28,7 +28,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         '        will be derived by thresholding spectral indices. This mask is then converted into a'
         '        labeled array. This method is sensitive to topographic shadows. Winter months should be'
         '        avoided. The optional "input_months" parameter can be used to filter scenes by months.'
-        '(3) Generation of a water mask for each Sentinel-2 scenes. Thresholding on spectral indices'
+        '(2) Generation of a water mask for each Sentinel-2 scenes. Thresholding on spectral indices'
         '    (similar to step 2B) will be used to check the global water mask validity for a given scene.'
         '    Pixels that do not fulfill thresholding conditions are removed to create a scene mask.'
         '    If the scene mask contains valid pixels, it will be appended to the Sentinel-2 bands and the'
@@ -83,8 +83,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             },
             'input_months': {
                 'dtype': list,
-                'description': 'List of months (e.g., [1, 2, 5, 6]) to use for water masking. Only applies'
-                'if no vector file is provided by the "input_water_mask" parameter. ',
+                'description': 'List of months (e.g., [1, 2, 5, 6]) to use for water masking.',
                 'required': False,
             },
             'start_date': {
