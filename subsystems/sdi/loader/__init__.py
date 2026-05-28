@@ -721,7 +721,7 @@ class EarthObservationDataLoader(SdiLoader):
                 os.remove(temp_reprojected)
                 self.logger.debug(f'Odstraněn dočasný soubor: {temp_reprojected}')
 
-            # 📊 Log file sizes
+            # Log file sizes
             input_size = os.path.getsize(input_file) / (1024 * 1024)
             output_size = os.path.getsize(output_file) / (1024 * 1024)
 
