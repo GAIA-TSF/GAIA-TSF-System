@@ -1,0 +1,135 @@
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from lib.base import GaiaBase, SubsystemId
+
+
+_TASK_REQUIRED_TYPES: Dict[str, List[str]] = {
+    'amd': ['s2', 'insitu'],
+}
+
+
+def _get_asset_type(asset: Dict) -> str:
+    platform = (asset.get('platform') or '').lower()
+    collection = (asset.get('collection') or '').lower()
+    mime_type = (asset.get('type') or '').lower()
+    instruments = str(asset.get('instruments', [])).lower()
+
+    if 'sentinel' in platform or 's2' in collection or 'msi' in instruments:
+        return 's2'
+    if 'postgresql' in mime_type or asset.get('asset_key') == 'data':
+        return 'insitu'
+    return 'unknown'
+
+
+class AssetChecker(GaiaBase):
+    """
+    Pre-flight quality check for STAC assets before running downstream computation.
+
+    Scores a list of assets on a 100-point scale. A task should only proceed
+    if the score meets the configured conformance threshold (default: 80).
+    """
+
+    def __init__(self):
+        super().__init__(SubsystemId.QCL)
+
+    def analyze_assets(
+        self,
+        assets: List[Dict],
+        key_variable: str = 'amd',
+        verbose: bool = True,
+    ) -> Dict:
+        """
+        Score STAC assets on a 100-point scale.
+
+        Rules:
+          - Must-Have Data (50 pts): all required types present; returns score=0 immediately if any missing
+          - Cloud Cover   (20 pts): avg S2 cloud cover <10%=20, 10-30%=10, >30%=0
+          - Time Spread   (20 pts): >=3 distinct acquisition dates = 20, else 0
+          - Map Coverage  (10 pts): placeholder, always 10 (full bbox check TBD)
+
+        :param assets: List of asset dicts returned by SdiReader.search_assets()
+        :param key_variable: Task type key used to look up required data types
+        :param verbose: Print a conformance report to stdout
+        :return: {'conformance': int, 'result': dict}
+        """
+        if not assets:
+            if verbose:
+                print("No assets to analyze")
+            return {'conformance': 0, 'result': {}}
+
+        required_types = _TASK_REQUIRED_TYPES.get(key_variable, [])
+        present_types = {_get_asset_type(a) for a in assets}
+
+        # Rule 1: Must-Have Data (50 pts, blocker)
+        missing_types = [t for t in required_types if t not in present_types]
+        if missing_types:
+            if verbose:
+                print(f"Conformance: 0 — missing required data types: {missing_types}")
+            return {'conformance': 0, 'result': {'missing_types': missing_types}}
+        score_must_have = 50
+
+        # Rule 2: Cloud Cover (20 pts)
+        needs_s2 = 's2' in required_types
+        avg_cloud: Optional[float] = None
+        if not needs_s2:
+            score_cloud = 20
+        else:
+            cloud_values = [
+                a['cloud_cover'] for a in assets
+                if _get_asset_type(a) == 's2' and a.get('cloud_cover') is not None
+            ]
+            if not cloud_values:
+                score_cloud = 20
+            else:
+                avg_cloud = sum(cloud_values) / len(cloud_values)
+                if avg_cloud < 10:
+                    score_cloud = 20
+                elif avg_cloud <= 30:
+                    score_cloud = 10
+                else:
+                    score_cloud = 0
+
+        # Rule 3: Time Spread (20 pts)
+        distinct_dates = set()
+        for asset in assets:
+            ts_str = asset.get('timestamp')
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+                    distinct_dates.add(ts.date())
+                except (ValueError, AttributeError):
+                    continue
+        score_time_spread = 20 if len(distinct_dates) >= 3 else 0
+
+        # Rule 4: Map Coverage (10 pts, placeholder)
+        score_coverage = 10
+
+        total = score_must_have + score_cloud + score_time_spread + score_coverage
+
+        result = {
+            'scores': {
+                'must_have_data': score_must_have,
+                'cloud_cover': score_cloud,
+                'time_spread': score_time_spread,
+                'map_coverage': score_coverage,
+            },
+            'present_types': list(present_types),
+            'distinct_dates': len(distinct_dates),
+            'avg_cloud_cover': avg_cloud,
+        }
+
+        if verbose:
+            cloud_str = f"{avg_cloud:.1f}%" if avg_cloud is not None else "n/a"
+            print("=" * 60)
+            print("ASSET CONFORMANCE CHECK")
+            print("=" * 60)
+            print(f"  Must-Have Data : {score_must_have:>3}/50  types present: {sorted(present_types)}")
+            print(f"  Cloud Cover    : {score_cloud:>3}/20  avg: {cloud_str}")
+            print(f"  Time Spread    : {score_time_spread:>3}/20  distinct dates: {len(distinct_dates)}")
+            print(f"  Map Coverage   : {score_coverage:>3}/10  (placeholder)")
+            print("-" * 60)
+            print(f"  TOTAL          : {total:>3}/100")
+            print("=" * 60)
+
+        return {'conformance': total, 'result': result}
