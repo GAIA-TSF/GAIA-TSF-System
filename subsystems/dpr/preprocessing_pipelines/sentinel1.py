@@ -457,7 +457,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
         except Exception as e:
-            print(f'[RISK] Slope extraction failed: {e}')
+            self.logger.error(f'[RISK] Slope extraction failed: {e}')
             sample = disp.isel({t_dim: 0}, drop=True)
             slope_da = xr.DataArray(
                 np.zeros(sample.shape), coords=sample.coords, dims=sample.dims
@@ -527,7 +527,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 except Exception:
                     locations[k]['alt'] = 0
         except Exception as e:
-            print(f'[ENVDB] Altitude sampling skipped: {e}')
+            self.logger.error(f'[ENVDB] Altitude sampling skipped: {e}')
 
         # Fetch & Process Climate Data
         climate_url = 'https://archive-api.open-meteo.com/v1/archive'
