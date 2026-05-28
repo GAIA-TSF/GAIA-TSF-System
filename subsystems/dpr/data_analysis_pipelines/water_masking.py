@@ -2,6 +2,7 @@ import os
 import json
 import glob
 from pathlib import PosixPath
+
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -35,11 +36,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         'params': {
             'input_folder': {
                 'dtype': PosixPath,
-                'description': 'Path to the folder containing the processed Sentinel-2 SAFE products (geotiffs)',
+                'description': 'Path to the folder containing the processed (clipped) Sentinel-2 SAFE products',
             },
             'output_folder': {
                 'dtype': PosixPath,
-                'description': 'Directory where the processed geotiffs will be saved.',
+                'description': 'Directory where the processed data will be saved.',
             },
             'max_cloud_snow_dark': {
                 'dtype': float,
@@ -175,7 +176,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 record = {
                     'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
                     'source_path': json_path.replace(
-                        '.json', '.tiff'
+                        '.json', '.jp2'
                     ),  # data.get('source_path'),
                     'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
                     'cloud_cover_pct': data.get('cloud_cover_pct', 0),
@@ -260,17 +261,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
     def _get_geotransform(self):
         """
-        Retrieve spatial data from first GeoTIFF in the input folder. Assumes that all scenes in the input folder share
+        Retrieve spatial data from first data file in the input folder. Assumes that all scenes in the input folder share
         the same EPSG and geotransform. Only used if a vector file is provided (input_water_mask is not None).
         """
-        self.logger.info('Retrieving spatial data from GeoTIFFs in input folder')
+        self.logger.info('Retrieving spatial data from input folder')
         try:
-            tiff_files = glob.glob(os.path.join(self._config['input_folder'], '*.tif*'))
+            data_files = glob.glob(os.path.join(self._config['input_folder'], '*.jp2'))
         except Exception as e:
-            self.logger.warning(f'Error locating GeoTIFFs: {e}')
+            self.logger.warning(f'Error locating data file: {e}')
 
-        if tiff_files:
-            path = os.path.abspath(tiff_files[0])
+        if data_files:
+            path = os.path.abspath(data_files[0])
             ds = gdal.Open(path)
             if ds:
                 self.geotransform = ds.GetGeoTransform()
@@ -440,10 +441,10 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         Ingests vector, reprojects, crops to bounds, and creates a size-labeled binary mask.
         """
 
-        print('Generating global water mask from vector file.')
+        self.logger.info('Generating global water mask from vector file.')
 
         if not self.bounds:
-            print('Bounding box is missing.')
+            self.logger.info('Bounding box is missing.')
 
         # Load vector
         gdf = gpd.read_file(self._config['input_water_mask'])
@@ -458,7 +459,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         gdf = gdf.clip(bbox_geom)
 
         if gdf.empty:
-            print('Could not parse the input water mask vectors.')
+            self.logger.info('Could not parse the input water mask vectors.')
 
         # Create an in-memory layer for GDAL to rasterize
         driver = gdal.GetDriverByName('MEM')
@@ -544,8 +545,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         median = np.median(stack, axis=0)
 
         # We use the first scene to get raster dimensions
-        first_tiff = os.path.abspath(df.iloc[0]['source_path'])
-        ds_ref = gdal.Open(first_tiff)
+        first_data_file = os.path.abspath(df.iloc[0]['source_path'])
+        ds_ref = gdal.Open(first_data_file)
         rows, cols = ds_ref.RasterYSize, ds_ref.RasterXSize
 
         # Save median as a temporary GDAL dataset
@@ -592,7 +593,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
     def _process_scenes(self):
         """
-        Iterates through GeoTIFFs, update the global water mask based on spectral indices, appends mask to GeoTIFFs
+        Iterates through data files, update the global water mask based on spectral indices, appends mask to data files
         and exports merged results to output folder.
         """
         self.logger.info('Generating water masks for filtered scenes.')
@@ -608,7 +609,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.logger.info(f'Temporal filter end = {self._config["end_date"]}')
 
         if self._config['input_months']:
-            print(f'Month filter = {self._config["input_months"]}')
+            self.logger.info(f'Month filter = {self._config["input_months"]}')
             self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered[
                 'DATATAKE_SENSING_START'
             ].dt.month
@@ -617,12 +618,12 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             )
             self.scenes_metadata_filtered = self.scenes_metadata_filtered[indices]
 
-        tiffs = list(self.scenes_metadata_filtered['source_path'])
+        data_files = list(self.scenes_metadata_filtered['source_path'])
 
-        for tiff_path in tiffs:
-            self.logger.info(f'--- Processing {os.path.basename(tiff_path)}')
-            tiff_path = os.path.abspath(tiff_path)
-            gdal_dataset = gdal.Open(tiff_path)
+        for data_path in data_files:
+            self.logger.info(f'--- Processing {os.path.basename(data_path)}')
+            data_path = os.path.abspath(data_path)
+            gdal_dataset = gdal.Open(data_path)
             if gdal_dataset is None:
                 return None
 
@@ -667,7 +668,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
             if np.nansum(refined_mask) > 0:
                 # Export if mask contains valid pixels
-                out_name = os.path.basename(tiff_path)
+                out_name = os.path.basename(data_path)
                 out_path = os.path.join(self._config['output_folder'], out_name)
 
                 driver = gdal.GetDriverByName('GTiff')
@@ -697,7 +698,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 # Copy and update metadata
-                json_path = tiff_path.replace('.tiff', '.json')
+                json_path = data_path.replace('.jp2', '.json')
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
@@ -705,7 +706,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     metadata['water_mask_pct'] = round(
                         np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
                     )
-                    with open(out_path.replace('.tiff', '.json'), 'w') as f:
+                    with open(out_path.replace('.jp2', '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)
 
         self.logger.info('Processing complete.')
