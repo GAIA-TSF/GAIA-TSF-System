@@ -9,6 +9,7 @@ from osgeo import gdal
 from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
+
 gdal.UseExceptions()
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -17,6 +18,7 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
 from lib.config import SettingsReader
+
 
 class TestSentinel2Workflow:
     def test_sentinel2_safe_processor(self):
@@ -199,15 +201,12 @@ class TestSentinel2Workflow:
 
         print(f'Test Passed: Cloud cover derived from SCL band is {cloud_pct}%')
 
-
     def water_masking_data(self):
         # Set path to folder containing sentinel-2 sample scenes
         input_folder = TestUtils.get_data_path('dpr/sentinel2_yxsjoberg')
 
         # Check if the folder has been located
-        assert input_folder.exists(), (
-            'The Sentinel-2 input folder was not found.'
-        )
+        assert input_folder.exists(), 'The Sentinel-2 input folder was not found.'
 
         # Set path to the vector file containing the water bodies
         input_water_mask = TestUtils.get_data_path('dpr/yxsjoberg_lakes.gpkg')
@@ -218,18 +217,20 @@ class TestSentinel2Workflow:
         )
 
         # Set path to output folder (delete pre-existing folder)
-        output_folder = Path(SettingsReader()['storage']['data_dir'], 'temp_water_masking_test')
+        output_folder = Path(
+            SettingsReader()['storage']['data_dir'], 'temp_water_masking_test'
+        )
         if output_folder.exists():
             shutil.rmtree(output_folder)
 
         return input_folder, input_water_mask, output_folder
-    
+
     def test_sentinel2_water_masking_default(self):
         """Test the Sentinel2 water masking pipeline.
         Run the pipeline in default mode (without user input file, input_water_mask=None)
         """
         input_folder, _, output_folder = self.water_masking_data()
-        
+
         pipeline = Sentinel2WaterMaskingPipeline()
         pipeline.configure(
             input_folder=input_folder,
@@ -294,10 +295,10 @@ class TestSentinel2Workflow:
         if output_folder.exists():
             shutil.rmtree(output_folder)
 
-    def test_sentinel2_water_masking_water_input(self):            
+    def test_sentinel2_water_masking_water_input(self):
         """Run the pipeline with vector file as input (input_water_mask)."""
         input_folder, input_water_mask, output_folder = self.water_masking_data()
-        
+
         pipeline = Sentinel2WaterMaskingPipeline()
         pipeline.configure(
             input_folder=input_folder,
