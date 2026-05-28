@@ -12,7 +12,6 @@ from pygmtsar import S1, Tiles, Stack
 import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
-from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 import pandas as pd
 import requests_cache
