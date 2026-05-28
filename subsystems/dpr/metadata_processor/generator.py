@@ -482,7 +482,7 @@ class InsituDataset(BaseDataset):
             'stac_version': '1.0.0',
             'stac_extensions': self.STAC_EXTENSIONS,
             'id': self.path.stem,
-            'collection': 'undefined',
+            'collection': self._data.get('collection', 'insitu'),
             'properties': properties,
             'geometry': self._build_geometry(bbox) if bbox else None,
             'bbox': bbox,
@@ -491,7 +491,10 @@ class InsituDataset(BaseDataset):
                     'href': self.path.name,
                     'type': 'text/csv',
                     'roles': ['data'],
-                    'table:columns': [{'name': c} for c in schema],
+                    'table:columns': [
+                        col if isinstance(col, dict) else {'name': col}
+                        for col in schema
+                    ],
                 }
             },
             'links': [],
