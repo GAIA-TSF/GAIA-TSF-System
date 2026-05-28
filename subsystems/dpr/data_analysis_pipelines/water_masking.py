@@ -174,7 +174,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 scl_stats = data.get('SCL_classes_pct', {})
                 record = {
                     'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
-                    'source_path': data.get('source_path'),
+                    'source_path': json_path.replace('.json', '.tiff')#data.get('source_path'),
                     'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
                     'cloud_cover_pct': data.get('cloud_cover_pct', 0),
                     'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
