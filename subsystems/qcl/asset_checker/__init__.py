@@ -58,12 +58,12 @@ class AssetChecker(GaiaBase):
         if key_variable not in _TASK_REQUIRED_TYPES:
             raise ValueError(
                 f"Unknown key_variable '{key_variable}'. "
-                f"Supported: {list(_TASK_REQUIRED_TYPES)}"
+                f'Supported: {list(_TASK_REQUIRED_TYPES)}'
             )
 
         if not assets:
             if verbose:
-                print("No assets to analyze")
+                print('No assets to analyze')
             return {'conformance': 0, 'result': {}}
 
         required_types = _TASK_REQUIRED_TYPES[key_variable]
@@ -73,7 +73,7 @@ class AssetChecker(GaiaBase):
         missing_types = [t for t in required_types if t not in present_types]
         if missing_types:
             if verbose:
-                print(f"Conformance: 0 — missing required data types: {missing_types}")
+                print(f'Conformance: 0 — missing required data types: {missing_types}')
             return {'conformance': 0, 'result': {'missing_types': missing_types}}
         score_must_have = 50
 
@@ -84,7 +84,8 @@ class AssetChecker(GaiaBase):
             score_cloud = 20
         else:
             cloud_values = [
-                a['cloud_cover'] for a in assets
+                a['cloud_cover']
+                for a in assets
                 if _get_asset_type(a) == 's2' and a.get('cloud_cover') is not None
             ]
             if not cloud_values:
@@ -128,16 +129,20 @@ class AssetChecker(GaiaBase):
         }
 
         if verbose:
-            cloud_str = f"{avg_cloud:.1f}%" if avg_cloud is not None else "n/a"
-            print("=" * 60)
-            print("ASSET CONFORMANCE CHECK")
-            print("=" * 60)
-            print(f"  Must-Have Data : {score_must_have:>3}/50  types present: {sorted(present_types)}")
-            print(f"  Cloud Cover    : {score_cloud:>3}/20  avg: {cloud_str}")
-            print(f"  Time Spread    : {score_time_spread:>3}/20  distinct dates: {len(distinct_dates)}")
-            print(f"  Map Coverage   : {score_coverage:>3}/10  (placeholder)")
-            print("-" * 60)
-            print(f"  TOTAL          : {total:>3}/100")
-            print("=" * 60)
+            cloud_str = f'{avg_cloud:.1f}%' if avg_cloud is not None else 'n/a'
+            print('=' * 60)
+            print('ASSET CONFORMANCE CHECK')
+            print('=' * 60)
+            print(
+                f'  Must-Have Data : {score_must_have:>3}/50  types present: {sorted(present_types)}'
+            )
+            print(f'  Cloud Cover    : {score_cloud:>3}/20  avg: {cloud_str}')
+            print(
+                f'  Time Spread    : {score_time_spread:>3}/20  distinct dates: {len(distinct_dates)}'
+            )
+            print(f'  Map Coverage   : {score_coverage:>3}/10  (placeholder)')
+            print('-' * 60)
+            print(f'  TOTAL          : {total:>3}/100')
+            print('=' * 60)
 
         return {'conformance': total, 'result': result}
