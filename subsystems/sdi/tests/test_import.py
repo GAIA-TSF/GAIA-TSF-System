@@ -126,7 +126,6 @@ class TestEarthObservationDataLoader:
 
         # Search for COG item
         for stac_item in items:
-            print(stac_item)
             if 'B01_cog' in stac_item['assets']:
                 asset = stac_item['assets']['B01_cog']
                 asset_cog_url = asset['href']
