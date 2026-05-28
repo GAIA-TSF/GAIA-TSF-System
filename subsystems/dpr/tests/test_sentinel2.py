@@ -77,8 +77,8 @@ class TestSentinel2Workflow:
 
         # Check if the files were created
         filename = (
-            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-            + '.tiff'
+                os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+                + '.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
         assert os.path.exists(tiff_path), f'The Geotiff was not created: {tiff_path}'
@@ -232,11 +232,16 @@ class TestSentinel2Workflow:
         pipeline.configure(
             input_folder=Path(input_folder),
             output_folder=Path(output_folder),
-            input_water_mask=None,
-            input_months=None,
-            start_date=None,
-            end_date=None,
             max_cloud_snow_dark=0.1,
+            input_months=[4, 5, 6, 7, 8, 9, 10],
+            threshold_parameters={
+                                    'shadow index': 0.9,
+                                    'spectral angle': 0.15,
+                                    'vnir regression slope': 1,
+                                    'vnir regression intercept': -500,
+                                    'band 2': 2000,
+                                    'swir reflectance': 1000
+                                    }
         )
         pipeline.run()
 
@@ -276,8 +281,8 @@ class TestSentinel2Workflow:
             )
             mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
             n_bodies = numpy.nanmax(mask)
-            assert 16 <= numpy.nanmax(n_bodies) <= 17, (
-                f'TEST 1: Expected 16 or 17 water bodies, but count is {n_bodies}.'
+            assert 12 <= numpy.nanmax(n_bodies) <= 14, (
+                f'TEST 1: Expected between 12 and 14 water bodies, but count is {n_bodies}.'
             )
 
         # Clear the output folder before running TEST 2
@@ -290,10 +295,16 @@ class TestSentinel2Workflow:
             input_folder=Path(input_folder),
             output_folder=Path(output_folder),
             input_water_mask=Path(input_water_mask),
-            input_months=None,
-            start_date=None,
-            end_date=None,
             max_cloud_snow_dark=0.1,
+            input_months=[4, 5, 6, 7, 8, 9, 10],
+            threshold_parameters={
+                                    'shadow index': 0.9,
+                                    'spectral angle': 0.15,
+                                    'vnir regression slope': 1,
+                                    'vnir regression intercept': -500,
+                                    'band 2': 2000,
+                                    'swir reflectance': 1000
+                                    }
         )
         pipeline.run()
 
