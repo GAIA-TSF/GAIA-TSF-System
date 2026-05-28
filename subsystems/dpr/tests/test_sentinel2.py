@@ -233,7 +233,10 @@ class TestSentinel2Workflow:
             input_folder=Path(input_folder),
             output_folder=Path(output_folder),
             max_cloud_snow_dark=0.1,
-            input_months=[4, 5, 6, 7, 8, 9, 10],
+            input_months=None,
+            start_date=None,
+            end_date=None,
+            input_water_mask=None,
             threshold_parameters={
                 'shadow index': 0.9,
                 'spectral angle': 0.15,
@@ -296,7 +299,9 @@ class TestSentinel2Workflow:
             output_folder=Path(output_folder),
             input_water_mask=Path(input_water_mask),
             max_cloud_snow_dark=0.1,
-            input_months=[4, 5, 6, 7, 8, 9, 10],
+            input_months=None,
+            start_date=None,
+            end_date=None,
             threshold_parameters={
                 'shadow index': 0.9,
                 'spectral angle': 0.15,
