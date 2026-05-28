@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from lib.base import GaiaBase, SubsystemId
+
 
 _TASK_REQUIRED_TYPES: Dict[str, List[str]] = {
     'amd': ['s2', 'insitu'],
@@ -21,21 +23,16 @@ def _get_asset_type(asset: Dict) -> str:
     return 'unknown'
 
 
-class AssetChecker:
+class AssetChecker(GaiaBase):
     """
     Pre-flight quality check for STAC assets before running downstream computation.
 
     Scores a list of assets on a 100-point scale. A task should only proceed
     if the score meets the configured conformance threshold (default: 80).
-
-    This class intentionally does not inherit GaiaBase. Asset conformance
-    checking is pure computation — it takes a list of asset dicts and returns
-    a score with no database writes, no logging side effects, and no external
-    calls. Inheriting GaiaBase would require a live database connection just
-    to run a quality check, which is an unnecessary coupling. The calling flow
-    (which already has its own GaiaBase logger) is responsible for logging the
-    conformance result.
     """
+
+    def __init__(self):
+        super().__init__(SubsystemId.QCL)
 
     def analyze_assets(
         self,
