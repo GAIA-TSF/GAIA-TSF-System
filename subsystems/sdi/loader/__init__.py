@@ -304,7 +304,7 @@ class InSituDataLoader(SdiLoader):
                             # Update site_id based on geometry position.
                             # All records on the same position will have the same side_id.
                             cur.execute(
-                                sql.SQL('''
+                                sql.SQL("""
                                         UPDATE {table} t
                                         SET site_id = subquery.generated_site_id
                                         FROM (
@@ -315,7 +315,7 @@ class InSituDataLoader(SdiLoader):
                                             GROUP BY ST_AsText(geom)
                                             ) subquery
                                         WHERE t.id = subquery.id
-                                        ''').format(table=table_ident)
+                                        """).format(table=table_ident)
                             )
 
                         # Create spatial index
