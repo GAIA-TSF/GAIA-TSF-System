@@ -20,11 +20,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-2 SAFE Processor',
         'abstract': 'Perform the conversion of a Level2A Sentinel-2 SAFE product to a geotiff.'
-                    'Processing steps include:'
-                    '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
-                    '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
-                    'using GDAL'
-                    '(3) Saving output geotiff and metadata to an output folder.',
+        'Processing steps include:'
+        '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
+        '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
+        'using GDAL'
+        '(3) Saving output geotiff and metadata to an output folder.',
         'params': {
             'input_safe': {
                 'dtype': PosixPath,
@@ -262,7 +262,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # List resampling algorithms to be used for each spectral bands and add 'near' for SCL band (integers)
         resampling_algorithms = [self._config['resampling_alg']] * (
-                len(jp2_paths) - 1
+            len(jp2_paths) - 1
         ) + ['near']
 
         # Make an empty list to store paths to temp VRT files
@@ -292,7 +292,21 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             resampled_vrt_files.append(vrt_output)
 
         # Band names for output files
-        band_names = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
+        band_names = [
+            'B01',
+            'B02',
+            'B03',
+            'B04',
+            'B05',
+            'B06',
+            'B07',
+            'B08',
+            'B8A',
+            'B09',
+            'B11',
+            'B12',
+            'SCL',
+        ]
 
         if self._config['split_bands']:
             # Save each band as a separate GeoTIFF
@@ -307,13 +321,19 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             mask = scl_data <= 1  # SCL values: NODATA=0 and SATURATED=1
             del scl_ds
 
-            for i, (vrt_file, band_name, offset) in enumerate(zip(resampled_vrt_files, band_names, offsets)):
+            for i, (vrt_file, band_name, offset) in enumerate(
+                zip(resampled_vrt_files, band_names, offsets)
+            ):
                 output_filename = f'{base_name}_{band_name}.tiff'
-                output_path = os.path.join(self._config['output_folder'], output_filename)
+                output_path = os.path.join(
+                    self._config['output_folder'], output_filename
+                )
                 options = ['COMPRESS=LZW', 'TILED=YES']
 
                 # Convert VRT to GeoTIFF
-                gdal.Translate(output_path, vrt_file, format='GTiff', creationOptions=options)
+                gdal.Translate(
+                    output_path, vrt_file, format='GTiff', creationOptions=options
+                )
 
                 # Apply offset and mask (except for SCL band)
                 if band_name != 'SCL':
@@ -333,14 +353,18 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self.s2_metadata['source_paths'] = [str(p) for p in output_paths]
         else:
             # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
-            mosaic_vrt = os.path.join(self._config['output_folder'], 'combined_output.vrt')
+            mosaic_vrt = os.path.join(
+                self._config['output_folder'], 'combined_output.vrt'
+            )
             gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
 
             # Create the final geotiff
             product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
             output_path = os.path.join(self._config['output_folder'], product_name)
             options = ['COMPRESS=LZW', 'TILED=YES']
-            gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
+            gdal.Translate(
+                output_path, mosaic_vrt, format='GTiff', creationOptions=options
+            )
 
             # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
             ds = gdal.Open(output_path, gdal.GA_Update)
