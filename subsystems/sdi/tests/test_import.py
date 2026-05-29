@@ -47,6 +47,19 @@ class TestInSituDataLoader:
             count = cur.fetchone()[0]
             assert count == 20
 
+            # Test that id and site_id columns exist
+            cur.execute("""
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = 'prague'
+                          AND table_name = 'measurement_ph_202602_data'
+                          AND column_name IN ('id', 'site_id');
+                        """)
+            columns = [row[0] for row in cur.fetchall()]
+
+            assert 'id' in columns, "Column 'id' not found in table"
+            assert 'site_id' in columns, "Column 'site_id' not found in table"
+
     def test_import_append_data(self, db_connection):
         utils = SdiUtils()
 

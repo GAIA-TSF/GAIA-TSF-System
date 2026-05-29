@@ -223,6 +223,16 @@ class InSituDataLoader(SdiLoader):
                     sql.SQL('{} {}').format(sql.Identifier(col_name), sql.SQL(sql_type))
                 )
 
+            # Add id column if it does not exist
+            has_id = any(col['name'].lower() == 'id' for col in columns)
+            if not has_id:
+                sql_columns.append(sql.SQL('id SERIAL PRIMARY KEY'))
+
+            # Add site_id column if it does not exist
+            has_site_id = any(col['name'].lower() == 'site_id' for col in columns)
+            if not has_site_id:
+                sql_columns.append(sql.SQL('site_id INT'))
+
             # Always add geom column
             sql_columns.append(sql.SQL('geom geometry(Point, 4326)'))
 
@@ -289,6 +299,23 @@ class InSituDataLoader(SdiLoader):
                                 sql.SQL(
                                     'UPDATE {} SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)'
                                 ).format(table_ident)
+                            )
+
+                            # Update site_id based on geometry position.
+                            # All records on the same position will have the same side_id.
+                            cur.execute(
+                                sql.SQL('''
+                                        UPDATE {table} t
+                                        SET site_id = subquery.generated_site_id
+                                        FROM (
+                                            SELECT
+                                            UNNEST(ARRAY_AGG(id)) as id,
+                                            ROW_NUMBER() OVER (ORDER BY MIN(id)) as generated_site_id
+                                            FROM {table}
+                                            GROUP BY ST_AsText(geom)
+                                            ) subquery
+                                        WHERE t.id = subquery.id
+                                        ''').format(table=table_ident)
                             )
 
                         # Create spatial index
