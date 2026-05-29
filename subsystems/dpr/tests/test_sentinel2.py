@@ -90,8 +90,8 @@ class TestSentinel2Workflow:
 
         # Check if the files were created
         filename = (
-                os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-                + '.tiff'
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+            + '.tiff'
         )
         tiff_path = os.path.join(output_folder, filename)
         assert os.path.exists(tiff_path), f'The Geotiff was not created: {tiff_path}'
@@ -195,7 +195,9 @@ class TestSentinel2Workflow:
         )
 
         # Verify configuration before running
-        assert pipeline._config['split_bands'] is True, 'split_bands configuration not set correctly'
+        assert pipeline._config['split_bands'] is True, (
+            'split_bands configuration not set correctly'
+        )
 
         pipeline.run()
 
@@ -211,7 +213,7 @@ class TestSentinel2Workflow:
             metadata = json.load(f)
 
         # Debug: print what keys are actually in metadata
-        print(f"Keys in metadata: {list(metadata.keys())}")
+        print(f'Keys in metadata: {list(metadata.keys())}')
 
         essential_keys = [
             'PRODUCT_START_TIME',
@@ -227,14 +229,32 @@ class TestSentinel2Workflow:
             'Input_SAFE_path',
         ]
         for key in essential_keys:
-            assert key in metadata, f'Key {key} is missing from metadata file. Available keys: {list(metadata.keys())}'
+            assert key in metadata, (
+                f'Key {key} is missing from metadata file. Available keys: {list(metadata.keys())}'
+            )
 
         # Check if all 13 band files were created
-        expected_bands = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12', 'SCL']
+        expected_bands = [
+            'B01',
+            'B02',
+            'B03',
+            'B04',
+            'B05',
+            'B06',
+            'B07',
+            'B08',
+            'B8A',
+            'B09',
+            'B11',
+            'B12',
+            'SCL',
+        ]
         for band_name in expected_bands:
             band_filename = f'{base_filename}_{band_name}.tiff'
             band_path = os.path.join(output_folder, band_filename)
-            assert os.path.exists(band_path), f'Band file {band_filename} was not created.'
+            assert os.path.exists(band_path), (
+                f'Band file {band_filename} was not created.'
+            )
 
         # Verify that source_paths contains all 13 files
         assert 'source_paths' in metadata, 'source_paths key is missing from metadata.'
