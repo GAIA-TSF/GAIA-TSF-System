@@ -155,20 +155,6 @@ from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 ''' PART 1 - SENTINEL-2 PRODUCTS DOWNLOAD (SAFE)                                                                     '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-### Sentinel-1 preprocessing pipeline
-
-Utilize the `Sentinel1Pipeline` from `PreprocessingPipelines` to automatically
-process Sentinel-1 SLC BURST data to compute displacement maps. The example also
-includes downloading Sentinel-1 SLC BURST data using the `DataAcquisitionGateway`
-module.
-
-```py
-from pathlib import Path
-
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-from lib.config import ProjectConfigReader, SettingsReader
-from tests.utils import TestUtils
 
 project_config = ProjectConfigReader(
     TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
@@ -299,6 +285,21 @@ pipeline.configure(
 )
 pipeline.run()
 ```
+
+### Sentinel-1 preprocessing pipeline
+
+Utilize the `Sentinel1Pipeline` from `PreprocessingPipelines` to automatically
+process Sentinel-1 SLC BURST data to compute displacement maps. The example also
+includes downloading Sentinel-1 SLC BURST data using the `DataAcquisitionGateway`
+module.
+
+```py
+from pathlib import Path
+
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
+from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from lib.config import ProjectConfigReader, SettingsReader
+from tests.utils import TestUtils
 base_dir = Path(SettingsReader()['storage']['data_dir']).resolve()
 data_dir = base_dir / 'sentinel1'
 

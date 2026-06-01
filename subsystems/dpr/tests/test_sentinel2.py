@@ -21,11 +21,6 @@ from tests.utils import TestUtils
 from lib.config import SettingsReader
 
 
-class TestSentinel2Workflow:
-    def test_sentinel2_safe_processor(self):
-        """Test the Sentinel2SafeProcessor."""
-        # Retrieve a Sentinel-2 safe product using EOU's DataAcquisitionGateway
-        dag_module = DataAcquisitionGateway()
 @pytest.fixture(scope='class')
 def sentinel2_data():
     """Fixture to download Sentinel-2 data once for all tests in the class."""
