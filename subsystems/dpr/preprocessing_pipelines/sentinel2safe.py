@@ -38,7 +38,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             'output_format': {
                 'dtype': str,
                 'description': 'Format of the output raster(s): "tiff" or "jp2".',
-                'default': "jp2",
+                'default': 'jp2',
             },
             'overwrite': {
                 'dtype': bool,
@@ -62,7 +62,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             'split_bands': {
                 'dtype': bool,
                 'description': 'If True, saves each band to a separate raster file. If False, merges all '
-                               'bands into a single multi-band raster.',
+                'bands into a single multi-band raster.',
                 'default': False,
             },
         },
@@ -286,14 +286,15 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
             src_ds = gdal.Open(input_tiff)
             translate_options = gdal.TranslateOptions(
-                format='JP2OpenJPEG',
-                creationOptions=['QUALITY=100', 'REVERSIBLE=YES']
+                format='JP2OpenJPEG', creationOptions=['QUALITY=100', 'REVERSIBLE=YES']
             )
             gdal.Translate(output_jp2, src_ds, options=translate_options)
             src_ds = None
             os.remove(input_tiff)
 
-        self.s2_metadata['source_path'] = [path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_path']]
+        self.s2_metadata['source_path'] = [
+            path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_path']
+        ]
 
     def _process_and_merge_jp2(self, roi):
         """
@@ -415,7 +416,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     self._config['output_folder'], output_filename
                 )
 
-                options = ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2"]
+                options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
 
                 # Convert VRT to GeoTIFF or JP2
                 gdal.Translate(
@@ -457,9 +458,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             product_name = f'{base_name}.tiff'
             output_path = os.path.join(self._config['output_folder'], product_name)
 
-            options = ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2"]
+            options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
-                output_path, mosaic_vrt, format="GTiff", creationOptions=options
+                output_path, mosaic_vrt, format='GTiff', creationOptions=options
             )
 
             # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
@@ -484,7 +485,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # Clean temp mosaic VRT
             gdal.Unlink(mosaic_vrt)
 
-        if self.driver_name == "JP2OpenJPEG":
+        if self.driver_name == 'JP2OpenJPEG':
             self._tiff_to_jp2()
 
         # Clean temp files
@@ -507,10 +508,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             path = os.path.join(
                 self._config['output_folder'], product.replace('.zip', '.tiff')
             )
-            if os.path.exists(path) \
-                    or os.path.exists(path.replace('.tiff', '.jp2'))\
-                    or os.path.exists(path.replace('.tiff', '_B01.tiff'))\
-                    or os.path.exists(path.replace('.tiff', '_B01.jp2')):
+            if (
+                os.path.exists(path)
+                or os.path.exists(path.replace('.tiff', '.jp2'))
+                or os.path.exists(path.replace('.tiff', '_B01.tiff'))
+                or os.path.exists(path.replace('.tiff', '_B01.jp2'))
+            ):
                 self.logger.info(
                     f'Skipping processing of {product}: '
                     f'A raster file with same name already exists in the output folder.'
@@ -521,10 +524,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # Determine GDAL driver and file extension based on format argument
         format_lower = self._config['output_format'].lower().strip()
-        if format_lower in ["tiff", "tif", "geotiff"]:
-            self.driver_name = "GTiff"
-        elif format_lower in ["jp2", "jpeg2000", "jpeg 2000"]:
-            self.driver_name = "JP2OpenJPEG"
+        if format_lower in ['tiff', 'tif', 'geotiff']:
+            self.driver_name = 'GTiff'
+        elif format_lower in ['jp2', 'jpeg2000', 'jpeg 2000']:
+            self.driver_name = 'JP2OpenJPEG'
         else:
             raise ValueError(
                 f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
