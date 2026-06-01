@@ -2,6 +2,7 @@ import os
 import json
 import zipfile
 import shutil
+import numpy
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
 
@@ -19,12 +20,12 @@ gdal.UseExceptions()
 class Sentinel2SafeProcessor(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-2 SAFE Processor',
-        'abstract': 'Perform the conversion of a Level2A Sentinel-2 SAFE product to a geotiff.'
+        'abstract': 'Perform the clipping and resampling of a Level2A Sentinel-2 SAFE product.'
         'Processing steps include:'
         '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
         '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
         'using GDAL'
-        '(3) Saving output geotiff and metadata to an output folder.',
+        '(3) Saving output raster (separate bands or multi-band) and metadata to an output folder.',
         'params': {
             'input_safe': {
                 'dtype': PosixPath,
@@ -32,11 +33,16 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             },
             'output_folder': {
                 'dtype': PosixPath,
-                'description': 'Directory where the resulting geotiff and corresponding metadata will be saved.',
+                'description': 'Directory where the resulting raster(s) and corresponding metadata will be saved.',
+            },
+            'output_format': {
+                'dtype': str,
+                'description': 'Format of the output raster(s): "tiff" or "jp2".',
+                'default': "jp2",
             },
             'overwrite': {
                 'dtype': bool,
-                'description': 'If true overwrites any geotiff with same filename present in the output folder.',
+                'description': 'If true overwrites any raster with same filename present in the output folder.',
                 'default': False,
             },
             'roi': {
@@ -55,7 +61,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             },
             'split_bands': {
                 'dtype': bool,
-                'description': 'If True, saves each band to a separate GeoTIFF file. If False, merges all bands into a single GeoTIFF.',
+                'description': 'If True, saves each band to a separate raster file. If False, merges all '
+                               'bands into a single multi-band raster.',
                 'default': False,
             },
         },
@@ -65,6 +72,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         """Initialize the processor with None values."""
         self.input_folder = None
         self.s2_metadata = {}
+
+        self.driver_name = None
 
         # Paths to specific files
         self.msil2a_path = None
@@ -210,6 +219,82 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         transformed_geom = transform(transformer.transform, geom)
         return transformed_geom.wkt
 
+    def _process_scl_statistics(self, slc_array):
+        """
+        Extracts the SCL band, calculates pixel counts for each class,
+        and appends the results to the JSON file.
+        """
+
+        if numpy.nanmax(slc_array) > 12 or numpy.nanmax(slc_array) < 0:
+            raise ValueError(
+                f'Invalid SCL values {numpy.nanmax(slc_array)}. SCL values should be comprised between 1'
+                f'and 12.'
+            )
+
+        # Get the unique values and their counts
+        unique, counts = numpy.unique(slc_array, return_counts=True)
+        npix = numpy.sum(counts)
+
+        # List of SLC band labels corresponding to pixel values 0 to 11
+        slc_labels = [
+            'SCL_no_data',
+            'SCL_saturated_or_defective',
+            'SCL_dark_areas',
+            'SCL_cloud_shadows',
+            'SCL_vegetation',
+            'SCL_non_vegetated',
+            'SCL_water',
+            'SCL_unclassified',
+            'SCL_cloud_medium_probability',
+            'SCL_cloud_high_probability',
+            'SCL_thin_cirrus',
+            'SCL_snow_or_ice',
+        ]
+
+        # Initialize a dictionary with the labels and 0s
+        stats_dict = dict.fromkeys(slc_labels, 0)
+
+        # get pixel percentages (float 0.0 - 1.0) for classes appearing in the SCL band
+        for k, v in zip(unique, counts):
+            stats_dict[slc_labels[k]] = round(v / npix, 4)
+
+        # Sum of cloud classes (key named 'cloud_cover_pct' as in QCL subsystem)
+        sum_cloud_classes = (
+            stats_dict['SCL_cloud_medium_probability']
+            + stats_dict['SCL_cloud_high_probability']
+            + stats_dict['SCL_thin_cirrus']
+        )
+        cloud_cover_pct = {'cloud_cover_pct': sum_cloud_classes}
+
+        # add a no data key named 'null_pixel_pct' as in QCL subsystem
+        null_pixel_pct = {'null_pixel_pct': stats_dict['SCL_no_data']}
+
+        # Update metadata object
+        self.s2_metadata['SCL_classes_pct'] = stats_dict
+        self.s2_metadata.update(cloud_cover_pct)
+        self.s2_metadata.update(null_pixel_pct)
+
+    def _tiff_to_jp2(self):
+        """
+        Convertion of outputs from Geotiff to OpenJPEG
+        """
+
+        self.logger.info('Converting outputs to JP2OpenJPEG.')
+
+        for input_tiff in self.s2_metadata['source_path']:
+            output_jp2 = input_tiff.replace('.tiff', '.jp2')
+
+            src_ds = gdal.Open(input_tiff)
+            translate_options = gdal.TranslateOptions(
+                format='JP2OpenJPEG',
+                creationOptions=['QUALITY=100', 'REVERSIBLE=YES']
+            )
+            gdal.Translate(output_jp2, src_ds, options=translate_options)
+            src_ds = None
+            os.remove(input_tiff)
+
+        self.s2_metadata['source_path'] = [path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_path']]
+
     def _process_and_merge_jp2(self, roi):
         """
         Makes a list of .jp2 files, resamples them to a consistent resolution,
@@ -308,17 +393,18 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             'SCL',
         ]
 
+        base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
         if self._config['split_bands']:
             # Save each band as a separate GeoTIFF
             self.logger.info('Saving bands as separate GeoTIFF files')
             output_paths = []
-            base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
 
             # Load SCL band for masking
             scl_vrt = resampled_vrt_files[-1]
             scl_ds = gdal.Open(scl_vrt)
-            scl_data = scl_ds.GetRasterBand(1).ReadAsArray()
-            mask = scl_data <= 1  # SCL values: NODATA=0 and SATURATED=1
+            scl_data = scl_ds.GetRasterBand(1)
+            mask = scl_data.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
+            scl_data.FlushCache()
             del scl_ds
 
             for i, (vrt_file, band_name, offset) in enumerate(
@@ -328,11 +414,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 output_path = os.path.join(
                     self._config['output_folder'], output_filename
                 )
-                options = ['COMPRESS=LZW', 'TILED=YES']
 
-                # Convert VRT to GeoTIFF
+                options = ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2"]
+
+                # Convert VRT to GeoTIFF or JP2
                 gdal.Translate(
-                    output_path, vrt_file, format='GTiff', creationOptions=options
+                    output_path, vrt_file, format='Gtiff', creationOptions=options
                 )
 
                 # Apply offset and mask (except for SCL band)
@@ -345,12 +432,20 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     band.WriteArray(data)
                     band.FlushCache()
                     del ds
+                else:
+                    # get land cover stats from SCL band
+                    ds = gdal.Open(output_path, gdal.GA_ReadOnly)
+                    band = ds.GetRasterBand(1)
+                    scl_data = band.ReadAsArray()
+                    self._process_scl_statistics(scl_data)
+                    del ds
 
                 output_paths.append(output_path)
                 self.logger.info(f'Band {band_name} saved to: {output_path}')
 
             # Add paths to the metadata
-            self.s2_metadata['source_paths'] = [str(p) for p in output_paths]
+            self.s2_metadata['source_path'] = [str(p) for p in output_paths]
+
         else:
             # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
             mosaic_vrt = os.path.join(
@@ -359,11 +454,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
 
             # Create the final geotiff
-            product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
+            product_name = f'{base_name}.tiff'
             output_path = os.path.join(self._config['output_folder'], product_name)
-            options = ['COMPRESS=LZW', 'TILED=YES']
+
+            options = ["COMPRESS=DEFLATE", "TILED=YES", "PREDICTOR=2"]
             gdal.Translate(
-                output_path, mosaic_vrt, format='GTiff', creationOptions=options
+                output_path, mosaic_vrt, format="GTiff", creationOptions=options
             )
 
             # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
@@ -377,8 +473,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 data[mask] = -32768
                 band.WriteArray(data)
                 band.FlushCache()
+            # get land cover stats from SCL band
+            self._process_scl_statistics(scl_band.ReadAsArray())
             del ds
-            self.logger.info(f'GeoTIFF saved to: {output_path}')
+            self.logger.info(f'{self.driver_name} saved to: {output_path}')
 
             # Add path to the metadata
             self.s2_metadata['source_path'] = str(output_path)
@@ -386,24 +484,51 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # Clean temp mosaic VRT
             gdal.Unlink(mosaic_vrt)
 
+        if self.driver_name == "JP2OpenJPEG":
+            self._tiff_to_jp2()
+
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
 
     def _run(self):
+        self._configure()
+        # Ensure paths are Path objects
+        if isinstance(self._config['output_folder'], Path) is False:
+            self._config['output_folder'] = Path(self._config['output_folder'])
+        if isinstance(self._config['input_safe'], Path) is False:
+            self._config['input_safe'] = Path(self._config['input_safe'])
+
         # Ensure output folder exists
         self._config['output_folder'].mkdir(parents=True, exist_ok=True)
 
         product = os.path.basename(self._config['input_safe'])
-        self.logger.info('Processing {product}')
-        path = os.path.join(
-            self._config['output_folder'], product.replace('.zip', '.tiff')
-        )
-        if os.path.exists(path) and self._config['overwrite'] is False:
-            self.logger.info(
-                'Skipping processing: A geotiff file already exists in the output folder.'
+        if self._config['overwrite'] is False:
+            path = os.path.join(
+                self._config['output_folder'], product.replace('.zip', '.tiff')
             )
-            return
+            if os.path.exists(path) \
+                    or os.path.exists(path.replace('.tiff', '.jp2'))\
+                    or os.path.exists(path.replace('.tiff', '_B01.tiff'))\
+                    or os.path.exists(path.replace('.tiff', '_B01.jp2')):
+                self.logger.info(
+                    f'Skipping processing of {product}: '
+                    f'A raster file with same name already exists in the output folder.'
+                )
+                return
+
+        self.logger.info(f'Processing {product}')
+
+        # Determine GDAL driver and file extension based on format argument
+        format_lower = self._config['output_format'].lower().strip()
+        if format_lower in ["tiff", "tif", "geotiff"]:
+            self.driver_name = "GTiff"
+        elif format_lower in ["jp2", "jpeg2000", "jpeg 2000"]:
+            self.driver_name = "JP2OpenJPEG"
+        else:
+            raise ValueError(
+                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
+            )
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
         if os.path.isdir(self._config['input_safe']):
