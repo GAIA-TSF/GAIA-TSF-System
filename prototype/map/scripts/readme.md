@@ -1,6 +1,16 @@
 
 ### This is short note on prototyping scripts
 
+**DAG/MAP Scripts**                   Description 
+
+1. amd_eda.py                         Exploratory data analysis (before any modelling) 
+2. amd_spectral_indicators.py         Calculate spectral EO products 
+3. amd_temporal_features.py           Calculate temporal features (dynamics) 
+4. amd_anomalies.py                   Detect anomaly scoring  
+5. amd_risk_maps.py                   Spatial aggregation  
+6. xai_analysis.py                    Calculate explainability       
+
+
 **EDA** 
 
 Louis' profile reproduction (B2 thr cloud masking) 
