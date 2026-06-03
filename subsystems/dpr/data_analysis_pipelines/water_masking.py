@@ -182,7 +182,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             elif os.path.exists(json_path.replace('.json', '.tiff')):
                 raster_path = json_path.replace('.json', '.tiff')
             else:
-                raise FileNotFoundError(f'Could not locate the raster associated with {json_path}')
+                raise FileNotFoundError(
+                    f'Could not locate the raster associated with {json_path}'
+                )
 
             scl_stats = data.get('SCL_classes_pct', {})
             record = {
@@ -277,8 +279,10 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         raster_path = os.path.abspath(self.scenes_metadata_filtered['source_path'][0])
         if os.path.exists(raster_path) is False:
-            raise FileNotFoundError(f'Retrieval of EPSG and geotransform failed: '
-                                    f'{raster_path} either cannot be accessed or does not exists.')
+            raise FileNotFoundError(
+                f'Retrieval of EPSG and geotransform failed: '
+                f'{raster_path} either cannot be accessed or does not exists.'
+            )
         ds = gdal.Open(raster_path)
         if ds:
             self.geotransform = ds.GetGeoTransform()
@@ -298,7 +302,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.bounds = (min_x, min_y, max_x, max_y)
             ds = None
         else:
-            raise OSError(f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}')
+            raise OSError(
+                f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}'
+            )
 
     def _calculate_spectral_angle(self, reference_spectrum, dataset, bands=None):
         """
@@ -712,7 +718,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 if os.path.exists(out_path) is False:
-                    raise FileNotFoundError(f'Could not create output raster {out_name}')
+                    raise FileNotFoundError(
+                        f'Could not create output raster {out_name}'
+                    )
 
                 if self.driver_name == 'JP2OpenJPEG':
                     self._tiff_to_jp2(out_path)
