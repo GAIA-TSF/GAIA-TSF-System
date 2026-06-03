@@ -230,7 +230,7 @@ class TestSentinel2Workflow:
             'Reflectance_Conversion',
             'HORIZONTAL_CS_NAME',
             'HORIZONTAL_CS_CODE',
-            'source_paths',
+            'source_path',
             'Input_SAFE_path',
         ]
         for key in essential_keys:
@@ -261,10 +261,10 @@ class TestSentinel2Workflow:
                 f'Band file {band_filename} was not created.'
             )
 
-        # Verify that source_paths contains all 13 files
-        assert 'source_paths' in metadata, 'source_paths key is missing from metadata.'
-        assert len(metadata['source_paths']) == 13, (
-            f'Expected 13 band files in source_paths, got {len(metadata["source_paths"])}'
+        # Verify that source_path contains all 13 files
+        assert 'source_path' in metadata, 'source_path key is missing from metadata.'
+        assert len(metadata['source_path']) == 13, (
+            f'Expected 13 band files in source_path, got {len(metadata["source_path"])}'
         )
 
         # Check properties of one of the band files (e.g., B02)
