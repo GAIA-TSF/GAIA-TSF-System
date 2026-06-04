@@ -94,13 +94,17 @@ class TestSentinel2Workflow:
         pipeline.run()
 
         # Check if the files were created
+        if pipeline._config['output_format'] == 'jp2':
+            extension = '.jp2'
+        else:
+            extension = '.tiff'
         filename = (
             os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-            + '.tiff'
+            + extension
         )
-        tiff_path = os.path.join(output_folder, filename)
-        assert os.path.exists(tiff_path), f'The Geotiff was not created: {tiff_path}'
-        json_path = os.path.join(output_folder, tiff_path.replace('.tiff', '.json'))
+        raster_path = os.path.join(output_folder, filename)
+        assert os.path.exists(raster_path), f'The Geotiff was not created: {raster_path}'
+        json_path = os.path.join(output_folder, raster_path.replace(extension, '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
 
         # Check if essential keys are present in the metadata file
@@ -123,7 +127,7 @@ class TestSentinel2Workflow:
             assert key in metadata, f'Key {key} is missing from metadata file.'
 
         # Checks if Geotiff was produced with all the bands and according to inputs
-        ds = gdal.Open(tiff_path, gdal.GA_Update)
+        ds = gdal.Open(raster_path, gdal.GA_Update)
         assert ds.RasterCount == 13, (
             'The Geotiff does not contain the right amount of bands.'
         )
@@ -239,6 +243,10 @@ class TestSentinel2Workflow:
             )
 
         # Check if all 13 band files were created
+        if pipeline._config['output_format'] == 'jp2':
+            extension = '.jp2'
+        else:
+            extension = '.tiff'
         expected_bands = [
             'B01',
             'B02',
@@ -255,7 +263,7 @@ class TestSentinel2Workflow:
             'SCL',
         ]
         for band_name in expected_bands:
-            band_filename = f'{base_filename}_{band_name}.tiff'
+            band_filename = f'{base_filename}_{band_name}{extension}'
             band_path = os.path.join(output_folder, band_filename)
             assert os.path.exists(band_path), (
                 f'Band file {band_filename} was not created.'
@@ -268,7 +276,7 @@ class TestSentinel2Workflow:
         )
 
         # Check properties of one of the band files (e.g., B02)
-        test_band_path = os.path.join(output_folder, f'{base_filename}_B02.tiff')
+        test_band_path = os.path.join(output_folder, f'{base_filename}_B02{extension}')
         ds = gdal.Open(test_band_path, gdal.GA_ReadOnly)
 
         # Check if it's a single-band file
