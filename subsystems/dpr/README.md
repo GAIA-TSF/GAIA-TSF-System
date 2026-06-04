@@ -23,7 +23,7 @@ Get list of preprocessing pipelines:
 
 ```py
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-print(PreprocessingPipelines().pipelines)
+print(PreprocessingPipelines().pipelines.keys())
 ```
 
 Select preprocessing pipeline and get it's usage:
