@@ -282,6 +282,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         self.logger.info('Converting outputs to JP2OpenJPEG.')
 
         for input_tiff in self.s2_metadata['source_path']:
+            self.logger.info(f'--- {input_tiff}')
             output_jp2 = input_tiff.replace('.tiff', '.jp2')
 
             src_ds = gdal.Open(input_tiff)
@@ -477,7 +478,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # get land cover stats from SCL band
             self._process_scl_statistics(scl_band.ReadAsArray())
             del ds
-            self.logger.info(f'{self.driver_name} saved to: {output_path}')
+            self.logger.info(f'Raster saved to: {output_path}')
 
             # Add path to the metadata
             self.s2_metadata['source_path'] = str(output_path)
