@@ -1,7 +1,7 @@
 import json
 import os
 import zipfile
-
+import pytest
 from pathlib import Path
 
 from lib.config import ProjectConfigReader
@@ -149,6 +149,7 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
+    @pytest.mark.slow
     def test_MetadataGenerator_003(self, tmp_path):
         """Test MetadataGenerator module.
 
@@ -166,6 +167,7 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
+    @pytest.mark.slow
     def test_MetadataGenerator_004(self, tmp_path):
         """Test MetadataGenerator module.
 
