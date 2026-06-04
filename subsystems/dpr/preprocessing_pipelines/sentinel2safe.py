@@ -281,7 +281,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         self.logger.info('Converting outputs to JP2OpenJPEG.')
 
-        for input_tiff in self.s2_metadata['source_path']:
+        for input_tiff in self.s2_metadata['source_paths']:
             self.logger.info(f'--- {input_tiff}')
             output_jp2 = input_tiff.replace('.tiff', '.jp2')
 
@@ -293,8 +293,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             src_ds = None
             os.remove(input_tiff)
 
-        self.s2_metadata['source_path'] = [
-            path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_path']
+        self.s2_metadata['source_paths'] = [
+            path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_paths']
         ]
 
     def _process_and_merge_jp2(self, roi):
@@ -446,7 +446,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 self.logger.info(f'Band {band_name} saved to: {output_path}')
 
             # Add paths to the metadata
-            self.s2_metadata['source_path'] = [str(p) for p in output_paths]
+            self.s2_metadata['source_paths'] = [str(p) for p in output_paths]
 
         else:
             # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
@@ -481,7 +481,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self.logger.info(f'Raster saved to: {output_path}')
 
             # Add path to the metadata
-            self.s2_metadata['source_path'] = str(output_path)
+            self.s2_metadata['source_paths'] = [str(output_path)]
 
             # Clean temp mosaic VRT
             gdal.Unlink(mosaic_vrt)

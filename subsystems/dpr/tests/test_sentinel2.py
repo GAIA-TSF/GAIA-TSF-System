@@ -122,7 +122,7 @@ class TestSentinel2Workflow:
             'Reflectance_Conversion',
             'HORIZONTAL_CS_NAME',
             'HORIZONTAL_CS_CODE',
-            'source_path',
+            'source_paths',
             'Input_SAFE_path',
         ]
         for key in essential_keys:
@@ -236,7 +236,7 @@ class TestSentinel2Workflow:
             'Reflectance_Conversion',
             'HORIZONTAL_CS_NAME',
             'HORIZONTAL_CS_CODE',
-            'source_path',
+            'source_paths',
             'Input_SAFE_path',
         ]
         for key in essential_keys:
@@ -272,9 +272,9 @@ class TestSentinel2Workflow:
             )
 
         # Verify that source_path contains all 13 files
-        assert 'source_path' in metadata, 'source_path key is missing from metadata.'
-        assert len(metadata['source_path']) == 13, (
-            f'Expected 13 band files in source_path, got {len(metadata["source_path"])}'
+        assert 'source_paths' in metadata, 'source_paths key is missing from metadata.'
+        assert len(metadata['source_paths']) == 13, (
+            f'Expected 13 band files in source_paths, got {len(metadata["source_paths"])}'
         )
 
         # Check properties of one of the band files (e.g., B02)
@@ -340,7 +340,7 @@ class TestSentinel2Workflow:
         # Construct a basic metadata structure
         metadata = {
             'raster_info': {
-                'source_path': os.path.abspath(raster_path),
+                'source_paths': [os.path.abspath(raster_path)],
                 'filename': os.path.basename(raster_path),
             }
         }
@@ -354,7 +354,7 @@ class TestSentinel2Workflow:
 
         # Run the pipeline
         pipeline = Sentinel2CloudCoverPipeline()
-        pipeline.configure(metadata_path=metadata_path, path_key='source_path')
+        pipeline.configure(metadata_path=metadata_path, path_key='source_paths')
         pipeline.run()
 
         # Verification of the outputs
