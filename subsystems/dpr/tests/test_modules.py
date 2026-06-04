@@ -132,6 +132,7 @@ class TestModules:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
 
+    @pytest.mark.slow
     def test_MetadataGenerator_002(self, tmp_path):
         """Test MetadataGenerator module.
 
