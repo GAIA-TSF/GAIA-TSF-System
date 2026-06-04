@@ -103,7 +103,9 @@ class TestSentinel2Workflow:
             + extension
         )
         raster_path = os.path.join(output_folder, filename)
-        assert os.path.exists(raster_path), f'The Geotiff was not created: {raster_path}'
+        assert os.path.exists(raster_path), (
+            f'The Geotiff was not created: {raster_path}'
+        )
         json_path = os.path.join(output_folder, raster_path.replace(extension, '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
 
