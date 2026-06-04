@@ -163,12 +163,15 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
             if len(raster_path) > 1:
                 raise ValueError(
                     f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
-                    f'paths for {len(raster_path)} separate files.')
+                    f'paths for {len(raster_path)} separate files.'
+                )
             else:
                 raster_path = raster_path[0]
         else:
-            raise ValueError('Error retrieving raster path from metadata. The "source_paths" key is neither a string '
-                             'or a list.')
+            raise ValueError(
+                'Error retrieving raster path from metadata. The "source_paths" key is neither a string '
+                'or a list.'
+            )
 
         if not os.path.exists(raster_path):
             raise FileNotFoundError(f'Raster file not found at: {raster_path}')
