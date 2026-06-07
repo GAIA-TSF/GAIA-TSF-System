@@ -90,7 +90,7 @@ def project_config():
 
 
 class TestConfig:
-    def test_integration_EOU_001_manual_loader(self, tmp_path):
+    def test_integration_EOU_001_manual_loader(self):
         """Test full-system integration for manual data from EOU -> DPR -> SDI."""
         test_file = TestUtils.get_data_path('eou/ENMAP01_sample.tif')
 
@@ -130,11 +130,9 @@ class TestConfig:
             s1_path, metadata_temp.name, exported_temp.name
         )
 
-    @pytest.mark.skip(reason='MetadataGenerator does not support S2 so far')
-    def test_integration_EOU_003(self, tmp_path, project_config):
+    @pytest.mark.slow
+    def test_integration_EOU_003(self, project_config):
         """Test full-system integration for S2 from EOU -> DPR -> SDI."""
-        metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
-        exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
 
         search_filter = {
             'provider': 'cop_dataspace',
@@ -143,21 +141,17 @@ class TestConfig:
             'productType': 'S2_MSI_L2A',
         }
 
-        credentials = 'subsystems/eou/tests/eodag_config.yml'
-
         module = DataAcquisitionGateway()
-        module.set_config(credentials)
 
-        results = module.search(
+        results = module.backend.search(
             geom=project_config.aoi(),
             **search_filter,
         )
 
-        s2_path = module.download(results[0], output_dir=tmp_path)
+        #s2_path = module.backend.download(results[0], target_dir='sentinel2')
+        s2_path = Path("/data/gaia_tsf/sentinel2/S2B_MSIL2A_20260105T102329_N0511_R065_T33VVG_20260105T140404.SAFE")
 
-        generate_eou_metadata_and_import(
-            s2_path, metadata_temp.name, exported_temp.name
-        )
+        generate_eou_metadata_and_import(s2_path)
 
     @pytest.mark.skip(reason='MetadataGenerator does not support ISU output so far')
     def test_integration_ISU_001(self, tmp_path):
