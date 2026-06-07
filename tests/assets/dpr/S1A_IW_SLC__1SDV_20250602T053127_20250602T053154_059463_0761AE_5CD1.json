@@ -1,0 +1,117 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE",
+    "bbox": [
+        10.384271,
+        59.893028,
+        15.766597,
+        61.936138
+    ],
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    15.013296,
+                    59.893028
+                ],
+                [
+                    10.384271,
+                    60.327557
+                ],
+                [
+                    10.898395,
+                    61.936138
+                ],
+                [
+                    15.766597,
+                    61.491905
+                ],
+                [
+                    15.013296,
+                    59.893028
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "datetime": "2025-06-02T05:31:40.610730Z",
+        "platform": "sentinel-1a",
+        "constellation": "sentinel-1",
+        "instruments": [
+            "C-SAR"
+        ],
+        "processing:level": null,
+        "sar:instrument_mode": "IW",
+        "sar:product_type": "SLC",
+        "sar:polarizations": [
+            "VV",
+            "VH"
+        ],
+        "sar:frequency_band": "C",
+        "sar:resolution_range": 3.5,
+        "sar:resolution_azimuth": 22.6,
+        "sat:orbit_state": "descending",
+        "sat:relative_orbit": 66,
+        "view:incident_angle": 39.5,
+        "s1:product_uri": "S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE.SAFE"
+    },
+    "assets": {
+        "metadata": {
+            "href": "./test_MetadataGenerator_0040/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/manifest.safe",
+            "type": "application/xml",
+            "roles": [
+                "metadata"
+            ]
+        },
+        "VH": {
+            "href": "./test_MetadataGenerator_0040/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/measurement/s1a-iw3-slc-vh-20250602t053127-20250602t053152-059463-0761ae-003.tiff",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ],
+            "sar:polarizations": "VH"
+        },
+        "VV": {
+            "href": "./test_MetadataGenerator_0040/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/measurement/s1a-iw3-slc-vv-20250602t053127-20250602t053152-059463-0761ae-006.tiff",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ],
+            "sar:polarizations": "VV"
+        }
+    },
+    "collection": "sentinel-1-slc",
+    "links": [
+        {
+            "rel": "about",
+            "href": "https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex",
+            "title": "Sentinel-1 Single Look Complex (SLC) Technical Guide"
+        }
+    ],
+    "sar:bands": [
+        {
+            "name": "VH",
+            "description": "VH band: vertical transmit and horizontal receive",
+            "center_frequency": 5.405,
+            "gsd": 10
+        },
+        {
+            "name": "VV",
+            "description": "VV band: vertical transmit and vertical receive",
+            "center_frequency": 5.405,
+            "gsd": 10
+        }
+    ],
+    "providers": [
+        {
+            "name": "ESA",
+            "roles": [
+                "producer",
+                "processor",
+                "licensor"
+            ]
+        }
+    ]
+}
