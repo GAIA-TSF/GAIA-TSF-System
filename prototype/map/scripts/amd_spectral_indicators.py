@@ -32,6 +32,7 @@ import yaml
 import numpy as np
 import pandas as pd
 import rasterio
+from rasterio.enums import Resampling 
 
 # SETTINGS 
 with open("config.yaml") as f:
@@ -202,7 +203,7 @@ def calculate_amd_indices(img):
 # ------------------------------------------------------------
 # SAVE RASTER
 # ------------------------------------------------------------
-
+""" 
 def save_raster(output_path, array, reference_path):
 
     with rasterio.open(reference_path) as src:
@@ -225,6 +226,50 @@ def save_raster(output_path, array, reference_path):
             array.astype(np.float32),
             1
         )
+"""
+
+def save_raster(
+    output_path,
+    array,
+    reference_path, 
+    RASTER_CFG
+):
+
+    with rasterio.open(reference_path) as src:
+
+        meta = src.meta.copy()
+
+        meta.update({
+
+        "driver": RASTER_CFG["driver"],
+
+        "compress": RASTER_CFG["compression"],
+
+        "predictor": RASTER_CFG["predictor"],
+
+        "blocksize": RASTER_CFG["blocksize"],
+
+        "count": 1,
+
+        "dtype": "float32",
+
+        "nodata": np.nan, 
+
+        "overview_resampling": Resampling.average
+    })
+
+    with rasterio.open(
+        output_path,
+        "w",
+        **meta
+    ) as dst:
+
+        dst.write(
+            array.astype(np.float32),
+            1
+        )
+
+
 
 # ============================================================
 # LOAD SCENES
@@ -331,6 +376,7 @@ for f in files:
 
 print()
 print("Generating spectral indicators...")
+RASTER_CFG = cfg["raster"]
 
 for d in data:
 
@@ -402,7 +448,8 @@ for d in data:
         save_raster(
             output_path,
             arr,
-            path
+            path, 
+            RASTER_CFG
         )
 
         print(

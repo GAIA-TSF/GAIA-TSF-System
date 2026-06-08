@@ -32,6 +32,7 @@ import yaml
 import numpy as np
 import pandas as pd
 import rasterio
+from rasterio.enums import Resampling
 
 from scipy.signal import savgol_filter
 
@@ -103,6 +104,7 @@ for feature in ENABLED_TEMPORAL_FEATURES:
 
 
 # FUNCTIONS
+""" 
 def save_raster(output_path, array, reference_path):
 
     with rasterio.open(reference_path) as src:
@@ -113,6 +115,52 @@ def save_raster(output_path, array, reference_path):
         "count": 1,
         "dtype": "float32",
         "nodata": np.nan
+    })
+
+    with rasterio.open(
+        output_path,
+        "w",
+        **meta
+    ) as dst:
+
+        dst.write(
+            array.astype(np.float32),
+            1
+        )
+""" 
+
+
+
+def save_raster(
+    output_path,
+    array,
+    reference_path, 
+    RASTER_CFG
+):
+    
+    
+    
+    with rasterio.open(reference_path) as src:
+
+        meta = src.meta.copy()
+
+        meta.update({
+
+        "driver": RASTER_CFG["driver"],
+
+        "compress": RASTER_CFG["compression"],
+
+        "predictor": RASTER_CFG["predictor"],
+
+        "blocksize": RASTER_CFG["blocksize"],
+
+        "count": 1,
+
+        "dtype": "float32",
+
+        "nodata": np.nan, 
+
+        "overview_resampling": Resampling.average
     })
 
     with rasterio.open(
@@ -396,6 +444,7 @@ for indicator_name in ENABLED_INDICATORS:
     
     print()
     print("Saving features...")
+    RASTER_CFG = cfg["raster"] 
 
     for feature_name, feature_stack in feature_stacks.items():
 
@@ -427,7 +476,8 @@ for indicator_name in ENABLED_INDICATORS:
             save_raster(
                 output_path,
                 feature_stack[i],
-                f
+                f, 
+                RASTER_CFG
             )
 
 

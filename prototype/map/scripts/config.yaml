@@ -40,6 +40,20 @@ smoothing:
   window_length: 7
   polyorder: 2
 
+# RASTER (COG) 
+raster:
+
+  driver: COG
+
+  compression: DEFLATE
+
+  predictor: 3
+
+  blocksize: 512
+
+  nodata: nan
+  
+
 # AMD SPECTRAL INDICES 
 indices:
   enabled:
@@ -97,7 +111,7 @@ temporal_features:
     enabled: true
     type: rolling_std
     window: 5
-    
+
 baseline:
   reference_years: 2018 
 
