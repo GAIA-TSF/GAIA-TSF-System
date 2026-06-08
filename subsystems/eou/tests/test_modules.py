@@ -110,7 +110,6 @@ class TestModules:
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
-                pass
 
     def test_DataAcquisitionGateway_002_asf_download(self, project_config):
         """Test DataAcquisitionGateway module.
