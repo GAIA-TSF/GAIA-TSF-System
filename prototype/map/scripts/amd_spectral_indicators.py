@@ -18,45 +18,39 @@
 # OUTPUT
 # ------
 # results/
-#
 #     amd_indicators/
-#
 #         amd_diff/
 #             20180502T102031_amd_diff.tif
-#
 #         amd_ratio/
 #             ...
-#
 #         amwi/
 #             ...
-#
-
 
 import os
 import glob
+import yaml
 import numpy as np
 import pandas as pd
 import rasterio
 
+# SETTINGS 
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)
 
 # INPUTS
-# inputs_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
-inputs_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
+inputs_dir = cfg["project"]["inputs_dir"]
 
 tif_dir = os.path.join(
     inputs_dir,
-    'sentinel2'
+    "sentinel2"
 )
 
-
-# OUTPUTS
-# output_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results'
-output_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results'
-
-indicator_dir = os.path.join(
-    output_dir,
-    'amd_indicators'
+output_dir = os.path.join(
+    cfg["project"]["output_dir"],
+    "amd_indicators"
 )
+
+indicator_dir = output_dir
 
 os.makedirs(
     indicator_dir,
@@ -64,33 +58,30 @@ os.makedirs(
 )
 
 
-### CONFIGURATION ### 
+# CONFIGURATION
 
 # AVAILABLE INDICATORS
+AVAILABLE_INDICATORS = set(
+    cfg["indices"]["available"]
+)
+
+ENABLED_INDICATORS = (
+    cfg["indices"]["enabled"]
+)
 
 
-AVAILABLE_INDICATORS = {
-    "AMD_diff",
-    "AMD_ratio",
-    "AMWI"
-}
-
-# ------------------------------------------------------------
-# ENABLED INDICATORS
-# ------------------------------------------------------------
-
-ENABLED_INDICATORS = [
-    "AMD_diff",
-]
-
-# ------------------------------------------------------------
 # CLOUD FILTERING
-# ------------------------------------------------------------
+MAX_CLOUD_PERCENT = (
+    cfg["clouds"]["max_cloud_percent"]
+)
 
-CLOUD_THRESHOLD = 1000
+CLOUD_THRESHOLD = (
+    cfg["clouds"]["threshold"]["blue_band_value"]
+)
 
-MAX_CLOUD_PERCENT = 10
-
+CLOUD_METHOD = (
+    cfg["clouds"]["method"]
+)
 
 # VALIDATION
 for indicator in ENABLED_INDICATORS:
@@ -101,10 +92,8 @@ for indicator in ENABLED_INDICATORS:
             f"Unknown indicator: {indicator}"
         )
 
-# ============================================================
-# FUNCTIONS
-# ============================================================
 
+# FUNCTIONS
 def calculate_cloud_mask(img, threshold=1000):
 
     """
@@ -131,11 +120,20 @@ def calculate_cloud_coverage(cloud_mask):
 
     return 100 * np.mean(cloud_mask)
 
+def calculate_scl_cloud_mask(
+    img,
+    cloud_classes
+):
 
-# ------------------------------------------------------------
+    scl = img[0]
+
+    return np.isin(
+        scl,
+        cloud_classes
+    ).astype(np.uint8)
+
+
 # INDICATORS
-# ------------------------------------------------------------
-
 def calculate_amd_diff(B2, B4):
 
     return B4 - B2
@@ -263,14 +261,42 @@ for f in files:
 
         img = src.read()
 
-    # --------------------------------------------------------
-    # CLOUD MASK
-    # --------------------------------------------------------
 
-    cloud_mask = calculate_cloud_mask(
-        img,
-        threshold=CLOUD_THRESHOLD
-    )
+    # CLOUD MASK
+    if CLOUD_METHOD == "threshold":
+
+        cloud_mask = calculate_cloud_mask(
+            img,
+            threshold=CLOUD_THRESHOLD
+        )
+
+    elif CLOUD_METHOD == "scl":
+
+        f_scl = (
+            f.replace(
+                "sentinel2",
+                "sentinel2_cloud"
+            )
+            .replace(
+                ".tif",
+                "_SCL.tif"
+            )
+        )
+
+        with rasterio.open(f_scl) as src:
+
+            scl = src.read()
+
+        cloud_mask = calculate_scl_cloud_mask(
+            scl,
+            cfg["clouds"]["scl"]["classes"]
+        )
+
+    else:
+
+        raise ValueError(
+            f"Unknown cloud method: {CLOUD_METHOD}"
+        )
 
     cloud_percent = calculate_cloud_coverage(
         cloud_mask

@@ -1,8 +1,14 @@
+# PROJECT DEFINITIONS 
 project:
+  # 2018 year 
+  inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
+  static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
+  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/eda"
 
-  inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
-  static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
-  output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results/eda"
+  # 2016-2025 years 
+  # inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
+  # static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
+  # output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results/eda"
 
 masks:
 
@@ -10,11 +16,12 @@ masks:
   tsf_water: "yxsjoberg_tsf_water_mask.tif"
   leak_water: "yxsjoberg_leakage_water_mask.tif"
 
+# CLOUD MASKING 
 clouds:
 
-  method: "scl"        # scl | threshold
+  method: "threshold"        # scl | threshold
 
-  max_cloud_percent: 5
+  max_cloud_percent: 10
 
   threshold:
     blue_band_value: 1000
@@ -22,6 +29,7 @@ clouds:
   scl:
     classes: [3, 8, 9, 10]
 
+# PRE-PROCESSING 
 processing:
 
   rolling_window: 3
@@ -32,6 +40,21 @@ smoothing:
   window_length: 7
   polyorder: 2
 
+# AMD INDICES 
 indices:
+  enabled:
+    - AMD_diff
+
+  available:
+    - AMD_diff
+    - AMD_ratio
+    - AMWI
 
   amd_metric: "AMD_diff"   # AMD_diff | AMD_ratio | AMWI 
+
+baseline:
+  reference_years: 2018 
+
+risk:
+  zscore_threshold:
+  cusum_threshold:
