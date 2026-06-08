@@ -6,7 +6,12 @@ from typing import Any, List, Optional, Tuple
 from lib.base import GaiaBase, SubsystemId
 
 from .scheduler import Scheduler
-from .source_fetchers import fetch_from_ftp, fetch_from_https, fetch_from_s3, fetch_from_sftp
+from .source_fetchers import (
+    fetch_from_ftp,
+    fetch_from_https,
+    fetch_from_s3,
+    fetch_from_sftp,
+)
 
 
 class BulkUploadScheduler(GaiaBase):
@@ -211,7 +216,9 @@ class BulkUploadScheduler(GaiaBase):
         :rtype: None
         """
         try:
-            df_result = self.etl_engine.process_file(file_content=content, filename=filename)
+            df_result = self.etl_engine.process_file(
+                file_content=content, filename=filename
+            )
 
             if df_result is not None:
                 self.logger.debug(
