@@ -12,8 +12,6 @@ from subsystems.eou.manual_file_loader import ManualFileLoader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.data_export import DataExporter
-from subsystems.eou.manual_file_loader import ManualFileLoader
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.isu import InSituDataUploader
 from subsystems.isu.etl_engine.pipeline import ETLEngine
 from subsystems.qcl import QCLayer
@@ -148,8 +146,7 @@ class TestConfig:
             **search_filter,
         )
 
-        #s2_path = module.backend.download(results[0], target_dir='sentinel2')
-        s2_path = Path("/data/gaia_tsf/sentinel2/S2B_MSIL2A_20260105T102329_N0511_R065_T33VVG_20260105T140404.SAFE")
+        s2_path = module.backend.download(results[0], target_dir='sentinel2')
 
         generate_eou_metadata_and_import(s2_path)
 
