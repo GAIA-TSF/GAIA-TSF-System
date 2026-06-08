@@ -6,7 +6,7 @@
 1. amd_eda.py                         Exploratory data analysis (before any modelling) 
 2. amd_spectral_indicators.py         Calculate spectral EO products 
 3. amd_temporal_features.py           Calculate temporal features (dynamics) 
-4. amd_anomalies.py                   Detect anomaly scoring  
+4. amd_geodata_anomalies.py           Detect anomaly scoring  
 5. amd_risk_maps.py                   Spatial aggregation  
 6. xai_analysis.py                    Calculate explainability       
 
@@ -23,7 +23,7 @@ EDA from geodata: saves histograms, temporal plots, and overall JSON summary
 amd_eda_geodata_amd_clean_one_season
 ```
 
-AMD EDA (one year so far)
+AMD EDA 
 ```
 amd_eda.py
 ```

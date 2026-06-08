@@ -1,0 +1,37 @@
+project:
+
+  inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
+  static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
+  output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results/eda"
+
+masks:
+
+  clean_water: "yxsjoberg_clean_water_mask.tif"
+  tsf_water: "yxsjoberg_tsf_water_mask.tif"
+  leak_water: "yxsjoberg_leakage_water_mask.tif"
+
+clouds:
+
+  method: "scl"        # scl | threshold
+
+  max_cloud_percent: 5
+
+  threshold:
+    blue_band_value: 1000
+
+  scl:
+    classes: [3, 8, 9, 10]
+
+processing:
+
+  rolling_window: 3
+  outlier_threshold: 3
+
+smoothing:
+
+  window_length: 7
+  polyorder: 2
+
+indices:
+
+  amd_metric: "AMD_diff"   # AMD_diff | AMD_ratio | AMWI 

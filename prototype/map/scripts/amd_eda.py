@@ -23,33 +23,40 @@ import pandas as pd
 import rasterio
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
+import yaml
 
 
-# DATA
-# Mac
-# inputs_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
-# Skylake
-inputs_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs/'
+###--- SETUP ---### 
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)
 
-tif_dir = os.path.join(inputs_dir, 'sentinel2')
+# inputs / outputs 
+inputs_dir = cfg["project"]["inputs_dir"]
+static_dir = cfg["project"]["static_dir"]
+output_dir = cfg["project"]["output_dir"]
 
-# static_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/'
-static_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static/'
+tif_dir = os.path.join(inputs_dir, "sentinel2")
 
-clean_mask_path = os.path.join(static_dir, 'yxsjoberg_clean_water_mask.tif')
-tsf_mask_path = os.path.join(static_dir, 'yxsjoberg_tsf_water_mask.tif')
-leak_mask_path = os.path.join(static_dir, 'yxsjoberg_leakage_water_mask.tif')
+# masks 
+clean_mask_path = os.path.join(
+    static_dir,
+    cfg["masks"]["clean_water"]
+)
 
-# output_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results'
-output_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/eda'
+tsf_mask_path = os.path.join(
+    static_dir,
+    cfg["masks"]["tsf_water"]
+)
 
-os.makedirs(output_dir, exist_ok=True)
-
+leak_mask_path = os.path.join(
+    static_dir,
+    cfg["masks"]["leak_water"]
+)
 
 # CONSTANTS 
-CLOUD_THRESHOLD = 1000
-MAX_CLOUD_PERCENT = 10
-ROLLING_WINDOW = 3
+CLOUD_THRESHOLD = cfg["clouds"]["threshold"]["blue_band_value"]
+MAX_CLOUD_PERCENT = cfg["clouds"]["max_cloud_percent"]
+ROLLING_WINDOW = cfg["processing"]["rolling_window"]
 
 
 # HELPER FUNCTIONS
@@ -71,6 +78,21 @@ def calculate_cloud_mask(img, threshold=1000):
     cloud_mask = (blue > threshold).astype(np.uint8)
 
     return cloud_mask
+
+
+def calculate_scl_cloud_mask(
+        img,
+        cloud_classes
+    ):
+
+        scl = img[0]
+
+        cloud_mask = np.isin(
+            scl,
+            cloud_classes
+        ).astype(np.uint8)
+
+        return cloud_mask
 
 
 def calculate_cloud_coverage(cloud_mask):
@@ -206,7 +228,34 @@ for f in files:
         img = src.read()
     
     # CLOUD MASK    
-    cloud_mask = calculate_cloud_mask(img)
+    f_scl = f.replace("sentinel2", "sentinel2_cloud").replace(".tif", "_SCL.tif")  
+    
+    with rasterio.open(f_scl) as src2:
+
+        scl = src2.read()
+    
+    cloud_method = cfg["clouds"]["method"]
+
+    if cloud_method == "threshold":
+
+        cloud_mask = calculate_cloud_mask(
+            img,
+            threshold=CLOUD_THRESHOLD
+        )
+
+    elif cloud_method == "scl":
+
+        cloud_mask = calculate_scl_cloud_mask(
+            scl,
+            cloud_classes=cfg["clouds"]["scl"]["classes"]
+        )
+
+    else:
+
+        raise ValueError(
+            f"Unknown cloud method: {cloud_method}"
+        ) 
+
     cloud_percent = calculate_cloud_coverage(cloud_mask)
     cloud_cover.append(cloud_percent)
 
@@ -217,7 +266,10 @@ for f in files:
 
     # AMD INDICES
     indices = calculate_amd_indices(img)
-    amd = indices["AMD_diff"]
+
+    amd = indices[
+        cfg["indices"]["amd_metric"]
+    ]
 
     # APPLY CLOUD MASK
     amd = np.where(cloud_mask == 1, np.nan, amd)
@@ -339,23 +391,22 @@ ax.plot(
     alpha=0.9,
 )
 
-ax.fill_between(
-    df_clean.index,
-    mean_clean - (3 * std_clean),
-    mean_clean + (3 * std_clean),
-    color='blue',
-    alpha=0.3
-)
+# ax.fill_between(
+#     df_clean.index,
+#     mean_clean - (3 * std_clean),
+#     mean_clean + (3 * std_clean),
+#     color='blue',
+#     alpha=0.3
+# )
 
 # pixel observations
-ax.scatter(
-    df_clean_all.index,
-    df_clean_all["AMD_diff"],
-    s=3,
-    color='blue',
-    alpha=0.5
-)
-
+# ax.scatter(
+#     df_clean_all.index,
+#     df_clean_all["AMD_diff"],
+#     s=3,
+#     color='blue',
+#     alpha=0.5
+# )
 
 # TSF WATER
 mean_tsf = df_tsf["value"]
@@ -381,13 +432,13 @@ ax.plot(
 )
 
 # CI
-ax.fill_between(
-    df_tsf.index,
-    mean_tsf - std_tsf,
-    mean_tsf + std_tsf,
-    color='red',
-    alpha=0.3
-)
+# ax.fill_between(
+#     df_tsf.index,
+#     mean_tsf - std_tsf,
+#     mean_tsf + std_tsf,
+#     color='red',
+#     alpha=0.3
+# )
 
 
 # LEAK WATER
@@ -402,13 +453,13 @@ ax.plot(
     label='Leak water'
 )
 
-ax.fill_between(
-    df_leak.index,
-    mean_leak - (3 * std_leak),
-    mean_leak + (3 * std_leak),
-    color='orange',
-    alpha=0.3
-)
+# ax.fill_between(
+#     df_leak.index,
+#     mean_leak - (3 * std_leak),
+#     mean_leak + (3 * std_leak),
+#     color='orange',
+#     alpha=0.3
+# )
 
 
 # MAIN PLOT SETTINGS
@@ -456,6 +507,7 @@ stats_clean_all["ci95_lower"] = (
 
 
 # SMOOTHED TEMPORAL TRENDS
+#  window_length must be less than or equal to the size of x 
 # CLEAN WATER
 stats_clean_all["smooth"] = savgol_filter(
     stats_clean_all["mean"],
@@ -482,13 +534,13 @@ ax2.plot(
     alpha=0.3,
 )
 
-ax2.fill_between(
-    stats_clean_all.index,
-    stats_clean_all["mean"] + stats_clean_all["std"],
-    stats_clean_all["mean"] - stats_clean_all["std"],
-    color='blue',
-    alpha=0.2
-)
+# ax2.fill_between(
+#     stats_clean_all.index,
+#     stats_clean_all["mean"] + stats_clean_all["std"],
+#     stats_clean_all["mean"] - stats_clean_all["std"],
+#     color='blue',
+#     alpha=0.2
+# )
 
 # IDENTIFY REMOVED OUTLIERS
 removed = df_clean.loc[
@@ -546,6 +598,7 @@ stats_leak_all.columns = [
     "count"
 ]
 
+#  window_length must be less than or equal to the size of x 
 stats_leak_all["smooth"] = savgol_filter(
     stats_leak_all["mean"],
     window_length=7,
@@ -571,14 +624,13 @@ ax3.plot(
     linewidth=2
 )
 
-ax3.fill_between(
-    mean_leak_smooth.index,
-    mean_leak_smooth - (std_leak_smooth),
-    mean_leak_smooth + (std_leak_smooth), 
-    color='orange',
-    alpha=0.2
-)
-
+# ax3.fill_between(
+#     mean_leak_smooth.index,
+#     mean_leak_smooth - (std_leak_smooth),
+#     mean_leak_smooth + (std_leak_smooth), 
+#     color='orange',
+#     alpha=0.2
+# )
 
 # SETTINGS
 ax3.set_title("Smoothed Leak Water")
