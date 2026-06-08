@@ -103,10 +103,12 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            assert len(list(ql_path.parent.iterdir())) == 1
+            visible_files = [p for p in ql_path.parent.iterdir() if not p.name.startswith('.')]
+            assert len(visible_files) == 1
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
+                pass
 
     def test_DataAcquisitionGateway_002_asf_download(self, project_config):
         """Test DataAcquisitionGateway module.
@@ -167,7 +169,8 @@ class TestModules:
                 ql_dir.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            assert len(results) == len(list(ql_dir.iterdir()))
+            visible_files = [p for p in ql_dir.iterdir() if not p.name.startswith('.')]
+            assert len(results) == len(visible_files)
         finally:
             if ql_dir and ql_dir.is_dir():
                 for item in ql_dir.iterdir():

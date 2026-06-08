@@ -71,7 +71,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             return product.get_quicklook(output_dir=target_dir, **kwargs)
 
         return self._dag.download(
-            product, extract=False, output_dir=target_dir, **kwargs
+            product, extract=True, output_dir=target_dir, **kwargs
         )
 
     def _download_all(
@@ -90,5 +90,5 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
                 product.get_quicklook(output_dir=target_dir, **kwargs)
             return target_dir
 
-        self._dag.download_all(products, extract=False, output_dir=target_dir, **kwargs)
+        self._dag.download_all(products, extract=True, output_dir=target_dir, **kwargs)
         return target_dir
