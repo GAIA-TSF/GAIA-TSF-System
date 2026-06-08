@@ -54,4 +54,9 @@ class DataExporter(GaiaBase):
             zipf.write(self.input_metadata, arcname=self.input_metadata.name)
 
         self.logger.info(f"ZIP package created for {self.input_data} and {self.input_metadata}: {output_file}")
+
+        # clean-up
+        self.input_metadata.unlink()
+        self.logger.debug(f"Temporary metadata file {self.input_metadata} removed")
+
         return output_file
