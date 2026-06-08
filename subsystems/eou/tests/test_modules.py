@@ -103,7 +103,9 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            visible_files = [p for p in ql_path.parent.iterdir() if not p.name.startswith('.')]
+            visible_files = [
+                p for p in ql_path.parent.iterdir() if not p.name.startswith('.')
+            ]
             assert len(visible_files) == 1
         finally:
             if ql_path and Path(ql_path).exists():
