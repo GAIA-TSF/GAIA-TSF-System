@@ -175,7 +175,9 @@ def fetch_from_sftp(
     try:
         transport = paramiko.Transport((host, port))
         if key_path:
-            transport.connect(username=user, pkey=paramiko.RSAKey.from_private_key_file(key_path))
+            transport.connect(
+                username=user, pkey=paramiko.RSAKey.from_private_key_file(key_path)
+            )
         else:
             transport.connect(username=user, password=password)
 
