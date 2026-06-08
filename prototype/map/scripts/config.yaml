@@ -3,12 +3,12 @@ project:
   # 2018 year 
   inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
   static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
-  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results/eda"
+  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
 
   # 2016-2025 years 
   # inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
   # static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
-  # output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results/eda"
+  # output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results"
 
 masks:
 
@@ -40,7 +40,7 @@ smoothing:
   window_length: 7
   polyorder: 2
 
-# AMD INDICES 
+# AMD SPECTRAL INDICES 
 indices:
   enabled:
     - AMD_diff
@@ -52,6 +52,52 @@ indices:
 
   amd_metric: "AMD_diff"   # AMD_diff | AMD_ratio | AMWI 
 
+# TEMPORAL FEATURES 
+temporal_features:
+
+  smooth:
+    enabled: true
+    type: smooth
+
+  lag1:
+    enabled: true
+    type: lag
+    lag: 1
+
+  lag2:
+    enabled: true
+    type: lag
+    lag: 2
+
+  lag3:
+    enabled: true
+    type: lag
+    lag: 3
+
+  diff1:
+    enabled: true
+    type: diff
+    order: 1
+
+  diff2:
+    enabled: true
+    type: diff
+    order: 2
+
+  acc:
+    enabled: true
+    type: acc
+
+  roll_mean:
+    enabled: true
+    type: rolling_mean
+    window: 5
+
+  roll_std:
+    enabled: true
+    type: rolling_std
+    window: 5
+    
 baseline:
   reference_years: 2018 
 

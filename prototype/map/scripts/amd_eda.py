@@ -33,7 +33,7 @@ with open("config.yaml") as f:
 # inputs / outputs 
 inputs_dir = cfg["project"]["inputs_dir"]
 static_dir = cfg["project"]["static_dir"]
-output_dir = cfg["project"]["output_dir"]
+output_dir = os.path.join(cfg["project"]["output_dir"], 'eda') 
 
 tif_dir = os.path.join(inputs_dir, "sentinel2")
 
