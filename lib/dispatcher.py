@@ -149,24 +149,32 @@ class EouDprDispatcher(DispatcherBase):
         # Preferred: explicit EO ingest method if available
         if hasattr(dpr_service, 'ingest_eo'):
             dpr_service.ingest_eo(payload)
-            self._logger.info(f'[EOU_I_1] EO payload for {dataset_id} forwarded to DPR.ingest_eo.')
+            self._logger.info(
+                f'[EOU_I_1] EO payload for {dataset_id} forwarded to DPR.ingest_eo.'
+            )
             return
 
         # Generic hook: look for a generic ingest method
         if hasattr(dpr_service, 'ingest_raw'):
             dpr_service.ingest_raw(payload)
-            self._logger.info(f'[EOU_I_1] Payload for {dataset_id} forwarded to DPR.ingest_raw.')
+            self._logger.info(
+                f'[EOU_I_1] Payload for {dataset_id} forwarded to DPR.ingest_raw.'
+            )
             return
 
         # Last resort: try a catch-all method name used by some DPR implementations
         for candidate in ('receive_raw', 'receive_raw_data', 'ingest'):
             if hasattr(dpr_service, candidate):
                 getattr(dpr_service, candidate)(payload)
-                self._logger.info(f'[EOU_I_1] Payload for {dataset_id} forwarded to DPR.{candidate}.')
+                self._logger.info(
+                    f'[EOU_I_1] Payload for {dataset_id} forwarded to DPR.{candidate}.'
+                )
                 return
 
         # If no suitable method found, warn and skip
-        self._logger.warning(f'[EOU_I_1] DPR service does not expose a known ingest API. Payload skipped.')
+        self._logger.warning(
+            '[EOU_I_1] DPR service does not expose a known ingest API. Payload skipped.'
+        )
 
 
 class EouQcDispatcher(DispatcherBase):
@@ -176,7 +184,14 @@ class EouQcDispatcher(DispatcherBase):
     ``process_incoming_data(data_type, data, metadata, dataset_id)``.
     """
 
-    def dispatch(self, data_type: str, data: Any, metadata: Dict[str, Any], dataset_id: str, qcl_service: Any) -> None:
+    def dispatch(
+        self,
+        data_type: str,
+        data: Any,
+        metadata: Dict[str, Any],
+        dataset_id: str,
+        qcl_service: Any,
+    ) -> None:
         """
         Send raw data or a pointer to the QC layer.
 
@@ -191,14 +206,20 @@ class EouQcDispatcher(DispatcherBase):
 
         if hasattr(qcl_service, 'process_incoming_data'):
             qcl_service.process_incoming_data(data_type, data, metadata, dataset_id)
-            self._logger.info(f'[EOU_I_2] {dataset_id} forwarded to QCL for validation.')
+            self._logger.info(
+                f'[EOU_I_2] {dataset_id} forwarded to QCL for validation.'
+            )
             return
 
         # Fallback patterns
         for candidate in ('receive_for_qc', 'validate_raw', 'submit_raw'):
             if hasattr(qcl_service, candidate):
                 getattr(qcl_service, candidate)(data_type, data, metadata, dataset_id)
-                self._logger.info(f'[EOU_I_2] {dataset_id} forwarded to QCL.{candidate}.')
+                self._logger.info(
+                    f'[EOU_I_2] {dataset_id} forwarded to QCL.{candidate}.'
+                )
                 return
 
-        self._logger.warning('[EOU_I_2] QCL service does not expose a known validation API. Skipping.')
+        self._logger.warning(
+            '[EOU_I_2] QCL service does not expose a known validation API. Skipping.'
+        )
