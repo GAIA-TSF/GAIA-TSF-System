@@ -56,7 +56,7 @@
         "sat:orbit_state": "descending",
         "sat:relative_orbit": 66,
         "view:incident_angle": 39.5,
-        "s1:product_uri": "S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE.SAFE"
+        "s1:product_uri": "S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE"
     },
     "assets": {
         "metadata": {

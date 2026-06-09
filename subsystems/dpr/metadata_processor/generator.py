@@ -383,7 +383,7 @@ class Sentinel1SLCDataset(SentinelCDSEDataset):
                     'sat:relative_orbit'
                 ),
                 'view:incident_angle': 39.5,
-                's1:product_uri': item.get('id') + '.SAFE',
+                's1:product_uri': item.get('id'),
             },
             'assets': new_assets,
             'collection': 'sentinel-1-slc',
@@ -499,7 +499,7 @@ class Sentinel1GRDDataset(SentinelCDSEDataset):
                     'sat:relative_orbit'
                 ),
                 'view:incident_angle': 39.5,
-                's1:product_uri': item.get('id') + '.SAFE',
+                's1:product_uri': item.get('id'),
             },
             'assets': new_assets,
             'collection': 'sentinel-1-grd',
