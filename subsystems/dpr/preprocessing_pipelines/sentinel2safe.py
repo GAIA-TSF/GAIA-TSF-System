@@ -1,6 +1,5 @@
 import os
 import json
-import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
 
