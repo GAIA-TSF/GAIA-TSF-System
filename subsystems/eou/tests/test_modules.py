@@ -203,10 +203,3 @@ class TestModules:
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
-
-    def test_DataExtraction_001(self):
-        """Test DataExtraction module.
-
-        Example of unit test.
-        """
-        pass
