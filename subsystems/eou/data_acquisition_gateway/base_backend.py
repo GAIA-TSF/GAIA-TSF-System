@@ -11,6 +11,14 @@ class DataAcquisitionBackend(ABC):
     def set_config(self, config: dict) -> None:
         self.config = config
 
+        # check password
+        if 'cop_dataspace' in self.config: # eodag
+            credentials = self.config['cop_dataspace']['auth']['credentials']
+        else:
+            credentials = self.config['auth']['credentials']
+        if not credentials['password'] and os.environ.get('GAIA_EOU_AUTH_CREDENTIALS_PASSWORD'):
+            credentials['password'] = os.environ['GAIA_EOU_AUTH_CREDENTIALS_PASSWORD']
+
     @abstractmethod
     def search(self, *args, **kwargs):
         """Generic search interface"""
