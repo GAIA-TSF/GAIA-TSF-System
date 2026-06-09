@@ -1,9 +1,14 @@
 # PROJECT DEFINITIONS 
 project:
-  # 2018 year 
-  inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
-  static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
-  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
+
+  # 2018 year Skylake
+  # inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
+  # static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
+  # output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
+  # 2018 year mos 
+  inputs_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
+  static_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
+  output_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
 
   # 2016-2025 years 
   # inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
@@ -44,13 +49,9 @@ smoothing:
 raster:
 
   driver: COG
-
   compression: DEFLATE
-
   predictor: 3
-
   blocksize: 512
-
   nodata: nan
   
 
@@ -112,9 +113,23 @@ temporal_features:
     type: rolling_std
     window: 5
 
-baseline:
+monitoring: 
+
   reference_years: 2018 
 
-risk:
-  zscore_threshold:
-  cusum_threshold:
+  risk: # to be updated  
+
+    mode: spectral # to be implemented 
+
+    zscore_threshold: 3
+    cusum_threshold: 50
+    cusum_h: 3 
+  
+    spectral_weight: 0.40
+    persistence_weight: 0.25
+    instability_weight: 0.20
+    acceleration_weight: 0.15
+
+  dashboard:
+    plot: true
+    mask: tsf_water

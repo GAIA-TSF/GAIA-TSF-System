@@ -2,28 +2,49 @@
 This script applies AMD time series modelling to the spatial data. 
 
 """
+
 import os
 import glob
-
+import yaml
 import numpy as np
 import pandas as pd
 import rasterio
+from rasterio.enums import Resampling
 import matplotlib.pyplot as plt 
 
-# ============================================================
+
 # CONFIG
-# ============================================================
+with open("config.yaml") as f:
+    cfg = yaml.safe_load(f)
 
-CUSUM_K = 5.0
-CUSUM_H = 50.0
+# CONSTANTS  
+CUSUM_K = cfg["monitoring"]["risk"]["cusum_threshold"]
 
-W_SPECTRAL = 0.7
-W_PERSISTENCE = 0.3
+CUSUM_H = cfg["monitoring"]["risk"]["cusum_h"]
 
-# ============================================================
-# IO
-# ============================================================
+W_SPECTRAL = (
+    cfg["monitoring"]["risk"]["spectral_weight"]
+)
 
+W_PERSISTENCE = (
+    cfg["monitoring"]["risk"]["persistence_weight"]
+)
+
+W_INSTABILITY = (
+    cfg["monitoring"]["risk"]["instability_weight"]
+)
+
+W_ACCELERATION = (
+    cfg["monitoring"]["risk"]["acceleration_weight"]
+)
+
+ZSCORE_THRESHOLD = (
+    cfg["monitoring"]["risk"]["zscore_threshold"]
+)
+
+
+
+# IO 
 def load_geotiff_series(tif_dir):
 
     files = sorted(
@@ -124,10 +145,8 @@ def extract_pixel_timeseries(
         stack[:, y, x]
     )
 
-# ============================================================
-# STACKING
-# ============================================================
 
+# STACKING
 def stack_timeseries(data):
 
     stack = []
@@ -149,10 +168,8 @@ def stack_timeseries(data):
         dates
     )
 
-# ============================================================
-# BASELINE
-# ============================================================
 
+# BASELINE
 def build_clean_baseline(
     amd_stack,
     clean_mask
@@ -179,10 +196,8 @@ def build_clean_baseline(
         clean_mad
     )
 
-# ============================================================
-# ANOMALY
-# ============================================================
 
+# ANOMALY
 def anomaly_stack(
     amd_stack,
     clean_median
@@ -193,10 +208,8 @@ def anomaly_stack(
         clean_median
     )
 
-# ============================================================
-# ROBUST Z SCORE
-# ============================================================
 
+# ROBUST Z SCORE
 def zscore_stack(
     amd_stack,
     clean_median,
@@ -214,10 +227,8 @@ def zscore_stack(
 
     return z
 
-# ============================================================
-# CUSUM
-# ============================================================
 
+# CUSUM
 def cusum_stack(
     anomaly,
     k
@@ -241,10 +252,8 @@ def cusum_stack(
 
     return S
 
-# ============================================================
-# RISK
-# ============================================================
 
+# RISK
 def sigmoid(x):
 
     x = np.clip(
@@ -267,7 +276,7 @@ def risk_stack(
 
     # spectral anomaly
     p_spec = sigmoid(
-        zscore - 3
+        zscore - ZSCORE_THRESHOLD
     )
 
     # persistence
@@ -295,7 +304,17 @@ def risk_stack(
 #         0.15 * p_acc
 #     )
 
-    risk = (p_spec)
+    risk = (
+
+        W_SPECTRAL * p_spec  # +
+
+        # W_PERSISTENCE * p_persist +
+
+        # W_INSTABILITY * p_instability +
+
+        # W_ACCELERATION * p_acc
+
+    )
 
 
     return np.clip(
@@ -304,28 +323,38 @@ def risk_stack(
         1
     )
 
-# ============================================================
-# SAVE
-# ============================================================
 
+# SAVE
 def save_geotiff_series(
     output_dir,
     template_path,
     stack,
     dates,
-    prefix
+    prefix, 
+    RASTER_CFG
 ):
 
-    with rasterio.open(
-        template_path
-    ) as src:
+    with rasterio.open(template_path) as src:
 
         meta = src.meta.copy()
 
     meta.update(
+
+        driver=RASTER_CFG["driver"],
+
         count=1,
+
         dtype="float32",
-        nodata=np.nan
+
+        nodata=np.nan,
+
+        compress=RASTER_CFG["compression"],
+
+        predictor=RASTER_CFG["predictor"],
+
+        blocksize=RASTER_CFG["blocksize"],
+
+        overview_resampling=Resampling.average
     )
 
     os.makedirs(
@@ -347,9 +376,7 @@ def save_geotiff_series(
         ) as dst:
 
             dst.write(
-                stack[i].astype(
-                    np.float32
-                ),
+                stack[i].astype(np.float32),
                 1
             )
 
@@ -361,7 +388,9 @@ def plot_gaia_dashboard(
     cusum,
     roll_std,
     acc,
-    risk
+    risk, 
+    clean_median,
+    clean_mad
 ):
 
     fig, axes = plt.subplots(
@@ -559,7 +588,9 @@ def plot_gaia_dashboard(
     cusum,
     roll_std,
     acc,
-    risk
+    risk, 
+    clean_median,
+    clean_mad
 ):
 
     fig, axes = plt.subplots(3, 1, figsize=(14, 9), sharex=True) 
@@ -604,72 +635,28 @@ def plot_gaia_dashboard(
     plt.show()
 
 
-# ============================================================
-# MAIN
-# ============================================================
 
+# MAIN
 def main():
 
+    # INPUTS    
+    results_dir = cfg["project"]["output_dir"]
+    amd_dir = os.path.join(results_dir, "amd_indicators")
+    indicator_name = (cfg["indices"]["amd_metric"]).lower() 
+    tif_dir = os.path.join(amd_dir, indicator_name) 
+    # print(tif_dir) 
+    temporal_feature_dir = os.path.join(results_dir, 'temporal_features', indicator_name) 
+    
+    static_dir = cfg["project"]["static_dir"] 
+    clean_mask_path = os.path.join(static_dir, cfg["masks"]["clean_water"])
+    tsf_mask_path = os.path.join(static_dir, cfg["masks"]["tsf_water"])
 
-    # INPUTS
-    inputs_dir = (
-        "/home/lukas/ownCloud/Projects/"
-        "GAIA_TSF/"
-        "tsf_experiments/"
-        "AMD_monitoring_Yxsjoberg/"
-        "results/"
-        "amd_indicators/"
-    )
-
-    tif_dir = os.path.join(
-        inputs_dir,
-        "amd_diff"
-    )
-
-    temporal_feature_dir = (
-        "/home/lukas/ownCloud/Projects/"
-        "GAIA_TSF/"
-        "tsf_experiments/"
-        "AMD_monitoring_Yxsjoberg/"
-        "results/"
-        "temporal_features/"
-        "amd_diff"
-    )
-
-
-    static_dir = (
-        "/home/lukas/ownCloud/Projects/"
-        "GAIA_TSF/"
-        "tsf_experiments/"
-        "AMD_monitoring_Yxsjoberg/"
-        "static"
-    )
-
-    clean_mask_path = os.path.join(
-        static_dir,
-        "yxsjoberg_clean_water_mask.tif"
-    )
-
-    tsf_mask_path = os.path.join(
-        static_dir,
-        "yxsjoberg_tsf_water_mask.tif"
-    )   
-
-    output_dir = (
-        "/home/lukas/ownCloud/Projects/"
-        "GAIA_TSF/"
-        "tsf_experiments/"
-        "AMD_monitoring_Yxsjoberg/"
-        "results/"
-        "monitoring"
-    )
-
+    monitoring_dir = cfg["project"]["output_dir"].replace('results', 'monitoring')
 
     # LOAD
     print("[INFO] Loading data..." )
 
     data = load_geotiff_series(tif_dir)
-
     amd_stack, dates = (stack_timeseries(data))
 
     print("[INFO] Loading temporal features..." )
@@ -693,10 +680,8 @@ def main():
     print("Clean median:", clean_median) 
     print("Clean MAD:", clean_mad)  
 
-
     # ANOMALY
     anomaly = anomaly_stack(amd_stack, clean_median)  
-
 
     # Z SCORE
     zscore = zscore_stack(
@@ -705,12 +690,10 @@ def main():
         clean_mad
     )
 
-
     # CUSUM
     print("[INFO] Computing CUSUM...") 
 
     cusum = cusum_stack(anomaly, CUSUM_K) 
-
 
     # RISK
     print("[INFO] Computing risk...")   
@@ -723,7 +706,20 @@ def main():
 
     # y = y[0]
     # x = x[0]
-
+    
+    # aggreation for plotting 
+    observed_tsf = np.nanmedian(
+        amd_stack[:, y, x],
+        axis=1
+    )
+    anomaly_tsf = np.nanmedian(
+        anomaly[:, y, x],
+        axis=1
+    )
+    risk_tsf = np.nanmedian(
+        risk[:, y, x],
+        axis=1
+    )
 
 
     plot_gaia_dashboard(
@@ -749,52 +745,58 @@ def main():
             acc_stack[:, y, x],
 
         risk=
-            risk[:, y, x]
+            risk[:, y, x], 
+
+        clean_median = clean_median,
+
+        clean_mad = clean_mad 
     )
 
     # plot_site_risk(dates, risk) 
 
-    # --------------------------------------------------------
-    # SAVE
-    # --------------------------------------------------------
 
+    # SAVE RESULTS
     template = data[0]["path"]
+    RASTER_CFG = cfg["raster"]
 
     print(
         "[INFO] Saving outputs..."
     )
 
     save_geotiff_series(
-        output_dir,
+        monitoring_dir,
         template,
         anomaly,
         dates,
-        "anomaly"
+        "anomaly", 
+        RASTER_CFG
     )
 
     save_geotiff_series(
-        output_dir,
+        monitoring_dir,
         template,
         zscore,
         dates,
-        "zscore"
+        "zscore", 
+        RASTER_CFG
     )
 
     save_geotiff_series(
-        output_dir,
+        monitoring_dir,
         template,
         cusum,
         dates,
-        "cusum"
+        "cusum", 
+        RASTER_CFG
     )
-    # TODO: roll_std, acc 
 
     save_geotiff_series(
-        output_dir,
+        monitoring_dir,
         template,
         risk,
         dates,
-        "risk"
+        "risk", 
+        RASTER_CFG
     )
 
     print(
