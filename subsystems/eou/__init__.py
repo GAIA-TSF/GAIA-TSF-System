@@ -41,9 +41,13 @@ class EarthObservationDataUploader(GaiaBase):
         """
         self._dpr_dispatcher.dispatch(payload, self.dpr_service)
 
-    def forward_to_qcl(self, data_type: str, data, metadata: dict, dataset_id: str) -> None:
+    def forward_to_qcl(
+        self, data_type: str, data, metadata: dict, dataset_id: str
+    ) -> None:
         """Forward raw data or pointer to QCL for validation (EOU_I_2)."""
-        self._qcl_dispatcher.dispatch(data_type, data, metadata, dataset_id, self.qcl_service)
+        self._qcl_dispatcher.dispatch(
+            data_type, data, metadata, dataset_id, self.qcl_service
+        )
 
     def ingest_manual_file(self, file_path: str, dataset_id: str = None) -> dict:
         """Helper that performs local file validity check and automatically
