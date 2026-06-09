@@ -1,6 +1,5 @@
 import os
 import json
-import zipfile
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
@@ -406,20 +405,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             return
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
-        if os.path.isdir(self._config['input_safe']):
-            self.input_folder = self._config['input_safe']
-        elif zipfile.is_zipfile(self._config['input_safe']):
-            target_dir = os.path.join(self._config['output_folder'], 'temp')
-            self.logger.info(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
-            with zipfile.ZipFile(self._config['input_safe'], 'r') as zip_ref:
-                zip_ref.extractall(target_dir)
-            self.input_folder = Path(
-                target_dir, self._config['input_safe'].name
-            ).with_suffix('.SAFE')
-        else:
-            raise RuntimeError(
-                'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
-            )
+        self.input_folder = self._config['input_safe']
 
         # Proceed with the conversion of the SAFE to Geotiff
         self.logger.info(f'Scanning folder: {self.input_folder}')
@@ -430,12 +416,6 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             roi = self._roi_transform()
             self._process_and_merge_jp2(roi)
             self._save_json()
-            if zipfile.is_zipfile(self._config['input_safe']):
-                target_dir = os.path.join(self._config['output_folder'], 'temp')
-                self.logger.info(
-                    f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}'
-                )
-                shutil.rmtree(target_dir)
         else:
             self.logger.error(
                 'Extraction failed: Required metadata files could not be located.'
