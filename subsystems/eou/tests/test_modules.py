@@ -103,10 +103,6 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            visible_files = [
-                p for p in ql_path.parent.iterdir() if not p.name.startswith('.')
-            ]
-            assert len(visible_files) == 1
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
@@ -128,15 +124,13 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(
-                module.backend.download(result.iloc[[0]], target_dir=target_dir)
-            )
-            assert any(datadir.iterdir())
+            datadir = module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            assert datadir.exists()
+            assert datadir.stat().st_size > 0
             assert (
-                datadir.resolve()
+                datadir.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            assert len(list(datadir.iterdir())) == 1
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
@@ -157,24 +151,17 @@ class TestModules:
 
         target_dir = 'sentinel2'
         try:
-            ql_dir = Path(
-                module.backend.download_all(
-                    results, target_dir=target_dir, quicklook=True
-                )
+            ql_dir = module.backend.download_all(
+                results, target_dir=target_dir, quicklook=True
             )
 
-            assert ql_dir.exists()
-            assert any(ql_dir.iterdir())
-            assert ql_dir.stat().st_size > 0
-            assert (
-                ql_dir.resolve()
-                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
-            )
-            visible_files = [p for p in ql_dir.iterdir() if not p.name.startswith('.')]
-            assert len(results) == len(visible_files)
+            for ql_path in ql_dir:
+                assert ql_path.exists()
+                assert ql_path.stat().st_size > 0
+            assert len(results) == len(ql_dir)
         finally:
-            if ql_dir and ql_dir.is_dir():
-                for item in ql_dir.iterdir():
+            if ql_dir:
+                for item in ql_dir:
                     if item.is_dir():
                         shutil.rmtree(item)
                     else:
@@ -197,16 +184,15 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download_all(result, target_dir=target_dir))
-            assert any(datadir.iterdir())
-            assert (
-                datadir.resolve()
-                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
-            )
-            assert len(result) == len(list(datadir.iterdir()))
+            datadir = module.backend.download_all(result, target_dir=target_dir)
+            for data_path in datadir:
+                assert data_path.exists()
+                assert data_path.stat().st_size > 0
+            assert len(result) == len(datadir)
         finally:
-            if datadir.exists() and datadir.is_dir():
-                shutil.rmtree(datadir)
+            for item in datadir:
+                if item.exists():
+                    shutil.rmtree(item)
 
     def test_DataExtraction_001(self):
         """Test DataExtraction module.

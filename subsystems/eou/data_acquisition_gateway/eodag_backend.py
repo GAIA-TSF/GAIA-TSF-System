@@ -97,7 +97,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         :param str target_dir: target directory to store downloaded products
         :param bool quicklook: If True, only download the preview images
         :return: a path to the download data
-        :rtype: Path
+        :rtype: List[Path]
         """
         downloaded_paths = []
 
