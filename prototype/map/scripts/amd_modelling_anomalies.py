@@ -652,6 +652,7 @@ def main():
     tsf_mask_path = os.path.join(static_dir, cfg["masks"]["tsf_water"])
 
     monitoring_dir = cfg["project"]["output_dir"].replace('results', 'monitoring')
+    
 
     # LOAD
     print("[INFO] Loading data..." )
@@ -759,10 +760,9 @@ def main():
     template = data[0]["path"]
     RASTER_CFG = cfg["raster"]
 
-    print(
-        "[INFO] Saving outputs..."
-    )
-
+    print("[INFO] Saving outputs...")
+    print(monitoring_dir)
+    
     save_geotiff_series(
         monitoring_dir,
         template,
