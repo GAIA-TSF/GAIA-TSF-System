@@ -55,18 +55,18 @@
         "sat:orbit_state": "descending",
         "sat:relative_orbit": 66,
         "view:incident_angle": 39.5,
-        "s1:product_uri": "S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE"
+        "s1:product_uri": "S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE.SAFE"
     },
     "assets": {
         "metadata": {
-            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1/manifest.safe",
+            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/manifest.safe",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "VH": {
-            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1/measurement/s1a-iw3-slc-vh-20250602t053127-20250602t053152-059463-0761ae-003.tiff",
+            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/measurement/s1a-iw3-slc-vh-20250602t053127-20250602t053152-059463-0761ae-003.tiff",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
@@ -74,7 +74,7 @@
             "sar:polarizations": "VH"
         },
         "VV": {
-            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1/measurement/s1a-iw3-slc-vv-20250602t053127-20250602t053152-059463-0761ae-006.tiff",
+            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250602T053127_20250602T053154_059463_0761AE_5CD1.SAFE/measurement/s1a-iw3-slc-vv-20250602t053127-20250602t053152-059463-0761ae-006.tiff",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"

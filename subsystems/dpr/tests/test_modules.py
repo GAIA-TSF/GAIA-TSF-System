@@ -36,7 +36,7 @@ def get_stac_jsons(product_type: str, search_filter: dict, config, target_dir):
 
     data_dir = TestUtils.get_data_path('dpr')
     with open(
-        Path(data_dir) / f'{Path(product_path).name}.json',
+        Path(data_dir) / f'{Path(product_path).with_suffix("").name}.json',
         'r',
     ) as f:
         json_dict = json.load(f)

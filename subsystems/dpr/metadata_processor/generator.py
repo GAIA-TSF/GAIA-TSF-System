@@ -383,7 +383,7 @@ class Sentinel1SLCDataset(SentinelCDSEDataset):
                     'sat:relative_orbit'
                 ),
                 'view:incident_angle': 39.5,
-                's1:product_uri': item.get('id'),
+                's1:product_uri': item.get('id') + '.SAFE',
             },
             'assets': new_assets,
             'collection': 'sentinel-1-slc',
@@ -499,7 +499,7 @@ class Sentinel1GRDDataset(SentinelCDSEDataset):
                     'sat:relative_orbit'
                 ),
                 'view:incident_angle': 39.5,
-                's1:product_uri': item.get('id'),
+                's1:product_uri': item.get('id') + '.SAFE',
             },
             'assets': new_assets,
             'collection': 'sentinel-1-grd',
@@ -899,15 +899,15 @@ class MetadataGenerator(GaiaBase):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif (
-            'S1' in data_source
-            and '_SLC' in data_source
+            'S1' in str(data_source)
+            and '_SLC' in str(data_source)
             and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
         ):
             self._ds = Sentinel1SLCDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif (
-            'S1' in data_source
-            and '_GRD' in data_source
+            'S1' in str(data_source)
+            and '_GRD' in str(data_source)
             and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
         ):
             self._ds = Sentinel1GRDDataset(data_source)
