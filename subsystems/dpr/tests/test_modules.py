@@ -198,18 +198,15 @@ class TestModules:
             **search_filter,
         )
 
-        products_path = dag.backend.download(results, target_dir='sentinel1')
-        basename = sorted(os.listdir(products_path))[0]
-        product_path = str(products_path / basename)
+        product_path = dag.backend.download(results, target_dir='sentinel1')
 
         module = MetadataGenerator()
         module.set_datasource(product_path)
         item_dict = module.stac.create_item()
 
-        product_id = os.path.basename(basename)[:-5]
         data_dir = TestUtils.get_data_path('dpr')
         with open(
-            Path(data_dir) / f'{product_id}.json',
+            Path(data_dir) / f'{product_path.stem}.json',
             'r',
         ) as f:
             json_dict = json.load(f)
