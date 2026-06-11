@@ -4,16 +4,21 @@ import shutil
 from pathlib import Path
 
 import numpy
+import glob
 import pytest
 from osgeo import gdal
 from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
 
+gdal.UseExceptions()
+
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
+from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
+from lib.config import SettingsReader
 
 
 @pytest.fixture(scope='class')
@@ -362,3 +367,165 @@ class TestSentinel2Workflow:
         )
 
         print(f'Test Passed: Cloud cover derived from SCL band is {cloud_pct}%')
+
+    def water_masking_data(self):
+        # Set path to folder containing sentinel-2 sample scenes
+        input_folder = TestUtils.get_data_path('dpr/sentinel2_yxsjoberg')
+
+        # Check if the folder has been located
+        assert input_folder.exists(), 'The Sentinel-2 input folder was not found.'
+
+        # Set path to the vector file containing the water bodies
+        input_water_mask = TestUtils.get_data_path('dpr/yxsjoberg_lakes.gpkg')
+
+        # Check if the folder has been located
+        assert input_water_mask.exists(), (
+            'The vector file containing the water bodies was not found.'
+        )
+
+        # Set path to output folder (delete pre-existing folder)
+        output_folder = Path(
+            SettingsReader()['storage']['data_dir'], 'temp_water_masking_test'
+        )
+        if output_folder.exists():
+            shutil.rmtree(output_folder)
+
+        return input_folder, input_water_mask, output_folder
+
+    def test_sentinel2_water_masking_default(self):
+        """Test the Sentinel2 water masking pipeline.
+        Run the pipeline in default mode (without user input file, input_water_mask=None)
+        """
+        input_folder, _, output_folder = self.water_masking_data()
+
+        pipeline = Sentinel2WaterMaskingPipeline()
+        pipeline.configure(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            max_cloud_snow_dark=0.1,
+            input_months=None,
+            start_date=None,
+            end_date=None,
+            input_water_mask=None,
+            threshold_parameters={
+                'shadow index': 0.9,
+                'spectral angle': 0.15,
+                'vnir regression slope': 1,
+                'vnir regression intercept': -500,
+                'band 2': 2000,
+                'swir reflectance': 1000,
+            },
+        )
+        pipeline.run()
+
+        # Search for metadata and data files in output folder
+        input_json_files = glob.glob(os.path.join(input_folder, '*.json'))
+        input_data_files = glob.glob(os.path.join(input_folder, '*.jp2'))
+        output_json_files = glob.glob(os.path.join(output_folder, '*.json'))
+        output_data_files = glob.glob(os.path.join(output_folder, '*.jp2'))
+
+        # Check that all the files were processed and exported correctly
+        assert len(input_json_files) == len(output_json_files), (
+            f'TEST 1: The number of output metadata files {len(output_json_files)}) is not the same as input metadata '
+            f'files ({len(input_json_files)}).'
+        )
+        assert len(input_data_files) == len(output_data_files), (
+            f'TEST 1: The number of output data files ({len(output_data_files)}) is not the same as input data '
+            f'files ({len(input_data_files)}).'
+        )
+
+        # Check that metadata were updated and that the water mask ratio is below 5%
+        for metadata in output_json_files:
+            with open(metadata, 'r') as f:
+                data = json.load(f)
+                assert 'water_mask_pct' in data, (
+                    f'TEST 1: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                )
+                assert data['water_mask_pct'] < 0.05, (
+                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                )
+
+        # Check that data files were produced with all the bands and that the mask band (14) contains the expected
+        # number of water bodies (16 to 17 for the default workflow).
+        for data_file in output_data_files:
+            ds = gdal.Open(data_file, gdal.GA_Update)
+            assert ds.RasterCount == 14, (
+                f'TEST 1: The data file does not contain the right amount of bands ({ds.RasterCount} instead of 14).'
+            )
+            mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
+            n_bodies = numpy.nanmax(mask)
+            assert 12 <= numpy.nanmax(n_bodies) <= 14, (
+                f'TEST 1: Expected between 12 and 14 water bodies, but count is {n_bodies}.'
+            )
+
+        # Clear the output folder before running TEST 2
+        if output_folder.exists():
+            shutil.rmtree(output_folder)
+
+    def test_sentinel2_water_masking_water_input(self):
+        """Run the pipeline with vector file as input (input_water_mask)."""
+        input_folder, input_water_mask, output_folder = self.water_masking_data()
+
+        pipeline = Sentinel2WaterMaskingPipeline()
+        pipeline.configure(
+            input_folder=input_folder,
+            output_folder=output_folder,
+            input_water_mask=input_water_mask,
+            max_cloud_snow_dark=0.1,
+            input_months=None,
+            start_date=None,
+            end_date=None,
+            threshold_parameters={
+                'shadow index': 0.9,
+                'spectral angle': 0.15,
+                'vnir regression slope': 1,
+                'vnir regression intercept': -500,
+                'band 2': 2000,
+                'swir reflectance': 1000,
+            },
+        )
+        pipeline.run()
+
+        # Search for metadata and data_file files in output folder
+        input_json_files = glob.glob(os.path.join(input_folder, '*.json'))
+        input_data_files = glob.glob(os.path.join(input_folder, '*.jp2'))
+        output_json_files = glob.glob(os.path.join(output_folder, '*.json'))
+        output_data_files = glob.glob(os.path.join(output_folder, '*.jp2'))
+
+        # Check that all the files were processed and exported correctly
+        assert len(input_json_files) == len(output_json_files), (
+            f'TEST 2: The number of output metadata files {len(output_json_files)}) is not the same as input metadata '
+            f'files ({len(input_json_files)}).'
+        )
+        assert len(input_data_files) == len(output_data_files), (
+            f'TEST 2: The number of output data_file files ({len(output_data_files)}) is not the same as input data file '
+            f'files ({len(input_data_files)}).'
+        )
+
+        # Check that metadata were updated and that the water mask ratio is below 5%
+        for metadata in output_json_files:
+            with open(metadata, 'r') as f:
+                data = json.load(f)
+                assert 'water_mask_pct' in data, (
+                    f'TEST 2: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                )
+                assert data['water_mask_pct'] < 0.05, (
+                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                )
+
+        # Check that data file files were produced with all the bands and that the mask band (14) contains the expected
+        # number of water bodies (10 with the vector file workflow).
+        for data_file in output_data_files:
+            ds = gdal.Open(data_file, gdal.GA_Update)
+            assert ds.RasterCount == 14, (
+                f'TEST 2: The data file does not contain the right amount of bands ({ds.RasterCount} instead of 14).'
+            )
+            mask = ds.GetRasterBand(14).ReadAsArray().astype(numpy.int16)
+            n_bodies = numpy.nanmax(mask)
+            assert n_bodies == 10, (
+                f'TEST 2: Expected 10 water bodies, but count is {n_bodies}.'
+            )
+
+        # Clear the output folder
+        if output_folder.exists():
+            shutil.rmtree(output_folder)
