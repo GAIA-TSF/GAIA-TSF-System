@@ -191,7 +191,7 @@ class TestModules:
             assert len(result) == len(datadir)
         finally:
             if datadir.exists():
-                for item in ql_dir:
+                for item in datadir:
                     if item.is_dir():
                         shutil.rmtree(item)
                     else:
