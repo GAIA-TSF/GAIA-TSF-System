@@ -15,7 +15,9 @@ class AssetChecker(GaiaBase):
     def __init__(self):
         super().__init__(SubsystemId.QCL)
         cfg = self.settings.get('qcl', {}).get('asset_checker', {})
-        self._task_required_types: Dict[str, List[str]] = cfg.get('task_required_types', {})
+        self._task_required_types: Dict[str, List[str]] = cfg.get(
+            'task_required_types', {}
+        )
         self._s2_platforms = set(cfg.get('s2_platforms', []))
         self._insitu_mime_types = set(cfg.get('insitu_mime_types', []))
 
