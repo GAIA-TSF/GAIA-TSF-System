@@ -12,6 +12,7 @@ from subsystems.eou.manual_file_loader import ManualFileLoader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.data_export import DataExporter
+from subsystems.dpr import DataProcessing
 from subsystems.isu import InSituDataUploader
 from subsystems.isu.etl_engine.pipeline import ETLEngine
 from subsystems.qcl import QCLayer
@@ -20,6 +21,12 @@ from subsystems.sdi.loader import EarthObservationDataLoader, InSituDataLoader
 from subsystems.sdi.utils import SdiUtils
 from tests.utils import TestUtils
 
+def create_sdi_package(product_path, metadata_path):
+    extractor = DataExporter(product_path, metadata_path)
+    zip_path = extractor.create_sdi_package()
+    assert zip_path.exists()
+
+    return zip_path
 
 def generate_eou_metadata_and_import(product_path):
     # generate metadata
@@ -31,8 +38,7 @@ def generate_eou_metadata_and_import(product_path):
     # TODO: MetadataValidator
 
     # create package for upload
-    extractor = DataExporter(product_path, metadata_path)
-    package_path = extractor.create_sdi_package()
+    package_path = create_sdi_package(product_path, metadata_path)
 
     # upload package into SDI
     importer = EarthObservationDataLoader(zip_path=package_path)
@@ -87,7 +93,7 @@ def project_config():
     )
 
 
-class TestConfig:
+class TestEOUIntegration:
     def test_integration_EOU_001_manual_loader(self):
         """Test full-system integration for manual data from EOU -> DPR -> SDI."""
         test_file = TestUtils.get_data_path('eou/ENMAP01_sample.tif')
@@ -98,12 +104,9 @@ class TestConfig:
         generate_eou_metadata_and_import(test_file)
 
 
-    @pytest.mark.skip(reason='MetadataGenerator does not support S1 so far')
-    def test_integration_EOU_002(self, tmp_path, project_config):
+    @pytest.mark.slow
+    def test_integration_EOU_002_sentinel1(self, tmp_path, project_config):
         """Test full-system integration for S1 from EOU -> DPR -> SDI."""
-        metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
-        exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
-
         search_filter = {
             'provider': 'cop_dataspace',
             'start': '2026-01-01',
@@ -112,24 +115,20 @@ class TestConfig:
             'orbitDirection': 'ascending',
         }
 
-        credentials = 'subsystems/eou/tests/eodag_config.yml'
-
         module = DataAcquisitionGateway()
-        module.set_config(credentials)
 
-        results = module.search(
+        results = module.backend.search(
             geom=project_config.aoi(),
             **search_filter,
         )
 
-        s1_path = module.download(results[0], output_dir=tmp_path)
+        s1_path = module.backend.download(results[0], target_dir='sentinel1')
 
-        generate_eou_metadata_and_import(
-            s1_path, metadata_temp.name, exported_temp.name
-        )
+        generate_eou_metadata_and_import(s1_path)
+
 
     @pytest.mark.slow
-    def test_integration_EOU_003(self, project_config):
+    def test_integration_EOU_003_sentinel2(self, project_config):
         """Test full-system integration for S2 from EOU -> DPR -> SDI."""
 
         search_filter = {
@@ -149,34 +148,6 @@ class TestConfig:
         s2_path = module.backend.download(results[0], target_dir='sentinel2')
 
         generate_eou_metadata_and_import(s2_path)
-
-    @pytest.mark.skip(reason='MetadataGenerator does not support ISU output so far')
-    def test_integration_ISU_001(self, tmp_path):
-        """Test full-system integration from ISU -> DPR -> SDI."""
-        metadata_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.json')
-        exported_temp = tempfile.NamedTemporaryFile(dir=tmp_path, suffix='.zip')
-
-        test_data = (
-            Path(__file__).parent.parent / 'subsystems' / 'isu' / 'tests' / 'test_data'
-        )
-
-        isu = InSituDataUploader(input_dir=str(test_data), processed_dir=str(tmp_path))
-
-        isu.scheduler = MagicMock()
-        isu.start()
-        isu._scan_and_process_files()
-        isu.scheduler.start.assert_called_once()
-
-        # Test Stop
-        isu.stop()
-
-        # TODO: Is there a better way to get the product and metadata path?
-        subsystem_output = glob.glob(str(tmp_path / '*.csv'))[0]
-
-        create_sdi_package(subsystem_output, metadata_temp.name, exported_temp.name)
-
-        importer = InSituDataLoader(zip_path=exported_temp.name)
-        importer.import_zip()
 
 
 class TestISUIntegration:
@@ -237,8 +208,7 @@ class TestISUIntegration:
         result['data'].to_csv(csv_path, index=False)
         stac_path.write_text(json.dumps(stac))
 
-        create_sdi_package(str(csv_path), str(stac_path), str(zip_path))
-        assert zip_path.exists()
+        zip_path = create_sdi_package(csv_path, stac_path)
 
         loader = InSituDataLoader(zip_path=str(zip_path))
         loader.import_zip()
