@@ -4,25 +4,6 @@ from typing import Dict, List, Optional
 from lib.base import GaiaBase, SubsystemId
 
 
-_TASK_REQUIRED_TYPES: Dict[str, List[str]] = {
-    'amd': ['s2', 'insitu'],
-}
-
-_S2_PLATFORMS = {'sentinel-2a', 'sentinel-2b', 'sentinel-2'}
-_INSITU_MIME_TYPES = {'application/x-postgresql'}
-
-
-def _get_asset_type(asset: Dict) -> str:
-    platform = (asset.get('platform') or '').lower()
-    mime_type = (asset.get('type') or '').lower()
-
-    if platform in _S2_PLATFORMS:
-        return 's2'
-    if mime_type in _INSITU_MIME_TYPES:
-        return 'insitu'
-    return 'unknown'
-
-
 class AssetChecker(GaiaBase):
     """
     Pre-flight quality check for STAC assets before running downstream computation.
@@ -33,6 +14,20 @@ class AssetChecker(GaiaBase):
 
     def __init__(self):
         super().__init__(SubsystemId.QCL)
+        cfg = self.settings.get('qcl', {}).get('asset_checker', {})
+        self._task_required_types: Dict[str, List[str]] = cfg.get('task_required_types', {})
+        self._s2_platforms = set(cfg.get('s2_platforms', []))
+        self._insitu_mime_types = set(cfg.get('insitu_mime_types', []))
+
+    def _get_asset_type(self, asset: Dict) -> str:
+        platform = (asset.get('platform') or '').lower()
+        mime_type = (asset.get('type') or '').lower()
+
+        if platform in self._s2_platforms:
+            return 's2'
+        if mime_type in self._insitu_mime_types:
+            return 'insitu'
+        return 'unknown'
 
     def analyze_assets(
         self,
@@ -55,10 +50,10 @@ class AssetChecker(GaiaBase):
         :return: {'conformance': int, 'result': dict}
         :raises ValueError: If key_variable is not a recognised task type
         """
-        if key_variable not in _TASK_REQUIRED_TYPES:
+        if key_variable not in self._task_required_types:
             raise ValueError(
                 f"Unknown key_variable '{key_variable}'. "
-                f'Supported: {list(_TASK_REQUIRED_TYPES)}'
+                f'Supported: {list(self._task_required_types)}'
             )
 
         if not assets:
@@ -66,8 +61,8 @@ class AssetChecker(GaiaBase):
                 print('No assets to analyze')
             return {'conformance': 0, 'result': {}}
 
-        required_types = _TASK_REQUIRED_TYPES[key_variable]
-        present_types = {_get_asset_type(a) for a in assets}
+        required_types = self._task_required_types[key_variable]
+        present_types = {self._get_asset_type(a) for a in assets}
 
         # Rule 1: Must-Have Data (50 pts, blocker)
         missing_types = [t for t in required_types if t not in present_types]
@@ -86,7 +81,7 @@ class AssetChecker(GaiaBase):
             cloud_values = [
                 a['cloud_cover']
                 for a in assets
-                if _get_asset_type(a) == 's2' and a.get('cloud_cover') is not None
+                if self._get_asset_type(a) == 's2' and a.get('cloud_cover') is not None
             ]
             if not cloud_values:
                 score_cloud = 10  # cloud cover unavailable — uncertain, not perfect
