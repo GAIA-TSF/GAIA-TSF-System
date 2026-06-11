@@ -395,7 +395,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         self._config['output_folder'].mkdir(parents=True, exist_ok=True)
 
         product = os.path.basename(self._config['input_safe'])
-        self.logger.info('Processing {product}')
+        self.logger.info(f'Processing {product}')
         path = os.path.join(
             self._config['output_folder'], product.replace('.zip', '.tiff')
         )

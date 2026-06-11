@@ -100,16 +100,13 @@ Data analytical pipelines:
 
 - `Sentinel2WaterMaskingPipeline` generates water masks for Sentinel-2 scenes.
 
+Example of a pipeline bellow:
+
 ```py
-import os
-import shutil
-import glob
-import geopandas as gpd
-from shapely.geometry import box
 from pathlib import Path
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import ProjectConfigReader
+from lib.config import ProjectConfigReader, SettingsReader
 from tests.utils import TestUtils
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
@@ -127,8 +124,8 @@ dag_module = DataAcquisitionGateway(backend='eodag')
 
 search_filter = {
     'provider': 'cop_dataspace',
-    'start': '2025-05-01',
-    'end': '2025-08-31',
+    'start': '2025-06-01',
+    'end': '2025-06-05',
     'productType': 'S2_MSI_L2A',
 }
 
@@ -137,14 +134,13 @@ results = dag_module.backend.search(
     **search_filter,
 )
 data_path = dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False)
-print(data_path)
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 ''' PART 2 - SENTINEL-2 CLIPPING AND RESAMPLING                                                                      '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 # Set output folder:
-s2_processed_folder = os.path.abspath('tests/data/dpr/output_safe_processor')
+s2_processed_folder = Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_safe_processor'
 
 # Set output resolution in meters
 res = (10, 10)
@@ -153,23 +149,15 @@ res = (10, 10)
 r_alg = 'bilinear'
 
 # Get paths to SAFE files from data folder (we assume that they are still zipped)
-base_dir = Path(data_path)
-safe_list = [str(file) for file in list(base_dir.glob('*.zip'))]
-
-# Get ROI from project_config
-gdf = gpd.read_file(project_config.aoi(), layer=None)
-gdf = gdf.to_crs(epsg=4326)
-bounds = gdf.total_bounds
-roi_geometry = box(*bounds)
-roi_geometry = roi_geometry.wkt
+safe_list = [Path(file) for file in list(data_path.glob('*.zip'))]
 
 # Run the pipeline
 pipeline = Sentinel2SafeProcessor()
 for safe_path in safe_list:
     pipeline.configure(
-        input_safe=Path(safe_path),
-        output_folder=Path(s2_processed_folder),
-        roi=roi_geometry,
+        input_safe=safe_path,
+        output_folder=s2_processed_folder,
+        roi=project_config.aoi(roi=True).wkt,
         target_res=res,
         resampling_alg=r_alg,
         overwrite=True,
@@ -180,41 +168,34 @@ for safe_path in safe_list:
 ''' PART 3 - RETRIEVING CLOUD COVER PERCENTAGE FROM CLIPPED SCENES                                                  '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-# Path to the S2 processed folder containing the metadata JSON files (Same as PART2)
-s2_processed_folder = os.path.abspath('tests/data/dpr/output_safe_processor')
-
 # Retrieve all JSON files from the folder
-meta_list = glob.glob(os.path.join(s2_processed_folder, "*.json"))
-    
+meta_list = s2_processed_folder.glob("*.json")
+
 # Run the pipeline
 pipeline = Sentinel2CloudCoverPipeline()
 for meta_path in meta_list:
     pipeline.configure(metadata_path=meta_path, path_key='source_path')
     pipeline.run()
-    
+
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 ''' PART 4 - CREATION OF WATER MASKS                                                                                 '''
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-# Set path to folder containing the processed sentinel-2 scenes
-input_folder = os.path.abspath('tests/data/dpr/output_safe_processor')
 
 # Set path to the vector file containing the water bodies
-input_water_mask = os.path.abspath('tests/data/dpr/yxsjoberg_lakes.gpkg')
-
+input_water_mask = TestUtils.get_data_path('dpr')  / 'yxsjoberg_lakes.gpkg'
+print(input_water_mask)
 # Set path to output folder (delete pre-existing folder)
-output_folder = os.path.abspath('tests/data/dpr/output_water_masks')
-if os.path.exists(output_folder) and os.path.isdir(output_folder):
-    shutil.rmtree(output_folder)
+output_folder = Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
 
 # OPTION 1: Run the pipeline in default mode (without user input file, input_water_mask=None)
 pipeline = Sentinel2WaterMaskingPipeline()
 pipeline.configure(
-    input_folder=Path(input_folder),
-    output_folder=Path(output_folder),
+    input_folder=s2_processed_folder,
+    output_folder=output_folder,
     max_cloud_snow_dark=0.1,
     input_months=[4, 5, 6, 7, 8, 9, 10],
-    start_date=project_config.monitoring_period.start(),
-    end_date=project_config.monitoring_period.end(),
+    start_date=project_config.monitoring_period.start,
+    end_date=project_config.monitoring_period.end,
     input_water_mask=None,
     threshold_parameters={
         'shadow index': 0.9,
@@ -230,13 +211,13 @@ pipeline.run()
 # OPTION 2: Run the pipeline with vector file as input (input_water_mask provided)
 pipeline = Sentinel2WaterMaskingPipeline()
 pipeline.configure(
-    input_folder=Path(input_folder),
-    output_folder=Path(output_folder),
+    input_folder=s2_processed_folder,
+    output_folder=output_folder,
     input_water_mask=Path(input_water_mask),
     max_cloud_snow_dark=0.1,
     input_months=[4, 5, 6, 7, 8, 9, 10],
-    start_date=project_config.monitoring_period.start(),
-    end_date=project_config.monitoring_period.end(),
+    start_date=project_config.monitoring_period.start,
+    end_date=project_config.monitoring_period.end,
     threshold_parameters={
         'shadow index': 0.9,
         'spectral angle': 0.15,
