@@ -198,7 +198,9 @@ class TestModules:
         )
 
         product_path = dag.backend.download(results.iloc[[0]], target_dir='sentinel1')
-
+        for key, value in results.iloc[0].items():
+            print(f"{key}: {value}")
+        print(product_path)
         module = MetadataGenerator()
         module.set_datasource(product_path)
         item_dict = module.stac.create_item()
