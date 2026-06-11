@@ -181,9 +181,21 @@ class TestAssetChecker:
         """Avg cloud cover >30% should score 0 for cloud criterion."""
         checker = AssetChecker()
         assets = [
-            {**_S2_ASSET, 'cloud_cover': 40.0, 'timestamp': '2024-01-01T10:00:00+00:00'},
-            {**_S2_ASSET, 'cloud_cover': 50.0, 'timestamp': '2024-01-15T10:00:00+00:00'},
-            {**_S2_ASSET, 'cloud_cover': 45.0, 'timestamp': '2024-02-01T10:00:00+00:00'},
+            {
+                **_S2_ASSET,
+                'cloud_cover': 40.0,
+                'timestamp': '2024-01-01T10:00:00+00:00',
+            },
+            {
+                **_S2_ASSET,
+                'cloud_cover': 50.0,
+                'timestamp': '2024-01-15T10:00:00+00:00',
+            },
+            {
+                **_S2_ASSET,
+                'cloud_cover': 45.0,
+                'timestamp': '2024-02-01T10:00:00+00:00',
+            },
             _INSITU_ASSET,
         ]
         result = checker.analyze_assets(assets, key_variable='amd', verbose=False)
@@ -210,5 +222,7 @@ class TestAssetChecker:
     def test_AC_006_unknown_key_variable_raises(self):
         """Unrecognised key_variable must raise ValueError."""
         checker = AssetChecker()
-        with pytest.raises(ValueError, match="Unknown key_variable"):
-            checker.analyze_assets([_S2_ASSET], key_variable='unknown_task', verbose=False)
+        with pytest.raises(ValueError, match='Unknown key_variable'):
+            checker.analyze_assets(
+                [_S2_ASSET], key_variable='unknown_task', verbose=False
+            )
