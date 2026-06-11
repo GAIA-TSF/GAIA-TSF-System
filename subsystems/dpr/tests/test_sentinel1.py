@@ -45,7 +45,7 @@ class ProjectContext:
 def ctx(config, glob_config):
     """Bundles multiple config values into one object."""
     base_dir = Path(glob_config['storage']['data_dir']).resolve()
-    data_dir = base_dir / 'sentinel1'
+    data_dir = base_dir / 'sentinel1_pipeline'
     return ProjectContext(
         aoi=config.aoi(),
         data_dir=data_dir,
