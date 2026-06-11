@@ -133,7 +133,7 @@ results = dag_module.backend.search(
     geom=project_config.aoi(),
     **search_filter,
 )
-data_path = dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False)
+data_path = Path(dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False))
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 ''' PART 2 - SENTINEL-2 CLIPPING AND RESAMPLING                                                                      '''
