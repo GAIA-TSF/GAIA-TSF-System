@@ -197,7 +197,7 @@ class TestModules:
             **search_filter,
         )
 
-        product_path = dag.backend.download(results, target_dir='sentinel1')
+        product_path = dag.backend.download(results.iloc[[0]], target_dir='sentinel1')
 
         module = MetadataGenerator()
         module.set_datasource(product_path)
