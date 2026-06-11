@@ -160,12 +160,11 @@ class TestModules:
                 assert ql_path.stat().st_size > 0
             assert len(results) == len(ql_dir)
         finally:
-            if ql_dir.exists():
-                for item in ql_dir:
-                    if item.is_dir():
-                        shutil.rmtree(item)
-                    else:
-                        item.unlink()
+            for item in ql_dir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
 
     def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
         """Test DataAcquisitionGateway module.
@@ -190,9 +189,8 @@ class TestModules:
                 assert data_path.stat().st_size > 0
             assert len(result) == len(datadir)
         finally:
-            if datadir.exists():
-                for item in datadir:
-                    if item.is_dir():
-                        shutil.rmtree(item)
-                    else:
-                        item.unlink()
+            for item in datadir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
