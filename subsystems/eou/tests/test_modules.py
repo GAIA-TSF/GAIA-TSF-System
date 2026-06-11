@@ -190,13 +190,5 @@ class TestModules:
                 assert data_path.stat().st_size > 0
             assert len(result) == len(datadir)
         finally:
-            for item in datadir:
-                if item.exists():
-                    shutil.rmtree(item)
-
-    def test_DataExtraction_001(self):
-        """Test DataExtraction module.
-
-        Example of unit test.
-        """
-        pass
+            if datadir.exists() and datadir.is_dir():
+                shutil.rmtree(datadir)

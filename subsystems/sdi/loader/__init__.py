@@ -199,7 +199,7 @@ class InSituDataLoader(SdiLoader):
             columns = asset.get('table:columns', [])
 
             if not href or not columns:
-                self.logger.debug(
+                self.logger.warning(
                     f'Skipping asset {asset_key}, missing href or columns'
                 )
                 continue
@@ -381,13 +381,13 @@ class EarthObservationDataLoader(SdiLoader):
         for asset_key, asset in list(assets.items()):
             href = asset.get('href')
             if not href:
-                self.logger.debug(f'Skipping asset {asset_key}, missing href')
+                self.logger.warning(f'Skipping asset {asset_key}, missing href')
                 continue
 
             # Resolve raster file path from ZIP
             raster_path = os.path.join(self.temp_dir, href)
             if not os.path.exists(raster_path):
-                self.logger.debug(f'Raster file {href} not found, skipping')
+                self.logger.warning(f'Raster file {href} not found, skipping')
                 continue
 
             self.raster_files.append(raster_path)
@@ -721,7 +721,7 @@ class EarthObservationDataLoader(SdiLoader):
 
             if target_epsg is not None and os.path.exists(temp_reprojected):
                 os.remove(temp_reprojected)
-                self.logger.debug(f'Odstraněn dočasný soubor: {temp_reprojected}')
+                self.logger.debug(f'Removed temporary file: {temp_reprojected}')
 
             # Log file sizes
             input_size = os.path.getsize(input_file) / (1024 * 1024)
