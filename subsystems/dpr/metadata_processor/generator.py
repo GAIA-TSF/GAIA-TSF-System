@@ -18,6 +18,7 @@ gdal.UseExceptions()
 from lib.base import GaiaBase, SubsystemId
 from lib.config import SettingsReader
 
+
 class BaseDataset(ABC):
     """
     Abstract base class for datasets providing spatial and temporal metadata.
@@ -855,13 +856,13 @@ class StacItemFactory:
     def save(self, output_path: Path | None = None) -> Path:
         """
         Save the generated STAC Item to a JSON file.
-            
+
         If ``output_path`` is not provided, a temporary JSON file is created
         automatically.
-            
+
         :param output_path: Path to the output JSON file. If ``None``, a temporary file is created.
         :type output_path: str | None
-            
+
         :returns: Path to the saved JSON file.
         :rtype: str
         """

@@ -1,11 +1,8 @@
-import glob
 import json
 import pytest
-import tempfile
 import requests
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 from lib.config import ProjectConfigReader, SettingsReader
 from subsystems.eou.manual_file_loader import ManualFileLoader
@@ -13,7 +10,6 @@ from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.data_export import DataExporter
 from subsystems.dpr import DataProcessing
-from subsystems.isu import InSituDataUploader
 from subsystems.isu.etl_engine.pipeline import ETLEngine
 from subsystems.qcl import QCLayer
 from subsystems.sdi import SpatialDataInfrastructure
@@ -21,12 +17,14 @@ from subsystems.sdi.loader import EarthObservationDataLoader, InSituDataLoader
 from subsystems.sdi.utils import SdiUtils
 from tests.utils import TestUtils
 
+
 def create_sdi_package(product_path, metadata_path):
     extractor = DataExporter(product_path, metadata_path)
     zip_path = extractor.create_sdi_package()
     assert zip_path.exists()
 
     return zip_path
+
 
 def generate_eou_metadata_and_import(product_path):
     # generate metadata
@@ -45,30 +43,30 @@ def generate_eou_metadata_and_import(product_path):
     importer.import_zip()
 
     # TBD: Copied from subsystem.sdi.tests.test_import -> how to avoid code duplication
-    
+
     # STAC query: search by bbox and datetime
     stac_api_url = importer.stac_api_url
     bbox = importer.stac_json['bbox']
     datetime = importer.stac_json['properties']['datetime']
-    
+
     query_url = (
         f'{stac_api_url}/search?bbox={",".join(map(str, bbox))}&datetime={datetime}'
     )
-    
+
     # Send request to STAC API
     resp = requests.post(query_url, json={})
     resp.raise_for_status()
     items = resp.json().get('features', [])
     assert items, 'STAC query returned no items'
-    
+
     # Find the asset B01
     for stac_item in items:
         if 'data' in stac_item['assets']:
-            asset = stac_item['assets']['data'] # B01?
+            asset = stac_item['assets']['data']  # B01?
             asset_url = asset['href']
-            
+
     assert asset_url, 'STAC asset does not contain href'
-        
+
     # Download the file from STAC asset URL
     temp_file = SettingsReader().temp_file()
     r = requests.get(asset_url, stream=True)
@@ -103,7 +101,6 @@ class TestEOUIntegration:
 
         generate_eou_metadata_and_import(test_file)
 
-
     @pytest.mark.slow
     def test_integration_EOU_002_sentinel1(self, tmp_path, project_config):
         """Test full-system integration for S1 from EOU -> DPR -> SDI."""
@@ -125,7 +122,6 @@ class TestEOUIntegration:
         s1_path = module.backend.download(results[0], target_dir='sentinel1')
 
         generate_eou_metadata_and_import(s1_path)
-
 
     @pytest.mark.slow
     def test_integration_EOU_003_sentinel2(self, project_config):

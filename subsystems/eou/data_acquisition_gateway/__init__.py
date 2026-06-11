@@ -30,8 +30,8 @@ class DataAcquisitionGateway(GaiaBase):
         else:
             raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
 
-        self.logger.debug(f"DataAcquisitionGateway initialized with {backend} backend")
-        
+        self.logger.debug(f'DataAcquisitionGateway initialized with {backend} backend')
+
         self.backend = DataAcquisitionBackend()
         self.backend.set_config(self.settings['eou'][backend])
         self.backend.data_dir = self.settings['storage']['data_dir']
