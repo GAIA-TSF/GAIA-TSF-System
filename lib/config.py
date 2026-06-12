@@ -211,7 +211,4 @@ class SettingsReader(ConfigReader):
         temp_dir = Path(SettingsReader()['storage']['data_dir']) / 'tmp'
         if not temp_dir.exists():
             temp_dir.mkdir()
-        return Path(tempfile.NamedTemporaryFile(dir=temp_dir,
-                                                suffix=extension).name)
-
-        
+        return Path(tempfile.NamedTemporaryFile(dir=temp_dir, suffix=extension).name)
