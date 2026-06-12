@@ -18,7 +18,7 @@ class TestModules:
     search_filter = {
         'provider': 'cop_dataspace',
         'start': '2025-06-01',
-        'end': '2025-06-10',
+        'end': '2025-06-05',
         'productType': 'S2_MSI_L2A',
     }
 
@@ -65,7 +65,7 @@ class TestModules:
 
         module = DataAcquisitionGateway(backend='asf')
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -114,7 +114,7 @@ class TestModules:
         """
         module = DataAcquisitionGateway(backend='asf')
         result = module.backend.search(
-            aoi=project_config.aoi(),
+            geom=project_config.aoi(),
             start=self.search_filter['start'],
             end=self.search_filter['end'],
             direction='A',
@@ -124,19 +124,72 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download(result, target_dir=target_dir))
-            assert any(datadir.iterdir())
+            datadir = module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            assert datadir.exists()
+            assert datadir.stat().st_size > 0
             assert (
-                datadir.resolve()
+                datadir.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
 
-    def test_DataExtraction_001(self):
-        """Test DataExtraction module.
+    def test_DataAcquisitionGateway_003_eodag_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
 
-        Example of unit test.
+        Test download_all capability using default backend (eodag).
         """
-        pass
+        module = DataAcquisitionGateway()
+
+        results = module.backend.search(
+            geom=project_config.aoi(),
+            **self.search_filter,
+        )
+
+        assert len(results) > 1
+
+        target_dir = 'sentinel2'
+        try:
+            ql_dir = module.backend.download_all(
+                results, target_dir=target_dir, quicklook=True
+            )
+
+            for ql_path in ql_dir:
+                assert ql_path.exists()
+                assert ql_path.stat().st_size > 0
+            assert len(results) == len(ql_dir)
+        finally:
+            for item in ql_dir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
+
+    def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
+        """Test DataAcquisitionGateway module.
+
+        Test download_all capability using ASF backend.
+        """
+        module = DataAcquisitionGateway(backend='asf')
+        result = module.backend.search(
+            geom=project_config.aoi(),
+            start=self.search_filter['start'],
+            end=self.search_filter['end'],
+            direction='A',
+        )
+
+        assert len(result) > 1
+
+        try:
+            datadir = module.backend.download_all(result, target_dir='sentinel1')
+            for data_path in datadir:
+                assert data_path.exists()
+                assert data_path.stat().st_size > 0
+            assert len(result) == len(datadir)
+        finally:
+            for item in datadir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()

@@ -7,7 +7,10 @@
 # 2) migrate
 pypgstac migrate --dsn postgresql://stac:stac@pgstacdb:5432/stac
 
-# 3) start STAC API
+# 3) create default collections
+python3 /usr/local/bin/create_default_collections.py
+
+# 4) start STAC API
 echo "Starting STAC FastAPI with Gunicorn..."
 exec gunicorn stac_fastapi.pgstac.app:app \
   --worker-class uvicorn.workers.UvicornWorker \

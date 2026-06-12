@@ -8,6 +8,10 @@ from psycopg import sql
 import requests
 import boto3
 from abc import ABC, abstractmethod
+import subprocess
+from pathlib import Path
+from typing import List, Dict, Optional
+from datetime import datetime
 
 from lib.base import GaiaBase, SubsystemId
 
@@ -84,10 +88,13 @@ class SdiLoader(ABC, GaiaBase):
         """
         headers = {'Content-Type': 'application/json'}
 
+        if not self.stac_json.get('bbox'):
+            self.logger.warning('No bbox in STAC item, skipping STAC post.')
+            return
+
         if (
             'properties' not in self.stac_json
             or 'datetime' not in self.stac_json['properties']
-            or 'bbox' not in self.stac_json
             or 'collection' not in self.stac_json
         ):
             raise ValueError(
@@ -192,7 +199,7 @@ class InSituDataLoader(SdiLoader):
             columns = asset.get('table:columns', [])
 
             if not href or not columns:
-                self.logger.debug(
+                self.logger.warning(
                     f'Skipping asset {asset_key}, missing href or columns'
                 )
                 continue
@@ -205,17 +212,29 @@ class InSituDataLoader(SdiLoader):
             sql_columns = []
             for col in columns:
                 col_name = col['name']
-                col_type = col['type']
+                col_type = col.get('type', 'TEXT')
                 if col_type == 'number':
                     sql_type = 'DOUBLE PRECISION'
                 elif col_type == 'datetime':
                     sql_type = 'TIMESTAMP'
                 else:
                     sql_type = 'TEXT'
-                sql_columns.append(f'{col_name} {sql_type}')
+                sql_columns.append(
+                    sql.SQL('{} {}').format(sql.Identifier(col_name), sql.SQL(sql_type))
+                )
+
+            # Add id column if it does not exist
+            has_id = any(col['name'].lower() == 'id' for col in columns)
+            if not has_id:
+                sql_columns.append(sql.SQL('id SERIAL PRIMARY KEY'))
+
+            # Add site_id column if it does not exist
+            has_site_id = any(col['name'].lower() == 'site_id' for col in columns)
+            if not has_site_id:
+                sql_columns.append(sql.SQL('site_id INT'))
 
             # Always add geom column
-            sql_columns.append('geom geometry(Point, 4326)')
+            sql_columns.append(sql.SQL('geom geometry(Point, 4326)'))
 
             try:
                 with psycopg.connect(**self.pg_config) as conn:
@@ -237,7 +256,7 @@ class InSituDataLoader(SdiLoader):
                             cur.execute(
                                 sql.SQL('CREATE TABLE {} ({})').format(
                                     table_ident,
-                                    sql.SQL(', ').join(sql.SQL(c) for c in sql_columns),
+                                    sql.SQL(', ').join(sql_columns),
                                 )
                             )
 
@@ -252,9 +271,7 @@ class InSituDataLoader(SdiLoader):
                                 cur.execute(
                                     sql.SQL('CREATE TABLE {} ({})').format(
                                         table_ident,
-                                        sql.SQL(', ').join(
-                                            sql.SQL(c) for c in sql_columns
-                                        ),
+                                        sql.SQL(', ').join(sql_columns),
                                     )
                                 )
 
@@ -275,15 +292,31 @@ class InSituDataLoader(SdiLoader):
                                 while data := f.read(8192):
                                     copy.write(data)
 
-                        # Update geom column
-                        cur.execute(
-                            sql.SQL(
-                                """
-                                UPDATE {}
-                                SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-                                """
-                            ).format(table_ident)
-                        )
+                        # Update geom column if lat/lon columns are present
+                        col_names = {c['name'] for c in columns}
+                        if {'lat', 'lon'}.issubset(col_names):
+                            cur.execute(
+                                sql.SQL(
+                                    'UPDATE {} SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)'
+                                ).format(table_ident)
+                            )
+
+                            # Update site_id based on geometry position.
+                            # All records on the same position will have the same side_id.
+                            cur.execute(
+                                sql.SQL("""
+                                        UPDATE {table} t
+                                        SET site_id = subquery.generated_site_id
+                                        FROM (
+                                            SELECT
+                                            UNNEST(ARRAY_AGG(id)) as id,
+                                            ROW_NUMBER() OVER (ORDER BY MIN(id)) as generated_site_id
+                                            FROM {table}
+                                            GROUP BY ST_AsText(geom)
+                                            ) subquery
+                                        WHERE t.id = subquery.id
+                                        """).format(table=table_ident)
+                            )
 
                         # Create spatial index
                         cur.execute(
@@ -325,13 +358,20 @@ class InSituDataLoader(SdiLoader):
 class EarthObservationDataLoader(SdiLoader):
     """
     Concrete implementation for raster datasets.
-    Handles uploading raster files to S3 and publishing STAC items.
+    Handles:
+    - GeoTIFF/SAFE upload to S3
+    - COG conversion
+    - STAC item publishing
     """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cog_temp_dir = None
 
     def _import_data(self, append_data: bool = False):
         """
-        Locate raster assets in STAC JSON, upload each to S3,
-        and update asset href dynamically.
+        Locate raster assets in STAC JSON, convert to COG,
+        upload to S3, and update asset href dynamically.
 
         :param bool append_data: currently ignored
         """
@@ -339,8 +379,13 @@ class EarthObservationDataLoader(SdiLoader):
         if not assets:
             raise Exception('STAC JSON contains no assets')
 
-        self.raster_files = []  # store all raster paths processed
+        self.raster_files = []
 
+        # Create temp directory for COG files
+        self.cog_temp_dir = os.path.join(self.temp_dir, 'cog_outputs')
+        os.makedirs(self.cog_temp_dir, exist_ok=True)
+
+        # Initialize S3 client
         s3 = boto3.client(
             's3',
             endpoint_url='http://localstack:4566',
@@ -349,43 +394,413 @@ class EarthObservationDataLoader(SdiLoader):
             region_name='us-east-1',
         )
         bucket_name = 'gaia-tsf-private'
-        # create bucket if missing
+
+        # Create bucket if missing
         try:
             s3.create_bucket(Bucket=bucket_name)
-        except s3.exceptions.BucketAlreadyOwnedByYou:
-            pass
-        except s3.exceptions.BucketAlreadyExists:
+        except (
+            s3.exceptions.BucketAlreadyOwnedByYou,
+            s3.exceptions.BucketAlreadyExists,
+        ):
             pass
 
-        for asset_key, asset in assets.items():
+        # Process each asset
+        for asset_key, asset in list(assets.items()):
             href = asset.get('href')
             if not href:
-                self.logger.debug(f'Skipping asset {asset_key}, missing href')
+                self.logger.warning(f'Skipping asset {asset_key}, missing href')
                 continue
 
             # Resolve raster file path from ZIP
             raster_path = os.path.join(self.temp_dir, href)
             if not os.path.exists(raster_path):
-                self.logger.debug(
-                    f'Raster file {href} not found in extracted ZIP, skipping'
-                )
+                self.logger.warning(f'Raster file {href} not found, skipping')
                 continue
 
-            # Save path to raster_files list
             self.raster_files.append(raster_path)
 
-            # S3 key can include asset_key to avoid collisions
-            filename = os.path.basename(href)
-            s3_key = f'rasters/{asset_key}_{filename}'
+            # Check if SAFE format or GeoTIFF
+            if self._is_safe_format(raster_path):
+                self._process_safe_to_cog(
+                    raster_path, asset_key, s3, bucket_name, asset
+                )
+            else:
+                self._process_geotiff_to_cog(
+                    raster_path, asset_key, s3, bucket_name, asset
+                )
 
-            # Upload to S3
-            s3.upload_file(Filename=raster_path, Bucket=bucket_name, Key=s3_key)
-            asset['href'] = f'http://localstack:4566/{bucket_name}/{s3_key}'
-            self.logger.debug(f'Uploaded {raster_path} to s3://{bucket_name}/{s3_key}')
+    def _is_safe_format(self, path: str) -> bool:
+        """Check if path is Sentinel-2 SAFE format"""
+        return path.endswith('.SAFE') or 'SAFE' in path
+
+    def _process_geotiff_to_cog(
+        self, raster_path: str, asset_key: str, s3, bucket_name: str, asset: Dict
+    ):
+        """
+        Upload original GeoTIFF AND create COG version
+
+        :param raster_path: Path to original GeoTIFF
+        :param asset_key: STAC asset key
+        :param s3: boto3 S3 client
+        :param bucket_name: S3 bucket name
+        :param asset: STAC asset dictionary to update
+        """
+        filename = os.path.basename(raster_path)
+
+        # UPLOAD ORIGINAL GeoTIFF
+        self.logger.info(f'Uploading original GeoTIFF: {filename}')
+        s3_key_original = f'rasters/original/{asset_key}_{filename}'
+
+        s3.upload_file(Filename=raster_path, Bucket=bucket_name, Key=s3_key_original)
+
+        # Update original asset href
+        asset['href'] = f'http://localstack:4566/{bucket_name}/{s3_key_original}'
+        asset['type'] = 'image/tiff; application=geotiff'
+        asset['roles'] = ['data']
+
+        self.logger.info(f'Original uploaded to s3://{bucket_name}/{s3_key_original}')
+
+        # CREATE AND UPLOAD COG VERSION
+        self.logger.info(f'Converting to COG: {raster_path}')
+
+        cog_filename = f'{os.path.splitext(filename)[0]}_cog.tif'
+        cog_path = os.path.join(self.cog_temp_dir, cog_filename)
+
+        # Convert to COG
+        success = self._convert_to_cog(raster_path, cog_path, target_epsg=3857)
+
+        if success:
+            # Upload COG
+            s3_key_cog = f'rasters/cog/{asset_key}_{cog_filename}'
+            s3.upload_file(Filename=cog_path, Bucket=bucket_name, Key=s3_key_cog)
+
+            # Add COG as NEW asset (not replacing original)
+            cog_asset_key = f'{asset_key}_cog'
+            self.stac_json['assets'][cog_asset_key] = {
+                'href': f'http://localstack:4566/{bucket_name}/{s3_key_cog}',
+                'type': 'image/tiff; application=geotiff; profile=cloud-optimized',
+                'title': f'{asset.get("title", asset_key)} (COG)',
+                'roles': ['data', 'visual', 'cloud-optimized'],
+                'derived_from': asset_key,  # Reference to original
+            }
+
+            self.logger.info(f'COG uploaded to s3://{bucket_name}/{s3_key_cog}')
+        else:
+            self.logger.warning(f'COG conversion failed for {filename}')
+
+    def _process_safe_to_cog(
+        self, safe_path: str, asset_key: str, s3, bucket_name: str, asset: Dict
+    ):
+        """
+        Upload original SAFE AND create COG files for each band
+
+        :param safe_path: Path to .SAFE directory
+        :param asset_key: STAC asset key
+        :param s3: boto3 S3 client
+        :param bucket_name: S3 bucket name
+        :param asset: STAC asset dictionary
+        """
+        self.logger.info(f'Processing SAFE format: {safe_path}')
+        safe_name = os.path.basename(safe_path).replace('.SAFE', '')
+
+        # UPLOAD ORIGINAL SAFE (if it's a ZIP or directory reference)
+        # Keep original asset reference intact
+        # (Assuming original asset already has correct href to SAFE)
+
+        # EXTRACT AND PROCESS BANDS
+        bands = self._extract_safe_bands(safe_path)
+
+        if not bands:
+            self.logger.warning(f'No bands found in SAFE: {safe_path}')
+            return
+
+        # Process each band
+        for band_info in bands:
+            band_path = band_info['path']
+            band_name = band_info['name']
+
+            self.logger.info(f'Processing band {band_name}')
+
+            # A) Upload original JP2 band
+            original_filename = os.path.basename(band_path)
+            s3_key_original = (
+                f'rasters/safe_original/{safe_name}/{band_name}/{original_filename}'
+            )
+
+            s3.upload_file(Filename=band_path, Bucket=bucket_name, Key=s3_key_original)
+
+            # Add original band asset
+            original_asset_key = f'{asset_key}_{band_name}_original'
+            self.stac_json['assets'][original_asset_key] = {
+                'href': f'http://localstack:4566/{bucket_name}/{s3_key_original}',
+                'type': 'image/jp2',
+                'title': f'{band_name} Band (Original JP2)',
+                'roles': ['data'],
+                'eo:bands': [
+                    {
+                        'name': band_name,
+                        'common_name': self._get_common_band_name(band_name),
+                    }
+                ],
+            }
+
+            self.logger.info(f'Original {band_name} uploaded')
+
+            # B) Convert to COG and upload
+            self.logger.info(f'Converting {band_name} to COG')
+
+            cog_filename = f'{safe_name}_{band_name}_cog.tif'
+            cog_path = os.path.join(self.cog_temp_dir, cog_filename)
+
+            success = self._convert_to_cog(
+                band_path,
+                cog_path,
+                compression='JPEG',
+                overview_levels=[2, 4, 8, 16, 32],
+                target_epsg=3857,
+            )
+
+            if success:
+                # Upload COG
+                s3_key_cog = f'rasters/safe_cog/{safe_name}/{band_name}_cog.tif'
+                s3.upload_file(Filename=cog_path, Bucket=bucket_name, Key=s3_key_cog)
+
+                # Add COG asset
+                cog_asset_key = f'{asset_key}_{band_name}_cog'
+                self.stac_json['assets'][cog_asset_key] = {
+                    'href': f'http://localstack:4566/{bucket_name}/{s3_key_cog}',
+                    'type': 'image/tiff; application=geotiff; profile=cloud-optimized',
+                    'title': f'{band_name} Band (COG)',
+                    'roles': ['data', 'visual', 'cloud-optimized'],
+                    'eo:bands': [
+                        {
+                            'name': band_name,
+                            'common_name': self._get_common_band_name(band_name),
+                        }
+                    ],
+                    'derived_from': original_asset_key,  # Link to original
+                }
+
+                self.logger.info(f'COG {band_name} uploaded')
+            else:
+                self.logger.warning(f'COG conversion failed for {band_name}')
+
+    def _extract_safe_bands(self, safe_path: str) -> List[Dict]:
+        """
+        Extract band files from SAFE directory
+
+        :param safe_path: Path to .SAFE directory
+        :return: List of band info dictionaries
+        """
+        bands = []
+        safe_path_obj = Path(safe_path)
+
+        # Find GRANULE/*/IMG_DATA directory
+        img_data_dirs = list(safe_path_obj.glob('GRANULE/*/IMG_DATA'))
+
+        if not img_data_dirs:
+            return bands
+
+        img_data_dir = img_data_dirs[0]
+
+        # Check for L2A structure (R10m, R20m, R60m)
+        resolutions = ['R10m', 'R20m', 'R60m']
+        search_dirs = []
+
+        for res in resolutions:
+            res_dir = img_data_dir / res
+            if res_dir.exists():
+                search_dirs.append(res_dir)
+
+        # If no resolution dirs, search in IMG_DATA directly (L1C)
+        if not search_dirs:
+            search_dirs = [img_data_dir]
+
+        # Find all band files (.jp2)
+        for search_dir in search_dirs:
+            for band_file in search_dir.glob('*_B*.jp2'):
+                # Extract band name (e.g., B02, B03, B04)
+                filename = band_file.name
+                band_name = None
+
+                for part in filename.split('_'):
+                    if part.startswith('B') and len(part) <= 4:
+                        band_name = part
+                        break
+
+                if band_name:
+                    bands.append({'name': band_name, 'path': str(band_file)})
+
+        return bands
+
+    def _get_common_band_name(self, band_name: str) -> Optional[str]:
+        """Map Sentinel-2 band names to common names"""
+        band_mapping = {
+            'B01': 'coastal',
+            'B02': 'blue',
+            'B03': 'green',
+            'B04': 'red',
+            'B05': 'rededge',
+            'B06': 'rededge',
+            'B07': 'rededge',
+            'B08': 'nir',
+            'B8A': 'nir08',
+            'B09': 'nir09',
+            'B10': 'cirrus',
+            'B11': 'swir16',
+            'B12': 'swir22',
+        }
+        return band_mapping.get(band_name)
+
+    def _convert_to_cog(
+        self,
+        input_file: str,
+        output_file: str,
+        compression: str = 'DEFLATE',
+        overview_levels: Optional[List[int]] = None,
+        blocksize: int = 512,
+        target_epsg: Optional[int] = None,
+        resampling: str = 'BILINEAR',
+    ) -> bool:
+        """
+        Convert GeoTIFF to Cloud Optimized GeoTIFF (COG)
+
+        :param input_file: Input GeoTIFF path
+        :param output_file: Output COG path
+        :param compression: Compression (DEFLATE, JPEG, ZSTD)
+        :param overview_levels: Overview pyramid levels
+        :param blocksize: Internal tile size
+        :param target_epsg: Target EPSG code (e.g., 3857 for Web Mercator), None = keep original
+        :param resampling: Resampling method for reprojection (BILINEAR, CUBIC, LANCZOS, etc.)
+        :return: True if successful
+        """
+        if overview_levels is None:
+            overview_levels = [2, 4, 8, 16]
+
+        try:
+            if target_epsg is not None:
+                temp_reprojected = input_file.replace(
+                    '.tif', f'_epsg{target_epsg}_temp.tif'
+                )
+
+                self.logger.info(f'Reprojectování do EPSG:{target_epsg}...')
+
+                reproject_cmd = [
+                    'gdalwarp',
+                    '-t_srs',
+                    f'EPSG:{target_epsg}',
+                    '-r',
+                    resampling,
+                    '-co',
+                    'TILED=YES',
+                    '-co',
+                    'COMPRESS=LZW',
+                    '-multi',
+                    '-wo',
+                    'NUM_THREADS=ALL_CPUS',
+                    input_file,
+                    temp_reprojected,
+                ]
+
+                result = subprocess.run(
+                    reproject_cmd,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,  # 10 min timeout pro reprojekci
+                )
+
+                source_file = temp_reprojected
+            else:
+                source_file = input_file
+
+            cmd = [
+                'gdal_translate',
+                source_file,
+                output_file,
+                '-of',
+                'COG',
+                '-co',
+                f'COMPRESS={compression}',
+                '-co',
+                f'BLOCKSIZE={blocksize}',
+                '-co',
+                'TILED=YES',
+                '-co',
+                'NUM_THREADS=ALL_CPUS',
+                '-co',
+                f'OVERVIEWS={",".join(map(str, overview_levels))}',
+                '-co',
+                'BIGTIFF=IF_SAFER',
+            ]
+
+            # Add JPEG quality for JPEG compression
+            if compression == 'JPEG':
+                cmd.extend(['-co', 'QUALITY=85'])
+
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 min timeout
+            )
+
+            if target_epsg is not None and os.path.exists(temp_reprojected):
+                os.remove(temp_reprojected)
+                self.logger.debug(f'Removed temporary file: {temp_reprojected}')
+
+            # Log file sizes
+            input_size = os.path.getsize(input_file) / (1024 * 1024)
+            output_size = os.path.getsize(output_file) / (1024 * 1024)
+
+            epsg_info = f' (EPSG:{target_epsg})' if target_epsg else ''
+            self.logger.debug(
+                f'COG conversion{epsg_info}: {input_size:.2f} MB → {output_size:.2f} MB'
+            )
+
+            return True
+
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f'COG conversion failed: {e.stderr}')
+
+            if target_epsg is not None and os.path.exists(temp_reprojected):
+                os.remove(temp_reprojected)
+            return False
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f'COG conversion timeout for {input_file}')
+            if target_epsg is not None and os.path.exists(temp_reprojected):
+                os.remove(temp_reprojected)
+            return False
+
+        except Exception as e:
+            self.logger.error(f'COG conversion error: {str(e)}')
+            if (
+                target_epsg is not None
+                and 'temp_reprojected' in locals()
+                and os.path.exists(temp_reprojected)
+            ):
+                os.remove(temp_reprojected)
+            return False
 
     def _update_stac_json(self):
         """
-        All asset hrefs already updated during S3 upload in _import_data.
-        No additional changes needed.
+        Update STAC JSON with COG-specific metadata
         """
-        pass  # hrefs already updated
+        # Add COG extension to STAC
+        if 'stac_extensions' not in self.stac_json:
+            self.stac_json['stac_extensions'] = []
+
+        # Add projection extension if not present
+        proj_ext = 'https://stac-extensions.github.io/projection/v1.0.0/schema.json'
+        if proj_ext not in self.stac_json['stac_extensions']:
+            self.stac_json['stac_extensions'].append(proj_ext)
+
+        # Update processing metadata
+        if 'properties' not in self.stac_json:
+            self.stac_json['properties'] = {}
+
+        self.stac_json['properties']['processing:level'] = 'L2A'
+        self.stac_json['properties']['processing:software'] = {'gdal': 'COG conversion'}
+        self.stac_json['properties']['updated'] = datetime.utcnow().isoformat() + 'Z'

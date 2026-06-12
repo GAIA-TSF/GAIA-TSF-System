@@ -41,7 +41,7 @@ dag_module = DataAcquisitionGateway(backend='eodag')
 search_filter = {
     'provider': 'cop_dataspace',
     'start': '2025-06-01',
-    'end': '2025-06-10',
+    'end': '2025-06-05',
     'productType': 'S2_MSI_L2A',
 }
 
@@ -49,7 +49,8 @@ results = dag_module.backend.search(
     geom=project_config.aoi(),
     **search_filter,
 )
-data_path = dag_module.backend.download(results[0], target_dir='sentinel2', quicklook=False)
+data_path = dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False)
+print(data_path)
 ```
 
 For data that cannot be automatically retrieved via

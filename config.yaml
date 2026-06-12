@@ -4,7 +4,7 @@ eou:
       auth:
         credentials: &cred
           username: 'gaia.tsf.project@gmail.com'
-          password: ''
+          password: '' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
   asf:
     auth:
       credentials:
@@ -45,5 +45,16 @@ qcl:
       max_null_pixels: 0.02
       min_snr: 30
       require_geo_alignment: true
+isu:
+  csv_encodings:
+    - 'utf-8'
+    - 'gbk'
+    - 'gb18030'
+    - 'latin-1'
 storage:
-  data_dir: /tmp/gaia_tsf
+  data_dir: /data/gaia_tsf
+dask_parameters:
+  silence_logs: 'CRITICAL'
+  n_workers: 2
+  threads_per_worker: 2
+  memory_limit: '8GB'
