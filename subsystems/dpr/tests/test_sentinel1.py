@@ -45,7 +45,7 @@ class ProjectContext:
 def ctx(config, glob_config):
     """Bundles multiple config values into one object."""
     base_dir = Path(glob_config['storage']['data_dir']).resolve()
-    data_dir = base_dir / 'sentinel1'
+    data_dir = base_dir / 'sentinel1_pipeline'
     return ProjectContext(
         aoi=config.aoi(),
         data_dir=data_dir,
@@ -103,8 +103,8 @@ class TestSentinel1Workflow:
         assert len(results) > 0
 
         datadir = module.backend.download(results, target_dir=ctx.data_dir)
-        safe_products = list(Path(datadir).glob('*.SAFE/'))
-        assert len(safe_products) > 0
+        assert datadir.exists() and datadir.is_dir()
+        assert datadir.suffix == '.SAFE'
 
     def test_001_download_orbits(self, pipeline, ctx):
         """Test downloading orbit files for Sentinel-1 SLC data."""

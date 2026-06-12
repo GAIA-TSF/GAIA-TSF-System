@@ -59,14 +59,14 @@
     },
     "assets": {
         "metadata": {
-            "href": "./test_MetadataGenerator_0030/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/manifest.safe",
+            "href": "./sentinel1/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/manifest.safe",
             "type": "application/xml",
             "roles": [
                 "metadata"
             ]
         },
         "VH": {
-            "href": "./test_MetadataGenerator_0030/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vh-20250602t053128-20250602t053153-059463-0761ae-002.tiff",
+            "href": "./sentinel1/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vh-20250602t053128-20250602t053153-059463-0761ae-002.tiff",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
@@ -74,7 +74,7 @@
             "sar:polarizations": "VH"
         },
         "VV": {
-            "href": "./test_MetadataGenerator_0030/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vv-20250602t053128-20250602t053153-059463-0761ae-001.tiff",
+            "href": "./sentinel1/S1A_IW_GRDH_1SDV_20250602T053128_20250602T053153_059463_0761AE_A638.SAFE/measurement/s1a-iw-grd-vv-20250602t053128-20250602t053153-059463-0761ae-001.tiff",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
