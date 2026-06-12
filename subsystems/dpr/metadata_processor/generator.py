@@ -899,15 +899,15 @@ class MetadataGenerator(GaiaBase):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif (
-            'S1' in data_source
-            and '_SLC' in data_source
+            'S1' in str(data_source)
+            and '_SLC' in str(data_source)
             and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
         ):
             self._ds = Sentinel1SLCDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
         elif (
-            'S1' in data_source
-            and '_GRD' in data_source
+            'S1' in str(data_source)
+            and '_GRD' in str(data_source)
             and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
         ):
             self._ds = Sentinel1GRDDataset(data_source)
