@@ -1,7 +1,7 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
-    "id": "S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3",
+    "id": "S1A_IW_SLC__1SDV_20250609T163821_20250609T163824_059572_07655D_2AE3",
     "bbox": [
         0.0,
         1513.0,
@@ -51,11 +51,11 @@
         "sat:orbit_state": "descending",
         "sat:relative_orbit": 66,
         "view:incident_angle": 39.5,
-        "s1:product_uri": "S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE"
+        "s1:product_uri": "S1A_IW_SLC__1SDV_20250609T163821_20250609T163824_059572_07655D_2AE3.SAFE"
     },
     "assets": {
         "VH": {
-            "href": "./test_MetadataGenerator_0050/S1A_IW_SLC__1SDV_20250609T163818_20250609T163821_059572_07655D_2AE3.SAFE",
+            "href": "./sentinel1/S1A_IW_SLC__1SDV_20250609T163821_20250609T163824_059572_07655D_2AE3.SAFE",
             "type": "image/tiff; application=geotiff",
             "roles": [
                 "data"
