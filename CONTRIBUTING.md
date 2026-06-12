@@ -78,6 +78,12 @@ Release Management
 
 ### Testing
 
+Note: The password is required for downloading Earth Observation (EO)
+data through EODAG or ASF. If the `docker/.env` file contains the
+`GAIA_EOU_AUTH_CREDENTIALS_PASSWORD` environment variable, there is no
+need to specify the password in `config.yaml`, as it will be read from
+the environment automatically.
+
 Build docker:
 
 ```sh
@@ -88,13 +94,13 @@ docker compose up --build
 Run tests for the testfile wished:
 
 ```sh
-docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
+docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest subsystems/subsystem/tests/testfile.py -v
 ```
 
 For executing long-running tests (which are excluded from CI), use the slow pytest marker.
 
 ```sh
-docker exec gaiatesting python3 -m pytest -m slow /opt/gaia_tsf/subsystems/subsystem/tests/testfile.py -v
+docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -m slow subsystems/subsystem/tests/testfile.py -v
 ```
 
 ### Virtual environment
