@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, List
 
+import re
 from pathlib import Path
 
 from geopandas import GeoDataFrame
@@ -103,9 +104,20 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
 
         resolved = []
         for fid in file_ids:
-            key = fid.split('_')[-1].replace('-BURST', '')
-
-            match = next((p for p in safe_dirs if p.name.endswith(f'{key}.SAFE')), None)
+            m = re.search(r'_(\d{8}T\d{6})_.*_([A-F0-9]{4})-BURST$', fid)
+            if m:
+                timestamp, burst_id = m.groups()
+                print(timestamp, burst_id)
+                match = next(
+                    (
+                        p
+                        for p in safe_dirs
+                        if timestamp in p.name and f'_{burst_id}.SAFE' in p.name
+                    ),
+                    None,
+                )
+            else:
+                match = None
             if match:
                 resolved.append(match)
             else:

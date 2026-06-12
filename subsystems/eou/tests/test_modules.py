@@ -181,9 +181,8 @@ class TestModules:
 
         assert len(result) > 1
 
-        target_dir = 'sentinel1'
         try:
-            datadir = module.backend.download_all(result, target_dir=target_dir)
+            datadir = module.backend.download_all(result, target_dir='sentinel1')
             for data_path in datadir:
                 assert data_path.exists()
                 assert data_path.stat().st_size > 0
