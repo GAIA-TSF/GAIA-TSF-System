@@ -60,7 +60,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         }
         search_params.update(kwargs)
 
-        return self._dag.search(**search_params)
+        return self._dag.search_all(**search_params)
 
     def _download(
         self, product: EOProduct, target_dir: str, quicklook: bool = False, **kwargs
