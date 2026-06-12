@@ -199,7 +199,7 @@ class InSituDataLoader(SdiLoader):
             columns = asset.get('table:columns', [])
 
             if not href or not columns:
-                self.logger.debug(
+                self.logger.warning(
                     f'Skipping asset {asset_key}, missing href or columns'
                 )
                 continue
@@ -222,6 +222,16 @@ class InSituDataLoader(SdiLoader):
                 sql_columns.append(
                     sql.SQL('{} {}').format(sql.Identifier(col_name), sql.SQL(sql_type))
                 )
+
+            # Add id column if it does not exist
+            has_id = any(col['name'].lower() == 'id' for col in columns)
+            if not has_id:
+                sql_columns.append(sql.SQL('id SERIAL PRIMARY KEY'))
+
+            # Add site_id column if it does not exist
+            has_site_id = any(col['name'].lower() == 'site_id' for col in columns)
+            if not has_site_id:
+                sql_columns.append(sql.SQL('site_id INT'))
 
             # Always add geom column
             sql_columns.append(sql.SQL('geom geometry(Point, 4326)'))
@@ -289,6 +299,23 @@ class InSituDataLoader(SdiLoader):
                                 sql.SQL(
                                     'UPDATE {} SET geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)'
                                 ).format(table_ident)
+                            )
+
+                            # Update site_id based on geometry position.
+                            # All records on the same position will have the same side_id.
+                            cur.execute(
+                                sql.SQL("""
+                                        UPDATE {table} t
+                                        SET site_id = subquery.generated_site_id
+                                        FROM (
+                                            SELECT
+                                            UNNEST(ARRAY_AGG(id)) as id,
+                                            ROW_NUMBER() OVER (ORDER BY MIN(id)) as generated_site_id
+                                            FROM {table}
+                                            GROUP BY ST_AsText(geom)
+                                            ) subquery
+                                        WHERE t.id = subquery.id
+                                        """).format(table=table_ident)
                             )
 
                         # Create spatial index
@@ -381,13 +408,13 @@ class EarthObservationDataLoader(SdiLoader):
         for asset_key, asset in list(assets.items()):
             href = asset.get('href')
             if not href:
-                self.logger.debug(f'Skipping asset {asset_key}, missing href')
+                self.logger.warning(f'Skipping asset {asset_key}, missing href')
                 continue
 
             # Resolve raster file path from ZIP
             raster_path = os.path.join(self.temp_dir, href)
             if not os.path.exists(raster_path):
-                self.logger.debug(f'Raster file {href} not found, skipping')
+                self.logger.warning(f'Raster file {href} not found, skipping')
                 continue
 
             self.raster_files.append(raster_path)
@@ -721,7 +748,7 @@ class EarthObservationDataLoader(SdiLoader):
 
             if target_epsg is not None and os.path.exists(temp_reprojected):
                 os.remove(temp_reprojected)
-                self.logger.debug(f'Odstraněn dočasný soubor: {temp_reprojected}')
+                self.logger.debug(f'Removed temporary file: {temp_reprojected}')
 
             # Log file sizes
             input_size = os.path.getsize(input_file) / (1024 * 1024)
