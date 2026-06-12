@@ -100,7 +100,10 @@ Data analytical pipelines:
 
 - `Sentinel2WaterMaskingPipeline` generates water masks for Sentinel-2 scenes.
 
-Example of a pipeline bellow:
+The code example below demonstrates downloading Sentinel-2 data using
+the `DataAcquisitionGateway` and applying the preprocessing pipelines
+`Sentinel2SafeProcessor` and `Sentinel2CloudCoverPipeline`. Finally, the
+data analysis pipeline `Sentinel2WaterMaskingPipeline` is executed.
 
 ```py
 from pathlib import Path
