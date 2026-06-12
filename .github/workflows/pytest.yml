@@ -64,16 +64,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Create .env file with EO data access credentials
+        run: |
+          echo "GAIA_EOU_AUTH_CREDENTIALS_PASSWORD=${{secrets.GAIA_EOU_AUTH_CREDENTIALS_PASSWORD}}" > docker/.env
+
       - name: Build docker
         run: |
           cd docker
           docker compose pull
           docker compose up --wait --detach
-
-      - name: Update config.yaml
-        run: |
-          pip install ruamel.yaml
-          python3 .github/utils/update_config.py --password "${{secrets.CDSE_PASS}}"
 
       - name: Run DPR test suite
         run: |
@@ -89,16 +88,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Create .env file with EO data access credentials
+        run: |
+          echo "GAIA_EOU_AUTH_CREDENTIALS_PASSWORD=${{secrets.GAIA_EOU_AUTH_CREDENTIALS_PASSWORD}}" > docker/.env
+
       - name: Build docker
         run: |
           cd docker
           docker compose pull
           docker compose up --wait --detach
-
-      - name: Update config.yaml
-        run: |
-          pip install ruamel.yaml
-          python3 .github/utils/update_config.py --password "${{secrets.CDSE_PASS}}"
 
       - name: Run EOU test suite
         run: |
