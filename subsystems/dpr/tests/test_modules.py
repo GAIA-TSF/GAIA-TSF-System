@@ -1,7 +1,5 @@
 import json
-import os
-import zipfile
-
+import pytest
 from pathlib import Path
 
 from lib.config import ProjectConfigReader
@@ -29,21 +27,15 @@ def get_stac_jsons(product_type: str, search_filter: dict, config, target_dir):
     )
 
     product_path = dag.backend.download(results[0], target_dir=target_dir)
-    product_path_base = os.path.splitext(product_path)[0]
-    product_id = os.path.basename(product_path_base)
-
-    # the product must be extracted for stactools
-    with zipfile.ZipFile(product_path, 'r') as zip_ref:
-        zip_ref.extractall(target_dir)
 
     # finally, let's generate the metadata
     module = MetadataGenerator()
-    module.set_datasource(product_path_base + '.SAFE')
+    module.set_datasource(product_path)
     item_dict = module.stac.create_item()
 
     data_dir = TestUtils.get_data_path('dpr')
     with open(
-        Path(data_dir) / f'{product_id}.json',
+        Path(data_dir) / f'{Path(product_path).with_suffix("").name}.json',
         'r',
     ) as f:
         json_dict = json.load(f)
@@ -132,7 +124,8 @@ class TestModules:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataGenerator_002(self, tmp_path):
+    @pytest.mark.slow
+    def test_MetadataGenerator_002(self):
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
@@ -142,14 +135,15 @@ class TestModules:
             'S2_MSI_L2A',
             search_filter=self.search_filter,
             config=self.config,
-            target_dir=tmp_path,
+            target_dir='sentinel2',
         )
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataGenerator_003(self, tmp_path):
+    @pytest.mark.slow
+    def test_MetadataGenerator_003(self):
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
@@ -159,14 +153,15 @@ class TestModules:
             'S1_SAR_GRD',
             search_filter=self.search_filter,
             config=self.config,
-            target_dir=tmp_path,
+            target_dir='sentinel1',
         )
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataGenerator_004(self, tmp_path):
+    @pytest.mark.slow
+    def test_MetadataGenerator_004(self):
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
@@ -176,14 +171,14 @@ class TestModules:
             'S1_SAR_SLC',
             search_filter=self.search_filter,
             config=self.config,
-            target_dir=tmp_path,
+            target_dir='sentinel1',
         )
 
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataGenerator_005(self, tmp_path):
+    def test_MetadataGenerator_005(self):
         """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
@@ -202,18 +197,15 @@ class TestModules:
             **search_filter,
         )
 
-        products_path = dag.backend.download(results, target_dir=tmp_path)
-        basename = sorted(os.listdir(products_path))[0]
-        product_path = str(products_path / basename)
+        product_path = dag.backend.download(results.iloc[[0]], target_dir='sentinel1')
 
         module = MetadataGenerator()
         module.set_datasource(product_path)
         item_dict = module.stac.create_item()
 
-        product_id = os.path.basename(basename)[:-5]
         data_dir = TestUtils.get_data_path('dpr')
         with open(
-            Path(data_dir) / f'{product_id}.json',
+            Path(data_dir) / f'{product_path.stem}.json',
             'r',
         ) as f:
             json_dict = json.load(f)
