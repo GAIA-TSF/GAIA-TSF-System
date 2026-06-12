@@ -64,6 +64,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Create .env file with EO data access credentials
+        run: |
+          echo "GAIA_EOU_AUTH_CREDENTIALS_PASSWORD=$GAIA_EOU_AUTH_CREDENTIALS_PASSWORD" > docker/.env
+
       - name: Build docker
         run: |
           cd docker
@@ -83,6 +87,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+
+      - name: Create .env file with EO data access credentials
+        run: |
+          echo "GAIA_EOU_AUTH_CREDENTIALS_PASSWORD=$GAIA_EOU_AUTH_CREDENTIALS_PASSWORD" > docker/.env
 
       - name: Build docker
         run: |
