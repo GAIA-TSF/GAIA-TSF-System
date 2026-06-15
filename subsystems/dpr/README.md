@@ -115,10 +115,9 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-''' PART 1 - SENTINEL-2 PRODUCTS DOWNLOAD (SAFE)                                                                     '''
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
+#
+# PART 1 - SENTINEL-2 PRODUCTS DOWNLOAD (SAFE)
+#
 project_config = ProjectConfigReader(
     TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
 )
@@ -136,23 +135,26 @@ results = dag_module.backend.search(
     geom=project_config.aoi(),
     **search_filter,
 )
-data_path = Path(dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False))
+safe_list = dag_module.backend.download_all(
+    results, target_dir='sentinel2', quicklook=False
+)
 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-''' PART 2 - SENTINEL-2 CLIPPING AND RESAMPLING                                                                      '''
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#
+# PART 2 - SENTINEL-2 CLIPPING AND RESAMPLING
+#
 
 # Set output folder:
-s2_processed_folder = Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_safe_processor'
+s2_processed_folder = (
+    Path(SettingsReader()['storage']['data_dir'])
+    / 'sentinel2'
+    / 'output_safe_processor'
+)
 
 # Set output resolution in meters
 res = (10, 10)
 
 # Set resampling algorithm
 r_alg = 'bilinear'
-
-# Get paths to SAFE files from data folder (we assume that they are still zipped)
-safe_list = [Path(file) for file in list(data_path.glob('*.zip'))]
 
 # Run the pipeline
 pipeline = Sentinel2SafeProcessor()
@@ -165,14 +167,14 @@ for safe_path in safe_list:
         resampling_alg=r_alg,
         overwrite=True,
     )
-    pipeline.run()
+    # pipeline.run()
 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-''' PART 3 - RETRIEVING CLOUD COVER PERCENTAGE FROM CLIPPED SCENES                                                  '''
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#
+# PART 3 - RETRIEVING CLOUD COVER PERCENTAGE FROM CLIPPED SCENES
+#
 
 # Retrieve all JSON files from the folder
-meta_list = s2_processed_folder.glob("*.json")
+meta_list = s2_processed_folder.glob('*.json')
 
 # Run the pipeline
 pipeline = Sentinel2CloudCoverPipeline()
@@ -180,15 +182,17 @@ for meta_path in meta_list:
     pipeline.configure(metadata_path=meta_path, path_key='source_path')
     pipeline.run()
 
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-''' PART 4 - CREATION OF WATER MASKS                                                                                 '''
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#
+# PART 4 - CREATION OF WATER MASKS
+#
 
 # Set path to the vector file containing the water bodies
-input_water_mask = TestUtils.get_data_path('dpr')  / 'yxsjoberg_lakes.gpkg'
+input_water_mask = TestUtils.get_data_path('dpr') / 'yxsjoberg_lakes.gpkg'
 print(input_water_mask)
 # Set path to output folder (delete pre-existing folder)
-output_folder = Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
+output_folder = (
+    Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
+)
 
 # OPTION 1: Run the pipeline in default mode (without user input file, input_water_mask=None)
 pipeline = Sentinel2WaterMaskingPipeline()
