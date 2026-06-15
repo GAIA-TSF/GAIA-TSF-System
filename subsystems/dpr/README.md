@@ -188,7 +188,7 @@ for meta_path in meta_list:
 
 # Set path to the vector file containing the water bodies
 input_water_mask = TestUtils.get_data_path('dpr') / 'yxsjoberg_lakes.gpkg'
-print(input_water_mask)
+
 # Set path to output folder (delete pre-existing folder)
 output_folder = (
     Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
@@ -220,7 +220,7 @@ pipeline = Sentinel2WaterMaskingPipeline()
 pipeline.configure(
     input_folder=s2_processed_folder,
     output_folder=output_folder,
-    input_water_mask=Path(input_water_mask),
+    input_water_mask=input_water_mask,
     max_cloud_snow_dark=0.1,
     input_months=[4, 5, 6, 7, 8, 9, 10],
     start_date=project_config.monitoring_period.start,
