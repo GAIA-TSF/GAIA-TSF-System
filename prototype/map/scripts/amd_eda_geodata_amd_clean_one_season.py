@@ -73,7 +73,7 @@ CLOUD_CODE = 1
 
 # LOAD INPUTS
 # List all Sentinel-2 scenes
-# cloudless_scenes = sorted(glob.glob(os.path.join(scenes_dir, "*.tif")))
+# cloudless_scenes = sorted(glob.glob(os.path.joinnp.where(np.array(cloud_cover) < MAX_CLOUD_PERCENT)[0](scenes_dir, "*.tif")))
 # print(f"{len(cloudless_scenes)} scenes found")
 
 # COMPUTE CLOUD COVER
@@ -199,7 +199,6 @@ for path in cloudless_scenes:
 
 
 # Convert dates to matplotlib format
-
 date2num = matplotlib_dates.date2num(dates)
 
 

@@ -15,17 +15,17 @@
 
 Louis' profile reproduction (B2 thr cloud masking) 
 ```
-amd_eda_temporal_plot.py
+amd_eda_temporal_plot.py # 2018
 ``` 
 
 EDA from geodata: saves histograms, temporal plots, and overall JSON summary
 ``` 
-amd_eda_geodata_amd_clean_one_season
+amd_eda_geodata_amd_clean_one_season.py # 2018 
 ```
 
 AMD EDA 
 ```
-amd_eda.py
+amd_eda.py # 2016 - 2025 
 ```
 
 **Modelling** 
