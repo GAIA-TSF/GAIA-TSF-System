@@ -7,7 +7,7 @@ Major repository for GAIA-TSF System
 
 See [CONTRIBUTING](CONTRIBUTING.md) file for more details.
 
-See [examples](examples/README.md) file for standalone scripts
+See [examples](examples/) for standalone scripts
 demonstrating typical GAIA-TSF workflows.
 
 ## GAIA-TSF Subsystems
