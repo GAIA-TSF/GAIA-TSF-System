@@ -1,5 +1,7 @@
 import pystac
 import requests
+import json
+from pathlib import Path
 
 from lib.base import GaiaBase, SubsystemId
 from lib.config import SettingsReader
@@ -120,8 +122,17 @@ class MetadataValidator(GaiaBase):
         except pystac.STACValidationError as e:
             result['valid'] = False
             result['errors'].append(f'STAC validation failed: {str(e)}')
-        except Exception as e:
+        except (FileNotFoundError, OSError) as e:
             result['valid'] = False
-            result['errors'].append(f'Metadata validation error: {str(e)}')
+            result['errors'].append(f'File system error: {str(e)}')
+        except json.JSONDecodeError as e:
+            result['valid'] = False
+            result['errors'].append(f'Invalid JSON in STAC API response: {str(e)}')
+        except ValueError as e:
+            result['valid'] = False
+            result['errors'].append(f'Invalid value in metadata or API response: {str(e)}')
+        except pystac.STACError as e:
+            result['valid'] = False
+            result['errors'].append(f'PySTAC processing error: {str(e)}')
 
         return result
