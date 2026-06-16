@@ -40,6 +40,7 @@ class MetadataValidator(GaiaBase):
             catalog = obj
 
         # add collections
+        collection_ids = set()
         for col_ref in data['collections']:
             # col_ref is a link/reference, fetch the full collection object
             col_id = col_ref.get('id') or col_ref.get('title')
@@ -47,6 +48,7 @@ class MetadataValidator(GaiaBase):
                 # Try to extract ID from rel/href if available
                 continue
 
+            collection_ids.add(col_id)
             col_url = f'{stac_url}/collections/{col_id}'
             col_response = requests.get(col_url)
             col_response.raise_for_status()
@@ -60,6 +62,16 @@ class MetadataValidator(GaiaBase):
 
             collection = pystac.Collection.from_dict(col_json)
             catalog.add_child(collection)
+
+        # PySTAC's built-in validation is too lenient - it doesn't enforce that
+        # Items reference only collections that actually exist in the catalog.
+        # We add this explicit check to catch data errors early.
+        for item in catalog.get_items():
+            if item.collection_id and item.collection_id not in collection_ids:
+                raise ValueError(
+                    f"Item '{item.id}' references undefined collection '{item.collection_id}'. "
+                    f"Available collections: {sorted(collection_ids)}"
+                )
 
         catalog.validate()
         # TODO: STACValidationError -> raise GaiaMetadataError
