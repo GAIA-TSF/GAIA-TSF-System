@@ -66,15 +66,11 @@ class MetadataValidator(GaiaBase):
             # read input metadata file
             obj = pystac.read_file(metadata_path)
 
-            # If it's an Item, create a Catalog to hold it
-            if isinstance(obj, pystac.Item):
-                catalog = pystac.Catalog(
-                    id='validation-catalog',
-                    description='Temporary catalog for validation',
-                )
-                catalog.add_item(obj)
-            else:
-                catalog = obj
+            # if it's an Item, create a Catalog to hold it
+            catalog = pystac.Catalog(
+                id='validation-catalog',
+                description='Temporary catalog for validation',
+            )
 
             # add collections
             collection_ids = set()
@@ -98,20 +94,26 @@ class MetadataValidator(GaiaBase):
                     col_json['stac_version'] = '1.0.0'
 
                 collection = pystac.Collection.from_dict(col_json)
+                if col_id == obj.collection_id:
+                    collection.add_item(obj)
                 catalog.add_child(collection)
+
+            catalog.normalize_hrefs(stac_url)
 
             # PySTAC's built-in validation is too lenient - it doesn't enforce that
             # Items reference only collections that actually exist in the catalog.
             # We add this explicit check to catch data errors early.
-            for item in catalog.get_items():
-                if item.collection_id and item.collection_id not in collection_ids:
-                    result['valid'] = False
-                    result['errors'].append(
-                        f"Item '{item.id}' references undefined collection '{item.collection_id}'. "
-                        f'Available collections: {sorted(collection_ids)}'
-                    )
+            if obj.collection_id not in collection_ids:
+                result['valid'] = False
+                result['errors'].append(
+                    f"Item references undefined collection '{obj.collection_id}'. "
+                    f'Available collections: {sorted(collection_ids)}'
+                )
 
-            catalog.validate()
+            for child in catalog.get_children():
+                for item in collection.get_items():
+                    item.validate()
+                child.validate()
 
         except requests.RequestException as e:
             result['valid'] = False

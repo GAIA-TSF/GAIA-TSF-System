@@ -220,6 +220,7 @@ class TestModules:
         """Test MetadataValidator module."""
         module = MetadataValidator()
         result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
+
         assert isinstance(result, dict)
         assert 'valid' in result
         assert 'errors' in result
@@ -267,7 +268,7 @@ class TestModules:
             metadata = json.load(f)
 
         # Remove properties (required STAC Item field)
-        del metadata['properties']
+        del metadata['bbox']
 
         # Write to temporary file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
