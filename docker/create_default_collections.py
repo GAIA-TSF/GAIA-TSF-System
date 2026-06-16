@@ -61,6 +61,18 @@ DEFAULT_COLLECTIONS = [
         },
         'links': [],
     },
+    {
+        'id': 'eo-rasters',
+        'type': 'Collection',
+        'title': 'User-Uploaded EO Rasters',
+        'description': 'Collection of Earth observation raster products uploaded manually by users.',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [[None, None]]},
+        },
+        'links': [],
+    },
 ]
 
 
