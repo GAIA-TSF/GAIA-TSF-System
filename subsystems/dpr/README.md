@@ -28,7 +28,7 @@ print(PreprocessingPipelines().pipelines.keys())
 
 Select preprocessing pipeline and get it's usage:
 
-```
+```py
 print(PreprocessingPipelines().pipelines['sentinel2_cloudcover'].metadata)
 ```
 
