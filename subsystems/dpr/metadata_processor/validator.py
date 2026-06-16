@@ -43,11 +43,16 @@ class MetadataValidator(GaiaBase):
 
         Example result:
             {'path': '/data/sample.json', 'valid': True, 'errors': [], 'warnings': []}
-            {'path': '/data/sample.json', 'valid': False, 
+            {'path': '/data/sample.json', 'valid': False,
              'errors': ["Item 'foo' references undefined collection 'bar'"],
              'warnings': []}
         """
-        result = {'path': str(metadata_path), 'valid': True, 'errors': [], 'warnings': []}
+        result = {
+            'path': str(metadata_path),
+            'valid': True,
+            'errors': [],
+            'warnings': [],
+        }
 
         try:
             # get collections
@@ -63,7 +68,8 @@ class MetadataValidator(GaiaBase):
             # If it's an Item, create a Catalog to hold it
             if isinstance(obj, pystac.Item):
                 catalog = pystac.Catalog(
-                    id='validation-catalog', description='Temporary catalog for validation'
+                    id='validation-catalog',
+                    description='Temporary catalog for validation',
                 )
                 catalog.add_item(obj)
             else:
@@ -101,14 +107,16 @@ class MetadataValidator(GaiaBase):
                     result['valid'] = False
                     result['errors'].append(
                         f"Item '{item.id}' references undefined collection '{item.collection_id}'. "
-                        f"Available collections: {sorted(collection_ids)}"
+                        f'Available collections: {sorted(collection_ids)}'
                     )
 
             catalog.validate()
 
         except requests.RequestException as e:
             result['valid'] = False
-            result['errors'].append(f'Failed to fetch collections from STAC API: {str(e)}')
+            result['errors'].append(
+                f'Failed to fetch collections from STAC API: {str(e)}'
+            )
         except pystac.STACValidationError as e:
             result['valid'] = False
             result['errors'].append(f'STAC validation failed: {str(e)}')
