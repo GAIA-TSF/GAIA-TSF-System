@@ -1,7 +1,6 @@
 import pystac
 import requests
 import json
-from pathlib import Path
 
 from lib.base import GaiaBase, SubsystemId
 from lib.config import SettingsReader
