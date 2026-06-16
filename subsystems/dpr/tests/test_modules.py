@@ -218,5 +218,10 @@ class TestModules:
     def test_MetadataValidator_001(self):
         """Test MetadataValidator module."""
         module = MetadataValidator()
-        module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
-        # TODO: assert
+        result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
+        assert isinstance(result, dict)
+        assert 'valid' in result
+        assert 'errors' in result
+        assert 'warnings' in result
+        assert result['valid'] is True
+        assert len(result['errors']) < 1
