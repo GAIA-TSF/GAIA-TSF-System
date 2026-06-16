@@ -215,8 +215,8 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataProcessor_003(self):
+    def test_MetadataValidator_001(self):
         """Test MetadataValidator module."""
         module = MetadataValidator()
-        module.validate(TestUtils.get_data_path('eou') / 'ENMAP01_sample.json')
+        module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
         # TODO: assert
