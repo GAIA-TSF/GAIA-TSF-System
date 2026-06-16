@@ -1,6 +1,5 @@
 import os
 import json
-import glob
 from pathlib import PosixPath
 
 import numpy as np
