@@ -227,7 +227,7 @@ class TestModules:
         assert result['valid'] is True
         assert len(result['errors']) < 1
 
-    def test_MetadataValidator_002_invalid(self):
+    def test_MetadataValidator_002_invalid_collection(self):
         """Test MetadataValidator with invalid collection reference."""
         module = MetadataValidator()
 
@@ -253,6 +253,39 @@ class TestModules:
             assert result['valid'] is False
             assert len(result['errors']) > 0
             assert any('undefined' in error for error in result['errors'])
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()
+
+    def test_MetadataValidator_003_missing_properties(self):
+        """Test MetadataValidator with missing required properties field."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Remove properties (required STAC Item field)
+        del metadata['properties']
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions - should fail due to missing properties
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any(
+                'properties' in error.lower() or 'datetime' in error.lower()
+                for error in result['errors']
+            )
         finally:
             # Cleanup
             Path(tmp_path).unlink()
