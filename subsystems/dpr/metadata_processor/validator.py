@@ -16,11 +16,36 @@ class MetadataValidator(GaiaBase):
 
     def validate(self, metadata_path):
         """
-        Validate provided metadata.
+        Validate STAC metadata against a remote STAC API catalog.
 
-        :param str metadata_path: metadata to be validated
-        :return: result dictionary with validation status
+        Performs comprehensive validation of STAC metadata files by:
+        - Loading metadata from a local file (supports STAC Items and Catalogs)
+        - Fetching collection definitions from a remote STAC API
+        - Building a temporary catalog with all available collections
+        - Verifying that all Items in the metadata reference only defined collections
+        - Running PySTAC's built-in validation on the complete catalog
+
+        Checks performed:
+        - If metadata file can be read and parsed as valid STAC
+        - If STAC API is reachable and returns valid collection data
+        - If Items reference only collections that exist in the STAC API
+        - Full STAC schema validation via PySTAC
+
+        :param str metadata_path: path to local STAC metadata file (Item or Catalog)
+        :return: result dictionary containing validation status and any errors/warnings
         :rtype: dict
+
+        :return dict format:
+            - 'path' (str): path to the validated file
+            - 'valid' (bool): True if all validations passed, False otherwise
+            - 'errors' (list): list of error messages (empty if valid=True)
+            - 'warnings' (list): list of warning messages (non-blocking issues)
+
+        Example result:
+            {'path': '/data/sample.json', 'valid': True, 'errors': [], 'warnings': []}
+            {'path': '/data/sample.json', 'valid': False, 
+             'errors': ["Item 'foo' references undefined collection 'bar'"],
+             'warnings': []}
         """
         result = {'path': str(metadata_path), 'valid': True, 'errors': [], 'warnings': []}
 
