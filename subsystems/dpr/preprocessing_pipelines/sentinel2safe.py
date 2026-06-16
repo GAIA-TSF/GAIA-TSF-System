@@ -1,7 +1,5 @@
 import os
 import json
-import zipfile
-import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
 
@@ -52,6 +50,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 'dtype': str,
                 'description': 'The GDAL resampling algorithm (e.g., bilinear, cubic, near).',
                 'default': 'near',
+            },
+            'split_bands': {
+                'dtype': bool,
+                'description': 'If True, saves each band to a separate GeoTIFF file. If False, merges all bands into a single GeoTIFF.',
+                'default': False,
             },
         },
     }
@@ -208,7 +211,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
     def _process_and_merge_jp2(self, roi):
         """
         Makes a list of .jp2 files, resamples them to a consistent resolution,
-        crops them to a Region of Interest (ROI), and merges them into a single GeoTIFF.
+        crops them to a Region of Interest (ROI), and either merges them into a single GeoTIFF
+        or saves each band as a separate GeoTIFF file.
 
         :param str roi: region of interest
         """
@@ -285,37 +289,104 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.Warp(vrt_output, src_file, options=warp_options)
             resampled_vrt_files.append(vrt_output)
 
-        # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
-        mosaic_vrt = os.path.join(self._config['output_folder'], 'combined_output.vrt')
-        gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
+        # Band names for output files
+        band_names = [
+            'B01',
+            'B02',
+            'B03',
+            'B04',
+            'B05',
+            'B06',
+            'B07',
+            'B08',
+            'B8A',
+            'B09',
+            'B11',
+            'B12',
+            'SCL',
+        ]
 
-        # Create the final geotiff
-        product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
-        output_path = os.path.join(self._config['output_folder'], product_name)
-        options = ['COMPRESS=LZW', 'TILED=YES']
-        gdal.Translate(output_path, mosaic_vrt, format='GTiff', creationOptions=options)
+        if self._config['split_bands']:
+            # Save each band as a separate GeoTIFF
+            self.logger.info('Saving bands as separate GeoTIFF files')
+            output_paths = []
+            base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
 
-        # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
-        ds = gdal.Open(output_path, gdal.GA_Update)
-        scl_band = ds.GetRasterBand(ds.RasterCount)
-        mask = scl_band.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
-        for i in range(1, ds.RasterCount):
-            band = ds.GetRasterBand(i)
-            data = band.ReadAsArray()
-            data = data + offsets[i - 1]
-            data[mask] = -32768
-            band.WriteArray(data)
-            band.FlushCache()
-        del ds
-        self.logger.info(f'GeoTIFF saved to: {output_path}')
+            # Load SCL band for masking
+            scl_vrt = resampled_vrt_files[-1]
+            scl_ds = gdal.Open(scl_vrt)
+            scl_data = scl_ds.GetRasterBand(1).ReadAsArray()
+            mask = scl_data <= 1  # SCL values: NODATA=0 and SATURATED=1
+            del scl_ds
 
-        # Add path to the metadata
-        self.s2_metadata['source_path'] = str(output_path)
+            for i, (vrt_file, band_name, offset) in enumerate(
+                zip(resampled_vrt_files, band_names, offsets)
+            ):
+                output_filename = f'{base_name}_{band_name}.tiff'
+                output_path = os.path.join(
+                    self._config['output_folder'], output_filename
+                )
+                options = ['COMPRESS=LZW', 'TILED=YES']
+
+                # Convert VRT to GeoTIFF
+                gdal.Translate(
+                    output_path, vrt_file, format='GTiff', creationOptions=options
+                )
+
+                # Apply offset and mask (except for SCL band)
+                if band_name != 'SCL':
+                    ds = gdal.Open(output_path, gdal.GA_Update)
+                    band = ds.GetRasterBand(1)
+                    data = band.ReadAsArray()
+                    data = data + offset
+                    data[mask] = -32768
+                    band.WriteArray(data)
+                    band.FlushCache()
+                    del ds
+
+                output_paths.append(output_path)
+                self.logger.info(f'Band {band_name} saved to: {output_path}')
+
+            # Add paths to the metadata
+            self.s2_metadata['source_paths'] = [str(p) for p in output_paths]
+        else:
+            # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
+            mosaic_vrt = os.path.join(
+                self._config['output_folder'], 'combined_output.vrt'
+            )
+            gdal.BuildVRT(mosaic_vrt, resampled_vrt_files, separate=True)
+
+            # Create the final geotiff
+            product_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.tiff')
+            output_path = os.path.join(self._config['output_folder'], product_name)
+            options = ['COMPRESS=LZW', 'TILED=YES']
+            gdal.Translate(
+                output_path, mosaic_vrt, format='GTiff', creationOptions=options
+            )
+
+            # Update Geotiff to add bands offsets and use scl band to mask NODATA and SATURATED pixels
+            ds = gdal.Open(output_path, gdal.GA_Update)
+            scl_band = ds.GetRasterBand(ds.RasterCount)
+            mask = scl_band.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
+            for i in range(1, ds.RasterCount):
+                band = ds.GetRasterBand(i)
+                data = band.ReadAsArray()
+                data = data + offsets[i - 1]
+                data[mask] = -32768
+                band.WriteArray(data)
+                band.FlushCache()
+            del ds
+            self.logger.info(f'GeoTIFF saved to: {output_path}')
+
+            # Add path to the metadata
+            self.s2_metadata['source_path'] = str(output_path)
+
+            # Clean temp mosaic VRT
+            gdal.Unlink(mosaic_vrt)
 
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
-        gdal.Unlink(mosaic_vrt)
 
     def _run(self):
         # Ensure output folder exists
@@ -333,20 +404,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             return
 
         # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
-        if os.path.isdir(self._config['input_safe']):
-            self.input_folder = self._config['input_safe']
-        elif zipfile.is_zipfile(self._config['input_safe']):
-            target_dir = os.path.join(self._config['output_folder'], 'temp')
-            self.logger.info(f'Unzipping Sentinel-2 SAFE product to: {target_dir}')
-            with zipfile.ZipFile(self._config['input_safe'], 'r') as zip_ref:
-                zip_ref.extractall(target_dir)
-            self.input_folder = Path(
-                target_dir, self._config['input_safe'].name
-            ).with_suffix('.SAFE')
-        else:
-            raise RuntimeError(
-                'Provided path to the Sentinel-2 SAFE product is neither a folder nor a zip file.'
-            )
+        self.input_folder = self._config['input_safe']
 
         # Proceed with the conversion of the SAFE to Geotiff
         self.logger.info(f'Scanning folder: {self.input_folder}')
@@ -357,12 +415,6 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             roi = self._roi_transform()
             self._process_and_merge_jp2(roi)
             self._save_json()
-            if zipfile.is_zipfile(self._config['input_safe']):
-                target_dir = os.path.join(self._config['output_folder'], 'temp')
-                self.logger.info(
-                    f'Removing unzipped Sentinel-2 SAFE product from: {target_dir}'
-                )
-                shutil.rmtree(target_dir)
         else:
             self.logger.error(
                 'Extraction failed: Required metadata files could not be located.'

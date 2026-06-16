@@ -18,7 +18,15 @@ _SENSOR_TYPE_FILENAME_KEYWORDS: Dict[str, list] = {
 
 # Fallback: keywords matched against column names
 _SENSOR_TYPE_COLUMN_KEYWORDS: Dict[str, list] = {
-    'piezometer': ['pressure', 'kpa', 'pore_water', 'pore'],
+    'piezometer': [
+        'pressure',
+        'kpa',
+        'pore_water',
+        'pore',
+        'dataset',
+        'kilopascal',
+        'pascal',
+    ],
     'inclinometer': ['tilt', 'inclin', 'angle', 'deflection'],
     'gnss': ['displacement', 'velocity', 'def_x', 'def_y', 'def_z'],
     'insar': ['coherence', 'los', 'deformation'],
@@ -109,7 +117,10 @@ class ETLEngine(GaiaBase):
         self.dpr_service = dpr_service
 
         # Step 2: Utilize self.logger automatically provided by GaiaBase
-        self.parsing_engine = ParsingEngine(logger=self.logger)
+        encodings = (
+            self.settings.get('isu', {}).get('csv_encodings') if self.settings else None
+        )
+        self.parsing_engine = ParsingEngine(logger=self.logger, encodings=encodings)
         self.logger.info('ETL Engine initialized with ParsingEngine.')
 
     def process_file(
@@ -151,6 +162,8 @@ class ETLEngine(GaiaBase):
             )
 
             # Assemble structured metadata
+            # TODO: set data_source='office_interpreted' for manually created records
+            # once the UI/API layer can pass this information to process_file().
             metadata = {
                 'ingestion': {
                     'mode': ingestion_mode,
@@ -162,8 +175,18 @@ class ETLEngine(GaiaBase):
                     'type': 'in_situ',
                     'format': ext,
                     'sensor_type': _infer_sensor_type(filename, list(df.columns)),
+                    'collection': _infer_sensor_type(filename, list(df.columns))
+                    or 'insitu',
                     'time_range': _extract_time_range(df),
-                    'schema': list(df.columns),
+                    'schema': [
+                        {
+                            'name': c,
+                            'type': 'number'
+                            if pd.api.types.is_numeric_dtype(df[c])
+                            else 'text',
+                        }
+                        for c in df.columns
+                    ],
                     'location': _extract_location(df, filename, self.settings),
                     'crs': 'EPSG:4326',
                 },
@@ -277,6 +300,7 @@ class ETLEngine(GaiaBase):
         ingestion_meta = metadata.setdefault('ingestion', {})
         ingestion_meta.setdefault('mode', 'streaming')
         ingestion_meta.setdefault('source', dataset_id)
+        ingestion_meta.setdefault('data_source', 'sensor')
 
         sensor_type = data_meta.get('sensor_type', 'unknown')
 
