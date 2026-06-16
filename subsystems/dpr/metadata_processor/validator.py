@@ -130,7 +130,9 @@ class MetadataValidator(GaiaBase):
             result['errors'].append(f'Invalid JSON in STAC API response: {str(e)}')
         except ValueError as e:
             result['valid'] = False
-            result['errors'].append(f'Invalid value in metadata or API response: {str(e)}')
+            result['errors'].append(
+                f'Invalid value in metadata or API response: {str(e)}'
+            )
         except pystac.STACError as e:
             result['valid'] = False
             result['errors'].append(f'PySTAC processing error: {str(e)}')

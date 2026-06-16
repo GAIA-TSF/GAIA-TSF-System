@@ -1,5 +1,6 @@
 import json
 import pytest
+import tempfile
 from pathlib import Path
 
 from lib.config import ProjectConfigReader
@@ -215,7 +216,7 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataValidator_001(self):
+    def test_MetadataValidator_001_valid(self):
         """Test MetadataValidator module."""
         module = MetadataValidator()
         result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
@@ -225,3 +226,33 @@ class TestModules:
         assert 'warnings' in result
         assert result['valid'] is True
         assert len(result['errors']) < 1
+
+    def test_MetadataValidator_002_invalid(self):
+        """Test MetadataValidator with invalid collection reference."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Modify collection to undefined
+        metadata['collection'] = 'undefined'
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any('undefined' in error for error in result['errors'])
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()
