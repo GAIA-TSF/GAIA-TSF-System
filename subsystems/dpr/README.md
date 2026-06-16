@@ -167,7 +167,7 @@ for safe_path in safe_list:
         resampling_alg=r_alg,
         overwrite=True,
     )
-    # pipeline.run()
+    pipeline.run()
 
 #
 # PART 3 - RETRIEVING CLOUD COVER PERCENTAGE FROM CLIPPED SCENES
