@@ -28,10 +28,36 @@ class MetadataValidator(GaiaBase):
         data = r.json()
 
         # read input metadata file
-        catalog = pystac.read_file(metadata_path)
+        obj = pystac.read_file(metadata_path)
+
+        # If it's an Item, create a Catalog to hold it
+        if isinstance(obj, pystac.Item):
+            catalog = pystac.Catalog(
+                id='validation-catalog', description='Temporary catalog for validation'
+            )
+            catalog.add_item(obj)
+        else:
+            catalog = obj
 
         # add collections
-        for col_json in data['collections']:
+        for col_ref in data['collections']:
+            # col_ref is a link/reference, fetch the full collection object
+            col_id = col_ref.get('id') or col_ref.get('title')
+            if not col_id:
+                # Try to extract ID from rel/href if available
+                continue
+
+            col_url = f'{stac_url}/collections/{col_id}'
+            col_response = requests.get(col_url)
+            col_response.raise_for_status()
+            col_json = col_response.json()
+
+            # Ensure the collection has required fields for PySTAC
+            if 'type' not in col_json:
+                col_json['type'] = 'Collection'
+            if 'stac_version' not in col_json:
+                col_json['stac_version'] = '1.0.0'
+
             collection = pystac.Collection.from_dict(col_json)
             catalog.add_child(collection)
 
