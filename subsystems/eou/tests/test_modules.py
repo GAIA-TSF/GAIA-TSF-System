@@ -153,7 +153,10 @@ class TestModules:
         target_dir = 'sentinel2'
         try:
             ql_dir = module.backend.download_all(
-                results, target_dir=target_dir, quicklook=True, executor=ThreadPoolExecutor(max_workers=4)
+                results,
+                target_dir=target_dir,
+                quicklook=True,
+                executor=ThreadPoolExecutor(max_workers=4),
             )
 
             for ql_path in ql_dir:
