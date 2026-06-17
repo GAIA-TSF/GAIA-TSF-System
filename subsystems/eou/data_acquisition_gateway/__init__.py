@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 
 from lib.base import GaiaBase, SubsystemId
 
@@ -30,6 +31,7 @@ class DataAcquisitionGateway(GaiaBase):
         else:
             raise RuntimeError(f'Unsupported data acquisition backend: {backend}')
 
-        self.backend = DataAcquisitionBackend()
+        self.backend = DataAcquisitionBackend(
+            data_dir=Path(self.settings['storage']['data_dir']), logger=self.logger
+        )
         self.backend.set_config(self.settings['eou'][backend])
-        self.backend.data_dir = self.settings['storage']['data_dir']
