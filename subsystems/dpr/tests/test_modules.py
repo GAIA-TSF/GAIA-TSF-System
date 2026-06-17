@@ -216,8 +216,8 @@ class TestModules:
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
 
-    def test_MetadataValidator_001_valid(self):
-        """Test MetadataValidator module."""
+    def test_MetadataValidator_001_eou_valid(self):
+        """Test MetadataValidator module with valid metadata."""
         module = MetadataValidator()
         result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
 
@@ -228,7 +228,7 @@ class TestModules:
         assert result['valid'] is True
         assert len(result['errors']) < 1
 
-    def test_MetadataValidator_002_invalid_collection(self):
+    def test_MetadataValidator_002_eou_invalid_collection(self):
         """Test MetadataValidator with invalid collection reference."""
         module = MetadataValidator()
 
@@ -258,7 +258,7 @@ class TestModules:
             # Cleanup
             Path(tmp_path).unlink()
 
-    def test_MetadataValidator_003_missing_properties(self):
+    def test_MetadataValidator_003_eou_missing_properties(self):
         """Test MetadataValidator with missing required properties field."""
         module = MetadataValidator()
 
