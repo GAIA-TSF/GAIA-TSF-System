@@ -15,13 +15,14 @@ from eodag import EODataAccessGateway
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
     from eodag_cube.api.product._product import EOProduct
+    from subsystems.qcl.logger import Logger
 
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
 
 class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, data_dir: Path, logger: Logger):
+        super().__init__(data_dir, logger)
         self._dag = EODataAccessGateway()
 
     def set_config(self, config: dict) -> None:
@@ -33,7 +34,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         super().set_config(config)
         self._dag.update_providers_config(yaml.dump(config))
 
-    def search(
+    def _search(
         self, geom: str | BaseGeometry, start: str, end: str, provider: str, **kwargs
     ) -> SearchResult:
         """Search for data products that match the specified criteria
