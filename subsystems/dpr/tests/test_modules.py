@@ -118,11 +118,10 @@ class TestModules:
         """
 
         module = MetadataGenerator()
-        data_dir = TestUtils.get_data_path('eou')
-        module.set_datasource(data_dir / 'ENMAP01_sample.tif')
+        module.set_datasource(TestUtils.get_data_path('eou') / 'ENMAP01_sample.tif')
         item_dict = module.stac.create_item()
 
-        with open(data_dir / 'ENMAP01_sample.json', 'r') as f:
+        with open(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json', 'r') as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
 
