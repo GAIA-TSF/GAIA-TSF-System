@@ -1,3 +1,9 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 import pystac
 import requests
 import json
@@ -15,7 +21,7 @@ class MetadataValidator(GaiaBase):
         """Initialize metadata validator."""
         super().__init__(SubsystemId.DPR)
 
-    def validate(self, metadata_path):
+    def validate(self, metadata_path: Path):
         """
         Validate STAC metadata against a remote STAC API catalog.
 
@@ -48,6 +54,7 @@ class MetadataValidator(GaiaBase):
              'errors': ["Item 'foo' references undefined collection 'bar'"],
              'warnings': []}
         """
+        self.logger.info(f"Validating metadata: {metadata_path}")
         result = {
             'path': str(metadata_path),
             'valid': True,
@@ -98,6 +105,7 @@ class MetadataValidator(GaiaBase):
                     collection.add_item(obj)
                 catalog.add_child(collection)
 
+            self.logger.debug(f"Collections fetched from STAC: {', '.join(collection_ids)}")
             catalog.normalize_hrefs(stac_url)
 
             # PySTAC's built-in validation is too lenient - it doesn't enforce that
@@ -112,7 +120,9 @@ class MetadataValidator(GaiaBase):
 
             for child in catalog.get_children():
                 for item in collection.get_items():
+                    self.logger.debug(f"Validating item {item.id}")
                     item.validate()
+                self.logger.debug(f"Validating collection {child.id}")
                 child.validate()
 
         except requests.RequestException as e:
@@ -138,4 +148,5 @@ class MetadataValidator(GaiaBase):
             result['valid'] = False
             result['errors'].append(f'PySTAC processing error: {str(e)}')
 
+        self.logger.info(f"Validation results: {result}")
         return result
