@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 import yaml
 from pathlib import Path
+import os
 
 import zipfile
 from shapely.geometry.base import BaseGeometry
@@ -103,10 +104,19 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         downloaded_paths = []
 
         if quicklook:
-            for product in products:
-                downloaded_paths.append(
-                    Path(product.get_quicklook(output_dir=target_dir, **kwargs))
-                )
+            os.makedirs(target_dir, exist_ok=True)
+            executor = kwargs.pop("executor", None)
+            if executor:
+                futures = [
+                    executor.submit(product.get_quicklook, output_dir=target_dir, **kwargs)
+                    for product in products
+                ]
+                downloaded_paths = [Path(f.result()) for f in futures]
+            else:
+                for product in products:
+                    downloaded_paths.append(
+                        Path(product.get_quicklook(output_dir=target_dir, **kwargs))
+                    )
             return downloaded_paths
 
         existing, missing = self.__split_products(products, target_dir)
