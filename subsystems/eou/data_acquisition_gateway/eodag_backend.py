@@ -105,10 +105,12 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         if quicklook:
             os.makedirs(target_dir, exist_ok=True)
-            executor = kwargs.pop("executor", None)
+            executor = kwargs.pop('executor', None)
             if executor:
                 futures = [
-                    executor.submit(product.get_quicklook, output_dir=target_dir, **kwargs)
+                    executor.submit(
+                        product.get_quicklook, output_dir=target_dir, **kwargs
+                    )
                     for product in products
                 ]
                 downloaded_paths = [Path(f.result()) for f in futures]
