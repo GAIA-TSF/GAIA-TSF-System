@@ -1,15 +1,81 @@
 import json
+import os
 import pytest
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
 from subsystems.dpr.metadata_processor import MetadataValidator
+from subsystems.dpr.metadata_processor.generator import InsituDataset, StacItemFactory
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
 from tests.utils import TestUtils
+
+
+_INSITU_META = {
+    'ingestion': {'mode': 'manual', 'source': 'sensor.csv'},
+    'data': {
+        'type': 'in_situ',
+        'format': 'csv',
+        'sensor_type': 'piezometer',
+        'time_range': {
+            'start': '2026-01-01T00:00:00Z',
+            'end': '2026-06-30T23:59:59Z',
+        },
+        'schema': ['iso_timestamp', 'lat', 'lon', 'pressure'],
+        'location': {'bbox': [14.412, 50.082, 14.440, 50.092]},
+        'crs': 'EPSG:4326',
+    },
+}
+
+_MOCK_COLLECTIONS_RESPONSE = {'collections': [{'id': 'insitu'}]}
+_MOCK_COLLECTION_DETAIL = {
+    'id': 'insitu',
+    'type': 'Collection',
+    'stac_version': '1.0.0',
+    'description': 'In-situ sensor data',
+    'links': [],
+    'extent': {
+        'spatial': {'bbox': [[-180, -90, 180, 90]]},
+        'temporal': {'interval': [[None, None]]},
+    },
+    'license': 'proprietary',
+}
+
+
+def _make_insitu_stac_json(meta: dict) -> str:
+    """Generate an insitu STAC item to a temp JSON file; return path."""
+    csv_content = 'iso_timestamp,lat,lon,pressure\n2026-01-01T00:00:00,50.082,14.412,101.3\n'
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.csv', delete=False
+    ) as csv_f:
+        csv_f.write(csv_content)
+        csv_path = csv_f.name
+
+    try:
+        ds = InsituDataset(csv_path, meta)
+        item = StacItemFactory(ds, MagicMock()).create_item()
+    finally:
+        os.unlink(csv_path)
+
+    with tempfile.NamedTemporaryFile(
+        mode='w', suffix='.json', delete=False
+    ) as json_f:
+        json.dump(item, json_f)
+        return json_f.name
+
+
+def _mock_requests_get(url, *args, **kwargs):
+    mock = MagicMock()
+    mock.raise_for_status = MagicMock()
+    if url.endswith('/collections'):
+        mock.json.return_value = _MOCK_COLLECTIONS_RESPONSE
+    else:
+        mock.json.return_value = _MOCK_COLLECTION_DETAIL
+    return mock
 
 
 def item_dict_no_datetime(item_dict):
@@ -288,4 +354,98 @@ class TestModules:
             )
         finally:
             # Cleanup
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_001_insitu_valid(self, _mock):
+        """Test MetadataValidator with valid in-situ metadata."""
+        tmp_path = _make_insitu_stac_json(_INSITU_META)
+        try:
+            result = MetadataValidator().validate(tmp_path)
+            assert isinstance(result, dict)
+            assert result['valid'] is True
+            assert result['errors'] == []
+        finally:
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_002_insitu_missing_time_range(self, _mock):
+        """Test MetadataValidator detects missing start_datetime / end_datetime."""
+        import copy
+        meta = copy.deepcopy(_INSITU_META)
+        del meta['data']['time_range']
+
+        tmp_path = _make_insitu_stac_json(meta)
+        try:
+            result = MetadataValidator().validate(tmp_path)
+            assert result['valid'] is False
+            assert any('start_datetime' in e for e in result['errors'])
+        finally:
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_003_insitu_invalid_bbox(self, _mock):
+        """Test MetadataValidator detects bbox outside WGS-84 bounds."""
+        import copy
+        meta = copy.deepcopy(_INSITU_META)
+        meta['data']['location'] = {'bbox': [-200.0, 50.082, 14.440, 50.092]}
+
+        tmp_path = _make_insitu_stac_json(meta)
+        try:
+            result = MetadataValidator().validate(tmp_path)
+            assert result['valid'] is False
+            assert any('WGS-84' in e for e in result['errors'])
+        finally:
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_004_insitu_start_after_end(self, _mock):
+        """Test MetadataValidator detects start_datetime >= end_datetime."""
+        import copy
+        meta = copy.deepcopy(_INSITU_META)
+        meta['data']['time_range'] = {
+            'start': '2026-06-30T23:59:59Z',
+            'end': '2026-01-01T00:00:00Z',
+        }
+
+        tmp_path = _make_insitu_stac_json(meta)
+        try:
+            result = MetadataValidator().validate(tmp_path)
+            assert result['valid'] is False
+            assert any('start_datetime' in e for e in result['errors'])
+        finally:
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_005_insitu_missing_columns(self, _mock):
+        """Test MetadataValidator detects missing table:columns in assets.data."""
+        tmp_path = _make_insitu_stac_json(_INSITU_META)
+        try:
+            with open(tmp_path) as f:
+                item_dict = json.load(f)
+            item_dict['assets']['data'].pop('table:columns', None)
+            with open(tmp_path, 'w') as f:
+                json.dump(item_dict, f)
+
+            result = MetadataValidator().validate(tmp_path)
+            assert result['valid'] is False
+            assert any('table:columns' in e for e in result['errors'])
+        finally:
+            Path(tmp_path).unlink()
+
+    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    def test_MetadataValidator_006_insitu_invalid_datetime_format(self, _mock):
+        """Test MetadataValidator detects invalid datetime format in time range."""
+        tmp_path = _make_insitu_stac_json(_INSITU_META)
+        try:
+            with open(tmp_path) as f:
+                item_dict = json.load(f)
+            item_dict['properties']['start_datetime'] = 'not-a-datetime'
+            with open(tmp_path, 'w') as f:
+                json.dump(item_dict, f)
+
+            result = MetadataValidator().validate(tmp_path)
+            assert result['valid'] is False
+            assert any('datetime' in e.lower() for e in result['errors'])
+        finally:
             Path(tmp_path).unlink()
