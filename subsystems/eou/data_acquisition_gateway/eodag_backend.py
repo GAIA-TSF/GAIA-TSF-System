@@ -120,10 +120,8 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         existing, missing = self.__split_products(products, target_dir)
 
         if missing:
-            max_workers = (
-                self.config.get('eou', {}).get('max_workers', 1)
-            )
-            self.logger.debug(f"Using {max_workers} workers for download")
+            max_workers = self.config.get('eou', {}).get('max_workers', 1)
+            self.logger.debug(f'Using {max_workers} workers for download')
             downloaded_paths = self._dag.download_all(
                 missing,
                 extract=False,
