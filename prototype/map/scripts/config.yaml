@@ -5,15 +5,20 @@ project:
   # static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
   # output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
 
+  # 2016-2018 synthetic  Skylake
+  inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_amd_Yxsjoberg/inputs"
+  static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_amd_Yxsjoberg/static"
+  output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_amd_Yxsjoberg/results"
+
   # 2018 year mos 
   # inputs_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/inputs"
   # static_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/static"
   # output_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/AMD_monitoring_Yxsjoberg/results"
 
   # 2016-2025 years 
-  inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
-  static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
-  output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results"
+  # inputs_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/inputs"
+  # static_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/static"
+  # output_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/AMD_monitoring_Yxsjoberg_2016_2025/results"
 
 masks:
 

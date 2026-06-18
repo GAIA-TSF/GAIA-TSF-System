@@ -25,6 +25,7 @@ import rasterio
 from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 from matplotlib import dates as matplotlib_dates
+import matplotlib.dates as mdates
 from datetime import datetime
 
 
@@ -36,6 +37,10 @@ with open("config.yaml") as f:
 inputs_dir = cfg["project"]["inputs_dir"]
 static_dir = cfg["project"]["static_dir"]
 output_dir = os.path.join(cfg["project"]["output_dir"], 'eda') 
+
+if not os.path.isdir(output_dir): 
+    os.makedirs(output_dir)
+
 
 tif_dir = os.path.join(inputs_dir, "sentinel2")
 
@@ -357,7 +362,6 @@ for i, path in enumerate(cloudless_scenes):
     valid_amd_pixels.append(np.sum(~np.isnan(amd_values)))
     valid_leak_pixels.append(np.sum(~np.isnan(leak_values)))
     
-
 dates = []
 for path in cloudless_scenes:
     filename = os.path.basename(path)
@@ -366,18 +370,36 @@ for path in cloudless_scenes:
     datetime_object = datetime.strptime(time, '%Y%m%d')
     dates.append(datetime_object)
 
-date2num = matplotlib_dates.date2num(dates)
+# print(dates)
 
-### 
+# date2num = matplotlib_dates.date2num(dates)
+
+
+
+# CREATE FIGURE
+print("Creating temporal profile plot...")
+print(f"Dates: {len(dates)}")
+print(f"AMD shape: {peak_amd.shape}")
+print(f"Reference shape: {peak_water.shape}")
+
 
 fig_path = os.path.join(
     output_dir,
     "temporal_amd_profiles.png"
 )
 
-# CREATE FIGURE
 fig, ax = plt.subplots(figsize=(12, 6))
 
+# date formating 
+ax.xaxis.set_major_locator(
+    mdates.MonthLocator(interval=1)
+)
+
+ax.xaxis.set_major_formatter(
+    mdates.DateFormatter('%Y-%m')
+)
+
+# fig.autofmt_xdate()
 
 # PLOT ALL AMD PIXEL TEMPORAL PROFILES
 for j in range(peak_amd.shape[1]):
@@ -389,7 +411,6 @@ for j in range(peak_amd.shape[1]):
         alpha=0.05,
         linewidth=0.6
     )
-
 
 # PLOT ALL REFERENCE WATERBODY PROFILES
 for j in range(peak_water.shape[1]):
@@ -407,24 +428,7 @@ for j in range(peak_water.shape[1]):
 amd_mean = np.nanmean(peak_amd, axis=1)
 water_mean = np.nanmean(peak_water, axis=1)
 
-ax.plot(
-    dates,
-    amd_mean,
-    color='darkred',
-    linewidth=2.5,
-    label='AMD mean'
-)
-
-ax.plot(
-    dates,
-    water_mean,
-    color='darkblue',
-    linewidth=2.5,
-    label='Reference water mean'
-)
-
-
-# OPTIONAL: PERCENTILE ENVELOPES
+# PERCENTILE ENVELOPES
 amd_p05 = np.nanpercentile(peak_amd, 5, axis=1)
 amd_p95 = np.nanpercentile(peak_amd, 95, axis=1)
 
@@ -449,6 +453,25 @@ ax.fill_between(
     label='Reference 5–95%'
 )
 
+# profiles
+ax.plot(
+    dates,
+    amd_mean,
+    color='darkred',
+    linewidth=2.5,
+    label='AMD mean'
+)
+
+ax.plot(
+    dates,
+    water_mean,
+    color='darkblue',
+    linewidth=2.5,
+    label='Reference water mean'
+)
+
+
+
 # LABELS
 ax.set_ylabel('(B4 - B2)', fontsize=11)
 
@@ -468,19 +491,19 @@ ax.grid(
     alpha=0.3
 )
 
-# DATE FORMATTING
-ax.xaxis.set_major_formatter(
-    matplotlib_dates.DateFormatter('%Y')
-)
-
-fig.autofmt_xdate()
-
 
 # LEGEND
 ax.legend(
     loc='upper right',
     frameon=True
 )
+
+plt.setp(
+    ax.get_xticklabels(),
+    rotation=45,
+    ha="right"
+)
+
 
 # FINAL LAYOUT
 plt.tight_layout()
@@ -736,587 +759,3 @@ for item in stats_list:
 
 
 
-
-################################################################ 
-# END OF DEBUGGING 
-################################################################
-
-"""
-records_clean = []
-records_tsf = []
-records_leak = []
-
-all_records_clean = []
-all_records_tsf = []
-all_records_leak = []
-
-cloud_cover = []
-cloudfree_images = 0 
-
-amd_metric = cfg["indices"]["amd_metric"]
-
-# PROCESS SCENES
-for f in files:
-
-    date_str = os.path.basename(f).split(".")[0]
-
-    date = pd.to_datetime(date_str)
-
-    print(date)
-
-    with rasterio.open(f) as src:
-
-        img = src.read()
-    
-    # CLOUD MASK    
-    f_scl = f.replace("sentinel2", "sentinel2_cloud").replace(".tif", "_SCL.tif")  
-    
-    with rasterio.open(f_scl) as src2:
-
-        scl = src2.read()
-    
-    cloud_method = cfg["clouds"]["method"]
-
-    if cloud_method == "threshold":
-
-        cloud_mask = calculate_cloud_mask(
-            img,
-            threshold=CLOUD_THRESHOLD
-        )
-
-    elif cloud_method == "scl":
-
-        cloud_mask = calculate_scl_cloud_mask(
-            scl,
-            cloud_classes=cfg["clouds"]["scl"]["classes"]
-        )
-
-    else:
-
-        raise ValueError(
-            f"Unknown cloud method: {cloud_method}"
-        ) 
-
-    cloud_percent = calculate_cloud_coverage(cloud_mask)
-    cloud_cover.append(cloud_percent)
-
-    # discard cloudy scenes
-    if cloud_percent > MAX_CLOUD_PERCENT:
-        print(f"Discarded: {cloud_percent:.2f}% clouds XXX")
-        continue
-    else:
-        print(f"Cloud-free: {cloud_percent:.2f}% clouds!!!")   
-        # breakpoint() 
-    cloudfree_images += 1
-
-    # AMD INDICE 
-    amd_indices = calculate_amd_indices(img)
-    amd_indices.keys()
-    amd_map = amd_indices[amd_metric] 
-    # plt.imshow(amd_map, cmap="RdBu") 
-    # plt.show() 
-
-    # APPLY CLOUD MASK
-    amd_map_no_cloud = np.where(cloud_mask == 1, np.nan, amd_map)
-    # plt.imshow(amd_map_no_cloud, cmap="RdBu")
-    # plt.colorbar() 
-    # plt.show()
-
-    # EXTRACT MASKED VALUES - vector 
-    clean_values = amd_map_no_cloud[clean_mask == 1]
-    tsf_values = amd_map_no_cloud[tsf_mask == 1]
-    leak_values = amd_map_no_cloud[leak_mask == 1] 
-
-    # nonan 
-    clean_values = clean_values[~np.isnan(clean_values)]
-    tsf_values = tsf_values[~np.isnan(tsf_values)]
-    leak_values = leak_values[~np.isnan(leak_values)]   
-
-    for val in clean_values:
-        all_records_clean.append({
-            "date": date,
-            "water_type": "clean",
-            "AMD_diff": val
-        })
-
-    for val in tsf_values:
-        all_records_tsf.append({
-            "date": date,
-            "water_type": "tsf",
-            "AMD_diff": val
-        })
-
-    for val in leak_values:
-        all_records_leak.append({
-            "date": date,
-            "water_type": "leak",
-            "AMD_diff": val
-        })
-
-
-print(f"Processed {cloudfree_images} cloud-free images out of {len(files)} total images.") 
-
-
-# DATAFRAMES
-df_clean_all = pd.DataFrame(all_records_clean)
-df_tsf_all = pd.DataFrame(all_records_tsf)
-df_leak_all = pd.DataFrame(all_records_leak)
-
-df_clean_all = df_clean_all.set_index("date")
-df_tsf_all = df_tsf_all.set_index("date")
-df_leak_all = df_leak_all.set_index("date") 
-
-# OUTLIER REMOVAL
-amd_metric = cfg["indices"]["amd_metric"]
-df_clean_no_outliers = robust_outlier_filter(df_clean_all, column=amd_metric, threshold=3)     
-df_tsf_no_outliers = robust_outlier_filter(df_tsf_all, column=amd_metric, threshold=3)
-df_leak_no_outliers = robust_outlier_filter(df_leak_all, column=amd_metric, threshold=3)
-
-df_clean_all.head()
-plt.plot(df_clean_all.index, df_clean_all[amd_metric], color='grey', alpha=0.5, label='TSF water') 
-plt.plot(df_clean_no_outliers.index, df_clean_no_outliers[amd_metric], color='blue', alpha=0.5, label='Filtered TSF water') 
-plt.show()
-
-df_tsf_all.head() 
-plt.plot(df_tsf_all.index, df_tsf_all[amd_metric], color='grey', alpha=0.5, label='TSF water') 
-plt.plot(df_tsf_no_outliers.index, df_tsf_no_outliers[amd_metric], color='red', alpha=0.5, label='Filtered TSF water') 
-plt.show()  
-
-
-# GAP FILLING + SMOOTHING
-df_clean_smooth = temporal_postprocessing(df_clean_no_outliers, column=amd_metric)  
-# df_tsf = temporal_postprocessing(df_tsf)
-# df_leak = temporal_postprocessing(df_leak)
-
-
-# STATISTICS
-stats = {
-    "clean_water": compute_statistics(df_clean_no_outliers[amd_metric]),
-    "tsf_water": compute_statistics(df_tsf["value"]),
-    "leak_water": compute_statistics(df_leak_no_outliers[amd_metric])
-}
-
-
-# SAVE JSON
-json_path = os.path.join(output_dir, "amd_eda_statistics.json")
-
-with open(json_path, "w") as f:
-    json.dump(stats, f, indent=4)
-
-print("Statistics saved:")
-print(json_path)
-
-
-### --- HISTOGRAM OF AMD vs CLEAN WATER --- ###
-# OUTPUT FIGURE PATH
-hist_path = os.path.join(
-    output_dir,
-    'histogram_amd_clean_leak_water.png'
-)
-
-# gap filling - interpolate with linear method
-df_tsf["value"] = df_tsf["value"].interpolate(method="linear") 
-
-df_tsf_no_outliers.head()
-
-# SELECT SERIES 
-amd_values = df_tsf["value"] # .flatten()
-clean_values = df_clean_no_outliers[amd_metric] # .flatten() 
-leak_values = df_leak_no_outliers[amd_metric] # .flatten() 
-
-# REMOVE NaNs
-amd_values = amd_values[~np.isnan(amd_values)]
-clean_values = clean_values[~np.isnan(clean_values)]
-leak_values = leak_values[~np.isnan(leak_values)]
-
-
-# CREATE FIGURE
-fig, ax = plt.subplots(figsize=(10, 6))
-
-# HISTOGRAMS
-bins = 100
-
-ax.hist(
-    clean_values,
-    bins=bins,
-    density=True,
-    alpha=0.5,
-    color='blue',
-    label='Reference water'
-)
-
-ax.hist(
-    amd_values,
-    bins=bins,
-    density=True,
-    alpha=0.5,
-    color='red',
-    label='AMD water'
-)
-
-# ax.hist(
-#     leak_values,
-#     bins=bins,
-#     density=True,
-#     alpha=0.5,
-#     color='orange',
-#     label='Leak water'
-# )
-
-# OPTIONAL: MEAN LINES
-ax.axvline(
-    np.nanmean(clean_values),
-    color='darkblue',
-    linestyle='--',
-    linewidth=2
-)
-
-ax.axvline(
-    np.nanmean(amd_values),
-    color='darkred',
-    linestyle='--',
-    linewidth=2
-)
-
-ax.set_xlabel('(B4 - B2)', fontsize=11)
-
-ax.set_ylabel('Density', fontsize=11)
-
-ax.set_title(
-    'Distribution of AMD spectral index values',
-    fontsize=14,
-    fontweight='bold'
-)
-
-ax.grid(
-    True,
-    linestyle='--',
-    alpha=0.3
-)
-
-ax.legend()
-plt.tight_layout()
-
-# SAVE FIGURE
-plt.savefig(
-    hist_path,
-    dpi=300,
-    bbox_inches='tight'
-)
-
-print(f'Histogram saved to: {hist_path}')
-
-plt.close()       
-
-
-####### --- TEMPORAL PLOT ---###### 
-
-# system boundaries for plots 
-clean_x_mean = df_clean_no_outliers[amd_metric].mean()
-clean_x_min = df_clean_no_outliers[amd_metric].min()
-clean_x_std = df_clean_no_outliers[amd_metric].std()
-tsf_x_mean = df_tsf["value"].mean()
-tsf_x_std = df_tsf["value"].std()
-x_axis_min = round(clean_x_min, -2)
-x_axis_max = round(max(clean_x_mean + 3 * clean_x_std, tsf_x_mean + 3 * tsf_x_std), -2) 
-
-print(f"Clean water mean | std: {clean_x_mean} | {clean_x_std}")
-print(f"TSF water mean | std: {tsf_x_mean} | {tsf_x_std}")
-print(f"X-axis limits: {x_axis_min} | {x_axis_max}") 
-
-
-fig, axes = plt.subplots(
-    3,
-    1,
-    figsize=(14, 14),
-    sharex=True
-)
-
-# MAIN TEMPORAL PLOT - CLEAN WATER
-ax = axes[0]
-
-mean_clean = df_clean_no_outliers[amd_metric].mean()
-std_clean = df_clean_no_outliers[amd_metric].std()
-
-ax.set_ylim(x_axis_min, x_axis_max) 
-ax.plot(
-    df_clean_no_outliers[amd_metric].index,
-    df_clean_no_outliers[amd_metric],
-    color='blue',
-    alpha=0.3,
-    linewidth=0.5, 
-    label='Clean water',
-)
-
-# ax.fill_between(
-#     df_clean.index,
-#     mean_clean - (3 * std_clean),
-#     mean_clean + (3 * std_clean),
-#     color='blue',
-#     alpha=0.3
-# )
-
-# pixel observations
-# ax.scatter(
-#     df_clean_all.index,
-#     df_clean_all["AMD_diff"],
-#     s=3,
-#     color='blue',
-#     alpha=0.5
-# )
-
-# TSF WATER
-"""
-mean_tsf = df_tsf["value"]
-std_tsf = df_tsf["value"].std()
-
-# original observations
-ax.scatter(
-    df_tsf_all.index,
-    df_tsf_all["AMD_diff"],
-    s=3,
-    color='salmon',
-    alpha=0.3,
-    label='TSF observations'
-)
-"""
-
-# temporal mean
-ax.plot(
-    df_tsf.index,
-    df_tsf["value"], 
-    color='red',
-    alpha=0.3,
-    linewidth=0.5, 
-    label='TSF water'
-)
-
-# CI
-# ax.fill_between(
-#     df_tsf.index,
-#     mean_tsf - std_tsf,
-#     mean_tsf + std_tsf,
-#     color='red',
-#     alpha=0.3
-# )
-
-
-# LEAK WATER
-mean_leak = df_leak_no_outliers[amd_metric].mean()
-std_leak = df_leak_no_outliers[amd_metric].std()
-
-ax.plot(
-    df_leak_no_outliers.index,
-    df_leak_no_outliers[amd_metric], 
-    alpha=0.3,
-    linewidth=0.5, 
-    color='orange',
-    label='Leak water'
-)
-
-# ax.fill_between(
-#     df_leak.index,
-#     mean_leak - (3 * std_leak),
-#     mean_leak + (3 * std_leak),
-#     color='orange',
-#     alpha=0.3
-# )
-
-
-# MAIN PLOT SETTINGS
-ax.set_title("Temporal AMD_diff Evolution")
-ax.set_ylabel("AMD_diff")
-ax.grid(True)
-ax.legend()
-
-
-# OUTLIER FILTERING PANEL
-ax2 = axes[1]
-ax2.set_ylim(x_axis_min, x_axis_max)
-# TEMPORAL AGGREGATION
-stats_clean_all = (
-    df_clean_no_outliers
-    .groupby(df_clean_no_outliers.index)
-    .agg({
-        "AMD_diff": ["mean", "std", "count"]
-    })
-)
-
-stats_clean_all.columns = [
-    "mean",
-    "std",
-    "count"
-]
-
-
-# 95% CONFIDENCE INTERVAL
-stats_clean_all["ci95_upper"] = (
-    stats_clean_all["mean"]
-    + 1.96 * (
-        stats_clean_all["std"]
-        / np.sqrt(stats_clean_all["count"])
-    )
-)
-amd_metric
-stats_clean_all["ci95_lower"] = (
-    stats_clean_all["mean"]
-    - 1.96 * (
-        stats_clean_all["std"]
-        / np.sqrt(stats_clean_all["count"])
-    )
-)
-
-
-# SMOOTHED TEMPORAL TRENDS
-#  window_length must be less than or equal to the size of x 
-# CLEAN WATER
-stats_clean_all["smooth"] = savgol_filter(
-    stats_clean_all["mean"],
-    window_length=7,
-    polyorder=2
-)
-
-# filtered observations
-ax2.scatter(
-    df_clean_no_outliers.index,
-    df_clean_no_outliers["AMD_diff"], 
-    s=5,
-    color='blue',
-    alpha=0.2,
-    label='Filtered observations'
-)
-
-# filtered temporal signal
-ax2.plot(
-    stats_clean_all.index,
-    stats_clean_all["mean"],
-    color='blue',
-    linewidth=2, 
-    alpha=0.3,
-)
-
-# ax2.fill_between(
-#     stats_clean_all.index,
-#     stats_clean_all["mean"] + stats_clean_all["std"],
-#     stats_clean_all["mean"] - stats_clean_all["std"],
-#     color='blue',
-#     alpha=0.2
-# )
-
-# IDENTIFY REMOVED OUTLIERS
-removed = df_clean.loc[
-    ~df_clean.index.isin(df_clean_no_outliers.index)
-]
-
-if len(removed) > 0:
-
-    ax2.scatter(
-        removed.index,
-        removed["value"],
-        s=50,
-        color='red',
-        marker='x',
-        label='Removed outliers'
-    )
-
-
-# SETTINGS
-ax2.set_title(f"Clean Water Outlier Removal — Max.: {df_clean_no_outliers['AMD_diff'].max():.2f}") 
-ax2.set_xlabel("Date")
-ax2.set_ylabel("AMD_diff")
-ax2.grid(True)
-ax2.legend()
-
-# LEAK PANEL 
-# df_clean_no_smooth
-
-ax3 = axes[2]
-ax3.set_ylim(-100, 200)
-
-mean_leak_smooth = (
-    df_leak_no_outliers
-    .groupby(df_leak_no_outliers.index)["AMD_diff"]
-    .mean()
-)
-
-std_leak_smooth = (
-    df_leak_no_outliers
-    .groupby(df_leak_no_outliers.index)["AMD_diff"]
-    .std()
-)
-
-stats_leak_all = (
-    df_leak_all
-    .groupby(df_leak_all.index)
-    .agg({
-        "AMD_diff": ["mean", "std", "count"]
-    })
-)
-
-stats_leak_all.columns = [
-    "mean",
-    "std",
-    "count"
-]
-
-#  window_length must be less than or equal to the size of x 
-stats_leak_all["smooth"] = savgol_filter(
-    stats_leak_all["mean"],
-    window_length=7,
-    polyorder=2
-)
-
-# filtered observations
-ax3.scatter(
-    df_leak_no_outliers.index,
-    df_leak_no_outliers["AMD_diff"], 
-    s=5,
-    color='orange',
-    alpha=0.3,
-    label='Filtered observations'
-)
-
-
-# filtered temporal signal
-ax3.plot(
-    mean_leak_smooth.index,
-    mean_leak_smooth,
-    color='orange',
-    linewidth=2
-)
-
-# ax3.fill_between(
-#     mean_leak_smooth.index,
-#     mean_leak_smooth - (std_leak_smooth),
-#     mean_leak_smooth + (std_leak_smooth), 
-#     color='orange',
-#     alpha=0.2
-# )
-
-# SETTINGS
-ax3.set_title("Smoothed Leak Water")
-ax3.set_xlabel("Date")
-ax3.set_ylabel("AMD_diff")
-ax3.grid(True)
-ax3.legend()
-
-
-# FINALIZE
-plt.tight_layout()
-
-plot_path = os.path.join(
-    output_dir,
-    "amd_clean_leak_temporal_plot.png"
-)
-
-plt.savefig(plot_path, dpi=300)
-
-plt.show()
-
-print("Plot saved:")
-print(plot_path)
-
-# 
-print("EDA finished.")
-
-""" 
