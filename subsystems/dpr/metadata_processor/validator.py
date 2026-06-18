@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 import pystac
 import requests
 import json
+from datetime import datetime
 
 from lib.base import GaiaBase, SubsystemId
 from lib.config import SettingsReader
@@ -20,6 +21,57 @@ class MetadataValidator(GaiaBase):
     def __init__(self):
         """Initialize metadata validator."""
         super().__init__(SubsystemId.DPR)
+
+    @staticmethod
+    def _is_insitu(item: pystac.Item) -> bool:
+        data_asset = item.assets.get('data')
+        return item.collection_id == 'insitu' or (
+            data_asset is not None and data_asset.media_type == 'text/csv'
+        )
+
+    def _validate_insitu(self, item: pystac.Item, result: dict) -> None:
+        props = item.properties
+
+        start = props.get('start_datetime')
+        end = props.get('end_datetime')
+        if not start or not end:
+            result['valid'] = False
+            result['errors'].append(
+                "In-situ item must have both 'start_datetime' and 'end_datetime'."
+            )
+        else:
+            try:
+                if datetime.fromisoformat(start) >= datetime.fromisoformat(end):
+                    result['valid'] = False
+                    result['errors'].append(
+                        f"'start_datetime' must be before 'end_datetime' "
+                        f"(got {start} >= {end})."
+                    )
+            except ValueError as e:
+                result['valid'] = False
+                result['errors'].append(f"Invalid datetime format in time range: {e}")
+
+        if item.bbox:
+            min_lon, min_lat, max_lon, max_lat = item.bbox
+            if not (
+                -180 <= min_lon <= max_lon <= 180
+                and -90 <= min_lat <= max_lat <= 90
+            ):
+                result['valid'] = False
+                result['errors'].append(
+                    f"bbox {item.bbox} is outside valid WGS-84 bounds "
+                    f"(lon: -180..180, lat: -90..90)."
+                )
+
+        data_asset = item.assets.get('data')
+        if not data_asset:
+            result['valid'] = False
+            result['errors'].append("In-situ item must have a 'data' asset.")
+        elif not data_asset.extra_fields.get('table:columns'):
+            result['valid'] = False
+            result['errors'].append(
+                "In-situ 'data' asset must have non-empty 'table:columns'."
+            )
 
     def validate(self, metadata_path: Path):
         """
@@ -72,6 +124,9 @@ class MetadataValidator(GaiaBase):
 
             # read input metadata file
             obj = pystac.read_file(metadata_path)
+
+            if self._is_insitu(obj):
+                self._validate_insitu(obj, result)
 
             # if it's an Item, create a Catalog to hold it
             catalog = pystac.Catalog(
