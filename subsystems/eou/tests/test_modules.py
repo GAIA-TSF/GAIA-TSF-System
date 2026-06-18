@@ -156,7 +156,7 @@ class TestModules:
                 results,
                 target_dir=target_dir,
                 quicklook=True,
-                executor=ThreadPoolExecutor(max_workers=4),
+                executor=ThreadPoolExecutor(max_workers=SettingsReader()['eou']['eodag']['max_workers']),
             )
 
             for ql_path in ql_dir:

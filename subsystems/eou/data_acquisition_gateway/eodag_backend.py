@@ -8,10 +8,12 @@ if TYPE_CHECKING:
 import yaml
 from pathlib import Path
 import os
+from packaging.version import Version
 
 import zipfile
 from shapely.geometry.base import BaseGeometry
 from eodag import EODataAccessGateway
+from eodag.utils import eodag_version
 
 if TYPE_CHECKING:
     from eodag.api.search_result import SearchResult
@@ -60,6 +62,13 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             'start': start,
             'end': end,
         }
+        if Version(eodag_version) >= Version("4.0.0"):
+            if "productType" in kwargs:
+                kwargs["collection"] = kwargs.pop("productType")
+        else:
+            if "collection" in kwargs:
+                kwargs["productType"] = kwargs.pop("collection")
+
         search_params.update(kwargs)
 
         return self._dag.search_all(**search_params)

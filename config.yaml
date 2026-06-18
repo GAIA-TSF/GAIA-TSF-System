@@ -5,6 +5,7 @@ eou:
         credentials: &cred
           username: 'gaia.tsf.project@gmail.com'
           password: '' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
+    max_workers: 4
   asf:
     auth:
       credentials:
