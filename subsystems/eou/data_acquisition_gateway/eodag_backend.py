@@ -62,12 +62,12 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             'start': start,
             'end': end,
         }
-        if Version(eodag_version) >= Version("4.0.0"):
-            if "productType" in kwargs:
-                kwargs["collection"] = kwargs.pop("productType")
+        if Version(eodag_version) >= Version('4.0.0'):
+            if 'productType' in kwargs:
+                kwargs['collection'] = kwargs.pop('productType')
         else:
-            if "collection" in kwargs:
-                kwargs["productType"] = kwargs.pop("collection")
+            if 'collection' in kwargs:
+                kwargs['productType'] = kwargs.pop('collection')
 
         search_params.update(kwargs)
 
