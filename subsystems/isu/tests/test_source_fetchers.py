@@ -1,9 +1,7 @@
 """Unit tests for bulk_upload_scheduler/source_fetchers.py."""
 
 import ftplib
-import io
-import stat
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -302,7 +300,9 @@ class TestFetchFromSftp:
         )
 
         assert results == [('sensor.csv', b'ts,value\n')]
-        mock_transport.connect.assert_called_once_with(username='gaia', password='secret')
+        mock_transport.connect.assert_called_once_with(
+            username='gaia', password='secret'
+        )
         mock_logger.error.assert_not_called()
 
     @patch('subsystems.isu.bulk_upload_scheduler.source_fetchers.stat')
