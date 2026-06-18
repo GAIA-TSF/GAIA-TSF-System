@@ -151,7 +151,9 @@ class TestModules:
 
         target_dir = 'sentinel2'
         try:
-            ql_dir = module.backend.download_all(results, target_dir=target_dir, quicklook=True)
+            ql_dir = module.backend.download_all(
+                results, target_dir=target_dir, quicklook=True
+            )
 
             for ql_path in ql_dir:
                 assert ql_path.exists()
