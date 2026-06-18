@@ -171,6 +171,11 @@ class BulkUploadScheduler(GaiaBase):
             )
 
         if self.source_type == 's3':
+            if not self.config.get('s3_bucket'):
+                self.logger.error(
+                    'Missing s3_bucket in settings. S3 fetch will be DISABLED.'
+                )
+                return []
             return fetch_from_s3(
                 bucket=self.config.get('s3_bucket'),
                 prefix=self.config.get('s3_prefix', ''),
