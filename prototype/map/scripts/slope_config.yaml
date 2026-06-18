@@ -1,0 +1,21 @@
+# PROJECT DEFINITIONS 
+project:
+  # 2018-2020 Slope stability synthetic data Skylake
+  inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/inputs"
+  static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static"
+  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results"
+
+masks:
+  tsf_mask: "tsf_mask.tif"
+  leak_water: "yxsjoberg_leakage_water_mask.tif"
+
+learning: 
+  reference_year: 
+
+monitoring: 
+
+  reference_years: 2018 
+
+  dashboard:
+    plot: true
+    mask: tsf_mask
