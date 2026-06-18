@@ -19,7 +19,7 @@ class TestModules:
         'provider': 'cop_dataspace',
         'start': '2025-06-01',
         'end': '2025-06-05',
-        'collection': 'S2_MSI_L2A',
+        'productType': 'S2_MSI_L2A',
     }
 
     def test_ManualFileLoader_001(self):
@@ -54,7 +54,7 @@ class TestModules:
 
         assert isinstance(result, SearchResult)
         assert len(result) > 0
-        assert result[0].collection == self.search_filter['collection']
+        assert result[0].collection == self.search_filter['productType']
 
     def test_DataAcquisitionGateway_001_asf_search(self, project_config):
         """Test DataAcquisitionGateway module.
