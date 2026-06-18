@@ -7,8 +7,6 @@ if TYPE_CHECKING:
 
 import yaml
 from pathlib import Path
-import os
-from packaging.version import Version
 
 import zipfile
 from shapely.geometry.base import BaseGeometry
@@ -62,7 +60,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             'start': start,
             'end': end,
         }
-        if Version(eodag_version) >= Version('4.0.0'):
+        if int(eodag_version.split('.')[0]) >= 4:
             if 'productType' in kwargs:
                 kwargs['collection'] = kwargs.pop('productType')
         else:
@@ -113,28 +111,19 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         downloaded_paths = []
 
         if quicklook:
-            os.makedirs(target_dir, exist_ok=True)
-            executor = kwargs.pop('executor', None)
-            if executor:
-                futures = [
-                    executor.submit(
-                        product.get_quicklook, output_dir=target_dir, **kwargs
-                    )
-                    for product in products
-                ]
-                downloaded_paths = [Path(f.result()) for f in futures]
-            else:
-                for product in products:
-                    downloaded_paths.append(
-                        Path(product.get_quicklook(output_dir=target_dir, **kwargs))
-                    )
+            for product in products:
+                downloaded_paths.append(
+                    Path(product.get_quicklook(output_dir=target_dir, **kwargs))
+                )
             return downloaded_paths
 
         existing, missing = self.__split_products(products, target_dir)
 
         if missing:
+            max_workers = (self.config.get('eou', {}).get('eodag', {}).get('max_workers', 1)
+            )
             downloaded_paths = self._dag.download_all(
-                missing, extract=False, output_dir=target_dir, **kwargs
+                missing, extract=False, output_dir=target_dir, max_workers=max_workers, **kwargs
             )
 
         all_paths = [p for _, p in existing] + [Path(p) for p in downloaded_paths]

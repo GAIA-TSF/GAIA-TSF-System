@@ -1,7 +1,6 @@
 import pytest
 import shutil
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader, ProjectConfigReader
@@ -152,14 +151,7 @@ class TestModules:
 
         target_dir = 'sentinel2'
         try:
-            ql_dir = module.backend.download_all(
-                results,
-                target_dir=target_dir,
-                quicklook=True,
-                executor=ThreadPoolExecutor(
-                    max_workers=SettingsReader()['eou']['eodag']['max_workers']
-                ),
-            )
+            ql_dir = module.backend.download_all(results, target_dir=target_dir, quicklook=True)
 
             for ql_path in ql_dir:
                 assert ql_path.exists()
