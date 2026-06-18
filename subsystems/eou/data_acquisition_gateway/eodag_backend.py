@@ -123,6 +123,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
             max_workers = (
                 self.config.get('eou', {}).get('eodag', {}).get('max_workers', 1)
             )
+            self.logger.debug(f"Using {max_workers} workers for download")
             downloaded_paths = self._dag.download_all(
                 missing,
                 extract=False,
