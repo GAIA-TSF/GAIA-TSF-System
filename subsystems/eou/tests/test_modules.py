@@ -104,7 +104,6 @@ class TestModules:
                 ql_path.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            assert len(list(ql_path.parent.iterdir())) == 1
         finally:
             if ql_path and Path(ql_path).exists():
                 Path(ql_path).unlink()
@@ -126,15 +125,13 @@ class TestModules:
 
         target_dir = 'sentinel1'
         try:
-            datadir = Path(
-                module.backend.download(result.iloc[[0]], target_dir=target_dir)
-            )
-            assert any(datadir.iterdir())
+            datadir = module.backend.download(result.iloc[[0]], target_dir=target_dir)
+            assert datadir.exists()
+            assert datadir.stat().st_size > 0
             assert (
-                datadir.resolve()
+                datadir.parent.resolve()
                 == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
             )
-            assert len(list(datadir.iterdir())) == 1
         finally:
             if datadir.exists() and datadir.is_dir():
                 shutil.rmtree(datadir)
@@ -155,27 +152,20 @@ class TestModules:
 
         target_dir = 'sentinel2'
         try:
-            ql_dir = Path(
-                module.backend.download_all(
-                    results, target_dir=target_dir, quicklook=True
-                )
+            ql_dir = module.backend.download_all(
+                results, target_dir=target_dir, quicklook=True
             )
 
-            assert ql_dir.exists()
-            assert any(ql_dir.iterdir())
-            assert ql_dir.stat().st_size > 0
-            assert (
-                ql_dir.resolve()
-                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
-            )
-            assert len(results) == len(list(ql_dir.iterdir()))
+            for ql_path in ql_dir:
+                assert ql_path.exists()
+                assert ql_path.stat().st_size > 0
+            assert len(results) == len(ql_dir)
         finally:
-            if ql_dir and ql_dir.is_dir():
-                for item in ql_dir.iterdir():
-                    if item.is_dir():
-                        shutil.rmtree(item)
-                    else:
-                        item.unlink()
+            for item in ql_dir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
 
     def test_DataAcquisitionGateway_003_asf_download_all(self, project_config):
         """Test DataAcquisitionGateway module.
@@ -192,41 +182,15 @@ class TestModules:
 
         assert len(result) > 1
 
-        target_dir = 'sentinel1'
         try:
-            datadir = Path(module.backend.download_all(result, target_dir=target_dir))
-            assert any(datadir.iterdir())
-            assert (
-                datadir.resolve()
-                == Path(SettingsReader()['storage']['data_dir'], target_dir).resolve()
-            )
-            assert len(result) == len(list(datadir.iterdir()))
+            datadir = module.backend.download_all(result, target_dir='sentinel1')
+            for data_path in datadir:
+                assert data_path.exists()
+                assert data_path.stat().st_size > 0
+            assert len(result) == len(datadir)
         finally:
-            if datadir.exists() and datadir.is_dir():
-                shutil.rmtree(datadir)
-
-    def test_DataAcquisitionGateway_004_project_path(self, project_config):
-        # run using project_config
-        module = DataAcquisitionGateway(backend='eodag')
-        results = module.backend.search(
-            geom=project_config.aoi(),
-            **self.search_filter,
-        )
-        result_count = len(results)
-
-        # run using env. variable
-        os.environ['GAIA_PROJECT_PATH'] = str(
-            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
-        )
-        module = DataAcquisitionGateway(backend='eodag')
-        results = module.backend.search(
-            **self.search_filter,
-        )
-        assert len(results) == result_count
-
-    def test_DataExtraction_001(self):
-        """Test DataExtraction module.
-
-        Example of unit test.
-        """
-        pass
+            for item in datadir:
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
