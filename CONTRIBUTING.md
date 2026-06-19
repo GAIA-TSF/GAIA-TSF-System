@@ -78,10 +78,10 @@ Release Management
 
 ### Testing
 
-Environment variables:
+The following environment variables may be configured in `docker/.env`:
 
-- GAIA_PROJECT_PATH: full path to a project configuration
-- GAIA_EOU_AUTH_CREDENTIALS_PASSWORD: the password is required for downloading Earth
+- `GAIA_PROJECT_PATH`: full path to a project configuration
+- `GAIA_EOU_AUTH_CREDENTIALS_PASSWORD`: the password is required for downloading Earth
   Observation (EO) data through EODAG or ASF. If the `docker/.env` file
   contains the `GAIA_EOU_AUTH_CREDENTIALS_PASSWORD` environment
   variable, there is no need to specify the password in `config.yaml`,
