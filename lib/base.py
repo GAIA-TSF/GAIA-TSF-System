@@ -55,11 +55,20 @@ class GaiaBase:
             else os.environ.get('GAIA_PROJECT_PATH')
         )
 
+        # read project configuration
+        log_kwargs = {}
+        if _project_path is not None:
+            self.project_config = ProjectConfigReader(_project_path)
+            log_kwargs = {
+                'site_id': self.project_config['project']['site_id'],
+                'project_name': self.project_config['project']['name'],
+            }
+
         # initialize logger
         self.logger = Logger(
             subsystem=sid.name,
             db_config=self.settings['qcl']['logger'].get('db'),
-            project_path=_project_path,
+            **log_kwargs,
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
 

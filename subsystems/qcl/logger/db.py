@@ -31,7 +31,8 @@ class DbRecord(Base):
     timestamp = Column(DateTime(), nullable=False)
     level_id = Column(Integer, ForeignKey('log_level.id'), nullable=False)
     message = Column(String, nullable=False)
-    project_path = Column(String(255), nullable=True)
+    site_id = Column(String(255), nullable=True)
+    project_name = Column(String(255), nullable=True)
     pid = Column(
         Integer,
         nullable=False,
@@ -134,15 +135,17 @@ class DbLogger(logging.Handler):
             return
 
         try:
-            project_path = record.project_path
+            site_id = record.site_id
+            project_name = record.project_name
         except AttributeError:
-            project_path = None
+            site_id = project_name = None
         db_record = DbRecord(
             subsystem_id=record.subsystem,
             timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
             level_id=record.levelno,
             message=record.getMessage(),
-            project_path=project_path,
+            site_id=site_id,
+            project_name=project_name,
             pid=os.getpid(),
         )
         self._session.add(db_record)
