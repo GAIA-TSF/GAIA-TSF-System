@@ -57,7 +57,7 @@ class GaiaBase:
 
         # read project configuration
         log_kwargs = {}
-        if _project_path is not None:
+        if _project_path:
             self.project_config = ProjectConfigReader(_project_path)
             log_kwargs = {
                 'site_id': self.project_config['project']['site_id'],
@@ -73,7 +73,7 @@ class GaiaBase:
         self.logger.debug(f'{self.__class__.__name__} initialized')
 
         # read project configuration
-        if project_path is not None and os.environ.get('GAIA_PROJECT_PATH') is not None:
+        if project_path is not None and os.environ.get('GAIA_PROJECT_PATH'):
             self.logger.warning(
                 f'Both project_path argument and GAIA_PROJECT_PATH variable defined. Using project_path ({project_path})'
             )
