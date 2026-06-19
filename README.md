@@ -10,6 +10,13 @@ See [CONTRIBUTING](CONTRIBUTING.md) file for more details.
 See [examples](examples/) for standalone scripts
 demonstrating typical GAIA-TSF workflows.
 
+The example can be executed as follows:
+
+```sh
+cd docker/
+docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m examples.eou_download_sentinel2
+```
+
 ## GAIA-TSF Subsystems
 
 ![GAIA Prototype Overall Architecture](./images/prototype_architecture.png)
