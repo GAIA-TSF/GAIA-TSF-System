@@ -29,10 +29,10 @@ if __name__ == '__main__':
     pipeline.configure(
         datadir=data_dir,
         aoi=project_config.aoi(),
-        dem_path= data_dir / 'dem.nc',
-        landmask_path= data_dir / 'landmask.nc',
-        workdir= data_dir / 'workdir',
-        result_dir= data_dir / 'results'
+        dem_path=data_dir / 'dem.nc',
+        landmask_path=data_dir / 'landmask.nc',
+        workdir=data_dir / 'workdir',
+        result_dir=data_dir / 'results',
     )
 
     pipeline.run()
