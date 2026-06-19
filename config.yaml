@@ -1,5 +1,6 @@
 eou:
   eodag:
+    max_workers: 4
     cop_dataspace:
       auth:
         credentials: &cred
@@ -9,7 +10,6 @@ eou:
     auth:
       credentials:
         <<: *cred
-  max_workers: 4
 sdi:
   db: &sdi_db
     host: 'postgis'

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import os
+import time
 from pathlib import Path
 
 from typing import TYPE_CHECKING
@@ -73,8 +74,11 @@ class DataAcquisitionBackend(ABC):
         """Generic download interface"""
         self.__set_target_dir(kwargs)
         self.logger.info(f'Downloading {args=}, {kwargs=}')
+        start = time.time()
         data_path = self._download(*args, **kwargs)
         self.logger.info(f'Downloaded product path: {data_path}')
+        self.logger.debug(f'Download completed in {elapsed_minutes:.2f} minutes')
+
         return data_path
 
     @abstractmethod
@@ -86,8 +90,12 @@ class DataAcquisitionBackend(ABC):
         """Generic download interface"""
         self.__set_target_dir(kwargs)
         self.logger.info(f'Downloading {args=}, {kwargs=}')
+        start = time.time()
         data_path = self._download_all(*args, **kwargs)
+        elapsed_minutes = (time.time() - start) / 60
         self.logger.info(f'Downloaded product path: {data_path}')
+        self.logger.debug(f'Download completed in {elapsed_minutes:.2f} minutes')
+
         return data_path
 
     def __set_target_dir(self, kwargs):

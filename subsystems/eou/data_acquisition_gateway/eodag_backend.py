@@ -4,19 +4,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Iterable, List
     from eodag.api.product import EOProduct
+    from eodag.api.search_result import SearchResult
+    from subsystems.qcl.logger import Logger
 
 import yaml
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 import zipfile
 from shapely.geometry.base import BaseGeometry
 from eodag import EODataAccessGateway
 from eodag.utils import eodag_version
-
-if TYPE_CHECKING:
-    from eodag.api.search_result import SearchResult
-    from eodag_cube.api.product._product import EOProduct
-    from subsystems.qcl.logger import Logger
 
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
 
@@ -25,6 +23,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
     def __init__(self, data_dir: Path, logger: Logger):
         super().__init__(data_dir, logger)
         self._dag = EODataAccessGateway()
+        self.max_workers = None
 
     def set_config(self, config: dict) -> None:
         """Set configuration parameters for eodag backend.
@@ -33,6 +32,13 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         :return: None
         """
         super().set_config(config)
+        self.max_workers = self.config.pop('max_workers', None)
+        if self.max_workers is None:
+            self.max_workers = 1
+            self.logger.warning(
+                f'Configuration option eou.eodag.max_workers not defined, using {self.max_workers} worker'
+            )
+
         self._dag.update_providers_config(yaml.dump(config))
 
     def _search(
@@ -120,13 +126,13 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         existing, missing = self.__split_products(products, target_dir)
 
         if missing:
-            max_workers = int(self.config.get('eou', {}).get('max_workers', 1))
-            self.logger.debug(f'Using {max_workers} workers for download')
+            self.logger.debug(f'Using {self.max_workers} workers for download')
+            print(kwargs)
             downloaded_paths = self._dag.download_all(
                 missing,
                 extract=False,
                 output_dir=target_dir,
-                max_workers=max_workers,
+                executor=ThreadPoolExecutor(max_workers=self.max_workers),
                 **kwargs,
             )
 
@@ -167,6 +173,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
                 # reuse existing file
                 product.location = f'file://{path}'
                 existing.append((product, path))
+                self.logger.debug(f'{path} skipped (already downloaded)')
             else:
                 missing.append(product)
 
@@ -195,4 +202,6 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         with zipfile.ZipFile(zip_path, 'r') as z:
             z.extractall(out_dir.parent)
+        self.logger.debug(f'{zip_path} unziped: {out_dir}')
+
         return out_dir
