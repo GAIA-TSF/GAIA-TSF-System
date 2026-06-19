@@ -719,6 +719,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             os.makedirs(self._config['output_folder'])
 
         self._parse_metadata()
+        if len(self.scenes_metadata_filtered['source_path']) < 1:
+            self.logger.warning(
+                'No cloud-free scenes remain in the temporal window; all available scenes are cloud-covered. Computation aborted.'
+            )
+            return
         self._get_geotransform()
         if self._config['input_water_mask'] is not None:
             self._process_vector_watermask()
