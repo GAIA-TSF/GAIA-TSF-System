@@ -78,7 +78,7 @@ class GaiaBase:
                 f'Both project_path argument and GAIA_PROJECT_PATH variable defined. Using project_path ({project_path})'
             )
 
-        if _project_path is not None:
+        if _project_path:
             self.project_config = ProjectConfigReader(_project_path)
             self.logger.info(f'Project configuration read from {_project_path}')
         else:
