@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from subsystems.qcl.logger import Logger
 
-from lib.config import ProjectConfigReader
-
 
 class DataAcquisitionBackend(ABC):
     def __init__(self, data_dir: Path, logger: Logger):
