@@ -127,7 +127,6 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         if missing:
             self.logger.debug(f'Using {self.max_workers} workers for download')
-            print(kwargs)
             downloaded_paths = self._dag.download_all(
                 missing,
                 extract=False,
