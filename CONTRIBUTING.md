@@ -78,11 +78,14 @@ Release Management
 
 ### Testing
 
-Note: The password is required for downloading Earth Observation (EO)
-data through EODAG or ASF. If the `docker/.env` file contains the
-`GAIA_EOU_AUTH_CREDENTIALS_PASSWORD` environment variable, there is no
-need to specify the password in `config.yaml`, as it will be read from
-the environment automatically.
+Environment variables:
+
+- GAIA_PROJECT_PATH: full path to a project configuration
+- GAIA_EOU_AUTH_CREDENTIALS_PASSWORD: the password is required for downloading Earth
+  Observation (EO) data through EODAG or ASF. If the `docker/.env` file
+  contains the `GAIA_EOU_AUTH_CREDENTIALS_PASSWORD` environment
+  variable, there is no need to specify the password in `config.yaml`,
+  as it will be read from the environment automatically.
 
 Build docker:
 
