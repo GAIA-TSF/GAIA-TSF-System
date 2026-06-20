@@ -76,6 +76,7 @@ class DataAcquisitionBackend(ABC):
         self.logger.info(f'Downloading {args=}, {kwargs=}')
         start = time.time()
         data_path = self._download(*args, **kwargs)
+        elapsed_minutes = (time.time() - start) / 60
         self.logger.info(f'Downloaded product path: {data_path}')
         self.logger.debug(f'Download completed in {elapsed_minutes:.2f} minutes')
 
