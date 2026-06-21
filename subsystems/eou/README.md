@@ -30,7 +30,7 @@ Engine, and NASA Earthdata. By default the `DataAcquisitionGateway` is
 using EODAG package to search and download new data products.
 
 See
-[eou_download_sentinel2.py](../../examples/eou_download_sentinel2.py)
+[eou_sentinel2_download.py](../../examples/eou_sentinel2_download.py)
 for a complete Sentinel-2 data download workflow.
 
 
