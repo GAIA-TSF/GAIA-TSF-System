@@ -168,6 +168,10 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         for product in products:
             path = Path(target_dir) / f'{product.properties["title"]}.zip'
 
+            if self.__is_valid_zip(path) is False:
+                path.unlink()
+                self.logger.info(f'Invalid zip file {path} removed')
+
             if path.exists() and path.stat().st_size > 0:
                 # reuse existing file
                 product.location = f'file://{path}'
@@ -204,3 +208,23 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         self.logger.debug(f'{zip_path} unziped: {out_dir}')
 
         return out_dir
+
+    def __is_valid_zip(self, zip_path: Path) -> bool:
+        """Verify the integrity of a ZIP archive.
+
+        The archive contents are checked using CRC validation without
+        extracting any files to disk.
+
+        :param zip_path: Path to the ZIP archive.
+        :type zip_path: Path
+
+        :returns: ``True`` if the archive is valid and all files pass the
+             integrity check, ``False`` otherwise.
+        :rtype: bool
+        """
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                return zf.testzip() is None
+        except zipfile.BadZipFile as e:
+            self.logger.info(f'{zip_path}: {e}')
+            return False
