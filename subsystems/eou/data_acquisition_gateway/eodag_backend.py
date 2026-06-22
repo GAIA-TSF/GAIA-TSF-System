@@ -167,8 +167,7 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         for product in products:
             path = Path(target_dir) / f'{product.properties["title"]}.zip'
-
-            if self.__is_valid_zip(path) is False:
+            if path.exists() and self.__is_valid_zip(path) is False:
                 path.unlink()
                 self.logger.info(f'Invalid zip file {path} removed')
 
