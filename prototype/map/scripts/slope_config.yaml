@@ -1,9 +1,14 @@
 # PROJECT DEFINITIONS 
 project:
   # 2018-2020 Slope stability synthetic data Skylake
-  inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/inputs"
-  static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static"
-  output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results"
+  # inputs_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/inputs"
+  # static_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static"
+  # output_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results"
+
+  # 2018-2020 Slope stability synthetic data Mac
+  inputs_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/inputs"
+  static_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static"
+  output_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results"
 
 masks:
   tsf_mask: "tsf_mask.tif"
