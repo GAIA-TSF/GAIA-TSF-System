@@ -22,6 +22,8 @@ validation and integration into the processing pipeline.
 
 ## Usage
 
+### Automated EO data acquisition
+
 Utilize the `DataAcquisitionGateway` module to automatically retrieve
 new scenes by connecting to services such as Copernicus, Google Earth
 Engine, and NASA Earthdata. By default the `DataAcquisitionGateway` is
@@ -52,6 +54,16 @@ results = dag_module.backend.search(
 data_path = dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False)
 print(data_path)
 ```
+
+Configuration option `max_workers` (defined in the `eodag` section of
+`config.yaml`) specifies the number of parallel workers used by
+`download_all()`. The value should be chosen with regard to Copernicus
+Data Space download quotas and limitations, especially the maximum
+number of concurrent connections. See [Copernicus Quotas and
+Limitations](https://documentation.dataspace.copernicus.eu/Quotas.html)
+for details.
+
+### Manual uploads
 
 For data that cannot be automatically retrieved via
 `DataAcquisitionGateway` and is available locally, use
