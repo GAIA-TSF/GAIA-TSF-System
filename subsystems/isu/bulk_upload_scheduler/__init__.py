@@ -19,16 +19,16 @@ class BulkUploadScheduler(GaiaBase):
 
     :param etl_engine: The central ETL Engine instance for data parsing.
     :type etl_engine: Any
-    :param project_file: Optional path to a specific project configuration file.
-    :type project_file: Optional[str]
+    :param project_path: Optional path to a specific project configuration file.
+    :type project_path: Optional[str]
     """
 
-    def __init__(self, etl_engine: Any, project_file: Optional[str] = None):
+    def __init__(self, etl_engine: Any, project_path: Optional[str] = None):
         """
         Initialize the Bulk Upload Scheduler using GaiaBase.
         """
         # Step 1: Initialize base class and register as an ISU component
-        super().__init__(SubsystemId.ISU, project_file=project_file)
+        super().__init__(SubsystemId.ISU, project_path=project_path)
 
         self.etl_engine = etl_engine
 

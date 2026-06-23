@@ -1,4 +1,5 @@
 from .generator import MetadataGenerator
+from .validator import MetadataValidator
 
 
 class MetadataProcessor:
@@ -12,3 +13,4 @@ class MetadataProcessor:
 
     def __init__(self):
         self.generator = MetadataGenerator()
+        self.validator = MetadataValidator()

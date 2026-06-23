@@ -51,9 +51,12 @@ class Logger:
             base_logger.setLevel(level)
 
             handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(
+            formatter_str = (
                 '%(asctime)s - %(name)s - %(subsystem)s - %(levelname)s - %(message)s'
             )
+            if 'site_id' in context and 'project_name' in context:
+                formatter_str += ' [%(site_id)s/%(project_name)s]'
+            formatter = logging.Formatter(formatter_str)
             handler.setFormatter(formatter)
             base_logger.addHandler(handler)
             if db_config is not None:

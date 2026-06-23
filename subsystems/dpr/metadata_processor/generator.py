@@ -104,7 +104,7 @@ class RasterDataset(BaseDataset):
                 'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
             ],
             'id': item_id,
-            'collection': 'undefined',
+            'collection': 'eo-rasters',
             'properties': {
                 'datetime': now,
                 'proj:epsg': self.get_epsg(),

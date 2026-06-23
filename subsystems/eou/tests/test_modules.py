@@ -54,7 +54,7 @@ class TestModules:
 
         assert isinstance(result, SearchResult)
         assert len(result) > 0
-        assert result[0].product_type == self.search_filter['productType']
+        assert result[0].collection == self.search_filter['productType']
 
     def test_DataAcquisitionGateway_001_asf_search(self, project_config):
         """Test DataAcquisitionGateway module.

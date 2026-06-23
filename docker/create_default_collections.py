@@ -18,24 +18,36 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Sentinel-2 Data',
         'description': 'Sentinel-2 satellite imagery collection',
-        'license': '',
+        'license': 'other',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
         },
-        'links': [],
+        'links': [
+            {
+                'rel': 'license',
+                'href': 'https://sentinels.copernicus.eu/',
+                'title': 'Copernicus Sentinel Data Terms and Conditions',
+            }
+        ],
     },
     {
         'id': 'sentinel-1',
         'type': 'Collection',
         'title': 'Sentinel-1 Data',
         'description': 'Sentinel-1 collection',
-        'license': '',
+        'license': 'other',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
         },
-        'links': [],
+        'links': [
+            {
+                'rel': 'license',
+                'href': 'https://sentinels.copernicus.eu/',
+                'title': 'Copernicus Sentinel Data Terms and Conditions',
+            }
+        ],
     },
     {
         'id': 'in-situ',
@@ -45,7 +57,7 @@ DEFAULT_COLLECTIONS = [
         'license': 'proprietary',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
-            'temporal': {'interval': [['2015-06-23T00:00:00Z', None]]},
+            'temporal': {'interval': [[None, None]]},
         },
         'links': [],
     },
@@ -54,12 +66,30 @@ DEFAULT_COLLECTIONS = [
         'type': 'Collection',
         'title': 'Landsat 8 Data',
         'description': 'Landsat 8 satellite imagery collection',
-        'license': '',
+        'license': 'other',
         'extent': {
             'spatial': {'bbox': [[-180, -90, 180, 90]]},
             'temporal': {'interval': [['2013-04-11T00:00:00Z', None]]},
         },
         'links': [],
+    },
+    {
+        'id': 'eo-rasters',
+        'type': 'Collection',
+        'title': 'User-Uploaded EO Rasters',
+        'description': 'Collection of Earth observation raster products uploaded manually by users.',
+        'license': 'proprietary',
+        'extent': {
+            'spatial': {'bbox': [[-180, -90, 180, 90]]},
+            'temporal': {'interval': [[None, None]]},
+        },
+        'links': [
+            {
+                'rel': 'license',
+                'href': 'https://www.usgs.gov/landsat-missions/landsat-data-access',
+                'title': 'USGS Landsat Data Access and Use Information',
+            }
+        ],
     },
 ]
 
