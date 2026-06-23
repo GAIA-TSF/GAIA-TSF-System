@@ -48,10 +48,10 @@ _MOCK_COLLECTION_DETAIL = {
 
 def _make_insitu_stac_json(meta: dict) -> str:
     """Generate an insitu STAC item to a temp JSON file; return path."""
-    csv_content = 'iso_timestamp,lat,lon,pressure\n2026-01-01T00:00:00,50.082,14.412,101.3\n'
-    with tempfile.NamedTemporaryFile(
-        mode='w', suffix='.csv', delete=False
-    ) as csv_f:
+    csv_content = (
+        'iso_timestamp,lat,lon,pressure\n2026-01-01T00:00:00,50.082,14.412,101.3\n'
+    )
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as csv_f:
         csv_f.write(csv_content)
         csv_path = csv_f.name
 
@@ -61,9 +61,7 @@ def _make_insitu_stac_json(meta: dict) -> str:
     finally:
         os.unlink(csv_path)
 
-    with tempfile.NamedTemporaryFile(
-        mode='w', suffix='.json', delete=False
-    ) as json_f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as json_f:
         json.dump(item, json_f)
         return json_f.name
 
@@ -356,7 +354,10 @@ class TestModules:
             # Cleanup
             Path(tmp_path).unlink()
 
-    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    @patch(
+        'subsystems.dpr.metadata_processor.validator.requests.get',
+        side_effect=_mock_requests_get,
+    )
     def test_MetadataValidator_001_insitu_valid(self, _mock):
         """Test MetadataValidator with valid in-situ metadata."""
         tmp_path = _make_insitu_stac_json(_INSITU_META)
@@ -368,10 +369,14 @@ class TestModules:
         finally:
             Path(tmp_path).unlink()
 
-    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    @patch(
+        'subsystems.dpr.metadata_processor.validator.requests.get',
+        side_effect=_mock_requests_get,
+    )
     def test_MetadataValidator_002_insitu_missing_time_range(self, _mock):
         """Test MetadataValidator detects missing start_datetime / end_datetime."""
         import copy
+
         meta = copy.deepcopy(_INSITU_META)
         del meta['data']['time_range']
 
@@ -383,10 +388,14 @@ class TestModules:
         finally:
             Path(tmp_path).unlink()
 
-    @patch('subsystems.dpr.metadata_processor.validator.requests.get', side_effect=_mock_requests_get)
+    @patch(
+        'subsystems.dpr.metadata_processor.validator.requests.get',
+        side_effect=_mock_requests_get,
+    )
     def test_MetadataValidator_003_insitu_invalid_bbox(self, _mock):
         """Test MetadataValidator detects bbox outside WGS-84 bounds."""
         import copy
+
         meta = copy.deepcopy(_INSITU_META)
         meta['data']['location'] = {'bbox': [-200.0, 50.082, 14.440, 50.092]}
 
