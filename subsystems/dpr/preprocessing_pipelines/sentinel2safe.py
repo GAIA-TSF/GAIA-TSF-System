@@ -2,7 +2,7 @@ import os
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
-
+import numpy
 from osgeo import gdal, ogr
 from shapely import wkt
 from shapely.ops import transform
