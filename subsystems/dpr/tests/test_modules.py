@@ -1,10 +1,12 @@
 import json
 import pytest
+import tempfile
 from pathlib import Path
 
 from lib.config import ProjectConfigReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
+from subsystems.dpr.metadata_processor import MetadataValidator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
 from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
 from tests.utils import TestUtils
@@ -116,11 +118,10 @@ class TestModules:
         """
 
         module = MetadataGenerator()
-        data_dir = TestUtils.get_data_path('eou')
-        module.set_datasource(data_dir / 'ENMAP01_sample.tif')
+        module.set_datasource(TestUtils.get_data_path('eou') / 'ENMAP01_sample.tif')
         item_dict = module.stac.create_item()
 
-        with open(data_dir / 'ENMAP01_sample.json', 'r') as f:
+        with open(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json', 'r') as f:
             json_dict = json.load(f)
         assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
 
@@ -213,3 +214,78 @@ class TestModules:
         assert item_dict_no_datetime(
             json.loads(json.dumps(item_dict))
         ) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataValidator_001_eou_valid(self):
+        """Test MetadataValidator module with valid metadata."""
+        module = MetadataValidator()
+        result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
+
+        assert isinstance(result, dict)
+        assert 'valid' in result
+        assert 'errors' in result
+        assert 'warnings' in result
+        assert result['valid'] is True
+        assert len(result['errors']) < 1
+
+    def test_MetadataValidator_002_eou_invalid_collection(self):
+        """Test MetadataValidator with invalid collection reference."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Modify collection to undefined
+        metadata['collection'] = 'undefined'
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any('undefined' in error for error in result['errors'])
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()
+
+    def test_MetadataValidator_003_eou_missing_properties(self):
+        """Test MetadataValidator with missing required properties field."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Remove properties (required STAC Item field)
+        del metadata['bbox']
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions - should fail due to missing properties
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any(
+                'properties' in error.lower() or 'datetime' in error.lower()
+                for error in result['errors']
+            )
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()

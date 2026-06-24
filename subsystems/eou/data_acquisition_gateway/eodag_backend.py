@@ -166,16 +166,17 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
         missing = []
 
         for product in products:
-            path = Path(target_dir) / f'{product.properties["title"]}.zip'
-            if path.exists() and self.__is_valid_zip(path) is False:
-                path.unlink()
-                self.logger.info(f'Invalid zip file {path} removed')
+            zip_path = Path(target_dir) / f'{product.properties["title"]}.zip'
+            if zip_path.exists() and self.__is_valid_zip(zip_path) is False:
+                zip_path.unlink()
+                self.logger.info(f'Invalid zip file {zip_path} removed')
 
-            if path.exists() and path.stat().st_size > 0:
-                # reuse existing file
-                product.location = f'file://{path}'
-                existing.append((product, path))
-                self.logger.debug(f'{path} skipped (already downloaded)')
+            safe_path = Path(target_dir) / f'{product.properties["title"]}.SAFE'
+            if safe_path.exists() and safe_path.is_dir() and any(safe_path.iterdir()):
+                # reuse existing SAFE dir
+                product.location = f'file://{safe_path}'
+                existing.append((product, safe_path))
+                self.logger.debug(f'{safe_path} skipped (already downloaded)')
             else:
                 missing.append(product)
 
@@ -204,7 +205,9 @@ class EODAGDataAcquisitionBackend(DataAcquisitionBackend):
 
         with zipfile.ZipFile(zip_path, 'r') as z:
             z.extractall(out_dir.parent)
-        self.logger.debug(f'{zip_path} unziped: {out_dir}')
+        self.logger.debug(f'{zip_path} unzipped -> {out_dir}')
+        zip_path.unlink()
+        self.logger.debug(f'{zip_path} removed')
 
         return out_dir
 

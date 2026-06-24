@@ -7,6 +7,8 @@ from subsystems.qcl.layer import QualityControlLoggingLayer
 from subsystems.qcl import QCLayer
 
 from lib.base import SubsystemId
+from tests.utils import TestUtils
+from lib.config import ProjectConfigReader
 
 
 class TestSubsystem:
@@ -124,6 +126,11 @@ class TestSubsystem:
         import logging
         from lib.base import SubsystemId
 
+        os.environ['GAIA_PROJECT_PATH'] = str(
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+        )
+        project_config = ProjectConfigReader(os.environ['GAIA_PROJECT_PATH'])
+
         qc = QCLayer()
         log_message = 'Test'
         qc.logger.info(log_message)
@@ -131,7 +138,7 @@ class TestSubsystem:
         with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'SELECT subsystem_id,level_id,message,pid FROM log ORDER BY id DESC LIMIT 1'
+                    'SELECT subsystem_id,level_id,message,pid,site_id,project_name FROM log ORDER BY id DESC LIMIT 1'
                 )
                 row = cur.fetchone()
                 # subsystem
@@ -142,3 +149,7 @@ class TestSubsystem:
                 assert row[2] == log_message
                 # pid
                 assert row[3] == os.getpid()
+                # site_id
+                assert row[4] == project_config['project']['site_id']
+                # project_name
+                assert row[5] == project_config['project']['name']

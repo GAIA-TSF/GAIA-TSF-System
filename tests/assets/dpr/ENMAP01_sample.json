@@ -6,7 +6,7 @@
         "https://stac-extensions.github.io/raster/v1.1.0/schema.json"
     ],
     "id": "ENMAP01_sample",
-    "collection": "undefined",
+    "collection": "eo-rasters",
     "properties": {
         "datetime": "2026-02-23T17:03:27.550659Z",
         "proj:epsg": 32629,
