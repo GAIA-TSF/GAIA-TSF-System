@@ -28,4 +28,3 @@ HOST_DATA_DIR=/data/gaia_tsf docker compose up
 
 or create a `.env` file and run `docker compose up` to pick up
 `HOST_DATA_DIR` from the file.
-
