@@ -5,8 +5,11 @@ import pandas as pd
 
 from subsystems.qcl.layer import QualityControlLoggingLayer
 from subsystems.qcl import QCLayer
+from subsystems.qcl.asset_checker import AssetChecker
 
 from lib.base import SubsystemId
+from tests.utils import TestUtils
+from lib.config import ProjectConfigReader
 
 
 class TestSubsystem:
@@ -124,6 +127,11 @@ class TestSubsystem:
         import logging
         from lib.base import SubsystemId
 
+        os.environ['GAIA_PROJECT_PATH'] = str(
+            TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+        )
+        project_config = ProjectConfigReader(os.environ['GAIA_PROJECT_PATH'])
+
         qc = QCLayer()
         log_message = 'Test'
         qc.logger.info(log_message)
@@ -131,7 +139,7 @@ class TestSubsystem:
         with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    'SELECT subsystem_id,level_id,message,pid FROM log ORDER BY id DESC LIMIT 1'
+                    'SELECT subsystem_id,level_id,message,pid,site_id,project_name FROM log ORDER BY id DESC LIMIT 1'
                 )
                 row = cur.fetchone()
                 # subsystem
@@ -142,3 +150,90 @@ class TestSubsystem:
                 assert row[2] == log_message
                 # pid
                 assert row[3] == os.getpid()
+                # site_id
+                assert row[4] == project_config['project']['site_id']
+                # project_name
+                assert row[5] == project_config['project']['name']
+
+
+_S2_ASSET = {
+    'platform': 'sentinel-2a',
+    'cloud_cover': 5.0,
+    'timestamp': '2024-01-01T10:00:00+00:00',
+}
+_INSITU_ASSET = {
+    'type': 'application/x-postgresql',
+    'timestamp': '2024-01-01T10:00:00+00:00',
+}
+
+
+class TestAssetChecker:
+    def test_AC_001_perfect_score(self):
+        """Full-conformance dataset: 3 S2 dates + insitu + low cloud cover should score 100."""
+        checker = AssetChecker()
+        assets = [
+            {**_S2_ASSET, 'cloud_cover': 5.0, 'timestamp': '2024-01-01T10:00:00+00:00'},
+            {**_S2_ASSET, 'cloud_cover': 7.0, 'timestamp': '2024-01-15T10:00:00+00:00'},
+            {**_S2_ASSET, 'cloud_cover': 3.0, 'timestamp': '2024-02-01T10:00:00+00:00'},
+            _INSITU_ASSET,
+        ]
+        result = checker.analyze_assets(assets, key_variable='amd', verbose=False)
+        assert result['conformance'] == 100
+
+    def test_AC_002_missing_insitu_returns_zero(self):
+        """Missing required type (insitu) must short-circuit to conformance=0."""
+        checker = AssetChecker()
+        assets = [_S2_ASSET]
+        result = checker.analyze_assets(assets, key_variable='amd', verbose=False)
+        assert result['conformance'] == 0
+        assert 'insitu' in result['result']['missing_types']
+
+    def test_AC_003_high_cloud_cover_penalised(self):
+        """Avg cloud cover >30% should score 0 for cloud criterion."""
+        checker = AssetChecker()
+        assets = [
+            {
+                **_S2_ASSET,
+                'cloud_cover': 40.0,
+                'timestamp': '2024-01-01T10:00:00+00:00',
+            },
+            {
+                **_S2_ASSET,
+                'cloud_cover': 50.0,
+                'timestamp': '2024-01-15T10:00:00+00:00',
+            },
+            {
+                **_S2_ASSET,
+                'cloud_cover': 45.0,
+                'timestamp': '2024-02-01T10:00:00+00:00',
+            },
+            _INSITU_ASSET,
+        ]
+        result = checker.analyze_assets(assets, key_variable='amd', verbose=False)
+        assert result['result']['scores']['cloud_cover'] == 0
+
+    def test_AC_004_insufficient_time_spread(self):
+        """Fewer than 3 distinct dates should score 0 for time-spread criterion."""
+        checker = AssetChecker()
+        assets = [
+            {**_S2_ASSET, 'timestamp': '2024-01-01T10:00:00+00:00'},
+            {**_S2_ASSET, 'timestamp': '2024-01-01T14:00:00+00:00'},
+            _INSITU_ASSET,
+        ]
+        result = checker.analyze_assets(assets, key_variable='amd', verbose=False)
+        assert result['result']['scores']['time_spread'] == 0
+
+    def test_AC_005_empty_assets_returns_zero(self):
+        """Empty asset list should return conformance=0 without raising."""
+        checker = AssetChecker()
+        result = checker.analyze_assets([], key_variable='amd', verbose=False)
+        assert result['conformance'] == 0
+        assert result['result'] == {}
+
+    def test_AC_006_unknown_key_variable_raises(self):
+        """Unrecognised key_variable must raise ValueError."""
+        checker = AssetChecker()
+        with pytest.raises(ValueError, match='Unknown key_variable'):
+            checker.analyze_assets(
+                [_S2_ASSET], key_variable='unknown_task', verbose=False
+            )
