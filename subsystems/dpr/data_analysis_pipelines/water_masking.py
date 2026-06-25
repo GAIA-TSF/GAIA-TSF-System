@@ -1,6 +1,6 @@
 import os
 import json
-from pathlib import PosixPath, Path
+from pathlib import PosixPath
 
 import numpy as np
 import pandas as pd
