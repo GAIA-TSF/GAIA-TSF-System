@@ -171,7 +171,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 scl_stats = data.get('SCL_classes_pct', {})
                 record = {
                     'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
-                    'source_path': json_path.with_suffix('.tiff'),
+                    'source_path': json_path.with_suffix('.jp2'),
                     'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
                     'cloud_cover_pct': data.get('cloud_cover_pct', 0),
                     'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
@@ -696,7 +696,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 # Copy and update metadata
-                json_path = data_path.replace('.tiff', '.json')
+                json_path = data_path.replace('.jp2', '.json')
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
@@ -704,7 +704,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     metadata['water_mask_pct'] = round(
                         np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
                     )
-                    with open(out_path.replace('.tiff', '.json'), 'w') as f:
+                    with open(out_path.replace('.jp2', '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)
 
         self.logger.info('Processing complete.')
