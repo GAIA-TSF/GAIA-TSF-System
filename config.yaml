@@ -1,5 +1,6 @@
 eou:
   eodag:
+    max_workers: 4
     cop_dataspace:
       auth:
         credentials: &cred
