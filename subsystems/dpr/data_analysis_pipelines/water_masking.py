@@ -1,6 +1,5 @@
 import os
 import json
-import glob
 from pathlib import PosixPath
 
 import numpy as np
@@ -157,9 +156,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         )
 
         try:
-            json_files = glob.glob(
-                os.path.join(self._config['input_folder'], '**/*.json'), recursive=True
-            )
+            json_files = list(self._config['input_folder'].glob('*.json'))
         except Exception as e:
             self.logger.error(f'Error parsing {self._config["input_folder"]}: {e}')
 
@@ -174,9 +171,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 scl_stats = data.get('SCL_classes_pct', {})
                 record = {
                     'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
-                    'source_path': json_path.replace(
-                        '.json', '.jp2'
-                    ),  # data.get('source_path'),
+                    'source_path': json_path.with_suffix('.jp2'),
                     'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
                     'cloud_cover_pct': data.get('cloud_cover_pct', 0),
                     'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
@@ -264,31 +259,35 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         the same EPSG and geotransform. Only used if a vector file is provided (input_water_mask is not None).
         """
         self.logger.info('Retrieving spatial data from input folder')
-        try:
-            data_files = glob.glob(os.path.join(self._config['input_folder'], '*.jp2'))
-        except Exception as e:
-            self.logger.warning(f'Error locating data file: {e}')
 
-        if data_files:
-            path = os.path.abspath(data_files[0])
-            ds = gdal.Open(path)
-            if ds:
-                self.geotransform = ds.GetGeoTransform()
-                self.projection = ds.GetProjection()
-                self.shape = (ds.RasterYSize, ds.RasterXSize)
+        raster_path = os.path.abspath(self.scenes_metadata_filtered['source_path'][0])
+        if os.path.exists(raster_path) is False:
+            raise FileNotFoundError(
+                f'Retrieval of EPSG and geotransform failed: '
+                f'{raster_path} either cannot be accessed or does not exists.'
+            )
+        ds = gdal.Open(raster_path)
+        if ds:
+            self.geotransform = ds.GetGeoTransform()
+            self.projection = ds.GetProjection()
+            self.shape = (ds.RasterYSize, ds.RasterXSize)
 
-                # Get EPSG
-                srs = osr.SpatialReference(wkt=self.projection)
-                self.epsg = srs.GetAttrValue('AUTHORITY', 1)
+            # Get EPSG
+            srs = osr.SpatialReference(wkt=self.projection)
+            self.epsg = srs.GetAttrValue('AUTHORITY', 1)
 
-                # Calculate Bounding Box
-                gt = self.geotransform
-                min_x = gt[0]
-                max_y = gt[3]
-                max_x = gt[0] + gt[1] * ds.RasterXSize
-                min_y = gt[3] + gt[5] * ds.RasterYSize
-                self.bounds = (min_x, min_y, max_x, max_y)
-                ds = None
+            # Calculate Bounding Box
+            gt = self.geotransform
+            min_x = gt[0]
+            max_y = gt[3]
+            max_x = gt[0] + gt[1] * ds.RasterXSize
+            min_y = gt[3] + gt[5] * ds.RasterYSize
+            self.bounds = (min_x, min_y, max_x, max_y)
+            ds = None
+        else:
+            raise OSError(
+                f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}'
+            )
 
     def _calculate_spectral_angle(self, reference_spectrum, dataset, bands=None):
         """
@@ -720,6 +719,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             os.makedirs(self._config['output_folder'])
 
         self._parse_metadata()
+        if len(self.scenes_metadata_filtered['source_path']) < 1:
+            self.logger.warning(
+                'No cloud-free scenes remain in the temporal window; all available scenes are cloud-covered. Computation aborted.'
+            )
+            return
         self._get_geotransform()
         if self._config['input_water_mask'] is not None:
             self._process_vector_watermask()

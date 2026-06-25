@@ -29,31 +29,10 @@ new scenes by connecting to services such as Copernicus, Google Earth
 Engine, and NASA Earthdata. By default the `DataAcquisitionGateway` is
 using EODAG package to search and download new data products.
 
-```py
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import ProjectConfigReader
-from tests.utils import TestUtils
+See
+[eou_sentinel2_download.py](../../examples/eou_sentinel2_download.py)
+for a complete Sentinel-2 data download workflow.
 
-project_config = ProjectConfigReader(
-    TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
-)
-
-dag_module = DataAcquisitionGateway(backend='eodag')
-
-search_filter = {
-    'provider': 'cop_dataspace',
-    'start': '2025-06-01',
-    'end': '2025-06-05',
-    'productType': 'S2_MSI_L2A',
-}
-
-results = dag_module.backend.search(
-    geom=project_config.aoi(),
-    **search_filter,
-)
-data_path = dag_module.backend.download_all(results, target_dir='sentinel2', quicklook=False)
-print(data_path)
-```
 
 Configuration option `max_workers` (defined in the `eodag` section of
 `config.yaml`) specifies the number of parallel workers used by
