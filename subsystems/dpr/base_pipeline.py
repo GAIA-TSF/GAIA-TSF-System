@@ -27,12 +27,16 @@ class BasePipeline(ABC, GaiaBase):
         """
         self._configure()
         self._config = kwargs
+        self._check_config()
 
     def _check_config(self):
         """Check pipeline configuration based on metadata['params']
 
         Raise RuntimeError on failure
         """
+        self.logger.debug(
+            f'Checking pipeline parameters: {self.metadata.get("params", "undefined")}'
+        )
         if (
             self.metadata.get('params', None) is None
             or self.metadata['params'] is None
@@ -62,7 +66,7 @@ class BasePipeline(ABC, GaiaBase):
 
     def run(self) -> None:
         """Execute pipeline."""
-        self._check_config()
+        self.logger.info(f'Running pipeline with {self._config}')
         return self._run()
 
 

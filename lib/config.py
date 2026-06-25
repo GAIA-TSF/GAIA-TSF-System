@@ -6,6 +6,7 @@ from pathlib import Path
 from shapely import wkt
 from shapely.errors import ShapelyError
 from shapely.geometry.base import BaseGeometry
+from shapely.geometry import box
 from osgeo import gdal, osr
 
 gdal.UseExceptions()
@@ -23,6 +24,96 @@ class ConfigReader(dict):
         with open(self.config_path, 'r', encoding='utf-8') as f:
             _config = yaml.safe_load(f)
             self.update(_config)
+
+        self._root = None  # used by __getattr__
+
+    def __getattr__(self, item: str):
+        """
+        Return a configuration value using attribute-style access.
+
+        The value is retrieved either from the top-level mapping or from the
+        configured root section. Dictionary values are automatically wrapped
+        into a configuration object.
+
+        :param item: Name of the configuration key.
+        :type item: str
+
+        :returns: Configuration value associated with ``item``.
+        :rtype: Any
+
+        :raises AttributeError: If the requested key does not exist.
+        """
+        try:
+            value = self[item] if self._root is None else self[self._root][item]
+        except KeyError:
+            raise AttributeError(item)
+
+        return self._wrap(value)
+
+    def _wrap(self, value: str):
+        """
+        Recursively wrap dictionary values into ``ConfigNode`` instances.
+
+        Dictionaries are converted to ``ConfigNode`` objects to enable
+        attribute-style access. Lists are processed recursively so that any
+        nested dictionaries they contain are wrapped as well. All other
+        values are returned unchanged.
+
+        :param value: Value to wrap.
+        :type value: Any
+
+        :returns: Wrapped value.
+        :rtype: Any
+        """
+        if isinstance(value, dict):
+            return ConfigNode(value)
+        if isinstance(value, list):
+            return [self._wrap(v) for v in value]
+        return value
+
+
+class ConfigNode(dict):
+    """
+    Dictionary wrapper providing attribute-style access to configuration
+    values.
+
+    Nested dictionaries are automatically converted to ``ConfigNode``
+    instances, allowing recursive access using dot notation. Lists are
+    processed so that any dictionary elements they contain are wrapped as
+    ``ConfigNode`` objects as well.
+
+    Example::
+
+        cfg = ConfigNode({"database": {"host": "localhost"}})
+        cfg.database.host  # returns "localhost"
+    """
+
+    def __getattr__(self, item: str):
+        """
+        Return a configuration value using attribute-style access.
+
+        Nested dictionaries are automatically wrapped into
+        ``ConfigNode`` instances. Lists are traversed and any dictionary
+        elements are wrapped as well.
+
+        :param item: Name of the configuration key.
+        :type item: str
+
+        :returns: Configuration value associated with ``item``.
+        :rtype: Any
+
+        :raises AttributeError: If the requested key does not exist.
+        """
+        try:
+            value = self[item]
+        except KeyError:
+            raise AttributeError(item)
+
+        if isinstance(value, dict):
+            return ConfigNode(value)
+        if isinstance(value, list):
+            return [ConfigNode(v) if isinstance(v, dict) else v for v in value]
+        return value
 
 
 class YamlValidator:
@@ -145,13 +236,26 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         self.validate(dict(self))
 
-    def aoi(self, target_epsg: int = 4326) -> BaseGeometry:
-        """Get area of interest as WKT string in specified CRS.
+        self._root = 'project'  # used by __getattr__
 
-        :param int epsg: EPSG code for target CRS
+    def aoi(self, target_epsg: int = 4326, roi: bool = False) -> BaseGeometry:
+        """
+        Get the area of interest (AOI) as a Shapely geometry in the specified CRS.
 
-        :return: Shapely geometry
-        :rtype BaseGeometry
+        The resulting geometry is reprojected to the requested coordinate reference
+        system. By default, the full AOI geometry is returned. If ``roi`` is True,
+        the bounding box (envelope) of the AOI is returned instead.
+
+        :param target_epsg: EPSG code of the target coordinate reference system
+                            (default is 4326, WGS84).
+        :type target_epsg: int
+
+        :param roi: If True, return the bounding box (bbox) of the AOI;
+                    otherwise return the full AOI geometry.
+        :type roi: bool
+
+        :return: Area of interest as a Shapely geometry in the target CRS.
+        :rtype: BaseGeometry
         """
         file_path = self.config_path.parent / self['project']['aoi']
         ds = gdal.OpenEx(file_path, gdal.OF_VECTOR)
@@ -182,6 +286,8 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         aoi_geom = wkt.loads(geom.ExportToWkt())
 
         ds = None
+        if roi:
+            return box(*aoi_geom.bounds)
 
         return aoi_geom
 

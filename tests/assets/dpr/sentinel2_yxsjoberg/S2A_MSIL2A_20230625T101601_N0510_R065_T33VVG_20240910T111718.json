@@ -111,7 +111,9 @@
     },
     "HORIZONTAL_CS_NAME": "WGS84 / UTM zone 33N",
     "HORIZONTAL_CS_CODE": "EPSG:32633",
-    "source_path": "tests\\data\\dpr\\sentinel2_yxsjoberg\\S2A_MSIL2A_20230625T101601_N0510_R065_T33VVG_20240910T111718.tiff",
+    "source_paths": [
+        "tests\\assets\\dpr\\sentinel2_yxsjoberg\\S2A_MSIL2A_20230625T101601_N0510_R065_T33VVG_20240910T111718.tiff"
+    ],
     "SCL_classes_pct": {
         "SCL_no_data": 0.0,
         "SCL_saturated_or_defective": 0.0,
