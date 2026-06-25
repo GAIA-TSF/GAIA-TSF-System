@@ -139,7 +139,7 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
 
     def _run(self):
         """ """
-        if not os.path.exists(self._config['metadata_path']):
+        if not self._config['metadata_path'].exists():
             raise FileNotFoundError(
                 f'Metadata file not found at: {self._config["metadata_path"]}'
             )

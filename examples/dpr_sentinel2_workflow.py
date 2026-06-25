@@ -71,7 +71,7 @@ meta_list = s2_processed_folder.glob('*.json')
 # Run the pipeline
 pipeline = Sentinel2CloudCoverPipeline()
 for meta_path in meta_list:
-    pipeline.configure(metadata_path=meta_path, path_key='source_path')
+    pipeline.configure(metadata_path=meta_path, path_key='source_paths')
     pipeline.run()
 
 #
