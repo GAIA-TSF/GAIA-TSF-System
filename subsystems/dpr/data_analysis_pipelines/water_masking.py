@@ -176,7 +176,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
             # locate raster associated to metadata
             if isinstance(data.get('source_paths'), str):
-                source_path = data.get('source_paths')
+                source_path = Path(data.get('source_paths'))
             elif isinstance(data.get('source_paths'), list):
                 if len(data.get('source_paths')) > 1:
                     raise ValueError(
@@ -184,18 +184,18 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         f'paths for {len(data.get("source_paths"))} separate files.'
                     )
                 else:
-                    source_path = data.get('source_paths')[0]
+                    source_path = Path(data.get('source_paths')[0])
             else:
                 raise ValueError(
                     'Error parsing raster path from metadata. The "source_paths" key is neither a string '
                     'or a list.'
                 )
-            if os.path.exists(source_path):
+            if source_path.exists():
                 raster_path = source_path
-            elif os.path.exists(json_path.replace('.json', '.jp2')):
-                raster_path = json_path.replace('.json', '.jp2')
-            elif os.path.exists(json_path.replace('.json', '.tiff')):
-                raster_path = json_path.replace('.json', '.tiff')
+            elif json_path.with_suffix('.jp2').exists():
+                raster_path = json_path.with_suffix('.jp2')
+            elif json_path.with_suffix('.tiff').exists():
+                raster_path = json_path.with_suffix('.tiff')
             else:
                 raise FileNotFoundError(
                     f'Could not locate the raster associated with {json_path}'
