@@ -524,7 +524,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         format_lower = self._config['output_format'].lower().strip()
         if format_lower in ['tiff', 'tif', 'geotiff']:
             self.driver_name = 'GTiff'
-        elif format_lower in ['jp2', 'jpeg2000', 'jpeg 2000']:
+        elif format_lower in ['jp2', 'jpeg2000']:
             self.driver_name = 'JP2OpenJPEG'
         else:
             raise ValueError(

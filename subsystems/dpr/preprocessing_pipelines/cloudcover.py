@@ -30,6 +30,10 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
         },
     }
 
+    def _configure(self):
+        """Initialize the processor with None values."""
+        self._file_metadata = None
+
     def _load_json(self):
         """Loads the JSON metadata file."""
         with open(self._config['metadata_path'], 'r') as f:
@@ -38,7 +42,7 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
     def _save_json(self):
         """Saves the current state of metadata back to the JSON file."""
         with open(self._config['metadata_path'], 'w') as f:
-            json.dump(self.metadata, f, indent=4)
+            json.dump(self._file_metadata, f, indent=4)
 
     def _get_path(self, metadata, key):
         """
@@ -125,10 +129,10 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
         # add a no data key named 'null_pixel_pct' as in QCL subsystem
         null_pixel_pct = {'null_pixel_pct': stats_dict['SCL_no_data']}
 
-        # Update metadata object
-        self.metadata['SCL_classes_pct'] = stats_dict
-        self.metadata.update(cloud_cover_pct)
-        self.metadata.update(null_pixel_pct)
+        # Update file metadata object
+        self._file_metadata['SCL_classes_pct'] = stats_dict
+        self._file_metadata.update(cloud_cover_pct)
+        self._file_metadata.update(null_pixel_pct)
 
         # Save the updated metadata back to the file
         self._save_json()
@@ -154,8 +158,8 @@ class Sentinel2CloudCoverPipeline(PreprocessingBasePipeline):
                 f'Invalid SCL band index value {self._config["scl_band"]}. Input value must be an integer.'
             )
 
-        self.metadata = self._load_json()
-        raster_path = self._get_path(self.metadata, self._config['path_key'])
+        self._file_metadata = self._load_json()
+        raster_path = self._get_path(self._file_metadata, self._config['path_key'])
         # locate raster associated to metadata
         if isinstance(raster_path, str):
             pass

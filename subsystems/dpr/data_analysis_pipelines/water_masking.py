@@ -1,6 +1,5 @@
 import os
 import json
-import glob
 from pathlib import PosixPath
 
 import numpy as np
@@ -161,9 +160,10 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             f'Parsing metadata. Input folder: {self._config["input_folder"]}.'
         )
 
-        json_files = glob.glob(
-            os.path.join(self._config['input_folder'], '**/*.json'), recursive=True
-        )
+        try:
+            json_files = list(self._config['input_folder'].glob('*.json'))
+        except Exception as e:
+            self.logger.error(f'Error parsing {self._config["input_folder"]}: {e}')
         if len(json_files) == 0:
             raise FileNotFoundError(f'Error parsing {self._config["input_folder"]}')
 
@@ -801,6 +801,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             os.makedirs(self._config['output_folder'])
 
         self._parse_metadata()
+        if len(self.scenes_metadata_filtered['source_path']) < 1:
+            self.logger.warning(
+                'No cloud-free scenes remain in the temporal window; all available scenes are cloud-covered. Computation aborted.'
+            )
+            return
         self._get_geotransform()
         if self._config['input_water_mask'] is not None:
             self._process_vector_watermask()
