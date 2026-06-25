@@ -1,6 +1,6 @@
 import os
 import json
-from pathlib import PosixPath
+from pathlib import PosixPath, Path
 
 import numpy as np
 import pandas as pd
@@ -40,6 +40,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             'output_folder': {
                 'dtype': PosixPath,
                 'description': 'Directory where the processed data will be saved.',
+            },
+            'output_format': {
+                'dtype': str,
+                'description': 'Format of the output rasters: "tiff" or "jp2".',
+                'default': 'jp2',
             },
             'max_cloud_snow_dark': {
                 'dtype': float,
@@ -159,27 +164,54 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             json_files = list(self._config['input_folder'].glob('*.json'))
         except Exception as e:
             self.logger.error(f'Error parsing {self._config["input_folder"]}: {e}')
+        if len(json_files) == 0:
+            raise FileNotFoundError(f'Error parsing {self._config["input_folder"]}')
 
         self.logger.info(f'--- The input folder contains {len(json_files)} entries.')
 
         records = []
         for json_path in json_files:
-            try:
-                with open(json_path, 'r') as f:
-                    data = json.load(f)
+            with open(json_path, 'r') as f:
+                data = json.load(f)
 
-                scl_stats = data.get('SCL_classes_pct', {})
-                record = {
-                    'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
-                    'source_path': json_path.with_suffix('.jp2'),
-                    'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
-                    'cloud_cover_pct': data.get('cloud_cover_pct', 0),
-                    'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
-                    'SCL_dark_areas': scl_stats.get('SCL_dark_areas', 0),
-                }
-                records.append(record)
-            except Exception as e:
-                self.logger.warning(f'Error parsing {json_path}: {e}')
+            # locate raster associated to metadata
+            if isinstance(data.get('source_paths'), str):
+                source_path = Path(data.get('source_paths'))
+            elif isinstance(data.get('source_paths'), list):
+                if len(data.get('source_paths')) > 1:
+                    raise ValueError(
+                        f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
+                        f'paths for {len(data.get("source_paths"))} separate files.'
+                    )
+                else:
+                    source_path = Path(data.get('source_paths')[0])
+            else:
+                raise ValueError(
+                    'Error parsing raster path from metadata. The "source_paths" key is neither a string '
+                    'or a list.'
+                )
+            if source_path.exists():
+                raster_path = source_path
+            elif json_path.with_suffix('.jp2').exists():
+                raster_path = json_path.with_suffix('.jp2')
+            elif json_path.with_suffix('.tiff').exists():
+                raster_path = json_path.with_suffix('.tiff')
+            else:
+                raise FileNotFoundError(
+                    f'Could not locate the raster associated with {json_path}'
+                )
+
+            scl_stats = data.get('SCL_classes_pct', {})
+            record = {
+                'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
+                'source_path': raster_path,
+                'metadata_path': json_path,
+                'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
+                'cloud_cover_pct': data.get('cloud_cover_pct', 0),
+                'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
+                'SCL_dark_areas': scl_stats.get('SCL_dark_areas', 0),
+            }
+            records.append(record)
 
         self.scenes_metadata = pd.DataFrame(records)
 
@@ -666,16 +698,21 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
             if np.nansum(refined_mask) > 0:
                 # Export if mask contains valid pixels
+                # Note: we create a Geotiff first and convert it to OpenJPEG if requested by config.
                 out_name = os.path.basename(data_path)
+                file_name, file_extension = os.path.splitext(out_name)
+                out_name = out_name.replace(file_extension, '.tiff')
+                creation_options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
                 out_path = os.path.join(self._config['output_folder'], out_name)
 
-                driver = gdal.GetDriverByName('GTiff')
+                driver = gdal.GetDriverByName('Gtiff')
                 out_ds = driver.Create(
                     out_path,
                     gdal_dataset.RasterXSize,
                     gdal_dataset.RasterYSize,
                     gdal_dataset.RasterCount + 1,
                     gdal.GDT_UInt16,
+                    options=creation_options,
                 )
                 out_ds.SetGeoTransform(gdal_dataset.GetGeoTransform())
                 out_ds.SetProjection(gdal_dataset.GetProjection())
@@ -695,8 +732,19 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds.FlushCache()
                 out_ds = None
 
+                if os.path.exists(out_path) is False:
+                    raise FileNotFoundError(
+                        f'Could not create output raster {out_name}'
+                    )
+
+                if self.driver_name == 'JP2OpenJPEG':
+                    self._tiff_to_jp2(out_path)
+                    file_name, file_extension = os.path.splitext(out_path)
+                    out_path = out_path.replace(file_extension, '.jp2')
+
                 # Copy and update metadata
-                json_path = data_path.replace('.jp2', '.json')
+                _, file_extension = os.path.splitext(data_path)
+                json_path = data_path.replace(file_extension, '.json')
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
@@ -704,16 +752,50 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     metadata['water_mask_pct'] = round(
                         np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
                     )
-                    with open(out_path.replace('.jp2', '.json'), 'w') as f:
+                    metadata['source_paths'] = [out_path]
+                    _, file_extension = os.path.splitext(out_path)
+                    with open(out_path.replace(file_extension, '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)
 
+                # clean up
+                gdal_dataset.FlushCache()
+                gdal_dataset = None
+
         self.logger.info('Processing complete.')
+
+    def _tiff_to_jp2(self, input_tiff_path):
+        """
+        Convertion of outputs from Geotiff to OpenJPEG
+        """
+
+        self.logger.info('--- Converting to JP2OpenJPEG.')
+
+        output_jp2 = input_tiff_path.replace('.tiff', '.jp2')
+
+        src_ds = gdal.Open(input_tiff_path)
+        translate_options = gdal.TranslateOptions(
+            format='JP2OpenJPEG', creationOptions=['QUALITY=100', 'REVERSIBLE=YES']
+        )
+        gdal.Translate(output_jp2, src_ds, options=translate_options)
+        src_ds = None
+        os.remove(input_tiff_path)
 
     def _run(self):
         """
         Execute the pipeline.
         """
         self._configure()
+
+        # Determine GDAL driver and file extension based on format argument
+        format_lower = self._config['output_format'].lower().strip()
+        if format_lower in ['tiff', 'tif', 'geotiff']:
+            self.driver_name = 'GTiff'
+        elif format_lower in ['jp2', 'jpeg2000', 'jpeg 2000']:
+            self.driver_name = 'JP2OpenJPEG'
+        else:
+            raise ValueError(
+                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
+            )
 
         if not os.path.exists(self._config['output_folder']):
             os.makedirs(self._config['output_folder'])
