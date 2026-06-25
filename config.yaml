@@ -34,6 +34,17 @@ qcl:
     db:
       <<: *sdi_db
       dbname: 'logging'
+  asset_checker:
+    task_required_types:
+      amd:
+        - s2
+        - insitu
+    s2_platforms:
+      - sentinel-2a
+      - sentinel-2b
+      - sentinel-2
+    insitu_mime_types:
+      - application/x-postgresql
   validation_rules:
     in_situ:
       require_unique_id: true
