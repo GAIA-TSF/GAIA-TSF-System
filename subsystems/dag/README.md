@@ -1,4 +1,4 @@
-# Data Aggregation (DAG) Sub-system
+# Data Aggregation (DAG) Sub-system 
 
 The **Data Aggregation** sub-system serves as the critical
 processing bridge that transforms harmonised data stored within the
@@ -54,9 +54,24 @@ See: `./docs/coding_notes.md`
 **Workflow:** Raw EO Data -> Ingestion -> Harmonization (spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> Preprocessing -> Validation -> Tensorization -> ML-ready dataset 
 
 
-## Run the pipeline 
+## Run the pipelines 
 
-Run AMD pipeline 
+Run slope stability pipeline 
+
+```
+python3 subsystems/dag/run_pipeline.py  \
+  --pipeline slope_eda \
+  --config subsystems/dag/config.yaml
+
+```
+
+```
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline slope_features \
+  --config subsystems/dag/config.yaml
+```
+# 
+
 ```
 python3 subsystems/dag/debug_run.py --config config.yaml --pipeline amd
 ```

@@ -1,5 +1,7 @@
 # GAIA-TSF DAG CONFIG
 
+project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
+
 global:
   random_seed: 42
   log_level: INFO
@@ -59,11 +61,18 @@ harmonization:
 feature_engineering:
 
   slope_stability:
-    compute_velocity: true
-    compute_acceleration: true
-    compute_trend: false
-
-    window_size: 3
+    cumulative_displacement: true
+    velocity: true
+    acceleration: true
+    jerk: true
+    minimum: true
+    maximum: true
+    mean: true
+    standard_deviation: true
+    variance: true
+    range: true
+    trend: false
+    temporal_variance: false
     smoothing: false
 
 
@@ -191,3 +200,78 @@ debug:
   debug_tile_size: [128, 128]
 
 # TODO: more?
+
+
+# DAG-EDA TSF SLOPE STABILITY
+synthetic_tsf_deformation:
+
+  inputs:
+    los:
+      directory: "inputs/los"
+      filename_pattern: "tsf_los_*.tif"
+
+  static:
+    tsf_mask: "static/tsf_mask.tif"
+
+  results:
+    eda: # slope stability EDA 
+      output_dir: "results/eda"
+      histogram_bins: 50
+      dpi: 300
+      style: "seaborn-v0_8-whitegrid"
+      cmap: "viridis"
+      raster_format: "GTiff"
+      filenames:
+        statistics: "statistics.json"
+        temporal_mean_std: "temporal_mean_std.png"
+        histogram: "histogram.png"
+        boxplot: "boxplot.png"
+        mean_heatmap: "mean_los_heatmap.png"
+        std_heatmap: "temporal_std_heatmap.png"
+        mean_map: "mean_map.tif"
+        std_map: "std_map.tif"
+
+    features: # slope features 
+      output_dir: "results/features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      filenames:
+        cumulative_displacement: "cumulative_displacement.tif"
+        velocity: "velocity.tif"
+        acceleration: "acceleration.tif"
+        jerk: "jerk.tif"
+        minimum: "minimum.tif"
+        maximum: "maximum.tif"
+        mean: "mean.tif"
+        standard_deviation: "std.tif"
+        variance: "variance.tif"
+        range: "range.tif"
+        trend: "trend.tif"
+        temporal_variance: "temporal_variance.tif"
+
+    temporal_features:
+      enabled: true
+      output_dir: "results/temporal_features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      input_features:
+        - velocity
+        - acceleration
+      lag:
+        enabled: true
+        orders: [1, 2, 3]
+      difference:
+        enabled: true
+        orders: [1, 2]
+      rolling_mean:
+        enabled: true
+        window: 5
+      rolling_std:
+        enabled: true
+        window: 5
+      smoothing:
+        enabled: true
+        method: "savgol"
+        window: 7
+        polyorder: 2
+      filenames: {}
