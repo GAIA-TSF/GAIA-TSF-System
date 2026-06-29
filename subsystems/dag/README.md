@@ -54,6 +54,12 @@ See: `./docs/coding_notes.md`
 
 **Workflow:** Raw EO Data -> Ingestion -> Preprocessing (Harmonization: spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> ML-ready dataset 
 
+## Create synthetic TSF deformation time series
+
+```
+python3 subsystems/dag/scripts/synthetic_tsf_deformnation.py
+```
+
 
 ## Run the pipelines 
 
