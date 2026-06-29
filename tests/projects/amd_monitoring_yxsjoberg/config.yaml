@@ -1,0 +1,61 @@
+project:
+  # BASIC IDENTIFICATION
+  name: 'amd_baseline'       # unique project name (used as project subfolder of data_dir)
+  description: 'AMD monitoring using Random Forest'
+  location: 'Yxsjöberg'       # human-readable location name
+  site_id: 'yxsjoberg'        # machine-friendly ID 
+
+  # TARGET VARIABLE
+  variable: 'AMD'             # measured variable name ('slope') 
+  risk_indicator: 'amd_index' # derived indicator (e.g. B4/B2 ratio)
+
+  # SPATIAL DATA
+  aoi: 'static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
+
+  masks:
+    tsf_mask: null            # Tailings Storage Facility mask (must-have)
+    tsf_water: null           # Tailings Storage Facility water mask (optional)
+    stable_reference: null    # clean/stable area mask (baseline reference)
+
+  dem: null                   # Digital Elevation Model 
+
+  crs: 32633                  # EPSG code (UTM zone 33N)
+  target_resolution: 10       # meters (spatial resolution for analysis)
+
+  # TEMPORAL DOMAIN
+  monitoring_period:
+    start: '2020-01-01'       # example start date (ISO format) 
+    end: '2025-12-31'
+
+  # Seasonal filtering (important for optical data)
+  # Format: ['MM-DD/MM-DD']
+  monitoring_seasons: '05-01/10-31' # May–October (snow-free season)
+
+  # DATA SOURCES
+  sensors: ['Sentinel-2']      # 'PlanetScope' optinal replacement 
+
+  meteo_data:
+    source: 'meteostat'        # Python package
+    variables: ['precipitation', 'temperature'] 
+    temporal_resolution: 'daily'
+
+  # IN-SITU DATA 
+  in_situ:
+    file_name: null           # path to CSV / database (if available)
+    metadata_file: null       # meatadata of the measured vairables 
+
+  # REFERENCE DATA (FOR CLASSIFICATION / EVALUATION)
+    polygons:
+      amd_areas: null         # polygons of known contamination
+      clean_areas: null       # polygons of stable conditions
+      failure_areas: null     # polygon(s) of TSF slope failure
+
+  # RISK DEFINITION
+  risk:
+    amd: 
+      threshold: 2.0          # threshold for AMD indicator
+    slope:     
+      threshold: 200.0        # example threshold for slope stability (mm)
+
+  # HISTORICAL EVENTS 
+  historical_events: ['2019-10-10', '2020-10-01'] # simulated example 

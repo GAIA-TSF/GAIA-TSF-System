@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 
 from .config import SettingsReader, ProjectConfigReader
@@ -33,26 +34,52 @@ class SubsystemId(Enum):
 
 
 class GaiaBase:
-    def __init__(self, sid: SubsystemId, project_file: str = None):
+    def __init__(self, sid: SubsystemId, project_path: str = None):
         """Initialize base GAIA-TSF object.
 
         Reads internal system settings and project configuration file
         if defined. Initialize logger.
 
         :param SubsystemId sid: subsystem id
-        :param str project_file: path to project file to be read or None
+        :param str project_path: path to project file to be read or None
         """
         from subsystems.qcl.logger import Logger  # avoid circular import
 
         self.sid = sid
         # initialize internal settings
         self.settings = SettingsReader()
+
+        _project_path = (
+            project_path
+            if project_path is not None
+            else os.environ.get('GAIA_PROJECT_PATH')
+        )
+
+        # read project configuration
+        log_kwargs = {}
+        if _project_path:
+            self.project_config = ProjectConfigReader(_project_path)
+            log_kwargs = {
+                'site_id': self.project_config['project']['site_id'],
+                'project_name': self.project_config['project']['name'],
+            }
+
         # initialize logger
         self.logger = Logger(
-            subsystem=sid.name, db_config=self.settings['qcl']['logger']['db']
+            subsystem=sid.name,
+            db_config=self.settings['qcl']['logger'].get('db'),
+            **log_kwargs,
         )
         self.logger.debug(f'{self.__class__.__name__} initialized')
-        if project_file is not None:
-            self.project_config = ProjectConfigReader(project_file)
+
+        # read project configuration
+        if project_path is not None and os.environ.get('GAIA_PROJECT_PATH'):
+            self.logger.warning(
+                f'Both project_path argument and GAIA_PROJECT_PATH variable defined. Using project_path ({project_path})'
+            )
+
+        if _project_path:
+            self.project_config = ProjectConfigReader(_project_path)
+            self.logger.info(f'Project configuration read from {_project_path}')
         else:
             self.project_config = None

@@ -1,0 +1,39 @@
+name: Docker Build CI/CD
+
+on:
+  push:
+    branches: [ "develop" ]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-build.yml'
+
+  pull_request:
+    branches: [ "develop" ]
+    paths:
+      - 'docker/**'
+      - '.github/workflows/docker-build.yml'
+
+jobs:
+  docker:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      packages: write
+
+    defaults:
+      run:
+        working-directory: docker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Push images (only for push)
+        if: github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker compose push

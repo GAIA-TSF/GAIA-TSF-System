@@ -20,12 +20,12 @@ class StreamingDataHandler(GaiaBase):
         self,
         etl_callback: Callable,
         qc_layer: Any = None,
-        project_file: Optional[str] = None,
+        project_path: Optional[str] = None,
     ):
         """
         Initialize the StreamingDataHandler facade / factory.
         """
-        super().__init__(SubsystemId.ISU, project_file=project_file)
+        super().__init__(SubsystemId.ISU, project_path=project_path)
 
         self.qc_layer = qc_layer
         self.etl_callback = etl_callback

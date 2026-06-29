@@ -52,11 +52,15 @@ class SlopeStabilityParser(BaseParser):
                 'pressure',
                 'pore_water',
                 'kpa',
+                'kilopascal',
+                'pascal',
                 'piezo',
                 'inclinometer',
                 'tilt',
                 'angle',
                 'depth',
+                'dataset',  # dam/structure monitoring: DataSetI, DataSetII, …
+                'celsius',  # temperature paired with pressure sensors
             }
 
             # Calculate the number of matched keywords
@@ -64,6 +68,10 @@ class SlopeStabilityParser(BaseParser):
             if matches:
                 # The more matches you get, the higher your score.
                 score += 0.4 + (0.15 * len(matches))
+
+            # mm-unit columns (e.g. X(mm), Y(mm)) indicate structural monitoring
+            if any('(mm)' in h for h in headers):
+                score += 0.15
 
             # 3. Negative Indicators (Excluding water quality data)
             negative_indicators = {'ph', 'conductivity', 'turbidity', 'sulfate'}
@@ -77,7 +85,16 @@ class SlopeStabilityParser(BaseParser):
             # 1. Load Data
             ext = os.path.splitext(filename)[1].lower()
             if ext in ['.csv', '.txt']:
-                df = pd.read_csv(io.BytesIO(content))
+                # Peek at headers: if a QC column exists, preserve it as string so
+                # that multi-bit flag values (e.g. '000000000000000000') are not
+                # silently coerced to integer 0 by pandas type inference.
+                header_df, _ = self._read_csv_bytes(content, nrows=0)
+                qc_original = next(
+                    (c for c in header_df.columns if str(c).strip().upper() == 'QC'),
+                    None,
+                )
+                converters = {qc_original: str} if qc_original else {}
+                df, _ = self._read_csv_bytes(content, converters=converters)
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
@@ -85,11 +102,13 @@ class SlopeStabilityParser(BaseParser):
 
             # Clean headers
             df.columns = [str(c).strip().lower() for c in df.columns]
+            df = self._normalize_columns(df)
 
             # Standardize Timestamp
             df = self.standardize_timestamp(
                 df, ['timestamp', 'date', 'time', 'reading_time', 'epoch']
             )
+            df = self.ensure_qc_column(df)
 
             # Return cleaned DataFrame
             return df

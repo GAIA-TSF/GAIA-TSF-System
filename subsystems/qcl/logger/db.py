@@ -31,7 +31,8 @@ class DbRecord(Base):
     timestamp = Column(DateTime(), nullable=False)
     level_id = Column(Integer, ForeignKey('log_level.id'), nullable=False)
     message = Column(String, nullable=False)
-    project = Column(String(255), nullable=True)
+    site_id = Column(String(255), nullable=True)
+    project_name = Column(String(255), nullable=True)
     pid = Column(
         Integer,
         nullable=False,
@@ -48,6 +49,7 @@ class DbLogLevel(Base):
 
     id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(255), nullable=False)
+    severity = Column(Integer, nullable=False)
 
     log = relationship('DbRecord', back_populates='log_level')
 
@@ -58,7 +60,8 @@ class DbSubsystem(Base):
     __tablename__ = 'subsystem'
 
     id = Column(String(10), primary_key=True, nullable=False)
-    description = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String(255), nullable=True)
 
     log = relationship('DbRecord', back_populates='subsystem')
 
@@ -131,12 +134,18 @@ class DbLogger(logging.Handler):
         if not self._session_maker or not self._session:
             return
 
+        try:
+            site_id = record.site_id
+            project_name = record.project_name
+        except AttributeError:
+            site_id = project_name = None
         db_record = DbRecord(
             subsystem_id=record.subsystem,
             timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
             level_id=record.levelno,
             message=record.getMessage(),
-            project=None,
+            site_id=site_id,
+            project_name=project_name,
             pid=os.getpid(),
         )
         self._session.add(db_record)
@@ -148,11 +157,11 @@ class DbLogger(logging.Handler):
             return
 
         log_levels = [
-            DbLogLevel(id=logging.DEBUG, name='DEBUG'),
-            DbLogLevel(id=logging.INFO, name='INFO'),
-            DbLogLevel(id=logging.WARNING, name='WARNING'),
-            DbLogLevel(id=logging.ERROR, name='ERROR'),
-            DbLogLevel(id=logging.CRITICAL, name='CRITICAL'),
+            DbLogLevel(id=logging.DEBUG, name='DEBUG', severity=logging.DEBUG),
+            DbLogLevel(id=logging.INFO, name='INFO', severity=logging.INFO),
+            DbLogLevel(id=logging.WARNING, name='WARNING', severity=logging.WARNING),
+            DbLogLevel(id=logging.ERROR, name='ERROR', severity=logging.ERROR),
+            DbLogLevel(id=logging.CRITICAL, name='CRITICAL', severity=logging.CRITICAL),
         ]
 
         self._session.add_all(log_levels)
@@ -180,7 +189,8 @@ class DbLogger(logging.Handler):
         subsystems = [
             DbSubsystem(
                 id=subsystem.name,
-                description=descriptions[subsystem.name],
+                name=descriptions[subsystem.name],
+                description=None,
             )
             for subsystem in SubsystemId
         ]

@@ -1,12 +1,60 @@
 import json
-
+import pytest
+import tempfile
 from pathlib import Path
 
+from lib.config import ProjectConfigReader
+from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.metadata_processor import MetadataGenerator
+from subsystems.dpr.metadata_processor import MetadataValidator
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
+from subsystems.dpr.data_analysis_pipelines import DataAnalysisPipelines
+from tests.utils import TestUtils
+
+
+def item_dict_no_datetime(item_dict):
+    if 'properties' in item_dict and 'datetime' in item_dict['properties']:
+        del item_dict['properties']['datetime']
+    return item_dict
+
+
+def get_stac_jsons(product_type: str, search_filter: dict, config, target_dir):
+    # first, we need to download the product
+    dag = DataAcquisitionGateway()
+
+    results = dag.backend.search(
+        geom=config.aoi(),
+        productType=product_type,
+        **search_filter,
+    )
+
+    product_path = dag.backend.download(results[0], target_dir=target_dir)
+
+    # finally, let's generate the metadata
+    module = MetadataGenerator()
+    module.set_datasource(product_path)
+    item_dict = module.stac.create_item()
+
+    data_dir = TestUtils.get_data_path('dpr')
+    with open(
+        Path(data_dir) / f'{Path(product_path).with_suffix("").name}.json',
+        'r',
+    ) as f:
+        json_dict = json.load(f)
+
+    return item_dict, json_dict
 
 
 class TestModules:
+    search_filter = {
+        'provider': 'cop_dataspace',
+        'start': '2025-06-01',
+        'end': '2025-06-10',
+    }
+    config = ProjectConfigReader(
+        TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+    )
+
     def test_PreprocessingPipelines_001(self):
         """Test PreprocessingPipelines module.
 
@@ -19,15 +67,41 @@ class TestModules:
             and isinstance(v, dict)
             and isinstance(v.get('title'), str)
             and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
             for k, v in data.items()
-        ), "Invalid structure: expected {str: {'title': str, 'abstract': str}}"
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'params': dict}}"
+        )
+
+        assert len(module.pipelines) > 0
+        for name, pipeline in module.pipelines.items():
+            assert isinstance(name, str)
+            assert isinstance(pipeline.metadata['title'], str)
+            assert isinstance(pipeline.metadata['params'], dict)
 
     def test_DataAnalysisPipelines_001(self):
-        """Test DataAnalysisPipelines module.
+        """Test PreprocessingPipelines module.
 
-        Example of unit test.
+        Check preprocessing pipelines metadata.
         """
-        pass
+        module = DataAnalysisPipelines()
+        data = module.metadata
+        assert isinstance(data, dict) and all(
+            isinstance(k, str)
+            and isinstance(v, dict)
+            and isinstance(v.get('title'), str)
+            and isinstance(v.get('abstract'), str)
+            and isinstance(v.get('params'), dict)
+            for k, v in data.items()
+        ), (
+            "Invalid structure: expected {str: {'title': str, 'abstract': str, 'param': dict}}"
+        )
+
+        assert len(module.pipelines) > 0
+        for name, pipeline in module.pipelines.items():
+            assert isinstance(name, str)
+            assert isinstance(pipeline.metadata['title'], str)
+            assert isinstance(pipeline.metadata['params'], dict)
 
     def test_DataAnalysisPipelines_002(self):
         """Test DataAnalysisPipelines module.
@@ -36,31 +110,182 @@ class TestModules:
         """
         pass
 
-    def test_MetadataProcessor_001(self):
-        """Test MetadataProcessor module.
+    def test_MetadataGenerator_001(self):
+        """Test MetadataGenerator module.
 
         Generate data-driven metadata using MetadataGenerator for
         raster-based datasource.
         """
 
-        def item_dict_no_datetime(item_dict):
-            if 'properties' in item_dict and 'datetime' in item_dict['properties']:
-                del item_dict['properties']['datetime']
-            return item_dict
-
         module = MetadataGenerator()
-        module.set_datasource(
-            Path(__file__).parent.parent.parent
-            / 'eou'
-            / 'tests'
-            / 'sample_data'
-            / ('ENMAP01_sample.tif')
-        )
+        module.set_datasource(TestUtils.get_data_path('eou') / 'ENMAP01_sample.tif')
         item_dict = module.stac.create_item()
 
+        with open(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json', 'r') as f:
+            json_dict = json.load(f)
+        assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
+
+    @pytest.mark.slow
+    def test_MetadataGenerator_002(self):
+        """Test MetadataGenerator module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-2-based datasource from CDSE.
+        """
+        item_dict, json_dict = get_stac_jsons(
+            'S2_MSI_L2A',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir='sentinel2',
+        )
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)
+
+    @pytest.mark.slow
+    def test_MetadataGenerator_003(self):
+        """Test MetadataGenerator module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-1-GRD-based datasource from CDSE.
+        """
+        item_dict, json_dict = get_stac_jsons(
+            'S1_SAR_GRD',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir='sentinel1',
+        )
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)
+
+    @pytest.mark.slow
+    def test_MetadataGenerator_004(self):
+        """Test MetadataGenerator module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-1-SLC-based datasource from CDSE.
+        """
+        item_dict, json_dict = get_stac_jsons(
+            'S1_SAR_SLC',
+            search_filter=self.search_filter,
+            config=self.config,
+            target_dir='sentinel1',
+        )
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataGenerator_005(self):
+        """Test MetadataGenerator module.
+
+        Generate data-driven metadata using MetadataGenerator for
+        Sentinel-1-SLC-based datasource from ASF.
+        """
+        dag = DataAcquisitionGateway(backend='asf')
+
+        search_filter = {
+            'direction': 'A',
+            'start': '2025-06-01',
+            'end': '2025-06-10',
+        }
+
+        results = dag.backend.search(
+            geom=self.config.aoi(),
+            **search_filter,
+        )
+
+        product_path = dag.backend.download(results.iloc[[0]], target_dir='sentinel1')
+
+        module = MetadataGenerator()
+        module.set_datasource(product_path)
+        item_dict = module.stac.create_item()
+
+        data_dir = TestUtils.get_data_path('dpr')
         with open(
-            Path(__file__).parent / 'sample_data' / 'ENMAP01_sample.json',
+            Path(data_dir) / f'{product_path.stem}.json',
             'r',
         ) as f:
             json_dict = json.load(f)
-        assert item_dict_no_datetime(item_dict) == item_dict_no_datetime(json_dict)
+
+        assert item_dict_no_datetime(
+            json.loads(json.dumps(item_dict))
+        ) == item_dict_no_datetime(json_dict)
+
+    def test_MetadataValidator_001_eou_valid(self):
+        """Test MetadataValidator module with valid metadata."""
+        module = MetadataValidator()
+        result = module.validate(TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json')
+
+        assert isinstance(result, dict)
+        assert 'valid' in result
+        assert 'errors' in result
+        assert 'warnings' in result
+        assert result['valid'] is True
+        assert len(result['errors']) < 1
+
+    def test_MetadataValidator_002_eou_invalid_collection(self):
+        """Test MetadataValidator with invalid collection reference."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Modify collection to undefined
+        metadata['collection'] = 'undefined'
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any('undefined' in error for error in result['errors'])
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()
+
+    def test_MetadataValidator_003_eou_missing_properties(self):
+        """Test MetadataValidator with missing required properties field."""
+        module = MetadataValidator()
+
+        # Load original metadata
+        original_path = TestUtils.get_data_path('dpr') / 'ENMAP01_sample.json'
+        with open(original_path) as f:
+            metadata = json.load(f)
+
+        # Remove properties (required STAC Item field)
+        del metadata['bbox']
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+            json.dump(metadata, tmp)
+            tmp_path = tmp.name
+
+        try:
+            # Validate the modified metadata
+            result = module.validate(tmp_path)
+
+            # Assertions - should fail due to missing properties
+            assert isinstance(result, dict)
+            assert result['valid'] is False
+            assert len(result['errors']) > 0
+            assert any(
+                'properties' in error.lower() or 'datetime' in error.lower()
+                for error in result['errors']
+            )
+        finally:
+            # Cleanup
+            Path(tmp_path).unlink()
