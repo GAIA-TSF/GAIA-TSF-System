@@ -33,6 +33,20 @@ slope_stability:
   static:
     tsf_mask: "static/tsf_mask.tif"
 
+  feature_engineering:
+    cumulative_displacement: true
+    velocity: true
+    acceleration: true
+    jerk: true
+    minimum: true
+    maximum: true
+    mean: true
+    standard_deviation: true
+    variance: true
+    range: true
+    trend: false
+    temporal_variance: false
+
   results:
     eda: # slope stability EDA 
       output_dir: "results/eda"

@@ -38,7 +38,7 @@ class SlopeFeaturePipeline(Pipeline):
         """Run the slope features pipeline."""
         print('INFO: processing basic slope features.')
         scenario_config = self._scenario_config()
-        feature_config = self._feature_config()
+        feature_config = self._feature_config(scenario_config)
         input_config = scenario_config['inputs']
         static_config = scenario_config['static']
         result_config = scenario_config['results']['features']
@@ -103,15 +103,15 @@ class SlopeFeaturePipeline(Pipeline):
             raise ValueError('slope_stability config must be a mapping.')
         return scenario_config
 
-    def _feature_config(self) -> dict[str, bool]:
+    def _feature_config(self, scenario_config: dict[str, Any]) -> dict[str, bool]:
         try:
-            feature_config = self.config['feature_engineering']['slope_stability']
+            feature_config = scenario_config['feature_engineering']
         except KeyError as exc:
             raise KeyError(
-                'Missing feature_engineering.slope_stability section in config.yaml.',
+                'Missing slope_stability.feature_engineering section in config.yaml.',
             ) from exc
         if not isinstance(feature_config, dict):
-            raise ValueError('feature_engineering.slope_stability must be a mapping.')
+            raise ValueError('slope_stability.feature_engineering must be a mapping.')
         return {
             str(name): bool(enabled)
             for name, enabled in feature_config.items()

@@ -112,8 +112,8 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
         yaml.safe_dump(
             {
                 'project_dir': str(project_dir),
-                'feature_engineering': {
-                    'slope_stability': {
+                'slope_stability': {
+                    'feature_engineering': {
                         'cumulative_displacement': True,
                         'velocity': True,
                         'acceleration': True,
@@ -127,8 +127,6 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
                         'trend': True,
                         'temporal_variance': True,
                     },
-                },
-                'slope_stability': {
                     'inputs': {
                         'los': {
                             'directory': 'inputs',

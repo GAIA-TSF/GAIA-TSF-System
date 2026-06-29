@@ -72,16 +72,15 @@ python3 subsystems/dag/run_pipeline.py \
   --config subsystems/dag/config.yaml
 ```
 
+```
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline slope_temporal_features \
+  --config subsystems/dag/config.yaml
+```
+
 
 ## Testing 
 
 ```
-python3 -m pytest ... 
-
-```
-
-```
-cd docker
-docker compose up --build
-docker exec gaiatesting python3 -m pytest /opt/gaia_tsf/subsystems/dag/tests -v
+PYTHONPATH=. pytest subsystems/dag/tests
 ```
