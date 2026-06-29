@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime
+from datetime import timezone
+UTC = timezone.utc
 from pathlib import Path
 from typing import Any
 import logging
@@ -35,6 +37,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
 
     def run(self) -> dict[str, Any]:
         """Run temporal feature engineering for the slope key variable."""
+        print('INFO: Processing temporal features.')
         scenario_config = self._scenario_config()
         result_config = scenario_config['results']['temporal_features']
         if not bool(result_config.get('enabled', False)):
@@ -77,6 +80,10 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             filenames=self._filenames(result_config, temporal_features),
             profile=series.profile,
             raster_format=str(result_config.get('raster_format', 'GTiff')),
+            band_names=tuple(
+                acquisition_date.isoformat()
+                for acquisition_date in series.dates
+            ),
         )
         metadata_path = output_dir / str(result_config['metadata_filename'])
         write_json(
@@ -87,6 +94,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 temporal_features=temporal_features,
                 output_paths=output_paths,
                 input_files=series.source_paths,
+                dates=series.dates,
                 profile=series.profile,
             ),
         )
@@ -148,13 +156,13 @@ class SlopeTemporalFeaturePipeline(Pipeline):
 
     def _scenario_config(self) -> dict[str, Any]:
         try:
-            scenario_config = self.config['synthetic_tsf_deformation']
+            scenario_config = self.config['slope_stability']
         except KeyError as exc:
             raise KeyError(
-                'Missing synthetic_tsf_deformation section in config.yaml.',
+                'Missing slope_stability section in config.yaml.',
             ) from exc
         if not isinstance(scenario_config, dict):
-            raise ValueError('synthetic_tsf_deformation config must be a mapping.')
+            raise ValueError('slope_stability config must be a mapping.')
         return scenario_config
 
     def _create_loader(self) -> Sentinel1LOSLoader:
@@ -207,11 +215,16 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         temporal_features: dict[str, np.ndarray],
         output_paths: dict[str, str],
         input_files: tuple[Path, ...],
+        dates: tuple[date, ...],
         profile: RasterProfile,
     ) -> dict[str, object]:
         return {
             'feature_names': sorted(temporal_features),
             'base_feature_names': base_feature_names,
+            'acquisition_dates': [
+                acquisition_date.isoformat()
+                for acquisition_date in dates
+            ],
             'creation_date': datetime.now(tz=UTC).isoformat(),
             'processing_parameters': result_config,
             'input_files': [str(path) for path in input_files],

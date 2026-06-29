@@ -72,13 +72,13 @@ class SlopeEDAPipeline(Pipeline):
 
     def _scenario_config(self) -> dict[str, Any]:
         try:
-            scenario_config = self.config['synthetic_tsf_deformation']
+            scenario_config = self.config['slope_stability']
         except KeyError as exc:
             raise KeyError(
-                'Missing synthetic_tsf_deformation section in config.yaml.',
+                'Missing slope_stability section in config.yaml.',
             ) from exc
         if not isinstance(scenario_config, dict):
-            raise ValueError('synthetic_tsf_deformation config must be a mapping.')
+            raise ValueError('slope_stability config must be a mapping.')
         return scenario_config
 
     def _create_loader(self) -> Sentinel1LOSLoader:

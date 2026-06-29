@@ -90,6 +90,7 @@ def write_single_band_raster(
     values: np.ndarray,
     profile: RasterProfile,
     driver: str,
+    band_name: str | None = None,
 ) -> None:
     """Write a single-band raster using the source spatial profile."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,3 +112,57 @@ def write_single_band_raster(
         nodata=nodata,
     ) as dataset:
         dataset.write(output_values.astype(np.float32), 1)
+        if band_name is not None:
+            dataset.set_band_description(1, band_name)
+
+
+def write_raster(
+    path: Path,
+    values: np.ndarray,
+    profile: RasterProfile,
+    driver: str,
+    band_names: tuple[str, ...] | None = None,
+) -> None:
+    """Write a 2D raster or 3D temporal stack using the source spatial profile."""
+    if values.ndim == 2:
+        band_name = band_names[0] if band_names else None
+        write_single_band_raster(path, values, profile, driver, band_name)
+        return
+    if values.ndim != 3:
+        raise ValueError(
+            'Feature rasters must have shape (rows, cols) or '
+            '(time, rows, cols).',
+        )
+    if values.shape[1:] != (profile.height, profile.width):
+        raise ValueError(
+            'Feature raster dimensions do not match profile dimensions: '
+            f'{values.shape[1:]} != {(profile.height, profile.width)}',
+        )
+    if band_names is not None and len(band_names) != values.shape[0]:
+        raise ValueError(
+            'Number of band names must match raster band count: '
+            f'{len(band_names)} != {values.shape[0]}',
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    nodata = profile.nodata
+    output_values = values.astype(np.float32)
+    if nodata is not None and np.isfinite(nodata):
+        output_values = np.where(np.isfinite(output_values), output_values, nodata)
+
+    with rasterio.open(
+        path,
+        'w',
+        driver=driver,
+        height=profile.height,
+        width=profile.width,
+        count=output_values.shape[0],
+        dtype='float32',
+        crs=profile.crs,
+        transform=profile.transform,
+        nodata=nodata,
+    ) as dataset:
+        dataset.write(output_values.astype(np.float32))
+        if band_names is not None:
+            for band_index, band_name in enumerate(band_names, start=1):
+                dataset.set_band_description(band_index, band_name)

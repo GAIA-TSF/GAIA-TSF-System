@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
+from datetime import timezone
+UTC = timezone.utc
 from pathlib import Path
 from typing import Any
 import logging
@@ -34,6 +36,7 @@ class SlopeFeaturePipeline(Pipeline):
 
     def run(self) -> dict[str, Any]:
         """Run the slope features pipeline."""
+        print('INFO: processing basic slope features.')
         scenario_config = self._scenario_config()
         feature_config = self._feature_config()
         input_config = scenario_config['inputs']
@@ -91,13 +94,13 @@ class SlopeFeaturePipeline(Pipeline):
 
     def _scenario_config(self) -> dict[str, Any]:
         try:
-            scenario_config = self.config['synthetic_tsf_deformation']
+            scenario_config = self.config['slope_stability']
         except KeyError as exc:
             raise KeyError(
-                'Missing synthetic_tsf_deformation section in config.yaml.',
+                'Missing slope_stability section in config.yaml.',
             ) from exc
         if not isinstance(scenario_config, dict):
-            raise ValueError('synthetic_tsf_deformation config must be a mapping.')
+            raise ValueError('slope_stability config must be a mapping.')
         return scenario_config
 
     def _feature_config(self) -> dict[str, bool]:

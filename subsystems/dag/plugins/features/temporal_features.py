@@ -34,7 +34,8 @@ class TemporalFeatureExtractor(FeatureExtractor):
             enabled_features: Temporal feature configuration.
 
         Returns:
-            Mapping of output feature names to 2D rasters.
+            Mapping of output feature names to temporal raster stacks with shape
+            ``(time, rows, cols)``.
         """
         outputs: dict[str, np.ndarray] = {}
         for feature_name, stack in data.items():
@@ -131,7 +132,7 @@ class TemporalFeatureExtractor(FeatureExtractor):
         window = self._window(smoothing_config)
         polyorder = int(smoothing_config.get('polyorder', 2))
         return {
-            f'{feature_name}_smooth': self._savgol_latest(
+            f'{feature_name}_smooth': self._savgol_series(
                 stack,
                 window=window,
                 polyorder=polyorder,
@@ -143,46 +144,61 @@ class TemporalFeatureExtractor(FeatureExtractor):
             raise ValueError(
                 f'Lag order {order} requires more than {order} time steps.',
             )
-        return stack[-1 - order].astype(np.float32)
+        output = np.full(stack.shape, np.nan, dtype=np.float32)
+        output[order:] = stack[:-order]
+        return output
 
     def _difference(self, stack: np.ndarray, order: int) -> np.ndarray:
         if order >= stack.shape[0]:
             raise ValueError(
                 f'Difference order {order} requires more than {order} time steps.',
             )
-        return (stack[-1] - stack[-1 - order]).astype(np.float32)
+        output = np.full(stack.shape, np.nan, dtype=np.float32)
+        output[order:] = stack[order:] - stack[:-order]
+        return output
 
     def _rolling_mean(self, stack: np.ndarray, window: int) -> np.ndarray:
         self._validate_window_length(stack, window)
-        values = stack[-window:]
-        counts = np.sum(np.isfinite(values), axis=0)
-        sums = np.nansum(values, axis=0)
-        return np.divide(
-            sums,
-            counts,
-            out=np.full(stack.shape[1:], np.nan, dtype=np.float32),
-            where=counts > 0,
-        )
+        output = np.full(stack.shape, np.nan, dtype=np.float32)
+        for index in range(window - 1, stack.shape[0]):
+            values = stack[index - window + 1:index + 1]
+            counts = np.sum(np.isfinite(values), axis=0)
+            sums = np.nansum(values, axis=0)
+            output[index] = np.divide(
+                sums,
+                counts,
+                out=np.full(stack.shape[1:], np.nan, dtype=np.float32),
+                where=counts > 0,
+            )
+        return output
 
     def _rolling_std(self, stack: np.ndarray, window: int) -> np.ndarray:
         self._validate_window_length(stack, window)
-        values = stack[-window:]
-        counts = np.sum(np.isfinite(values), axis=0)
-        means = self._rolling_mean(stack, window)
-        squared_deviation = np.where(
-            np.isfinite(values),
-            np.square(values - means[np.newaxis, :, :]),
-            0.0,
-        )
-        variance = np.divide(
-            np.sum(squared_deviation, axis=0),
-            counts,
-            out=np.full(stack.shape[1:], np.nan, dtype=np.float32),
-            where=counts > 0,
-        )
-        return np.sqrt(variance).astype(np.float32)
+        output = np.full(stack.shape, np.nan, dtype=np.float32)
+        for index in range(window - 1, stack.shape[0]):
+            values = stack[index - window + 1:index + 1]
+            counts = np.sum(np.isfinite(values), axis=0)
+            means = np.divide(
+                np.nansum(values, axis=0),
+                counts,
+                out=np.full(stack.shape[1:], np.nan, dtype=np.float32),
+                where=counts > 0,
+            )
+            squared_deviation = np.where(
+                np.isfinite(values),
+                np.square(values - means[np.newaxis, :, :]),
+                0.0,
+            )
+            variance = np.divide(
+                np.sum(squared_deviation, axis=0),
+                counts,
+                out=np.full(stack.shape[1:], np.nan, dtype=np.float32),
+                where=counts > 0,
+            )
+            output[index] = np.sqrt(variance).astype(np.float32)
+        return output
 
-    def _savgol_latest(
+    def _savgol_series(
         self,
         stack: np.ndarray,
         window: int,
@@ -200,9 +216,9 @@ class TemporalFeatureExtractor(FeatureExtractor):
         except ModuleNotFoundError:
             LOGGER.warning(
                 'SciPy is unavailable; using NumPy polynomial Savitzky-Golay '
-                'fallback for latest smoothed value.',
+                'fallback for smoothed time series.',
             )
-            return self._savgol_latest_numpy(stack, window, polyorder)
+            return self._savgol_series_numpy(stack, window, polyorder)
 
         smoothed = savgol_filter(
             stack,
@@ -211,33 +227,38 @@ class TemporalFeatureExtractor(FeatureExtractor):
             axis=0,
             mode='interp',
         )
-        return smoothed[-1].astype(np.float32)
+        return smoothed.astype(np.float32)
 
-    def _savgol_latest_numpy(
+    def _savgol_series_numpy(
         self,
         stack: np.ndarray,
         window: int,
         polyorder: int,
     ) -> np.ndarray:
-        window_stack = stack[-window:].astype(np.float64)
-        x = np.arange(window, dtype=np.float64)
-        valid = np.isfinite(window_stack)
-        flattened = window_stack.reshape(window, -1)
-        flattened_valid = valid.reshape(window, -1)
-        output = np.full(flattened.shape[1], np.nan, dtype=np.float32)
+        time_steps = stack.shape[0]
+        x = np.arange(time_steps, dtype=np.float64)
+        stack = stack.astype(np.float64)
+        valid = np.isfinite(stack)
+        flattened = stack.reshape(time_steps, -1)
+        flattened_valid = valid.reshape(time_steps, -1)
+        output = np.full(flattened.shape, np.nan, dtype=np.float32)
+        half_window = window // 2
 
         for index in range(flattened.shape[1]):
-            column_valid = flattened_valid[:, index]
-            if np.count_nonzero(column_valid) <= polyorder:
-                continue
-            coefficients = np.polyfit(
-                x[column_valid],
-                flattened[column_valid, index],
-                deg=polyorder,
-            )
-            output[index] = np.polyval(coefficients, x[-1])
+            for time_index in range(time_steps):
+                start = min(max(time_index - half_window, 0), time_steps - window)
+                end = start + window
+                window_valid = flattened_valid[start:end, index]
+                if np.count_nonzero(window_valid) <= polyorder:
+                    continue
+                coefficients = np.polyfit(
+                    x[start:end][window_valid],
+                    flattened[start:end, index][window_valid],
+                    deg=polyorder,
+                )
+                output[time_index, index] = np.polyval(coefficients, x[time_index])
 
-        return output.reshape(stack.shape[1:]).astype(np.float32)
+        return output.reshape(stack.shape).astype(np.float32)
 
     def _validate_window_length(self, stack: np.ndarray, window: int) -> None:
         if window > stack.shape[0]:

@@ -46,7 +46,7 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
         yaml.safe_dump(
             {
                 'project_dir': str(project_dir),
-                'synthetic_tsf_deformation': {
+                'slope_stability': {
                     'inputs': {
                         'los': {
                             'directory': 'inputs',
@@ -128,7 +128,7 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
                         'temporal_variance': True,
                     },
                 },
-                'synthetic_tsf_deformation': {
+                'slope_stability': {
                     'inputs': {
                         'los': {
                             'directory': 'inputs',
@@ -199,7 +199,7 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
         yaml.safe_dump(
             {
                 'project_dir': str(project_dir),
-                'synthetic_tsf_deformation': {
+                'slope_stability': {
                     'inputs': {
                         'los': {
                             'directory': 'inputs',
@@ -255,7 +255,17 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
     assert (output_dir / 'velocity_roll_mean.tif').exists()
     assert (output_dir / 'velocity_roll_std.tif').exists()
     assert (output_dir / 'velocity_smooth.tif').exists()
+    with rasterio.open(output_dir / 'velocity_lag1.tif') as dataset:
+        assert dataset.count == 7
+        assert dataset.descriptions == tuple(
+            f'2018-01-{day:02d}'
+            for day in range(1, 8)
+        )
 
     metadata = json.loads((output_dir / 'metadata.json').read_text())
     assert metadata['base_feature_names'] == ['velocity']
+    assert metadata['acquisition_dates'] == [
+        f'2018-01-{day:02d}'
+        for day in range(1, 8)
+    ]
     assert 'velocity_lag1' in metadata['feature_names']

@@ -161,13 +161,16 @@ def test_temporal_feature_extractor_computes_enabled_features():
         },
     )
 
-    assert features['velocity_lag1'][0, 0] == pytest.approx(20.0)
-    assert features['velocity_lag2'][0, 0] == pytest.approx(16.0)
-    assert features['velocity_diff1'][0, 0] == pytest.approx(4.0)
-    assert features['velocity_diff2'][0, 0] == pytest.approx(8.0)
-    assert features['velocity_roll_mean'][0, 0] == pytest.approx(20.0)
-    assert features['velocity_roll_std'][0, 0] == pytest.approx(
+    assert features['velocity_lag1'].shape == stack.shape
+    assert np.isnan(features['velocity_lag1'][0, 0, 0])
+    assert features['velocity_lag1'][-1, 0, 0] == pytest.approx(20.0)
+    assert features['velocity_lag2'][-1, 0, 0] == pytest.approx(16.0)
+    assert features['velocity_diff1'][-1, 0, 0] == pytest.approx(4.0)
+    assert features['velocity_diff2'][-1, 0, 0] == pytest.approx(8.0)
+    assert np.isnan(features['velocity_roll_mean'][1, 0, 0])
+    assert features['velocity_roll_mean'][-1, 0, 0] == pytest.approx(20.0)
+    assert features['velocity_roll_std'][-1, 0, 0] == pytest.approx(
         np.std([16.0, 20.0, 24.0]),
     )
-    assert features['velocity_smooth'][0, 0] == pytest.approx(24.0)
-    assert np.isnan(features['velocity_lag1'][0, 1])
+    assert features['velocity_smooth'][-1, 0, 0] == pytest.approx(24.0)
+    assert np.isnan(features['velocity_lag1'][-1, 0, 1])
