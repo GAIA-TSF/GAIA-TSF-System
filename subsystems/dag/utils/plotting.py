@@ -96,7 +96,7 @@ def save_boxplot(
     """Save LOS distribution boxplots over time."""
     _prepare_figure(style)
     distributions = [layer[np.isfinite(layer)] for layer in data]
-    labels = [value.isoformat() for value in dates]
+    # labels = [value.isoformat() for value in dates]
     # print(labels) 
     fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
     ax.boxplot(distributions, showfliers=False) # tick_labels=labels,
