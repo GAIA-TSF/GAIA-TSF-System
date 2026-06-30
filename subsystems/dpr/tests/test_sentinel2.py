@@ -332,7 +332,7 @@ class TestSentinel2Workflow:
         output_bbox = numpy.array(metadata['bbox'])
         xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
         input_bbox = numpy.array((xmin, ymin, xmax, ymax))
-        offsets = numpy.abs(input_roi - output_roi)
+        offsets = numpy.abs(input_bbox - output_bbox)
         res_dd = numpy.nanmin(res) / 111320.0  # very rough conversion from meters to dd
         assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
             f'The bounding box of the output raster {output_bbox} '
