@@ -29,7 +29,7 @@ def temporal_features(data, config):
     )
 
     # Mock output
-    X = 'X_features' # noqa: N806  
+    X = 'X_features'  # noqa: N806
     y = 'y_target'
 
     # return create_temporal_features(
@@ -37,4 +37,4 @@ def temporal_features(data, config):
     #     look_back=config.look_back,
     #     horizon=config.horizon
     # )
-    return X, y # noqa: N803 
+    return X, y  # noqa: N803

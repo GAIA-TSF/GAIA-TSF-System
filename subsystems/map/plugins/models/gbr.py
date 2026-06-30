@@ -41,14 +41,14 @@ class GBRModel:
 
         self.model = GradientBoostingRegressor(**params)
 
-    def fit(self, X, y): # noqa: N803 
+    def fit(self, X, y):  # noqa: N803
         """
         Train model on tabular features.
         """
         print(f'[Model] Training on X={X}, y={y}')
         # self.model.fit(X, y)
 
-    def predict(self, X): # noqa: N803 
+    def predict(self, X):  # noqa: N803
         """
         Generate predictions.
         """

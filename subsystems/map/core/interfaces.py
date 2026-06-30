@@ -70,7 +70,7 @@ class ModelPlugin(ABC):
         self.config = config  # hyperparameters, etc.
 
     @abstractmethod
-    def fit(self, X, y): # noqa: N803
+    def fit(self, X, y):  # noqa: N803
         """
         Train model.
 
@@ -81,7 +81,7 @@ class ModelPlugin(ABC):
         pass
 
     @abstractmethod
-    def predict(self, X): # noqa: N803
+    def predict(self, X):  # noqa: N803
         """
         Must return PredictionResult.
 
