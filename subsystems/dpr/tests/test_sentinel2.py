@@ -171,7 +171,7 @@ class TestSentinel2Workflow:
         xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
         input_bbox = numpy.array((xmin, ymin, xmax, ymax))
         offsets = numpy.abs(input_bbox - output_bbox)
-        res_dd = 60. / 111320.  # rough conversion of 60m to dd
+        res_dd = 60.0 / 111320.0  # rough conversion of 60m to dd
         assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
             f'The bounding box of the output raster {output_bbox} '
             f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
@@ -334,7 +334,7 @@ class TestSentinel2Workflow:
         xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
         input_bbox = numpy.array((xmin, ymin, xmax, ymax))
         offsets = numpy.abs(input_bbox - output_bbox)
-        res_dd = 60. / 111320.  # rough conversion of 60m to dd
+        res_dd = 60.0 / 111320.0  # rough conversion of 60m to dd
         assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
             f'The bounding box of the output raster {output_bbox} '
             f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
