@@ -31,13 +31,13 @@ def run_inference(config):
 
     # 3. Same feature pipeline (CRITICAL for consistency)
     feature_fn = FEATURE_REGISTRY[variable.feature_pipeline()]
-    X, y = feature_fn(data, config) # noqa: N803
+    X, y = feature_fn(data, config) # noqa: N806
 
     # 4. Load trained model
     model = load_model(config)
 
     # 5. Predict
-    result = model.predict(X) # noqa: N803 
+    result = model.predict(X) # noqa: N806 
 
     # 6. Residuals = observed - predicted
     residuals = y - result.y_pred

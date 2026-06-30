@@ -29,7 +29,7 @@ def temporal_features(data, config):
     )
 
     # Mock output
-    X = 'X_features' # noqa: N803  
+    X = 'X_features' # noqa: N806  
     y = 'y_target'
 
     # return create_temporal_features(
