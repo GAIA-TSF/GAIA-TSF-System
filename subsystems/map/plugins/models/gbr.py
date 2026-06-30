@@ -1,4 +1,3 @@
-
 """
 Gradient Boosting Regressor plugin (sklearn)
 
@@ -21,7 +20,7 @@ class PredictionResult:
         self.uncertainty = uncertainty
 
 
-@register_model("gbr")
+@register_model('gbr')
 class GBRModel:
     """
     sklearn Gradient Boosting model.
@@ -32,27 +31,30 @@ class GBRModel:
     """
 
     def __init__(self, config):
-        params = config.gbr_params.__dict__ if hasattr(config.gbr_params, "__dict__") else config.gbr_params
+        params = (
+            config.gbr_params.__dict__
+            if hasattr(config.gbr_params, '__dict__')
+            else config.gbr_params
+        )
 
-        print(f"[Model] Initialize GBR with params: {params}")
+        print(f'[Model] Initialize GBR with params: {params}')
 
         self.model = GradientBoostingRegressor(**params)
 
-    def fit(self, X, y):
+    def fit(self, X, y): # noqa: N803 
         """
         Train model on tabular features.
         """
-        print(f"[Model] Training on X={X}, y={y}")
+        print(f'[Model] Training on X={X}, y={y}')
         # self.model.fit(X, y)
 
-    def predict(self, X):
+    def predict(self, X): # noqa: N803 
         """
         Generate predictions.
         """
-        print(f"[Model] Predicting on X={X}")
+        print(f'[Model] Predicting on X={X}')
 
         # y_pred = self.model.predict(X)
-        y_pred = "y_pred_mock"
+        y_pred = 'y_pred_mock'
 
         return PredictionResult(y_pred)
-    

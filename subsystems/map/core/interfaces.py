@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class VariablePlugin(ABC):
     """
     Encapsulates ALL variable-specific logic.
@@ -69,7 +70,7 @@ class ModelPlugin(ABC):
         self.config = config  # hyperparameters, etc.
 
     @abstractmethod
-    def fit(self, X, y):
+    def fit(self, X, y): # noqa: N803
         """
         Train model.
 
@@ -80,7 +81,7 @@ class ModelPlugin(ABC):
         pass
 
     @abstractmethod
-    def predict(self, X):
+    def predict(self, X): # noqa: N803
         """
         Must return PredictionResult.
 
@@ -103,4 +104,3 @@ class PredictionResult:
     def __init__(self, y_pred, uncertainty=None):
         self.y_pred = y_pred
         self.uncertainty = uncertainty
-        

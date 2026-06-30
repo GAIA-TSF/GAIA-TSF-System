@@ -161,7 +161,7 @@ class TemporalFeatureExtractor(FeatureExtractor):
         self._validate_window_length(stack, window)
         output = np.full(stack.shape, np.nan, dtype=np.float32)
         for index in range(window - 1, stack.shape[0]):
-            values = stack[index - window + 1:index + 1]
+            values = stack[index - window + 1 : index + 1]
             counts = np.sum(np.isfinite(values), axis=0)
             sums = np.nansum(values, axis=0)
             output[index] = np.divide(
@@ -176,7 +176,7 @@ class TemporalFeatureExtractor(FeatureExtractor):
         self._validate_window_length(stack, window)
         output = np.full(stack.shape, np.nan, dtype=np.float32)
         for index in range(window - 1, stack.shape[0]):
-            values = stack[index - window + 1:index + 1]
+            values = stack[index - window + 1 : index + 1]
             counts = np.sum(np.isfinite(values), axis=0)
             means = np.divide(
                 np.nansum(values, axis=0),

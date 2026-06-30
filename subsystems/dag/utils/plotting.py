@@ -56,11 +56,7 @@ def save_temporal_mean_std_plot(
     # Combined legend
     lines1, labels1 = ax_mean.get_legend_handles_labels()
     lines2, labels2 = ax_std.get_legend_handles_labels()
-    ax_mean.legend(
-        lines1 + lines2,
-        labels1 + labels2,
-        loc='best'
-    )
+    ax_mean.legend(lines1 + lines2, labels1 + labels2, loc='best')
     ax_mean.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     fig.autofmt_xdate()
     ax_mean.grid(True, alpha=0.3)
@@ -97,9 +93,9 @@ def save_boxplot(
     _prepare_figure(style)
     distributions = [layer[np.isfinite(layer)] for layer in data]
     # labels = [value.isoformat() for value in dates]
-    # print(labels) 
+    # print(labels)
     fig, ax = plt.subplots(figsize=(10, 5), constrained_layout=True)
-    ax.boxplot(distributions, showfliers=False) # tick_labels=labels,
+    ax.boxplot(distributions, showfliers=False)  # tick_labels=labels,
     ax.set_xlabel('Acquisition date')
     ax.set_ylabel('LOS displacement')
     ax.grid(True, axis='y', alpha=0.3)

@@ -130,8 +130,7 @@ def write_raster(
         return
     if values.ndim != 3:
         raise ValueError(
-            'Feature rasters must have shape (rows, cols) or '
-            '(time, rows, cols).',
+            'Feature rasters must have shape (rows, cols) or (time, rows, cols).',
         )
     if values.shape[1:] != (profile.height, profile.width):
         raise ValueError(

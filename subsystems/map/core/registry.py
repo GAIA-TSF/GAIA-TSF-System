@@ -1,4 +1,3 @@
-
 """
 Registry module
 
@@ -29,9 +28,11 @@ def register_variable(name):
     Result:
         VARIABLE_REGISTRY["slope"] → instance of SlopeVariable
     """
+
     def decorator(cls):
         VARIABLE_REGISTRY[name] = cls()
         return cls
+
     return decorator
 
 
@@ -42,9 +43,11 @@ def register_model(name):
     Why:
     - Models require config → instantiated later
     """
+
     def decorator(cls):
         MODEL_REGISTRY[name] = cls
         return cls
+
     return decorator
 
 
@@ -56,7 +59,9 @@ def register_feature(name):
     - stateless
     - reusable across variables
     """
+
     def decorator(fn):
         FEATURE_REGISTRY[name] = fn
         return fn
-    return decorator 
+
+    return decorator

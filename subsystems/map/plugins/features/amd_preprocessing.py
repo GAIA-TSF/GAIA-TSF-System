@@ -1,4 +1,3 @@
-
 def gap_fill(data):
     """
     Fill missing values.
@@ -24,4 +23,4 @@ def smooth(data):
 
     Improves signal-to-noise ratio.
     """
-    return data 
+    return data

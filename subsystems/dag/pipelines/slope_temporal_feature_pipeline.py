@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from datetime import timezone
+
 UTC = timezone.utc
 from pathlib import Path
 from typing import Any
@@ -81,8 +82,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             profile=series.profile,
             raster_format=str(result_config.get('raster_format', 'GTiff')),
             band_names=tuple(
-                acquisition_date.isoformat()
-                for acquisition_date in series.dates
+                acquisition_date.isoformat() for acquisition_date in series.dates
             ),
         )
         metadata_path = output_dir / str(result_config['metadata_filename'])
@@ -138,10 +138,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         configured = result_config.get('filenames', {})
         if configured and not isinstance(configured, dict):
             raise ValueError('Temporal feature filenames must be a mapping.')
-        filenames = {
-            name: f'{name}.tif'
-            for name in temporal_features
-        }
+        filenames = {name: f'{name}.tif' for name in temporal_features}
         filenames.update({str(key): str(value) for key, value in configured.items()})
         return filenames
 
@@ -222,8 +219,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             'feature_names': sorted(temporal_features),
             'base_feature_names': base_feature_names,
             'acquisition_dates': [
-                acquisition_date.isoformat()
-                for acquisition_date in dates
+                acquisition_date.isoformat() for acquisition_date in dates
             ],
             'creation_date': datetime.now(tz=UTC).isoformat(),
             'processing_parameters': result_config,

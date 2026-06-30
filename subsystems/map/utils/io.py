@@ -1,4 +1,3 @@
-
 """
 Monitoring module (mock)
 
@@ -7,12 +6,13 @@ Represents:
 - Bayesian change point detection
 """
 
+
 def run_monitoring(residuals, config):
     """
     Convert residuals → risk signals
     """
-    print(f"[Monitoring] Running on residuals={residuals}")
-    print("  - CUSUM")
-    print("  - Bayesian CPD")
+    print(f'[Monitoring] Running on residuals={residuals}')
+    print('  - CUSUM')
+    print('  - Bayesian CPD')
 
-    return {"status": "ok"} 
+    return {'status': 'ok'}

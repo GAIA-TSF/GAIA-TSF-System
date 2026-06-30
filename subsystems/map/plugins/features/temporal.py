@@ -1,4 +1,3 @@
-
 from core.registry import register_feature
 
 """
@@ -7,7 +6,8 @@ Temporal feature engineering
 Transforms time series into supervised learning format
 """
 
-@register_feature("temporal")
+
+@register_feature('temporal')
 def temporal_features(data, config):
     """
     Converts time series into supervised learning format.
@@ -24,15 +24,17 @@ def temporal_features(data, config):
     - LSTM (sequence format)
     - RF/XGB (flattened features)
     """
-    print(f"[Features] Temporal features (look_back={config.look_back}, horizon={config.horizon})") 
+    print(
+        f'[Features] Temporal features (look_back={config.look_back}, horizon={config.horizon})'
+    )
 
     # Mock output
-    X = "X_features"
-    y = "y_target"
+    X = 'X_features' # noqa: N803  
+    y = 'y_target'
 
     # return create_temporal_features(
     #     data,
     #     look_back=config.look_back,
     #     horizon=config.horizon
     # )
-    return X, y 
+    return X, y # noqa: N803 

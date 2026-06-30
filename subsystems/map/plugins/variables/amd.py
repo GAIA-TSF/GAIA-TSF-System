@@ -1,4 +1,3 @@
-
 from core.registry import register_variable
 from core.interfaces import VariablePlugin
 
@@ -9,12 +8,12 @@ Encapsulates:
 - preprocessing
 - feature pipeline selection
 - allowed models
-""" 
+"""
 
-@register_variable("amd")
+
+@register_variable('amd')
 class AMDVariable(VariablePlugin):
-
-    name = "amd"
+    name = 'amd'
 
     def preprocess(self, data, config):
         """
@@ -26,15 +25,14 @@ class AMDVariable(VariablePlugin):
         Important:
         This step is CRITICAL for stability of ML models.
         """
-        from plugins.features.amd_preprocessing import gap_fill, smooth
 
-        print("[AMD] Preprocessing: gap filling + smoothing") 
+        print('[AMD] Preprocessing: gap filling + smoothing')
 
         # data = gap_fill(data)
         # data = smooth(data)
-        
+
         # return data
-        return 0 
+        return 0
 
     def feature_pipeline(self):
         """
@@ -44,14 +42,13 @@ class AMDVariable(VariablePlugin):
 
         Currently unified → temporal
         """
-        return "temporal"
+        return 'temporal'
 
     def allowed_models(self):
-        
         """
         Gradient Boosting Regressor:
             - strong for tabular time-series features
         RF:
             - baseline, robust
         """
-        return ["gbr", "rf"] 
+        return ['gbr', 'rf']

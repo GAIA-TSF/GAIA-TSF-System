@@ -25,7 +25,9 @@ def validate_temporal_axis(data: np.ndarray, dates: tuple[date, ...]) -> None:
         raise ValueError('Acquisition dates must be strictly chronological.')
 
 
-def temporal_gradient(data: np.ndarray, dates: tuple[date, ...], order: int) -> np.ndarray:
+def temporal_gradient(
+    data: np.ndarray, dates: tuple[date, ...], order: int
+) -> np.ndarray:
     """Compute a temporal derivative using acquisition day spacing.
 
     Args:

@@ -1,4 +1,3 @@
-
 """
 YAML config loader
 
@@ -31,13 +30,13 @@ class Config:
         return str(self.__dict__)
 
 
-def load_config(path="config.yaml"):
+def load_config(path='config.yaml'):
     """
     Load YAML file and return Config object
     """
-    print(f"[Config] Loading config from {path}")
+    print(f'[Config] Loading config from {path}')
 
-    with open(path, "r") as f:
+    with open(path, 'r') as f:
         config_dict = yaml.safe_load(f)
 
     return Config(config_dict)

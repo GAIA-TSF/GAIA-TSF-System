@@ -256,14 +256,12 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
     with rasterio.open(output_dir / 'velocity_lag1.tif') as dataset:
         assert dataset.count == 7
         assert dataset.descriptions == tuple(
-            f'2018-01-{day:02d}'
-            for day in range(1, 8)
+            f'2018-01-{day:02d}' for day in range(1, 8)
         )
 
     metadata = json.loads((output_dir / 'metadata.json').read_text())
     assert metadata['base_feature_names'] == ['velocity']
     assert metadata['acquisition_dates'] == [
-        f'2018-01-{day:02d}'
-        for day in range(1, 8)
+        f'2018-01-{day:02d}' for day in range(1, 8)
     ]
     assert 'velocity_lag1' in metadata['feature_names']

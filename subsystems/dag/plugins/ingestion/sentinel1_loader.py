@@ -89,8 +89,7 @@ class Sentinel1LOSLoader(RasterLoader):
         match = self._date_pattern.match(path.name)
         if not match:
             raise ValueError(
-                'Invalid LOS filename. Expected tsf_los_YYYYMMDD.tif, '
-                f'got {path.name}',
+                f'Invalid LOS filename. Expected tsf_los_YYYYMMDD.tif, got {path.name}',
             )
         return datetime.strptime(match.group(1), '%Y%m%d').date()
 
@@ -105,7 +104,9 @@ class Sentinel1LOSLoader(RasterLoader):
         path: Path,
     ) -> None:
         if current.crs != expected.crs:
-            raise ValueError(f'CRS mismatch for {path}: {current.crs} != {expected.crs}')
+            raise ValueError(
+                f'CRS mismatch for {path}: {current.crs} != {expected.crs}'
+            )
         if current.transform != expected.transform:
             raise ValueError(f'Resolution or transform mismatch for {path}.')
         if current.width != expected.width or current.height != expected.height:

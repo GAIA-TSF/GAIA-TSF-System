@@ -16,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--pipeline',
         required=True,
-        choices=['slope_eda', 'slope_features', 'slope_temporal_features'], 
+        choices=['slope_eda', 'slope_features', 'slope_temporal_features'],
         help='Pipeline to run.',
     )
     parser.add_argument(
@@ -30,26 +30,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     """Run a configured DAG pipeline."""
-    parser = build_parser() 
-    args = parser.parse_args() 
-    
+    parser = build_parser()
+    args = parser.parse_args()
 
     if args.pipeline == 'slope_eda':
         from subsystems.dag.pipelines.slope_eda_pipeline import SlopeEDAPipeline
 
         result = SlopeEDAPipeline(args.config).run()
         print(len(result))
-    
+
     elif args.pipeline == 'slope_features':
-        from subsystems.dag.pipelines.slope_feature_pipeline import SlopeFeaturePipeline 
-        
-        result = SlopeFeaturePipeline(args.config).run() 
+        from subsystems.dag.pipelines.slope_feature_pipeline import SlopeFeaturePipeline
+
+        result = SlopeFeaturePipeline(args.config).run()
         print(len(result))
 
     elif args.pipeline == 'slope_temporal_features':
-        from subsystems.dag.pipelines.slope_temporal_feature_pipeline import SlopeTemporalFeaturePipeline 
-        
-        result = SlopeTemporalFeaturePipeline(args.config).run() 
+        from subsystems.dag.pipelines.slope_temporal_feature_pipeline import (
+            SlopeTemporalFeaturePipeline,
+        )
+
+        result = SlopeTemporalFeaturePipeline(args.config).run()
         print(len(result))
 
     else:
