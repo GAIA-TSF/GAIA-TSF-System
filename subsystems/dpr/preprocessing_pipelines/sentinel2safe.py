@@ -215,6 +215,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Transform the geometry
         transformed_geom = transform(transformer.transform, geom)
         return transformed_geom.wkt
+
     def _update_metadata_bbox(self, gdal_dataset):
         """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
         :return: roi transformed  (WKT)
@@ -227,7 +228,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         ymax = gt[3]
         xmax = xmin + gt[1] * width
         ymin = ymax + gt[5] * height
-        geom = f"POLYGON (({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
+        geom = f'POLYGON (({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))'
         geom = wkt.loads(geom)
         target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
         transformer = Transformer.from_crs(target_epsg, 'EPSG:4326', always_xy=True)
