@@ -9,6 +9,7 @@ from shapely.ops import transform
 from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
+from subsystems.dpr.metadata_processor import MetadataGenerator
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
@@ -26,7 +27,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         'params': {
             'input_safe': {
                 'dtype': PosixPath,
-                'description': 'Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder)',
+                'description': 'Path to the Sentinel-2 unzipped SAFE product',
             },
             'output_folder': {
                 'dtype': PosixPath,
@@ -531,11 +532,16 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
             )
 
-        # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
         self.input_folder = self._config['input_safe']
 
+        self.logger.info(f'Processing folder: {self.input_folder}')
+        mdgen = MetadataGenerator()
+        mdgen.set_datasource(self.input_folder)
+        self.s2_metadata = mdgen.stac.create_item()
+        #mdgen.stac.save(metadata_path)
+
         # Proceed with the conversion of the SAFE to Geotiff
-        self.logger.info(f'Scanning folder: {self.input_folder}')
+        #self.logger.info(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
             self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
