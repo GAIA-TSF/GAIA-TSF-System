@@ -330,7 +330,8 @@ class TestSentinel2Workflow:
 
         # Check if metadata bbox is same as input ROI
         output_bbox = numpy.array(metadata['bbox'])
-        input_bbox = numpy.array(ogr.CreateGeometryFromWkt(roi).GetEnvelope())
+        xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
+        input_bbox = numpy.array((xmin, ymin, xmax, ymax))
         offsets = numpy.abs(input_roi - output_roi)
         res_dd = numpy.nanmin(res)/111320.0  # very rough conversion from meters to dd
         assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
