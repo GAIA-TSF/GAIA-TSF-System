@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy
 import glob
 import pytest
-from osgeo import gdal
+from osgeo import gdal, ogr
 from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
@@ -166,7 +166,18 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
         )
 
+        # Check if metadata bbox is same as input ROI
+        output_bbox = numpy.array(metadata['bbox'])
+        input_bbox = numpy.array(ogr.CreateGeometryFromWkt(roi).GetEnvelope())
+        offsets = numpy.abs(input_roi - output_roi)
+        res_dd = numpy.nanmin(res)/111320.0  # very rough conversion from meters to dd
+        assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
+            f'The bounding box of the output raster {output_bbox} '
+            f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
+        )
+
         # Delete folder after test is complete
+        del ds
         shutil.rmtree(output_folder)
 
     def test_sentinel2_safe_processor_split_bands(self, sentinel2_data):
@@ -317,9 +328,18 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi}.'
         )
 
-        del ds
+        # Check if metadata bbox is same as input ROI
+        output_bbox = numpy.array(metadata['bbox'])
+        input_bbox = numpy.array(ogr.CreateGeometryFromWkt(roi).GetEnvelope())
+        offsets = numpy.abs(input_roi - output_roi)
+        res_dd = numpy.nanmin(res)/111320.0  # very rough conversion from meters to dd
+        assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
+            f'The bounding box of the output raster {output_bbox} '
+            f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
+        )
 
         # Delete folder after test is complete
+        del ds
         shutil.rmtree(output_folder)
 
     def test_sentinel2_cloudcover(self):

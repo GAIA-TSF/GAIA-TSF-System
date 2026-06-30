@@ -200,10 +200,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             json.dump(self.s2_metadata, f, indent=4)
         self.logger.info(f'Metadata saved to: {output_path}')
 
-    def _roi_transform(self):
-        """Transform coordinates from EPSG:4326 to SAFE product coordinates.
-
-        :return roi transformed  (WKT)
+    def _roi_transform_wgs_to_utm(self):
+        """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
+        :return: roi transformed  (WKT)
         :rtype: str
         """
         # Convert WKT to Shapely geometry
@@ -216,6 +215,24 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Transform the geometry
         transformed_geom = transform(transformer.transform, geom)
         return transformed_geom.wkt
+    def _update_metadata_bbox(self, gdal_dataset):
+        """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
+        :return: roi transformed  (WKT)
+        :rtype: str
+        """
+        gt = gdal_dataset.GetGeoTransform()
+        width = gdal_dataset.RasterXSize
+        height = gdal_dataset.RasterYSize
+        xmin = gt[0]
+        ymax = gt[3]
+        xmax = xmin + gt[1] * width
+        ymin = ymax + gt[5] * height
+        geom = f"POLYGON (({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))"
+        geom = wkt.loads(geom)
+        target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
+        transformer = Transformer.from_crs(target_epsg, 'EPSG:4326', always_xy=True)
+        transformed_geom = transform(transformer.transform, geom)
+        self.s2_metadata['bbox'] = transformed_geom.bounds
 
     def _process_scl_statistics(self, slc_array):
         """
@@ -353,10 +370,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Make an empty list to store paths to temp VRT files
         resampled_vrt_files = []
 
-        # Resample with gdal.Warp using in-memory VRT files
+        # Get bounding box
         geom = ogr.CreateGeometryFromWkt(roi)
         xmin, xmax, ymin, ymax = geom.GetEnvelope()
         bounds = [xmin, ymin, xmax, ymax]
+
+        # Resample with gdal.Warp using in-memory VRT files
         for i, (src_file, alg) in enumerate(zip(jp2_paths, resampling_algorithms)):
             vrt_output = os.path.join(
                 self._config['output_folder'], f'temp_{i + 1}.vrt'
@@ -405,6 +424,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             scl_data = scl_ds.GetRasterBand(1)
             mask = scl_data.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
             scl_data.FlushCache()
+            # update metadata bbox
+            self._update_metadata_bbox(scl_ds)
             del scl_ds
 
             for i, (vrt_file, band_name, offset) in enumerate(
@@ -475,14 +496,14 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 band.FlushCache()
             # get land cover stats from SCL band
             self._process_scl_statistics(scl_band.ReadAsArray())
-            del ds
-            self.logger.info(f'Raster saved to: {output_path}')
-
+            # update metadata bbox
+            self._update_metadata_bbox(ds)
             # Add path to the metadata
             self.s2_metadata['source_paths'] = [str(output_path)]
-
             # Clean temp mosaic VRT
             gdal.Unlink(mosaic_vrt)
+            del ds
+            self.logger.info(f'Raster saved to: {output_path}')
 
         if self.driver_name == 'JP2OpenJPEG':
             self._tiff_to_jp2()
@@ -546,7 +567,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
-            roi = self._roi_transform()
+            roi = self._roi_transform_wgs_to_utm()
             self._process_and_merge_jp2(roi)
             self._save_json()
         else:
