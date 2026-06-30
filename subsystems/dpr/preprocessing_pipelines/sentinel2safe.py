@@ -538,10 +538,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         mdgen = MetadataGenerator()
         mdgen.set_datasource(self.input_folder)
         self.s2_metadata = mdgen.stac.create_item()
-        #mdgen.stac.save(metadata_path)
+        # mdgen.stac.save(metadata_path)
 
         # Proceed with the conversion of the SAFE to Geotiff
-        #self.logger.info(f'Scanning folder: {self.input_folder}')
+        # self.logger.info(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
             self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
