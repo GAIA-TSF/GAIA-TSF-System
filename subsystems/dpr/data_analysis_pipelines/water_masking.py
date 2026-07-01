@@ -238,7 +238,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     f'{len(data.get("source_paths"))} rasters.'
                 )
 
-            source_path = Path(os.path.join(self._config['input_folder'],asset_paths[0]))
+            source_path = Path(
+                os.path.join(self._config['input_folder'], asset_paths[0])
+            )
 
             if source_path.exists():
                 raster_path = source_path
@@ -252,13 +254,13 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 )
 
             record = {
-                'datetime': data['properties']["datetime"],
+                'datetime': data['properties']['datetime'],
                 'source_path': raster_path,
                 'metadata_path': json_path,
-                'SCL_snow_or_ice': data['properties']["s2:snow_ice_percentage"],
+                'SCL_snow_or_ice': data['properties']['s2:snow_ice_percentage'],
                 'cloud_cover_pct': data['properties']['eo:cloud_cover'],
-                'SCL_cloud_shadows': data['properties']["s2:cloud_shadow_percentage"],
-                'SCL_dark_areas': data['properties']["s2:dark_features_percentage"],
+                'SCL_cloud_shadows': data['properties']['s2:cloud_shadow_percentage'],
+                'SCL_dark_areas': data['properties']['s2:dark_features_percentage'],
             }
             records.append(record)
 
@@ -799,8 +801,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         metadata = json.load(f)
                     # Add water mask band to assets
                     new_band = {
-                        "name": "watermask",
-                        "common_name": "labeled water bodies"
+                        'name': 'watermask',
+                        'common_name': 'labeled water bodies',
                     }
                     bands = metadata['assets']['data']['eo:bands']
                     bands.append(new_band)
@@ -808,7 +810,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     # Add water mask surface in %
                     rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
                     metadata['properties']['eo:water_mask_percentage'] = round(
-                        (np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols)) * 100, 4
+                        (np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols))
+                        * 100,
+                        4,
                     )
                     _, file_extension = os.path.splitext(out_path)
                     with open(out_path.replace(file_extension, '.json'), 'w') as f:
