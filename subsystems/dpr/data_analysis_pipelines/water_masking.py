@@ -157,44 +157,49 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         """
         # Check that the item is not a collection
         # Normalize data structure into a list of items
-        stac_type = stac_data.get("type")
-        if stac_type == "Feature":  # single STAC Item
+        stac_type = stac_data.get('type')
+        if stac_type == 'Feature':  # single STAC Item
             items = [stac_data]
-        elif "assets" in stac_data:  # Collection with assets directly attached
+        elif 'assets' in stac_data:  # Collection with assets directly attached
             items = [stac_data]
         else:
-            print(f"Provided JSON does not directly contain STAC assets: {stac_data}")
+            print(f'Provided JSON does not directly contain STAC assets: {stac_data}')
             return [], 0
 
         # Common raster identifiers based on STAC specifications
-        raster_types = {"image/tiff", "image/vnd.stac.geotiff", "image/jp2", "image/jpeg", "image/png"}
-        raster_roles = {"data", "visual", "overview", "reflectance", "classification"}
+        raster_types = {
+            'image/tiff',
+            'image/vnd.stac.geotiff',
+            'image/jp2',
+            'image/jpeg',
+            'image/png',
+        }
+        raster_roles = {'data', 'visual', 'overview', 'reflectance', 'classification'}
 
         asset_count = 0
         asset_paths = []
         # Iterate through items and extract assets
         for item in items:
-            assets = item.get("assets", {})
+            assets = item.get('assets', {})
             if not assets:
                 continue
 
             for asset_key, asset_info in assets.items():
-                href = asset_info.get("href")
+                href = asset_info.get('href')
                 if not href:
                     continue
 
-                media_type = asset_info.get("type", "")
-                roles = asset_info.get("roles", [])
+                media_type = asset_info.get('type', '')
+                roles = asset_info.get('roles', [])
 
                 # Determine if the asset is a raster layer
-                is_raster = (
-                        (media_type in raster_types) or
-                        any(role in raster_roles for role in roles)
+                is_raster = (media_type in raster_types) or any(
+                    role in raster_roles for role in roles
                 )
 
                 # Extract the filename
                 if is_raster:
-                    clean_url = href.split("?")[0]
+                    clean_url = href.split('?')[0]
                     filename = os.path.basename(clean_url)
                     asset_paths.append(filename)
                     asset_count += 1
@@ -232,6 +237,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
                     f'{len(data.get("source_paths"))} rasters.'
                 )
+
             source_path = Path(os.path.join(self._config['input_folder'],asset_paths[0]))
 
             if source_path.exists():
