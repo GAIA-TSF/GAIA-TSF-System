@@ -277,10 +277,10 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
                 # Convert column to datetime if not already
                 if not pd.api.types.is_datetime64_any_dtype(
-                    df['DATATAKE_SENSING_START']
+                    df['datetime']
                 ):
-                    df['DATATAKE_SENSING_START'] = pd.to_datetime(
-                        df['DATATAKE_SENSING_START']
+                    df['datetime'] = pd.to_datetime(
+                        df['datetime']
                     )
 
                 # Apply start date filter
@@ -291,7 +291,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         ).tz_localize('UTC')
                     else:
                         start_dt = pd.to_datetime(self._config['start_date'])
-                    df = df[df['DATATAKE_SENSING_START'] >= start_dt]
+                    df = df[df['datetime'] >= start_dt]
                     self.logger.info(f'--- Applied start date filter: {start_dt}')
 
                 # Apply end date filter
@@ -302,7 +302,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         )
                     else:
                         end_dt = pd.to_datetime(self._config['end_date'])
-                    df = df[df['DATATAKE_SENSING_START'] <= end_dt]
+                    df = df[df['datetime'] <= end_dt]
                     self.logger.info(f'--- Applied end date filter: {end_dt}')
 
                 # Update the filtered metadata attribute
@@ -324,11 +324,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 < self._config['max_cloud_snow_dark']
             ].copy()
 
-            self.scenes_metadata_filtered['DATATAKE_SENSING_START'] = pd.to_datetime(
-                self.scenes_metadata_filtered['DATATAKE_SENSING_START']
+            self.scenes_metadata_filtered['datetime'] = pd.to_datetime(
+                self.scenes_metadata_filtered['datetime']
             )
             self.scenes_metadata_filtered = self.scenes_metadata_filtered.sort_values(
-                'DATATAKE_SENSING_START'
+                'datetime'
             ).reset_index(drop=True)
 
             self.logger.info(
@@ -592,8 +592,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         # Filter by months if requested
         if self._config['input_months']:
-            # Ensure DATATAKE_SENSING_START is datetime (already handled in _parse_metadata, but being safe)
-            df['month'] = df['DATATAKE_SENSING_START'].dt.month
+            # Ensure datetime is datetime (already handled in _parse_metadata, but being safe)
+            df['month'] = df['datetime'].dt.month
             df = df[df['month'].isin(self._config['input_months'])]
             self.logger.info(
                 f'Filtered {len(df)} scenes matching months: {self._config["input_months"]}'
@@ -692,7 +692,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         if self._config['input_months']:
             self.logger.info(f'Month filter = {self._config["input_months"]}')
             self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered[
-                'DATATAKE_SENSING_START'
+                'datetime'
             ].dt.month
             indices = self.scenes_metadata_filtered['month'].isin(
                 self._config['input_months']
