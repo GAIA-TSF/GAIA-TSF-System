@@ -134,12 +134,14 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         for tag in direct_tags:
             elem = root.find(f'.//{tag}')
             if elem is not None:
-                self.s2_metadata["properties"]['s2:'+tag.lower()] = elem.text
-        self.s2_metadata["properties"]['datetime'] = self.s2_metadata["properties"]["s2:datatake_sensing_start"]
+                self.s2_metadata['properties']['s2:' + tag.lower()] = elem.text
+        self.s2_metadata['properties']['datetime'] = self.s2_metadata['properties'][
+            's2:datatake_sensing_start'
+        ]
 
         # Retrieve product id, assumes a level 2A product
-        uri = self.s2_metadata["properties"]['s2:product_uri'].split('_')
-        self.s2_metadata["id"] = uri[0]+'_'+uri[5]+'_'+uri[2]+'_L2A'
+        uri = self.s2_metadata['properties']['s2:product_uri'].split('_')
+        self.s2_metadata['id'] = uri[0] + '_' + uri[5] + '_' + uri[2] + '_L2A'
 
         # Extract Granule_List
         for granule in root.findall('.//Granule'):
@@ -159,7 +161,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         if rc_elem is not None:
             for child in rc_elem:
                 ref_conv[self._get_clean_tag(child)] = child.text
-        self.s2_metadata["properties"]['s2:reflectance_conversion_factor'] = float(ref_conv['U'])
+        self.s2_metadata['properties']['s2:reflectance_conversion_factor'] = float(
+            ref_conv['U']
+        )
 
         # Extract all physical bands and wavelengths
         wavelengths = {}
@@ -178,13 +182,13 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     if w_node.find('MIN') is not None
                     else 'nm',
                 }
-        #self.s2_metadata["properties"]['s2:spectral_information'] = wavelengths
+        # self.s2_metadata["properties"]['s2:spectral_information'] = wavelengths
         self._map_bands(wavelengths)
 
-        self.s2_metadata["links"] = [
+        self.s2_metadata['links'] = [
             {
-                "rel": "license",
-                "href": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice"
+                'rel': 'license',
+                'href': 'https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice',
             },
         ]
 
@@ -210,7 +214,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
     def _save_json(self):
         """Save metadata to a JSON file."""
-        filename = self.s2_metadata["properties"]['s2:product_uri'].replace('.SAFE', '.json')
+        filename = self.s2_metadata['properties']['s2:product_uri'].replace(
+            '.SAFE', '.json'
+        )
         output_path = self._config['output_folder'] / filename
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(self.s2_metadata, f, indent=4)
@@ -333,67 +339,103 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 properties['href'] = properties['href'].replace('.tiff', '.jp2')
 
     def _map_bands(self, wavelengths):
-        """ Generate a Dictionary from that will be used for creating the STAC assets """
+        """Generate a Dictionary from that will be used for creating the STAC assets"""
         self.band_map = {
             'B01': {
                 'common_name': 'coastal',
-                'center_wavelength': wavelengths['B1']['central']/1000,
-                'full_width_half_max': (wavelengths['B1']['max']-wavelengths['B1']['min'])/1000,
+                'center_wavelength': wavelengths['B1']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B1']['max'] - wavelengths['B1']['min']
+                )
+                / 1000,
             },
             'B02': {
                 'common_name': 'blue',
-                'center_wavelength': wavelengths['B2']['central']/1000,
-                'full_width_half_max': (wavelengths['B2']['max']-wavelengths['B2']['min'])/1000,
+                'center_wavelength': wavelengths['B2']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B2']['max'] - wavelengths['B2']['min']
+                )
+                / 1000,
             },
             'B03': {
                 'common_name': 'green',
-                'center_wavelength': wavelengths['B3']['central']/1000,
-                'full_width_half_max': (wavelengths['B3']['max']-wavelengths['B3']['min'])/1000,
+                'center_wavelength': wavelengths['B3']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B3']['max'] - wavelengths['B3']['min']
+                )
+                / 1000,
             },
             'B04': {
                 'common_name': 'red',
-                'center_wavelength': wavelengths['B4']['central']/1000,
-                'full_width_half_max': (wavelengths['B4']['max']-wavelengths['B4']['min'])/1000,
+                'center_wavelength': wavelengths['B4']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B4']['max'] - wavelengths['B4']['min']
+                )
+                / 1000,
             },
             'B05': {
                 'common_name': 'rededge1',
-                'center_wavelength': wavelengths['B5']['central']/1000,
-                'full_width_half_max': (wavelengths['B5']['max']-wavelengths['B5']['min'])/1000,
+                'center_wavelength': wavelengths['B5']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B5']['max'] - wavelengths['B5']['min']
+                )
+                / 1000,
             },
             'B06': {
                 'common_name': 'rededge2',
-                'center_wavelength': wavelengths['B6']['central']/1000,
-                'full_width_half_max': (wavelengths['B6']['max']-wavelengths['B6']['min'])/1000,
+                'center_wavelength': wavelengths['B6']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B6']['max'] - wavelengths['B6']['min']
+                )
+                / 1000,
             },
             'B07': {
                 'common_name': 'rededge3',
-                'center_wavelength': wavelengths['B7']['central']/1000,
-                'full_width_half_max': (wavelengths['B7']['max']-wavelengths['B7']['min'])/1000,
+                'center_wavelength': wavelengths['B7']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B7']['max'] - wavelengths['B7']['min']
+                )
+                / 1000,
             },
             'B08': {
                 'common_name': 'nir',
-                'center_wavelength': wavelengths['B8']['central']/1000,
-                'full_width_half_max': (wavelengths['B8']['max']-wavelengths['B8']['min'])/1000,
+                'center_wavelength': wavelengths['B8']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B8']['max'] - wavelengths['B8']['min']
+                )
+                / 1000,
             },
             'B8A': {
                 'common_name': 'nir08',
-                'center_wavelength': wavelengths['B8A']['central']/1000,
-                'full_width_half_max': (wavelengths['B8A']['max']-wavelengths['B8A']['min'])/1000,
+                'center_wavelength': wavelengths['B8A']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B8A']['max'] - wavelengths['B8A']['min']
+                )
+                / 1000,
             },
             'B09': {
                 'common_name': 'nir09',
-                'center_wavelength': wavelengths['B9']['central']/1000,
-                'full_width_half_max': (wavelengths['B9']['max']-wavelengths['B9']['min'])/1000,
+                'center_wavelength': wavelengths['B9']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B9']['max'] - wavelengths['B9']['min']
+                )
+                / 1000,
             },
             'B11': {
                 'common_name': 'swir16',
-                'center_wavelength': wavelengths['B11']['central']/1000,
-                'full_width_half_max': (wavelengths['B11']['max']-wavelengths['B11']['min'])/1000,
+                'center_wavelength': wavelengths['B11']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B11']['max'] - wavelengths['B11']['min']
+                )
+                / 1000,
             },
             'B12': {
                 'common_name': 'swir22',
-                'center_wavelength': wavelengths['B12']['central']/1000,
-                'full_width_half_max': (wavelengths['B12']['max']-wavelengths['B12']['min'])/1000,
+                'center_wavelength': wavelengths['B12']['central'] / 1000,
+                'full_width_half_max': (
+                    wavelengths['B12']['max'] - wavelengths['B12']['min']
+                )
+                / 1000,
             },
             'SCL': {'common_name': 'Scene classification map (SCL)'},
         }
@@ -484,7 +526,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.Warp(vrt_output, src_file, options=warp_options)
             resampled_vrt_files.append(vrt_output)
 
-        base_name = self.s2_metadata["properties"]['s2:product_uri'].replace('.SAFE', '')
+        base_name = self.s2_metadata['properties']['s2:product_uri'].replace(
+            '.SAFE', ''
+        )
         if self._config['split_bands']:
             # Save each band as a separate GeoTIFF
             self.logger.info('Saving bands as separate GeoTIFF files')
@@ -590,7 +634,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.Unlink(vrt)
 
     def _update_stack_assets(self):
-        """ Append the paths of the generated raster(s) and spectral bands as STAC assets to the metadata. """
+        """Append the paths of the generated raster(s) and spectral bands as STAC assets to the metadata."""
         self.s2_metadata['assets'] = {}
         if self.driver_name == 'JP2OpenJPEG':
             asset_type = 'image/jp2'
@@ -618,8 +662,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     eo_band_info = {
                         'name': band_name,
                         'common_name': properties.get('common_name', ''),
-                        'center_wavelength': round(properties.get('center_wavelength', ''), 3),
-                        'full_width_half_max': round(properties.get('full_width_half_max', ''), 3),
+                        'center_wavelength': round(
+                            properties.get('center_wavelength', ''), 3
+                        ),
+                        'full_width_half_max': round(
+                            properties.get('full_width_half_max', ''), 3
+                        ),
                     }
 
                     asset_entry['eo:bands'] = [eo_band_info]
@@ -632,10 +680,15 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             for band_name, properties in self.band_map.items():
                 band_entry = {
                     'name': band_name,
-                    'common_name': properties.get('common_name', '')}
+                    'common_name': properties.get('common_name', ''),
+                }
                 if band_name != 'SCL':
-                    band_entry['center_wavelength'] = round(properties['center_wavelength'], 3)
-                    band_entry['full_width_half_max'] = round(properties['full_width_half_max'], 3)
+                    band_entry['center_wavelength'] = round(
+                        properties['center_wavelength'], 3
+                    )
+                    band_entry['full_width_half_max'] = round(
+                        properties['full_width_half_max'], 3
+                    )
                 eo_bands.append(band_entry)
 
             # Construct the multiband asset
