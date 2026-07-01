@@ -423,43 +423,79 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # Dictionary that will be used for updating the assets
         self.band_map = {
-            'B01': {'common_name': 'coastal',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B1']['central'])
-                    },
-            'B02': {'common_name': 'blue',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B2']['central'])
-                    },
-            'B03': {'common_name': 'green',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B3']['central'])
-                    },
-            'B04': {'common_name': 'red', "center_wavelength": float(self.s2_metadata['Wavelengths']['B4']['central'])
-                    },
-            'B05': {'common_name': 'rededge1',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B5']['central'])
-                    },
-            'B06': {'common_name': 'rededge2',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B6']['central'])
-                    },
-            'B07': {'common_name': 'rededge3',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B7']['central'])
-                    },
-            'B08': {'common_name': 'nir',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B8']['central'])
-                    },
-            'B8A': {'common_name': 'nir08',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B8A']['central'])
-                    },
-            'B09': {'common_name': 'nir09',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B9']['central'])
-                    },
-            'B11': {'common_name': 'swir16',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B11']['central'])
-                    },
-            'B12': {'common_name': 'swir22',
-                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B12']['central'])
-                    },
-            'SCL': {'common_name': 'Scene classification map (SCL)'
-                    },
+            'B01': {
+                'common_name': 'coastal',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B1']['central']
+                ),
+            },
+            'B02': {
+                'common_name': 'blue',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B2']['central']
+                ),
+            },
+            'B03': {
+                'common_name': 'green',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B3']['central']
+                ),
+            },
+            'B04': {
+                'common_name': 'red',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B4']['central']
+                ),
+            },
+            'B05': {
+                'common_name': 'rededge1',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B5']['central']
+                ),
+            },
+            'B06': {
+                'common_name': 'rededge2',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B6']['central']
+                ),
+            },
+            'B07': {
+                'common_name': 'rededge3',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B7']['central']
+                ),
+            },
+            'B08': {
+                'common_name': 'nir',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B8']['central']
+                ),
+            },
+            'B8A': {
+                'common_name': 'nir08',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B8A']['central']
+                ),
+            },
+            'B09': {
+                'common_name': 'nir09',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B9']['central']
+                ),
+            },
+            'B11': {
+                'common_name': 'swir16',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B11']['central']
+                ),
+            },
+            'B12': {
+                'common_name': 'swir22',
+                'center_wavelength': float(
+                    self.s2_metadata['Wavelengths']['B12']['central']
+                ),
+            },
+            'SCL': {'common_name': 'Scene classification map (SCL)'},
         }
 
         base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
@@ -568,7 +604,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.Unlink(vrt)
 
     def _update_stack_assets(self):
-        self.s2_metadata["assets"] = {}
+        self.s2_metadata['assets'] = {}
         if self.driver_name == 'JP2OpenJPEG':
             asset_type = 'image/jp2'
         else:
@@ -577,47 +613,53 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         if self._config['split_bands']:
             for band_name, properties in self.band_map.items():
                 # SCL is categorized with a classification role instead of standard spectral data
-                roles = ["data", "classification"] if band_name == "SCL" else ["data", "reflectance"]
+                roles = (
+                    ['data', 'classification']
+                    if band_name == 'SCL'
+                    else ['data', 'reflectance']
+                )
 
                 asset_entry = {
-                    "href": properties["href"].replace("\\", "/"),
-                    "type": asset_type,
-                    "roles": roles,
-                    "title": f"{band_name} - {properties.get('common_name', '')}"
+                    'href': properties['href'].replace('\\', '/'),
+                    'type': asset_type,
+                    'roles': roles,
+                    'title': f'{band_name} - {properties.get("common_name", "")}',
                 }
 
                 # Add the metadata for spectral bands
-                if not band_name == "SCL":
+                if not band_name == 'SCL':
                     eo_band_info = {
-                        "name": band_name,
-                        "common_name": properties.get("common_name", "")
+                        'name': band_name,
+                        'common_name': properties.get('common_name', ''),
                     }
-                    if "center_wavelength" in properties:
-                        eo_band_info["center_wavelength"] = properties["center_wavelength"]
+                    if 'center_wavelength' in properties:
+                        eo_band_info['center_wavelength'] = properties[
+                            'center_wavelength'
+                        ]
 
-                    asset_entry["eo:bands"] = [eo_band_info]
+                    asset_entry['eo:bands'] = [eo_band_info]
 
-                self.s2_metadata["assets"][band_name] = asset_entry
+                self.s2_metadata['assets'][band_name] = asset_entry
 
         else:
             eo_bands = []
             # Iterate through bands to construct the band metadata array in the order of the keys
             for band_name, properties in self.band_map.items():
                 band_entry = {
-                    "name": band_name,
-                    "common_name": properties.get("common_name", ""),
-                    "center_wavelength": properties.get("center_wavelength", "")
+                    'name': band_name,
+                    'common_name': properties.get('common_name', ''),
+                    'center_wavelength': properties.get('center_wavelength', ''),
                 }
 
                 eo_bands.append(band_entry)
 
             # Construct the multiband asset
-            self.s2_metadata["assets"]['data'] = {
-                "href": self.band_map['B01']['href'].replace("\\", "/"),
-                "type": asset_type,
-                "roles": ["data"],
-                "title": "Sentinel-2 Spectral Data",
-                "eo:bands": eo_bands
+            self.s2_metadata['assets']['data'] = {
+                'href': self.band_map['B01']['href'].replace('\\', '/'),
+                'type': asset_type,
+                'roles': ['data'],
+                'title': 'Sentinel-2 Spectral Data',
+                'eo:bands': eo_bands,
             }
 
     def _run(self):
