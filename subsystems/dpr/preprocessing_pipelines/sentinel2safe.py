@@ -5,6 +5,7 @@ from pathlib import Path, PosixPath
 import numpy
 from osgeo import gdal, ogr
 from shapely import wkt
+from shapely.geometry import mapping
 from shapely.ops import transform
 from pyproj import Transformer
 
@@ -216,7 +217,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         transformed_geom = transform(transformer.transform, geom)
         return transformed_geom.wkt
 
-    def _update_metadata_bbox(self, gdal_dataset):
+    def _update_metadata_bbox_geometry(self, gdal_dataset):
         """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
         :return: roi transformed  (WKT)
         :rtype: str
@@ -234,6 +235,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         transformer = Transformer.from_crs(target_epsg, 'EPSG:4326', always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         self.s2_metadata['bbox'] = transformed_geom.bounds
+        self.s2_metadata['geometry'] = mapping(transformed_geom)
 
     def _process_scl_statistics(self, slc_array):
         """
@@ -312,6 +314,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         self.s2_metadata['source_paths'] = [
             path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_paths']
         ]
+
+        # update band map
+        for band_id, properties in self.band_map.items():
+            # Check if the nested dictionary has an 'href' key
+            if 'href' in properties:
+                properties['href'] = properties['href'].replace('.tiff', '.jp2')
 
     def _process_and_merge_jp2(self, roi):
         """
@@ -413,6 +421,47 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             'SCL',
         ]
 
+        # Dictionary that will be used for updating the assets
+        self.band_map = {
+            'B01': {'common_name': 'coastal',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B1']['central'])
+                    },
+            'B02': {'common_name': 'blue',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B2']['central'])
+                    },
+            'B03': {'common_name': 'green',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B3']['central'])
+                    },
+            'B04': {'common_name': 'red', "center_wavelength": float(self.s2_metadata['Wavelengths']['B4']['central'])
+                    },
+            'B05': {'common_name': 'rededge1',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B5']['central'])
+                    },
+            'B06': {'common_name': 'rededge2',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B6']['central'])
+                    },
+            'B07': {'common_name': 'rededge3',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B7']['central'])
+                    },
+            'B08': {'common_name': 'nir',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B8']['central'])
+                    },
+            'B8A': {'common_name': 'nir08',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B8A']['central'])
+                    },
+            'B09': {'common_name': 'nir09',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B9']['central'])
+                    },
+            'B11': {'common_name': 'swir16',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B11']['central'])
+                    },
+            'B12': {'common_name': 'swir22',
+                    "center_wavelength": float(self.s2_metadata['Wavelengths']['B12']['central'])
+                    },
+            'SCL': {'common_name': 'Scene classification map (SCL)'
+                    },
+        }
+
         base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
         if self._config['split_bands']:
             # Save each band as a separate GeoTIFF
@@ -426,7 +475,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             mask = scl_data.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
             scl_data.FlushCache()
             # update metadata bbox
-            self._update_metadata_bbox(scl_ds)
+            self._update_metadata_bbox_geometry(scl_ds)
             del scl_ds
 
             for i, (vrt_file, band_name, offset) in enumerate(
@@ -437,9 +486,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     self._config['output_folder'], output_filename
                 )
 
-                options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
+                # save filename to assets
+                self.band_map[band_name]['href'] = os.path.join('./', output_filename)
 
                 # Convert VRT to GeoTIFF or JP2
+                options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
                 gdal.Translate(
                     output_path, vrt_file, format='Gtiff', creationOptions=options
                 )
@@ -479,6 +530,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             product_name = f'{base_name}.tiff'
             output_path = os.path.join(self._config['output_folder'], product_name)
 
+            # save file name to assets dictionary (we only use the Band1 entry)
+            self.band_map['B01']['href'] = os.path.join('./', product_name)
+
             options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
                 output_path, mosaic_vrt, format='GTiff', creationOptions=options
@@ -498,7 +552,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # get land cover stats from SCL band
             self._process_scl_statistics(scl_band.ReadAsArray())
             # update metadata bbox
-            self._update_metadata_bbox(ds)
+            self._update_metadata_bbox_geometry(ds)
             # Add path to the metadata
             self.s2_metadata['source_paths'] = [str(output_path)]
             # Clean temp mosaic VRT
@@ -512,6 +566,59 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
+
+    def _update_stack_assets(self):
+        self.s2_metadata["assets"] = {}
+        if self.driver_name == 'JP2OpenJPEG':
+            asset_type = 'image/jp2'
+        else:
+            asset_type = 'image/tiff'
+
+        if self._config['split_bands']:
+            for band_name, properties in self.band_map.items():
+                # SCL is categorized with a classification role instead of standard spectral data
+                roles = ["data", "classification"] if band_name == "SCL" else ["data", "reflectance"]
+
+                asset_entry = {
+                    "href": properties["href"].replace("\\", "/"),
+                    "type": asset_type,
+                    "roles": roles,
+                    "title": f"{band_name} - {properties.get('common_name', '')}"
+                }
+
+                # Add the metadata for spectral bands
+                if not band_name == "SCL":
+                    eo_band_info = {
+                        "name": band_name,
+                        "common_name": properties.get("common_name", "")
+                    }
+                    if "center_wavelength" in properties:
+                        eo_band_info["center_wavelength"] = properties["center_wavelength"]
+
+                    asset_entry["eo:bands"] = [eo_band_info]
+
+                self.s2_metadata["assets"][band_name] = asset_entry
+
+        else:
+            eo_bands = []
+            # Iterate through bands to construct the band metadata array in the order of the keys
+            for band_name, properties in self.band_map.items():
+                band_entry = {
+                    "name": band_name,
+                    "common_name": properties.get("common_name", ""),
+                    "center_wavelength": properties.get("center_wavelength", "")
+                }
+
+                eo_bands.append(band_entry)
+
+            # Construct the multiband asset
+            self.s2_metadata["assets"]['data'] = {
+                "href": self.band_map['B01']['href'].replace("\\", "/"),
+                "type": asset_type,
+                "roles": ["data"],
+                "title": "Sentinel-2 Spectral Data",
+                "eo:bands": eo_bands
+            }
 
     def _run(self):
         self._configure()
@@ -570,6 +677,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self._extract_mtd_tl()
             roi = self._roi_transform_wgs_to_utm()
             self._process_and_merge_jp2(roi)
+            self._update_stack_assets()
             self._save_json()
         else:
             self.logger.error(

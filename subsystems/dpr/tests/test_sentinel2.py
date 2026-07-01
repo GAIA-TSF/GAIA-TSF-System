@@ -109,21 +109,19 @@ class TestSentinel2Workflow:
         json_path = os.path.join(output_folder, raster_path.replace(extension, '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
 
-        # Check if essential keys are present in the metadata file
+        # Check if essential keys are present in the stac metadata file
         with open(json_path, 'r') as f:
             metadata = json.load(f)
         essential_keys = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
-            'PRODUCT_TYPE',
-            'DATATAKE_SENSING_START',
-            'Wavelengths',
-            'Reflectance_Conversion',
-            'HORIZONTAL_CS_NAME',
-            'HORIZONTAL_CS_CODE',
-            'source_paths',
-            'Input_SAFE_path',
+            "type",
+            "stac_version",
+            "id",
+            "properties",
+            "geometry",
+            "assets",
+            'SCL_classes_pct',
+            'cloud_cover_pct',
+            'null_pixel_pct',
         ]
         for key in essential_keys:
             assert key in metadata, f'Key {key} is missing from metadata file.'
@@ -166,7 +164,7 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
         )
 
-        # Check if metadata bbox is same as input ROI
+        # Check if stac metadata bbox is same as input ROI
         output_bbox = numpy.array(metadata['bbox'])
         xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
         input_bbox = numpy.array((xmin, ymin, xmax, ymax))
@@ -235,21 +233,19 @@ class TestSentinel2Workflow:
         with open(json_path, 'r') as f:
             metadata = json.load(f)
 
-        # Debug: print what keys are actually in metadata
+        # Debug: print what keys are actually in stac metadata
         print(f'Keys in metadata: {list(metadata.keys())}')
 
         essential_keys = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
-            'PRODUCT_TYPE',
-            'DATATAKE_SENSING_START',
-            'Wavelengths',
-            'Reflectance_Conversion',
-            'HORIZONTAL_CS_NAME',
-            'HORIZONTAL_CS_CODE',
-            'source_paths',
-            'Input_SAFE_path',
+            "type",
+            "stac_version",
+            "id",
+            "properties",
+            "geometry",
+            "assets",
+            'SCL_classes_pct',
+            'cloud_cover_pct',
+            'null_pixel_pct',
         ]
         for key in essential_keys:
             assert key in metadata, (
@@ -281,6 +277,12 @@ class TestSentinel2Workflow:
             band_path = os.path.join(output_folder, band_filename)
             assert os.path.exists(band_path), (
                 f'Band file {band_filename} was not created.'
+            )
+
+        # Check if stac assets were created
+        for band_name in expected_bands:
+            assert band_name in metadata['assets'], (
+                f'Key {band_name} is missing from metadata assets. Available keys: {list(metadata["assets"].keys())}'
             )
 
         # Verify that source_path contains all 13 files
@@ -329,7 +331,7 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi}.'
         )
 
-        # Check if metadata bbox is same as input ROI
+        # Check if stac metadata bbox is same as input ROI
         output_bbox = numpy.array(metadata['bbox'])
         xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
         input_bbox = numpy.array((xmin, ymin, xmax, ymax))
