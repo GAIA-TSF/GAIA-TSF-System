@@ -113,12 +113,12 @@ class TestSentinel2Workflow:
         with open(json_path, 'r') as f:
             metadata = json.load(f)
         essential_keys = [
-            "type",
-            "stac_version",
-            "id",
-            "properties",
-            "geometry",
-            "assets",
+            'type',
+            'stac_version',
+            'id',
+            'properties',
+            'geometry',
+            'assets',
             'SCL_classes_pct',
             'cloud_cover_pct',
             'null_pixel_pct',
@@ -237,12 +237,12 @@ class TestSentinel2Workflow:
         print(f'Keys in metadata: {list(metadata.keys())}')
 
         essential_keys = [
-            "type",
-            "stac_version",
-            "id",
-            "properties",
-            "geometry",
-            "assets",
+            'type',
+            'stac_version',
+            'id',
+            'properties',
+            'geometry',
+            'assets',
             'SCL_classes_pct',
             'cloud_cover_pct',
             'null_pixel_pct',
