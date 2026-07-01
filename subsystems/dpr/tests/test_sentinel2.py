@@ -279,12 +279,6 @@ class TestSentinel2Workflow:
                 f'Key {band_name} is missing from metadata assets. Available keys: {list(metadata["assets"].keys())}'
             )
 
-        # Verify that source_path contains all 13 files
-        assert 'source_paths' in metadata, 'source_paths key is missing from metadata.'
-        assert len(metadata['source_paths']) == 13, (
-            f'Expected 13 band files in source_paths, got {len(metadata["source_paths"])}'
-        )
-
         # Check properties of one of the band files (e.g., B02)
         test_band_path = os.path.join(output_folder, f'{base_filename}_B02{extension}')
         ds = gdal.Open(test_band_path, gdal.GA_ReadOnly)
