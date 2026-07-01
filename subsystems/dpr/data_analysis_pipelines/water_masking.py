@@ -150,14 +150,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         self.scenes_metadata = None
         self.scenes_metadata_filtered = None
 
-    def _list_stac_assets(self, stac_source: str):
+    def _list_stac_assets(self, stac_data: str):
         """
         Parses a STAC Item for raster assets and return their filenames and count.
-        :param stac_source: STAC JSON file.
+        :param stac_data: Opened STAC JSON file.
         """
-        with open(stac_source, 'r', encoding='utf-8') as f:
-            stac_data = json.load(f)
-
         # Check that the item is not a collection
         # Normalize data structure into a list of items
         stac_type = stac_data.get("type")
@@ -177,8 +174,6 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         asset_paths = []
         # Iterate through items and extract assets
         for item in items:
-            item_id = item.get("id", "Unknown ID")
-
             assets = item.get("assets", {})
             if not assets:
                 continue
