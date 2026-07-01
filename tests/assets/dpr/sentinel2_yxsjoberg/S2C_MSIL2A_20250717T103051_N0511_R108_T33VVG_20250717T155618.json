@@ -1,9 +1,37 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
-    "id": "sample-stac-item",
+    "id": "S2C_T33VVG_20250717T103051_L2A",
     "properties": {
-        "datetime": "2025-07-17T10:30:51.025Z"
+        "datetime": "2025-07-17T10:30:51.025Z",
+        "s2:product_start_time": "2025-07-17T10:30:51.025Z",
+        "s2:product_stop_time": "2025-07-17T10:30:51.025Z",
+        "s2:product_uri": "S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.SAFE",
+        "s2:processing_level": "Level-2A",
+        "s2:product_type": "S2MSI2A",
+        "s2:product_doi": "https://doi.org/10.5270/S2_-znk9xsj",
+        "s2:generation_time": "2025-07-17T15:56:18.000000Z",
+        "s2:spacecraft_name": "Sentinel-2C",
+        "s2:datatake_sensing_start": "2025-07-17T10:30:51.025Z",
+        "s2:datatake_type": "INS-NOBS",
+        "s2:sensing_orbit_number": "108",
+        "s2:sensing_orbit_direction": "DESCENDING",
+        "s2:reflectance_conversion_factor": 0.967715320139721,
+        "s2:horizontal_cs_name": "WGS84 / UTM zone 33N",
+        "s2:horizontal_cs_code": "EPSG:32633",
+        "s2:nodata_pixel_percentage": 0,
+        "s2:saturated_defective_pixel_percentage": 0,
+        "s2:dark_features_percentage": 0.025974,
+        "s2:cloud_shadow_percentage": 0,
+        "s2:vegetation_percentage": 94.103896,
+        "s2:not_vegetated_percentage": 0.764378,
+        "s2:water_percentage": 4.159555,
+        "s2:unclassified_percentage": 0.946197,
+        "s2:medium_proba_clouds_percentage": 0,
+        "s2:high_proba_clouds_percentage": 0,
+        "s2:thin_cirrus_percentage": 0,
+        "s2:snow_ice_percentage": 0,
+        "eo:cloud_cover": 0
     },
     "geometry": {
         "type": "Polygon",
@@ -32,219 +60,105 @@
             ]
         ]
     },
-    "links": [],
+    "links": [
+        {
+            "rel": "license",
+            "href": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice"
+        }
+    ],
     "assets": {
         "data": {
             "href": "./S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.jp2",
             "type": "image/jp2",
             "roles": [
-                "data"
+                "data",
+                "reflectance"
             ],
-            "title": "Sentinel-2 Spectral Data",
+            "title": "bands",
             "eo:bands": [
                 {
                     "name": "B01",
                     "common_name": "coastal",
-                    "center_wavelength": 444.2
+                    "center_wavelength": 0.444,
+                    "full_width_half_max": 0.06
                 },
                 {
                     "name": "B02",
                     "common_name": "blue",
-                    "center_wavelength": 489.0
+                    "center_wavelength": 0.489,
+                    "full_width_half_max": 0.107
                 },
                 {
                     "name": "B03",
                     "common_name": "green",
-                    "center_wavelength": 560.6
+                    "center_wavelength": 0.561,
+                    "full_width_half_max": 0.077
                 },
                 {
                     "name": "B04",
                     "common_name": "red",
-                    "center_wavelength": 666.5
+                    "center_wavelength": 0.666,
+                    "full_width_half_max": 0.073
                 },
                 {
                     "name": "B05",
                     "common_name": "rededge1",
-                    "center_wavelength": 707.1
+                    "center_wavelength": 0.707,
+                    "full_width_half_max": 0.058
                 },
                 {
                     "name": "B06",
                     "common_name": "rededge2",
-                    "center_wavelength": 741.1
+                    "center_wavelength": 0.741,
+                    "full_width_half_max": 0.058
                 },
                 {
                     "name": "B07",
                     "common_name": "rededge3",
-                    "center_wavelength": 784.7
+                    "center_wavelength": 0.785,
+                    "full_width_half_max": 0.063
                 },
                 {
                     "name": "B08",
                     "common_name": "nir",
-                    "center_wavelength": 834.6
+                    "center_wavelength": 0.835,
+                    "full_width_half_max": 0.162
                 },
                 {
                     "name": "B8A",
                     "common_name": "nir08",
-                    "center_wavelength": 865.6
+                    "center_wavelength": 0.866,
+                    "full_width_half_max": 0.064
                 },
                 {
                     "name": "B09",
                     "common_name": "nir09",
-                    "center_wavelength": 947.2
+                    "center_wavelength": 0.947,
+                    "full_width_half_max": 0.063
                 },
                 {
                     "name": "B11",
                     "common_name": "swir16",
-                    "center_wavelength": 1612.0
+                    "center_wavelength": 1.612,
+                    "full_width_half_max": 0.139
                 },
                 {
                     "name": "B12",
                     "common_name": "swir22",
-                    "center_wavelength": 2191.3
+                    "center_wavelength": 2.191,
+                    "full_width_half_max": 0.246
                 },
                 {
                     "name": "SCL",
-                    "common_name": "Scene classification map (SCL)",
-                    "center_wavelength": ""
+                    "common_name": "Scene classification map (SCL)"
                 }
             ]
         }
     },
-    "Input_SAFE_path": "s2eodag\\S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.zip",
-    "PRODUCT_START_TIME": "2025-07-17T10:30:51.025Z",
-    "PRODUCT_STOP_TIME": "2025-07-17T10:30:51.025Z",
-    "PRODUCT_URI": "S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.SAFE",
-    "PROCESSING_LEVEL": "Level-2A",
-    "PRODUCT_TYPE": "S2MSI2A",
-    "PRODUCT_DOI": "https://doi.org/10.5270/S2_-znk9xsj",
-    "GENERATION_TIME": "2025-07-17T15:56:18.000000Z",
-    "SPACECRAFT_NAME": "Sentinel-2C",
-    "DATATAKE_SENSING_START": "2025-07-17T10:30:51.025Z",
-    "DATATAKE_TYPE": "INS-NOBS",
-    "SENSING_ORBIT_NUMBER": "108",
-    "SENSING_ORBIT_DIRECTION": "DESCENDING",
-    "Reflectance_Conversion": {
-        "U": "0.967715320139721",
-        "Solar_Irradiance_List": "\n          "
-    },
-    "Wavelengths": {
-        "B1": {
-            "bandId": "0",
-            "min": "414",
-            "max": "474",
-            "central": "444.2",
-            "unit": "nm"
-        },
-        "B2": {
-            "bandId": "1",
-            "min": "436",
-            "max": "543",
-            "central": "489",
-            "unit": "nm"
-        },
-        "B3": {
-            "bandId": "2",
-            "min": "522",
-            "max": "599",
-            "central": "560.6",
-            "unit": "nm"
-        },
-        "B4": {
-            "bandId": "3",
-            "min": "630",
-            "max": "703",
-            "central": "666.5",
-            "unit": "nm"
-        },
-        "B5": {
-            "bandId": "4",
-            "min": "678",
-            "max": "736",
-            "central": "707.1",
-            "unit": "nm"
-        },
-        "B6": {
-            "bandId": "5",
-            "min": "712",
-            "max": "770",
-            "central": "741.1",
-            "unit": "nm"
-        },
-        "B7": {
-            "bandId": "6",
-            "min": "753",
-            "max": "816",
-            "central": "784.7",
-            "unit": "nm"
-        },
-        "B8": {
-            "bandId": "7",
-            "min": "761",
-            "max": "923",
-            "central": "834.6",
-            "unit": "nm"
-        },
-        "B8A": {
-            "bandId": "8",
-            "min": "834",
-            "max": "898",
-            "central": "865.6",
-            "unit": "nm"
-        },
-        "B9": {
-            "bandId": "9",
-            "min": "916",
-            "max": "979",
-            "central": "947.2",
-            "unit": "nm"
-        },
-        "B10": {
-            "bandId": "10",
-            "min": "1332",
-            "max": "1413",
-            "central": "1372.2",
-            "unit": "nm"
-        },
-        "B11": {
-            "bandId": "11",
-            "min": "1540",
-            "max": "1679",
-            "central": "1612",
-            "unit": "nm"
-        },
-        "B12": {
-            "bandId": "12",
-            "min": "2066",
-            "max": "2312",
-            "central": "2191.3",
-            "unit": "nm"
-        }
-    },
-    "HORIZONTAL_CS_NAME": "WGS84 / UTM zone 33N",
-    "HORIZONTAL_CS_CODE": "EPSG:32633",
-    "SCL_classes_pct": {
-        "SCL_no_data": 0,
-        "SCL_saturated_or_defective": 0,
-        "SCL_dark_areas": 0.0003,
-        "SCL_cloud_shadows": 0,
-        "SCL_vegetation": 0.941,
-        "SCL_non_vegetated": 0.0076,
-        "SCL_water": 0.0416,
-        "SCL_unclassified": 0.0095,
-        "SCL_cloud_medium_probability": 0,
-        "SCL_cloud_high_probability": 0,
-        "SCL_thin_cirrus": 0,
-        "SCL_snow_or_ice": 0
-    },
-    "cloud_cover_pct": 0,
-    "null_pixel_pct": 0,
     "bbox": [
         14.756816300701463,
         60.02685810520952,
         14.826080724365097,
         60.05210872683617
-    ],
-    "source_paths": [
-        "test_safe_extractor\\S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.jp2"
     ]
 }

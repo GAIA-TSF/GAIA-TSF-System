@@ -49,9 +49,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             'max_cloud_snow_dark': {
                 'dtype': float,
                 'description': 'Parameter used to filter scenes based on the maximum percentage of pixels containing '
-                'clouds/snow/shadows. Ratio between 0 and 1. Scenes with a ratio above this value will '
+                'clouds/snow/shadows. Value between 0 and 100. Scenes with a ratio above this value will '
                 'be filtered out',
-                'default': 0.2,
+                'default': 20,
             },
             'threshold_parameters': {
                 'dtype': dict,
@@ -233,21 +233,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     f'{len(data.get("source_paths"))} rasters.'
                 )
             source_path = Path(os.path.join(self._config['input_folder'],asset_paths[0]))
-            # if isinstance(data.get('source_paths'), str):
-            #     source_path = Path(data.get('source_paths'))
-            # elif isinstance(data.get('source_paths'), list):
-            #     if len(data.get('source_paths')) > 1:
-            #         raise ValueError(
-            #             f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
-            #             f'paths for {len(data.get("source_paths"))} separate files.'
-            #         )
-            #     else:
-            #         source_path = Path(data.get('source_paths')[0])
-            # else:
-            #     raise ValueError(
-            #         'Error parsing raster path from metadata. The "source_paths" key is neither a string '
-            #         'or a list.'
-            #     )
+
             if source_path.exists():
                 raster_path = source_path
             elif json_path.with_suffix('.jp2').exists():
@@ -259,15 +245,14 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                     f'Could not locate the raster associated with {source_path}'
                 )
 
-            scl_stats = data.get('SCL_classes_pct', {})
             record = {
-                'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
+                'datetime': data['properties']["datetime"],
                 'source_path': raster_path,
                 'metadata_path': json_path,
-                'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
-                'cloud_cover_pct': data.get('cloud_cover_pct', 0),
-                'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
-                'SCL_dark_areas': scl_stats.get('SCL_dark_areas', 0),
+                'SCL_snow_or_ice': data['properties']["s2:snow_ice_percentage"],
+                'cloud_cover_pct': data['properties']['eo:cloud_cover'],
+                'SCL_cloud_shadows': data['properties']["s2:cloud_shadow_percentage"],
+                'SCL_dark_areas': data['properties']["s2:dark_features_percentage"],
             }
             records.append(record)
 
@@ -806,11 +791,19 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
+                    # Add water mask band to assets
+                    new_band = {
+                        "name": "watermask",
+                        "common_name": "labeled water bodies"
+                    }
+                    bands = metadata['assets']['data']['eo:bands']
+                    bands.append(new_band)
+                    metadata['assets']['data']['eo:bands'] = bands
+                    # Add water mask surface in %
                     rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
-                    metadata['water_mask_pct'] = round(
-                        np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
+                    metadata['properties']['eo:water_mask_percentage'] = round(
+                        (np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols)) * 100, 4
                     )
-                    metadata['source_paths'] = [out_path]
                     _, file_extension = os.path.splitext(out_path)
                     with open(out_path.replace(file_extension, '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)

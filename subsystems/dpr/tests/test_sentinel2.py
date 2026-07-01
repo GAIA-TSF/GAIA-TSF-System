@@ -119,9 +119,6 @@ class TestSentinel2Workflow:
             'properties',
             'geometry',
             'assets',
-            'SCL_classes_pct',
-            'cloud_cover_pct',
-            'null_pixel_pct',
         ]
         for key in essential_keys:
             assert key in metadata, f'Key {key} is missing from metadata file.'
@@ -153,7 +150,7 @@ class TestSentinel2Workflow:
         output_roi = numpy.array((minx, miny, maxx, maxy))
         # input ROI:
         geom = wkt.loads(roi)
-        target_epsg = metadata['HORIZONTAL_CS_CODE']
+        target_epsg = metadata['properties']['s2:horizontal_cs_code']
         transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         input_roi = numpy.array(transformed_geom.bounds)
@@ -243,9 +240,6 @@ class TestSentinel2Workflow:
             'properties',
             'geometry',
             'assets',
-            'SCL_classes_pct',
-            'cloud_cover_pct',
-            'null_pixel_pct',
         ]
         for key in essential_keys:
             assert key in metadata, (
@@ -319,7 +313,7 @@ class TestSentinel2Workflow:
 
         # input ROI:
         geom = wkt.loads(roi)
-        target_epsg = metadata['HORIZONTAL_CS_CODE']
+        target_epsg = metadata['properties']['s2:horizontal_cs_code']
         transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         input_roi = numpy.array(transformed_geom.bounds)
@@ -472,11 +466,11 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'water_mask_pct' in data, (
-                    f'TEST 1: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                assert 'eo:water_masked_percentage' in data['properties'], (
+                    f'TEST 1: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['water_mask_pct'] < 0.05, (
-                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                assert data['properties']['eo:water_masked_percentage'] < 5, (
+                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
         # Check that data files were produced with all the bands and that the mask band (14) contains the expected
@@ -540,11 +534,11 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'water_mask_pct' in data, (
-                    f'TEST 2: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                assert 'eo:water_masked_percentage' in data['properties'], (
+                    f'TEST 2: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['water_mask_pct'] < 0.05, (
-                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                assert data['properties']['eo:water_masked_percentage'] < 5, (
+                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
         # Check that data file files were produced with all the bands and that the mask band (14) contains the expected
