@@ -1,4 +1,115 @@
 {
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "sample-stac-item",
+    "properties": {
+        "datetime": "2025-07-17T10:30:51.025Z"
+    },
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    14.757001041727163,
+                    60.02685810520952
+                ],
+                [
+                    14.756816300701463,
+                    60.05199966229986
+                ],
+                [
+                    14.825948500697415,
+                    60.05210872683617
+                ],
+                [
+                    14.826080724365097,
+                    60.02696705974728
+                ],
+                [
+                    14.757001041727163,
+                    60.02685810520952
+                ]
+            ]
+        ]
+    },
+    "links": [],
+    "assets": {
+        "data": {
+            "href": "./S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.jp2",
+            "type": "image/jp2",
+            "roles": [
+                "data"
+            ],
+            "title": "Sentinel-2 Spectral Data",
+            "eo:bands": [
+                {
+                    "name": "B01",
+                    "common_name": "coastal",
+                    "center_wavelength": 444.2
+                },
+                {
+                    "name": "B02",
+                    "common_name": "blue",
+                    "center_wavelength": 489.0
+                },
+                {
+                    "name": "B03",
+                    "common_name": "green",
+                    "center_wavelength": 560.6
+                },
+                {
+                    "name": "B04",
+                    "common_name": "red",
+                    "center_wavelength": 666.5
+                },
+                {
+                    "name": "B05",
+                    "common_name": "rededge1",
+                    "center_wavelength": 707.1
+                },
+                {
+                    "name": "B06",
+                    "common_name": "rededge2",
+                    "center_wavelength": 741.1
+                },
+                {
+                    "name": "B07",
+                    "common_name": "rededge3",
+                    "center_wavelength": 784.7
+                },
+                {
+                    "name": "B08",
+                    "common_name": "nir",
+                    "center_wavelength": 834.6
+                },
+                {
+                    "name": "B8A",
+                    "common_name": "nir08",
+                    "center_wavelength": 865.6
+                },
+                {
+                    "name": "B09",
+                    "common_name": "nir09",
+                    "center_wavelength": 947.2
+                },
+                {
+                    "name": "B11",
+                    "common_name": "swir16",
+                    "center_wavelength": 1612.0
+                },
+                {
+                    "name": "B12",
+                    "common_name": "swir22",
+                    "center_wavelength": 2191.3
+                },
+                {
+                    "name": "SCL",
+                    "common_name": "Scene classification map (SCL)",
+                    "center_wavelength": ""
+                }
+            ]
+        }
+    },
     "Input_SAFE_path": "s2eodag\\S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.zip",
     "PRODUCT_START_TIME": "2025-07-17T10:30:51.025Z",
     "PRODUCT_STOP_TIME": "2025-07-17T10:30:51.025Z",
@@ -111,23 +222,29 @@
     },
     "HORIZONTAL_CS_NAME": "WGS84 / UTM zone 33N",
     "HORIZONTAL_CS_CODE": "EPSG:32633",
-    "source_paths": [
-        "tests\\assets\\dpr\\sentinel2_yxsjoberg\\S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.tiff"
-    ],
     "SCL_classes_pct": {
-        "SCL_no_data": 0.0,
-        "SCL_saturated_or_defective": 0.0,
+        "SCL_no_data": 0,
+        "SCL_saturated_or_defective": 0,
         "SCL_dark_areas": 0.0003,
-        "SCL_cloud_shadows": 0.0,
+        "SCL_cloud_shadows": 0,
         "SCL_vegetation": 0.941,
         "SCL_non_vegetated": 0.0076,
         "SCL_water": 0.0416,
         "SCL_unclassified": 0.0095,
-        "SCL_cloud_medium_probability": 0.0,
-        "SCL_cloud_high_probability": 0.0,
-        "SCL_thin_cirrus": 0.0,
-        "SCL_snow_or_ice": 0.0
+        "SCL_cloud_medium_probability": 0,
+        "SCL_cloud_high_probability": 0,
+        "SCL_thin_cirrus": 0,
+        "SCL_snow_or_ice": 0
     },
-    "cloud_cover_pct": 0.0,
-    "null_pixel_pct": 0.0
+    "cloud_cover_pct": 0,
+    "null_pixel_pct": 0,
+    "bbox": [
+        14.756816300701463,
+        60.02685810520952,
+        14.826080724365097,
+        60.05210872683617
+    ],
+    "source_paths": [
+        "test_safe_extractor\\S2C_MSIL2A_20250717T103051_N0511_R108_T33VVG_20250717T155618.jp2"
+    ]
 }

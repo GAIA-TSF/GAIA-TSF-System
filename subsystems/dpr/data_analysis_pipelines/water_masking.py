@@ -150,6 +150,62 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         self.scenes_metadata = None
         self.scenes_metadata_filtered = None
 
+    def _list_stac_assets(self, stac_source: str):
+        """
+        Parses a STAC Item for raster assets and return their filenames and count.
+        :param stac_source: STAC JSON file.
+        """
+        with open(stac_source, 'r', encoding='utf-8') as f:
+            stac_data = json.load(f)
+
+        # Check that the item is not a collection
+        # Normalize data structure into a list of items
+        stac_type = stac_data.get("type")
+        if stac_type == "Feature":  # single STAC Item
+            items = [stac_data]
+        elif "assets" in stac_data:  # Collection with assets directly attached
+            items = [stac_data]
+        else:
+            print(f"Provided JSON does not directly contain STAC assets: {stac_data}")
+            return [], 0
+
+        # Common raster identifiers based on STAC specifications
+        raster_types = {"image/tiff", "image/vnd.stac.geotiff", "image/jp2", "image/jpeg", "image/png"}
+        raster_roles = {"data", "visual", "overview", "reflectance", "classification"}
+
+        asset_count = 0
+        asset_paths = []
+        # Iterate through items and extract assets
+        for item in items:
+            item_id = item.get("id", "Unknown ID")
+
+            assets = item.get("assets", {})
+            if not assets:
+                continue
+
+            for asset_key, asset_info in assets.items():
+                href = asset_info.get("href")
+                if not href:
+                    continue
+
+                media_type = asset_info.get("type", "")
+                roles = asset_info.get("roles", [])
+
+                # Determine if the asset is a raster layer
+                is_raster = (
+                        (media_type in raster_types) or
+                        any(role in raster_roles for role in roles)
+                )
+
+                # Extract the filename
+                if is_raster:
+                    clean_url = href.split("?")[0]
+                    filename = os.path.basename(clean_url)
+                    asset_paths.append(filename)
+                    asset_count += 1
+
+        return asset_paths, asset_count
+
     def _parse_metadata(self):
         """
         Retrieve metadata from json files and store them to a dictionary ('scenes_metadata'). Also perform a filtering
@@ -175,21 +231,28 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 data = json.load(f)
 
             # locate raster associated to metadata
-            if isinstance(data.get('source_paths'), str):
-                source_path = Path(data.get('source_paths'))
-            elif isinstance(data.get('source_paths'), list):
-                if len(data.get('source_paths')) > 1:
-                    raise ValueError(
-                        f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
-                        f'paths for {len(data.get("source_paths"))} separate files.'
-                    )
-                else:
-                    source_path = Path(data.get('source_paths')[0])
-            else:
+            asset_paths, asset_count = self._list_stac_assets(data)
+            if asset_count != 1:
                 raise ValueError(
-                    'Error parsing raster path from metadata. The "source_paths" key is neither a string '
-                    'or a list.'
+                    f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
+                    f'{len(data.get("source_paths"))} rasters.'
                 )
+            source_path = Path(os.path.join(self._config['input_folder'],asset_paths[0]))
+            # if isinstance(data.get('source_paths'), str):
+            #     source_path = Path(data.get('source_paths'))
+            # elif isinstance(data.get('source_paths'), list):
+            #     if len(data.get('source_paths')) > 1:
+            #         raise ValueError(
+            #             f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
+            #             f'paths for {len(data.get("source_paths"))} separate files.'
+            #         )
+            #     else:
+            #         source_path = Path(data.get('source_paths')[0])
+            # else:
+            #     raise ValueError(
+            #         'Error parsing raster path from metadata. The "source_paths" key is neither a string '
+            #         'or a list.'
+            #     )
             if source_path.exists():
                 raster_path = source_path
             elif json_path.with_suffix('.jp2').exists():
@@ -198,7 +261,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 raster_path = json_path.with_suffix('.tiff')
             else:
                 raise FileNotFoundError(
-                    f'Could not locate the raster associated with {json_path}'
+                    f'Could not locate the raster associated with {source_path}'
                 )
 
             scl_stats = data.get('SCL_classes_pct', {})
