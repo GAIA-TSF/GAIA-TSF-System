@@ -276,12 +276,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 df = self.scenes_metadata.copy()
 
                 # Convert column to datetime if not already
-                if not pd.api.types.is_datetime64_any_dtype(
-                    df['datetime']
-                ):
-                    df['datetime'] = pd.to_datetime(
-                        df['datetime']
-                    )
+                if not pd.api.types.is_datetime64_any_dtype(df['datetime']):
+                    df['datetime'] = pd.to_datetime(df['datetime'])
 
                 # Apply start date filter
                 if self._config['start_date'] is not None:
