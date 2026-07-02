@@ -424,7 +424,7 @@ class TestSentinel2Workflow:
         pipeline.configure(
             input_folder=input_folder,
             output_folder=output_folder,
-            max_cloud_snow_dark=0.1,
+            max_cloud_snow_dark=10,
             input_months=None,
             start_date=None,
             end_date=None,
@@ -493,7 +493,7 @@ class TestSentinel2Workflow:
             input_folder=input_folder,
             output_folder=output_folder,
             input_water_mask=input_water_mask,
-            max_cloud_snow_dark=0.1,
+            max_cloud_snow_dark=10,
             input_months=None,
             start_date=None,
             end_date=None,
