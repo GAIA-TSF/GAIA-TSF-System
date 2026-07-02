@@ -47,7 +47,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 'default': 'jp2',
             },
             'max_cloud_snow_dark': {
-                'dtype': float,
+                'dtype': int,
                 'description': 'Parameter used to filter scenes based on the maximum percentage of pixels containing '
                 'clouds/snow/shadows. Value between 0 and 100. Scenes with a ratio above this value will '
                 'be filtered out',
