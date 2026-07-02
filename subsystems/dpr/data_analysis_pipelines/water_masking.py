@@ -235,7 +235,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             if asset_count != 1:
                 raise ValueError(
                     f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
-                    f'{len(data.get("source_paths"))} rasters.'
+                    f'{asset_count} rasters.'
                 )
 
             source_path = Path(
