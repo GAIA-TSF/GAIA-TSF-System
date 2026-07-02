@@ -460,10 +460,10 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'eo:water_masked_percentage' in data['properties'], (
+                assert 'eo:water_mask_percentage' in data['properties'], (
                     f'TEST 1: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['properties']['eo:water_masked_percentage'] < 5, (
+                assert data['properties']['eo:water_mask_percentage'] < 5, (
                     f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
@@ -528,10 +528,10 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'eo:water_masked_percentage' in data['properties'], (
+                assert 'eo:water_mask_percentage' in data['properties'], (
                     f'TEST 2: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['properties']['eo:water_masked_percentage'] < 5, (
+                assert data['properties']['eo:water_mask_percentage'] < 5, (
                     f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
