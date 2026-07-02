@@ -31,8 +31,7 @@
         "s2:high_proba_clouds_percentage": 0,
         "s2:thin_cirrus_percentage": 0,
         "s2:snow_ice_percentage": 0,
-        "eo:cloud_cover": 0,
-        "eo:water_masked_percentage": 4.8404
+        "eo:cloud_cover": 0
     },
     "geometry": {
         "type": "Polygon",
@@ -152,10 +151,6 @@
                 {
                     "name": "SCL",
                     "common_name": "Scene classification map (SCL)"
-                },
-                {
-                    "name": "watermask",
-                    "common_name": "labelled water bodies"
                 }
             ]
         }

@@ -1,71 +1,79 @@
 <PAMDataset>
   <PAMRasterBand band="1">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <ColorInterp>Gray</ColorInterp>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="2">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="3">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="4">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="5">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="6">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="7">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="8">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="9">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="10">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="11">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="12">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
   </PAMRasterBand>
   <PAMRasterBand band="13">
-    <Metadata domain="IMAGE_STRUCTURE">
-      <MDI key="COMPRESSION">JPEG2000</MDI>
-    </Metadata>
-  </PAMRasterBand>
-  <PAMRasterBand band="14">
+    <NoDataValue>-3.27680000000000E+04</NoDataValue>
     <Metadata domain="IMAGE_STRUCTURE">
       <MDI key="COMPRESSION">JPEG2000</MDI>
     </Metadata>
