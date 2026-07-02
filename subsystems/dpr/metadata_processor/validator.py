@@ -41,7 +41,7 @@ class MetadataValidator(GaiaBase):
             jsonschema.validate(instance=item.to_dict(), schema=schema)
         except jsonschema.ValidationError as e:
             result['valid'] = False
-            result['errors'].append(f"In-situ schema validation failed: {e.message}")
+            result['errors'].append(f'In-situ schema validation failed: {e.message}')
 
         # start < end cannot be expressed in JSON Schema
         props = item.properties
@@ -53,23 +53,22 @@ class MetadataValidator(GaiaBase):
                     result['valid'] = False
                     result['errors'].append(
                         f"'start_datetime' must be before 'end_datetime' "
-                        f"(got {start} >= {end})."
+                        f'(got {start} >= {end}).'
                     )
             except ValueError as e:
                 result['valid'] = False
-                result['errors'].append(f"Invalid datetime format in time range: {e}")
+                result['errors'].append(f'Invalid datetime format in time range: {e}')
 
         # bbox range check cannot be expressed in JSON Schema
         if item.bbox:
             min_lon, min_lat, max_lon, max_lat = item.bbox
             if not (
-                -180 <= min_lon <= max_lon <= 180
-                and -90 <= min_lat <= max_lat <= 90
+                -180 <= min_lon <= max_lon <= 180 and -90 <= min_lat <= max_lat <= 90
             ):
                 result['valid'] = False
                 result['errors'].append(
-                    f"bbox {item.bbox} is outside valid WGS-84 bounds "
-                    f"(lon: -180..180, lat: -90..90)."
+                    f'bbox {item.bbox} is outside valid WGS-84 bounds '
+                    f'(lon: -180..180, lat: -90..90).'
                 )
 
     def validate(self, metadata_path: Path):
