@@ -157,7 +157,9 @@ class AssetChecker(GaiaBase):
 
         if verbose:
             cloud_str = f'{avg_cloud:.1f}%' if avg_cloud is not None else 'n/a'
-            coverage_str = f'{coverage_ratio:.1%}' if coverage_ratio is not None else 'n/a'
+            coverage_str = (
+                f'{coverage_ratio:.1%}' if coverage_ratio is not None else 'n/a'
+            )
             print('=' * 60)
             print('ASSET CONFORMANCE CHECK')
             print('=' * 60)
@@ -168,7 +170,9 @@ class AssetChecker(GaiaBase):
             print(
                 f'  Time Spread    : {score_time_spread:>3}/20  distinct dates: {len(distinct_dates)}'
             )
-            print(f'  Map Coverage   : {score_coverage:>3}/10  coverage: {coverage_str}')
+            print(
+                f'  Map Coverage   : {score_coverage:>3}/10  coverage: {coverage_str}'
+            )
             print('-' * 60)
             print(f'  TOTAL          : {total:>3}/100')
             print('=' * 60)
