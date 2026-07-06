@@ -546,8 +546,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             }
 
         # update the stac bands list with the spatial resolution of the cropped raster(s)
-        for bnd in range(len(self.s2_metadata["eo:bands"])):
-            self.s2_metadata["eo:bands"][bnd]['gsd'] = int(numpy.abs(self._config['target_res'][0]))
+        for bnd in range(len(self.s2_metadata['eo:bands'])):
+            self.s2_metadata['eo:bands'][bnd]['gsd'] = int(
+                numpy.abs(self._config['target_res'][0])
+            )
 
     def _run(self):
         self._configure()
