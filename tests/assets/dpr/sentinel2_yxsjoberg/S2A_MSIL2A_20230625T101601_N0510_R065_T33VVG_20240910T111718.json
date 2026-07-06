@@ -2,37 +2,12 @@
     "type": "Feature",
     "stac_version": "1.0.0",
     "id": "S2A_T33VVG_20230625T101601_L2A",
-    "properties": {
-        "datetime": "2023-06-25T10:16:01.025Z",
-        "s2:product_start_time": "2023-06-25T10:16:01.025Z",
-        "s2:product_stop_time": "2023-06-25T10:16:01.025Z",
-        "s2:product_uri": "S2A_MSIL2A_20230625T101601_N0510_R065_T33VVG_20240910T111718.SAFE",
-        "s2:processing_level": "Level-2A",
-        "s2:product_type": "S2MSI2A",
-        "s2:product_doi": "https://doi.org/10.5270/S2_-znk9xsj",
-        "s2:generation_time": "2024-09-10T11:17:18.000000Z",
-        "s2:spacecraft_name": "Sentinel-2A",
-        "s2:datatake_sensing_start": "2023-06-25T10:16:01.025Z",
-        "s2:datatake_type": "INS-NOBS",
-        "s2:sensing_orbit_number": "65",
-        "s2:sensing_orbit_direction": "ASCENDING",
-        "s2:reflectance_conversion_factor": 0.968245587437639,
-        "s2:horizontal_cs_name": "WGS84 / UTM zone 33N",
-        "s2:horizontal_cs_code": "EPSG:32633",
-        "s2:nodata_pixel_percentage": 0,
-        "s2:saturated_defective_pixel_percentage": 0,
-        "s2:dark_features_percentage": 0.022263,
-        "s2:cloud_shadow_percentage": 0,
-        "s2:vegetation_percentage": 93.105751,
-        "s2:not_vegetated_percentage": 1.853432,
-        "s2:water_percentage": 4.241187,
-        "s2:unclassified_percentage": 0.777365,
-        "s2:medium_proba_clouds_percentage": 0,
-        "s2:high_proba_clouds_percentage": 0,
-        "s2:thin_cirrus_percentage": 0,
-        "s2:snow_ice_percentage": 0,
-        "eo:cloud_cover": 0
-    },
+    "bbox": [
+        14.756816300701463,
+        60.02685810520952,
+        14.826080724365097,
+        60.05210872683617
+    ],
     "geometry": {
         "type": "Polygon",
         "coordinates": [
@@ -60,12 +35,43 @@
             ]
         ]
     },
-    "links": [
-        {
-            "rel": "license",
-            "href": "https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice"
-        }
-    ],
+    "properties": {
+        "datetime": "2023-06-25T10:16:01.025000Z",
+        "start_datetime": "2023-06-25T10:16:01.025000Z",
+        "end_datetime": "2023-06-25T10:16:01.025000Z",
+        "platform": "sentinel-2a",
+        "constellation": "sentinel-2",
+        "instruments": [
+            "msi"
+        ],
+        "processing:level": "L2A",
+        "eo:cloud_cover": 0,
+        "view:sun_azimuth": 164.123046386946,
+        "view:sun_elevation": 52.7253050084058,
+        "sat:relative_orbit": 65,
+        "s2:tile_id": "33VVG",
+        "s2:product_uri": "S2A_MSIL2A_20230625T101601_N0510_R065_T33VVG_20240910T111718.SAFE",
+        "s2:product_type": "S2MSI2A",
+        "s2:product_doi": "https://doi.org/10.5270/S2_-znk9xsj",
+        "s2:generation_time": "2024-09-10T11:17:18.000000Z",
+        "s2:datatake_type": "INS-NOBS",
+        "s2:sensing_orbit_direction": "ASCENDING",
+        "s2:reflectance_conversion_factor": 0.968245587437639,
+        "s2:horizontal_cs_name": "WGS84 / UTM zone 33N",
+        "s2:horizontal_cs_code": "EPSG:32633",
+        "s2:nodata_pixel_percentage": 0,
+        "s2:saturated_defective_pixel_percentage": 0,
+        "s2:dark_features_percentage": 0.022263,
+        "s2:cloud_shadow_percentage": 0,
+        "s2:vegetation_percentage": 93.105751,
+        "s2:not_vegetated_percentage": 1.853432,
+        "s2:water_percentage": 4.241187,
+        "s2:unclassified_percentage": 0.777365,
+        "s2:medium_proba_clouds_percentage": 0,
+        "s2:high_proba_clouds_percentage": 0,
+        "s2:thin_cirrus_percentage": 0,
+        "s2:snow_ice_percentage": 0
+    },
     "assets": {
         "data": {
             "href": "./S2A_MSIL2A_20230625T101601_N0510_R065_T33VVG_20240910T111718.jp2",
@@ -73,92 +79,103 @@
             "roles": [
                 "data",
                 "reflectance"
-            ],
-            "title": "bands",
-            "eo:bands": [
-                {
-                    "name": "B01",
-                    "common_name": "coastal",
-                    "center_wavelength": 0.443,
-                    "full_width_half_max": 0.044
-                },
-                {
-                    "name": "B02",
-                    "common_name": "blue",
-                    "center_wavelength": 0.493,
-                    "full_width_half_max": 0.077
-                },
-                {
-                    "name": "B03",
-                    "common_name": "green",
-                    "center_wavelength": 0.56,
-                    "full_width_half_max": 0.045
-                },
-                {
-                    "name": "B04",
-                    "common_name": "red",
-                    "center_wavelength": 0.665,
-                    "full_width_half_max": 0.038
-                },
-                {
-                    "name": "B05",
-                    "common_name": "rededge1",
-                    "center_wavelength": 0.704,
-                    "full_width_half_max": 0.019
-                },
-                {
-                    "name": "B06",
-                    "common_name": "rededge2",
-                    "center_wavelength": 0.741,
-                    "full_width_half_max": 0.018
-                },
-                {
-                    "name": "B07",
-                    "common_name": "rededge3",
-                    "center_wavelength": 0.783,
-                    "full_width_half_max": 0.028
-                },
-                {
-                    "name": "B08",
-                    "common_name": "nir",
-                    "center_wavelength": 0.833,
-                    "full_width_half_max": 0.147
-                },
-                {
-                    "name": "B8A",
-                    "common_name": "nir08",
-                    "center_wavelength": 0.865,
-                    "full_width_half_max": 0.044
-                },
-                {
-                    "name": "B09",
-                    "common_name": "nir09",
-                    "center_wavelength": 0.945,
-                    "full_width_half_max": 0.026
-                },
-                {
-                    "name": "B11",
-                    "common_name": "swir16",
-                    "center_wavelength": 1.614,
-                    "full_width_half_max": 0.143
-                },
-                {
-                    "name": "B12",
-                    "common_name": "swir22",
-                    "center_wavelength": 2.202,
-                    "full_width_half_max": 0.242
-                },
-                {
-                    "name": "SCL",
-                    "common_name": "Scene classification map (SCL)"
-                }
             ]
         }
     },
-    "bbox": [
-        14.756816300701463,
-        60.02685810520952,
-        14.826080724365097,
-        60.05210872683617
+    "collection": "sentinel-2-l2a",
+    "links": [
+        {
+            "rel": "self",
+            "href": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/S2A_T33VVG_20230625T101601_L2A"
+        }
+    ],
+    "eo:bands": [
+        {
+            "name": "B01",
+            "common_name": "coastal",
+            "center_wavelength": 0.443,
+            "gsd": 10
+        },
+        {
+            "name": "B02",
+            "common_name": "blue",
+            "center_wavelength": 0.49,
+            "gsd": 10
+        },
+        {
+            "name": "B03",
+            "common_name": "green",
+            "center_wavelength": 0.56,
+            "gsd": 10
+        },
+        {
+            "name": "B04",
+            "common_name": "red",
+            "center_wavelength": 0.665,
+            "gsd": 10
+        },
+        {
+            "name": "B05",
+            "common_name": "rededge",
+            "center_wavelength": 0.704,
+            "gsd": 10
+        },
+        {
+            "name": "B06",
+            "common_name": "rededge",
+            "center_wavelength": 0.74,
+            "gsd": 10
+        },
+        {
+            "name": "B07",
+            "common_name": "rededge",
+            "center_wavelength": 0.783,
+            "gsd": 10
+        },
+        {
+            "name": "B08",
+            "common_name": "nir",
+            "center_wavelength": 0.842,
+            "gsd": 10
+        },
+        {
+            "name": "B09",
+            "common_name": "nir09",
+            "center_wavelength": 0.945,
+            "gsd": 10
+        },
+        {
+            "name": "B11",
+            "common_name": "swir16",
+            "center_wavelength": 1.61,
+            "gsd": 10
+        },
+        {
+            "name": "B12",
+            "common_name": "swir22",
+            "center_wavelength": 2.19,
+            "gsd": 10
+        },
+        {
+            "name": "B8A",
+            "common_name": "nir08",
+            "center_wavelength": 0.865,
+            "gsd": 10
+        },
+        {
+            "name": "SCL",
+            "common_name": "Scene classification map (SCL)",
+            "gsd": 10
+        }
+    ],
+    "providers": [
+        {
+            "name": "ESA",
+            "roles": [
+                "producer",
+                "processor",
+                "licensor"
+            ]
+        }
     ]
 }

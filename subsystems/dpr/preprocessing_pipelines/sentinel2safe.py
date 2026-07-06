@@ -545,7 +545,14 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 'roles': ['data', 'reflectance'],
             }
 
-        # update the stac bands list with the spatial resolution of the cropped raster(s)
+        # Add SCL band to stac bands
+        self.s2_metadata["eo:bands"].append({
+            "name": "SCL",
+            "common_name": "Scene classification map (SCL)",
+            "gsd": 10
+        })
+
+        # update the stac bands with the spatial resolution of the cropped raster(s)
         for bnd in range(len(self.s2_metadata['eo:bands'])):
             self.s2_metadata['eo:bands'][bnd]['gsd'] = int(
                 numpy.abs(self._config['target_res'][0])

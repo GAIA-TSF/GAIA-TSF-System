@@ -800,9 +800,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         'name': 'watermask',
                         'common_name': 'labeled water bodies',
                     }
-                    bands = metadata['assets']['data']['eo:bands']
+                    bands = metadata['eo:bands']
                     bands.append(new_band)
-                    metadata['assets']['data']['eo:bands'] = bands
+                    metadata['eo:bands'] = bands
                     # Add water mask surface in %
                     rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
                     metadata['properties']['eo:water_mask_percentage'] = round(

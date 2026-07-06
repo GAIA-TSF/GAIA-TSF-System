@@ -1,7 +1,7 @@
 {
     "type": "Feature",
     "stac_version": "1.0.0",
-    "id": "S2B_T33VVG_20180726T102150_L2A",
+    "id": "S2B_T33VVG_20250712T103000_L2A",
     "bbox": [
         14.756816300701463,
         60.02685810520952,
@@ -36,45 +36,45 @@
         ]
     },
     "properties": {
-        "datetime": "2018-07-26T10:20:19.024000Z",
-        "start_datetime": "2018-07-26T10:20:19.024000Z",
-        "end_datetime": "2018-07-26T10:20:19.024000Z",
+        "datetime": "2025-07-12T10:25:59.024000Z",
+        "start_datetime": "2025-07-12T10:25:59.024000Z",
+        "end_datetime": "2025-07-12T10:25:59.024000Z",
         "platform": "sentinel-2b",
         "constellation": "sentinel-2",
         "instruments": [
             "msi"
         ],
         "processing:level": "L2A",
-        "eo:cloud_cover": 0,
-        "view:sun_azimuth": 163.610702107816,
-        "view:sun_elevation": 48.6338472695943,
-        "sat:relative_orbit": 65,
+        "eo:cloud_cover": 0.29128,
+        "view:sun_azimuth": 167.024335506781,
+        "view:sun_elevation": 51.4632630936414,
+        "sat:relative_orbit": 108,
         "s2:tile_id": "33VVG",
-        "s2:product_uri": "S2B_MSIL2A_20180726T102019_N0500_R065_T33VVG_20230811T184149.SAFE",
+        "s2:product_uri": "S2B_MSIL2A_20250712T102559_N0511_R108_T33VVG_20250712T130944.SAFE",
         "s2:product_type": "S2MSI2A",
         "s2:product_doi": "https://doi.org/10.5270/S2_-znk9xsj",
-        "s2:generation_time": "2023-08-11T18:41:49.000000Z",
+        "s2:generation_time": "2025-07-12T13:09:44.000000Z",
         "s2:datatake_type": "INS-NOBS",
         "s2:sensing_orbit_direction": "DESCENDING",
-        "s2:reflectance_conversion_factor": 0.968840131034636,
+        "s2:reflectance_conversion_factor": 0.967424865678347,
         "s2:horizontal_cs_name": "WGS84 / UTM zone 33N",
         "s2:horizontal_cs_code": "EPSG:32633",
         "s2:nodata_pixel_percentage": 0,
         "s2:saturated_defective_pixel_percentage": 0,
-        "s2:dark_features_percentage": 0.048237,
-        "s2:cloud_shadow_percentage": 0.278293,
-        "s2:vegetation_percentage": 93.226345,
-        "s2:not_vegetated_percentage": 1.513915,
-        "s2:water_percentage": 4.189239,
-        "s2:unclassified_percentage": 0.74397,
+        "s2:dark_features_percentage": 0.029685,
+        "s2:cloud_shadow_percentage": 0,
+        "s2:vegetation_percentage": 93.398887,
+        "s2:not_vegetated_percentage": 0.294991,
+        "s2:water_percentage": 4.244898,
+        "s2:unclassified_percentage": 1.74026,
         "s2:medium_proba_clouds_percentage": 0,
         "s2:high_proba_clouds_percentage": 0,
-        "s2:thin_cirrus_percentage": 0,
+        "s2:thin_cirrus_percentage": 0.29128,
         "s2:snow_ice_percentage": 0
     },
     "assets": {
         "data": {
-            "href": "./S2B_MSIL2A_20180726T102019_N0500_R065_T33VVG_20230811T184149.jp2",
+            "href": "./S2B_MSIL2A_20250712T102559_N0511_R108_T33VVG_20250712T130944.jp2",
             "type": "image/jp2",
             "roles": [
                 "data",
@@ -86,7 +86,7 @@
     "links": [
         {
             "rel": "self",
-            "href": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/S2B_T33VVG_20180726T102150_L2A"
+            "href": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/S2B_T33VVG_20250712T103000_L2A"
         }
     ],
     "eo:bands": [
