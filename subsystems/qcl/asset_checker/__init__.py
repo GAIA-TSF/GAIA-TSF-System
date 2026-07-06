@@ -1,6 +1,9 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from shapely.geometry import box
+from shapely.ops import unary_union
+
 from lib.base import GaiaBase, SubsystemId
 
 
@@ -20,6 +23,7 @@ class AssetChecker(GaiaBase):
         )
         self._s2_platforms = set(cfg.get('s2_platforms', []))
         self._insitu_mime_types = set(cfg.get('insitu_mime_types', []))
+        self._coverage_threshold: float = cfg.get('coverage_threshold', 0.95)
 
     def _get_asset_type(self, asset: Dict) -> str:
         platform = (asset.get('platform') or '').lower()
@@ -31,10 +35,29 @@ class AssetChecker(GaiaBase):
             return 'insitu'
         return 'unknown'
 
+    def _compute_coverage(self, assets: List[Dict], aoi) -> float:
+        """
+        Return the fraction of the AOI covered by the union of S2 asset bboxes.
+
+        :param assets: Full asset list (non-S2 assets are ignored)
+        :param aoi: Shapely geometry of the AOI in WGS84 (EPSG:4326)
+        :return: Coverage ratio in [0, 1]; 1.0 if no S2 bboxes are available
+        """
+        s2_geoms = [
+            box(*a['bbox'])
+            for a in assets
+            if self._get_asset_type(a) == 's2' and a.get('bbox')
+        ]
+        if not s2_geoms:
+            return 1.0  # no bbox data — cannot penalise
+        covered = unary_union(s2_geoms)
+        return covered.intersection(aoi).area / aoi.area
+
     def analyze_assets(
         self,
         assets: List[Dict],
         key_variable: str = 'amd',
+        aoi=None,
         verbose: bool = True,
     ) -> Dict:
         """
@@ -44,10 +67,11 @@ class AssetChecker(GaiaBase):
           - Must-Have Data (50 pts): all required types present; returns score=0 immediately if any missing
           - Cloud Cover   (20 pts): avg S2 cloud cover <10%=20, 10-30%=10, >30%=0; 10 if data unavailable
           - Time Spread   (20 pts): >=3 distinct acquisition dates = 20, else 0
-          - Map Coverage  (10 pts): placeholder, always 10 (full bbox check TBD)
+          - Map Coverage  (10 pts): union of S2 bboxes must cover >=coverage_threshold of AOI; 10 if no AOI provided
 
         :param assets: List of asset dicts returned by SdiReader.search_assets()
         :param key_variable: Task type key used to look up required data types
+        :param aoi: Shapely geometry of the AOI in WGS84 (EPSG:4326); if None coverage check is skipped (10 pts)
         :param verbose: Print a conformance report to stdout
         :return: {'conformance': int, 'result': dict}
         :raises ValueError: If key_variable is not a recognised task type
@@ -108,8 +132,13 @@ class AssetChecker(GaiaBase):
                     continue
         score_time_spread = 20 if len(distinct_dates) >= 3 else 0
 
-        # Rule 4: Map Coverage (10 pts, placeholder — full bbox check TBD)
-        score_coverage = 10
+        # Rule 4: Map Coverage (10 pts)
+        coverage_ratio: Optional[float] = None
+        if aoi is None:
+            score_coverage = 10  # no AOI provided — cannot check
+        else:
+            coverage_ratio = self._compute_coverage(assets, aoi)
+            score_coverage = 10 if coverage_ratio >= self._coverage_threshold else 0
 
         total = score_must_have + score_cloud + score_time_spread + score_coverage
 
@@ -123,10 +152,12 @@ class AssetChecker(GaiaBase):
             'present_types': list(present_types),
             'distinct_dates': len(distinct_dates),
             'avg_cloud_cover': avg_cloud,
+            'coverage_ratio': coverage_ratio,
         }
 
         if verbose:
             cloud_str = f'{avg_cloud:.1f}%' if avg_cloud is not None else 'n/a'
+            coverage_str = f'{coverage_ratio:.1%}' if coverage_ratio is not None else 'n/a'
             print('=' * 60)
             print('ASSET CONFORMANCE CHECK')
             print('=' * 60)
@@ -137,7 +168,7 @@ class AssetChecker(GaiaBase):
             print(
                 f'  Time Spread    : {score_time_spread:>3}/20  distinct dates: {len(distinct_dates)}'
             )
-            print(f'  Map Coverage   : {score_coverage:>3}/10  (placeholder)')
+            print(f'  Map Coverage   : {score_coverage:>3}/10  coverage: {coverage_str}')
             print('-' * 60)
             print(f'  TOTAL          : {total:>3}/100')
             print('=' * 60)
