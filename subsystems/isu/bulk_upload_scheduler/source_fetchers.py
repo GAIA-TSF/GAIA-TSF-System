@@ -41,7 +41,9 @@ def fetch_from_https(urls: List[str], logger: Any = None) -> List[Tuple[str, byt
             filename = urlparse(url).path.rsplit('/', 1)[-1] or url
             results.append((filename, response.content))
             if logger:
-                logger.info(f'Downloaded {filename} ({len(response.content)} bytes) via HTTPS.')
+                logger.info(
+                    f'Downloaded {filename} ({len(response.content)} bytes) via HTTPS.'
+                )
         except requests.RequestException as e:
             if logger:
                 logger.error(f'Failed to fetch {url} over HTTPS: {e}')
@@ -91,7 +93,9 @@ def fetch_from_s3(
                 content = response['Body'].read()
                 results.append((filename, content))
                 if logger:
-                    logger.info(f'Downloaded {filename} ({len(content)} bytes) from S3.')
+                    logger.info(
+                        f'Downloaded {filename} ({len(content)} bytes) from S3.'
+                    )
     except botocore.exceptions.ClientError as e:
         if logger:
             logger.error(f'Failed to fetch objects from S3 bucket {bucket}: {e}')
@@ -145,7 +149,9 @@ def fetch_from_ftp(
                 content = buffer.getvalue()
                 results.append((filename, content))
                 if logger:
-                    logger.info(f'Downloaded {filename} ({len(content)} bytes) via FTP.')
+                    logger.info(
+                        f'Downloaded {filename} ({len(content)} bytes) via FTP.'
+                    )
     except ftplib.all_errors as e:
         if logger:
             logger.error(f'Failed to fetch from FTP {host}:{remote_dir}: {e}')
@@ -212,7 +218,9 @@ def fetch_from_sftp(
                 content = remote_file.read()
             results.append((entry.filename, content))
             if logger:
-                logger.info(f'Downloaded {entry.filename} ({len(content)} bytes) via SFTP.')
+                logger.info(
+                    f'Downloaded {entry.filename} ({len(content)} bytes) via SFTP.'
+                )
     except (paramiko.SSHException, OSError) as e:
         if logger:
             logger.error(f'Failed to fetch from SFTP {host}:{remote_dir}: {e}')
