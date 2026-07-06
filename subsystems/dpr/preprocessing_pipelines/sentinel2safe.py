@@ -23,7 +23,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         'Processing steps include:'
         '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
         '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
-        'using GDAL'
+        'using GDAL and SCL statistics are recalculated for the new ROI.'
         '(3) Saving output raster (separate bands or multi-band) and metadata to an output folder.',
         'params': {
             'input_safe': {
@@ -82,7 +82,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Other attributes
         self.granule_list = None
         self.offset_values_list = None
-        self.band_map = None
+        self.assets = None
 
     def _locate_metadata_files(self):
         """Locates the required XML files within the input folder hierarchy."""
@@ -116,17 +116,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # Define tags to find directly (flat search)
         direct_tags = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_STOP_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
             'PRODUCT_TYPE',
             'PRODUCT_DOI',
             'GENERATION_TIME',
-            'SPACECRAFT_NAME',
-            'DATATAKE_SENSING_START',
             'DATATAKE_TYPE',
-            'SENSING_ORBIT_NUMBER',
             'SENSING_ORBIT_DIRECTION',
         ]
 
@@ -135,13 +128,6 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             elem = root.find(f'.//{tag}')
             if elem is not None:
                 self.s2_metadata['properties']['s2:' + tag.lower()] = elem.text
-        self.s2_metadata['properties']['datetime'] = self.s2_metadata['properties'][
-            's2:datatake_sensing_start'
-        ]
-
-        # Retrieve product id, assumes a level 2A product
-        uri = self.s2_metadata['properties']['s2:product_uri'].split('_')
-        self.s2_metadata['id'] = uri[0] + '_' + uri[5] + '_' + uri[2] + '_L2A'
 
         # Extract Granule_List
         for granule in root.findall('.//Granule'):
@@ -182,15 +168,6 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     if w_node.find('MIN') is not None
                     else 'nm',
                 }
-        # self.s2_metadata["properties"]['s2:spectral_information'] = wavelengths
-        self._map_bands(wavelengths)
-
-        self.s2_metadata['links'] = [
-            {
-                'rel': 'license',
-                'href': 'https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice',
-            },
-        ]
 
     def _extract_mtd_tl(self):
         """Extracts required fields from MTD_TL.xml (Tile Metadata)."""
@@ -332,113 +309,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             path.replace('.tiff', '.jp2') for path in self.raster_paths
         ]
 
-        # update band map
-        for band_id, properties in self.band_map.items():
+        # update assets
+        for band_id, properties in self.assets.items():
             # Check if the nested dictionary has an 'href' key
             if 'href' in properties:
                 properties['href'] = properties['href'].replace('.tiff', '.jp2')
-
-    def _map_bands(self, wavelengths):
-        """Generate a Dictionary from that will be used for creating the STAC assets"""
-        self.band_map = {
-            'B01': {
-                'common_name': 'coastal',
-                'center_wavelength': wavelengths['B1']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B1']['max'] - wavelengths['B1']['min']
-                )
-                / 1000,
-            },
-            'B02': {
-                'common_name': 'blue',
-                'center_wavelength': wavelengths['B2']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B2']['max'] - wavelengths['B2']['min']
-                )
-                / 1000,
-            },
-            'B03': {
-                'common_name': 'green',
-                'center_wavelength': wavelengths['B3']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B3']['max'] - wavelengths['B3']['min']
-                )
-                / 1000,
-            },
-            'B04': {
-                'common_name': 'red',
-                'center_wavelength': wavelengths['B4']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B4']['max'] - wavelengths['B4']['min']
-                )
-                / 1000,
-            },
-            'B05': {
-                'common_name': 'rededge1',
-                'center_wavelength': wavelengths['B5']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B5']['max'] - wavelengths['B5']['min']
-                )
-                / 1000,
-            },
-            'B06': {
-                'common_name': 'rededge2',
-                'center_wavelength': wavelengths['B6']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B6']['max'] - wavelengths['B6']['min']
-                )
-                / 1000,
-            },
-            'B07': {
-                'common_name': 'rededge3',
-                'center_wavelength': wavelengths['B7']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B7']['max'] - wavelengths['B7']['min']
-                )
-                / 1000,
-            },
-            'B08': {
-                'common_name': 'nir',
-                'center_wavelength': wavelengths['B8']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B8']['max'] - wavelengths['B8']['min']
-                )
-                / 1000,
-            },
-            'B8A': {
-                'common_name': 'nir08',
-                'center_wavelength': wavelengths['B8A']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B8A']['max'] - wavelengths['B8A']['min']
-                )
-                / 1000,
-            },
-            'B09': {
-                'common_name': 'nir09',
-                'center_wavelength': wavelengths['B9']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B9']['max'] - wavelengths['B9']['min']
-                )
-                / 1000,
-            },
-            'B11': {
-                'common_name': 'swir16',
-                'center_wavelength': wavelengths['B11']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B11']['max'] - wavelengths['B11']['min']
-                )
-                / 1000,
-            },
-            'B12': {
-                'common_name': 'swir22',
-                'center_wavelength': wavelengths['B12']['central'] / 1000,
-                'full_width_half_max': (
-                    wavelengths['B12']['max'] - wavelengths['B12']['min']
-                )
-                / 1000,
-            },
-            'SCL': {'common_name': 'Scene classification map (SCL)'},
-        }
 
     def _process_and_merge_jp2(self, roi):
         """
@@ -470,7 +345,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             'SCL',
         ]
 
-        self.logger.info('Converting .jp2 files to .tiff')
+        # Make an empty dictionary to store the paths to the output rasters (will be used to update the stac assets)
+        self.assets = {band: {'href': None} for band in band_names}
+
+        self.logger.info('Converting SAFE .jp2 files to .tiff')
         # Make a list of paths to the jp2 files in the GRANULE folder.
         # For each band uses the file with the smaller pixel size (i.e. 10m if available, else 20m or 60m).
         # Note: make sure that the gdal plugin gdal_JP2OpenJPEG.dll is installed.
@@ -553,7 +431,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 )
 
                 # save filename to assets
-                self.band_map[band_name]['href'] = os.path.join('./', output_filename)
+                self.assets[band_name]['href'] = os.path.join('./', output_filename)
 
                 # Convert VRT to GeoTIFF or JP2
                 options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
@@ -596,8 +474,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             product_name = f'{base_name}.tiff'
             output_path = os.path.join(self._config['output_folder'], product_name)
 
-            # save file name to assets dictionary (we only use the Band1 entry)
-            self.band_map['B01']['href'] = os.path.join('./', product_name)
+            # save file name to assets dictionary
+            for band in band_names:
+                self.assets[band]['href'] = os.path.join('./', product_name)
 
             options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
@@ -642,7 +521,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             asset_type = 'image/tiff'
 
         if self._config['split_bands']:
-            for band_name, properties in self.band_map.items():
+            for band_name, properties in self.assets.items():
                 # SCL is categorized with a classification role instead of standard spectral data
                 roles = (
                     ['data', 'classification']
@@ -654,51 +533,21 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     'href': properties['href'].replace('\\', '/'),
                     'type': asset_type,
                     'roles': roles,
-                    'title': f'{band_name} - {properties.get("common_name", "")}',
                 }
-
-                # Add the metadata for spectral bands
-                if not band_name == 'SCL':
-                    eo_band_info = {
-                        'name': band_name,
-                        'common_name': properties.get('common_name', ''),
-                        'center_wavelength': round(
-                            properties.get('center_wavelength', ''), 3
-                        ),
-                        'full_width_half_max': round(
-                            properties.get('full_width_half_max', ''), 3
-                        ),
-                    }
-
-                    asset_entry['eo:bands'] = [eo_band_info]
 
                 self.s2_metadata['assets'][band_name] = asset_entry
 
         else:
-            eo_bands = []
-            # Iterate through bands to construct the band metadata array in the order of the keys
-            for band_name, properties in self.band_map.items():
-                band_entry = {
-                    'name': band_name,
-                    'common_name': properties.get('common_name', ''),
-                }
-                if band_name != 'SCL':
-                    band_entry['center_wavelength'] = round(
-                        properties['center_wavelength'], 3
-                    )
-                    band_entry['full_width_half_max'] = round(
-                        properties['full_width_half_max'], 3
-                    )
-                eo_bands.append(band_entry)
-
             # Construct the multiband asset
             self.s2_metadata['assets']['data'] = {
-                'href': self.band_map['B01']['href'].replace('\\', '/'),
+                'href': self.assets['B01']['href'].replace('\\', '/'),
                 'type': asset_type,
                 'roles': ['data', 'reflectance'],
-                'title': 'bands',
-                'eo:bands': eo_bands,
             }
+
+        # update the stac bands list with the spatial resolution of the cropped raster(s)
+        for bnd in range(len(self.s2_metadata["eo:bands"])):
+            self.s2_metadata["eo:bands"][bnd]['gsd'] = int(numpy.abs(self._config['target_res'][0]))
 
     def _run(self):
         self._configure()
