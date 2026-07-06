@@ -34,10 +34,14 @@ def fetch_from_https(urls: List[str], logger: Any = None) -> List[Tuple[str, byt
     results = []
     for url in urls:
         try:
+            if logger:
+                logger.debug(f'Fetching {url} over HTTPS...')
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             filename = urlparse(url).path.rsplit('/', 1)[-1] or url
             results.append((filename, response.content))
+            if logger:
+                logger.info(f'Downloaded {filename} ({len(response.content)} bytes) via HTTPS.')
         except requests.RequestException as e:
             if logger:
                 logger.error(f'Failed to fetch {url} over HTTPS: {e}')
@@ -71,6 +75,8 @@ def fetch_from_s3(
 
     results = []
     try:
+        if logger:
+            logger.debug(f'Connecting to S3 bucket {bucket!r} (prefix={prefix!r})...')
         s3 = boto3.client('s3', region_name=region_name)
         paginator = s3.get_paginator('list_objects_v2')
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -78,9 +84,14 @@ def fetch_from_s3(
                 key = obj['Key']
                 if key.endswith('/'):
                     continue
+                if logger:
+                    logger.debug(f'Downloading s3://{bucket}/{key}...')
                 response = s3.get_object(Bucket=bucket, Key=key)
                 filename = key.rsplit('/', 1)[-1]
-                results.append((filename, response['Body'].read()))
+                content = response['Body'].read()
+                results.append((filename, content))
+                if logger:
+                    logger.info(f'Downloaded {filename} ({len(content)} bytes) from S3.')
     except botocore.exceptions.ClientError as e:
         if logger:
             logger.error(f'Failed to fetch objects from S3 bucket {bucket}: {e}')
@@ -115,6 +126,8 @@ def fetch_from_ftp(
     """
     results = []
     try:
+        if logger:
+            logger.debug(f'Connecting to FTP {host}:{port}{remote_dir}...')
         with ftplib.FTP() as ftp:
             ftp.connect(host=host, port=port, timeout=30)
             ftp.login(user=user, passwd=password)
@@ -123,11 +136,16 @@ def fetch_from_ftp(
             for filename in ftp.nlst():
                 buffer = io.BytesIO()
                 try:
+                    if logger:
+                        logger.debug(f'Downloading {filename} via FTP...')
                     ftp.retrbinary(f'RETR {filename}', buffer.write)
                 except ftplib.error_perm:
                     # Most likely a sub-directory or an inaccessible entry, skip it.
                     continue
-                results.append((filename, buffer.getvalue()))
+                content = buffer.getvalue()
+                results.append((filename, content))
+                if logger:
+                    logger.info(f'Downloaded {filename} ({len(content)} bytes) via FTP.')
     except ftplib.all_errors as e:
         if logger:
             logger.error(f'Failed to fetch from FTP {host}:{remote_dir}: {e}')
@@ -173,6 +191,8 @@ def fetch_from_sftp(
     results = []
     transport = None
     try:
+        if logger:
+            logger.debug(f'Connecting to SFTP {host}:{port}{remote_dir}...')
         transport = paramiko.Transport((host, port))
         if key_path:
             transport.connect(
@@ -186,8 +206,13 @@ def fetch_from_sftp(
             if stat.S_ISDIR(entry.st_mode):
                 continue
             remote_path = f'{remote_dir.rstrip("/")}/{entry.filename}'
+            if logger:
+                logger.debug(f'Downloading {entry.filename} via SFTP...')
             with sftp.open(remote_path, 'rb') as remote_file:
-                results.append((entry.filename, remote_file.read()))
+                content = remote_file.read()
+            results.append((entry.filename, content))
+            if logger:
+                logger.info(f'Downloaded {entry.filename} ({len(content)} bytes) via SFTP.')
     except (paramiko.SSHException, OSError) as e:
         if logger:
             logger.error(f'Failed to fetch from SFTP {host}:{remote_dir}: {e}')
