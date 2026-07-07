@@ -10,9 +10,16 @@ Purpose:
 - Run unified learning pipeline
 """
 
-import sys
-import os
 import argparse
+import os
+import sys
+
+from plugins.models.gbr import GBRModel  # noqa: F401
+from plugins.models.lstm import LSTMModel  # noqa: F401
+from plugins.models.rf import RandomForestModel  # noqa: F401
+from plugins.models.xgb import XGBoostModel  # noqa: F401
+from plugins.variables.amd import AMDVariable  # noqa: F401
+from plugins.variables.slope import SlopeVariable  # noqa: F401
 
 
 # Ensure correct ROOT_DIR (important for imports)
@@ -30,8 +37,6 @@ while ROOT_DIR != '/':
 
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
-
-print(f'[DEBUG] Using ROOT_DIR: {ROOT_DIR}')
 
 
 # --------------------------------------------------
@@ -62,8 +67,6 @@ def main():
     from utils.config_loader import load_config
 
     config = load_config(args.config)
-
-    # print(f"[Pipeline] Loaded config: {config}")
 
     # 3. Register plugins
 

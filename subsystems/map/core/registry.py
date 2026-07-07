@@ -1,67 +1,71 @@
-"""
-Registry module
+from __future__ import annotations
 
-Purpose:
-- Central place where plugins (variables, models, features) are registered
-- Enables dynamic lookup based on config (no hardcoding)
-
-Design:
-- Variables → instantiated immediately
-- Models → stored as class (require config at runtime)
-- Features → simple functions
-"""
+from typing import Any, Callable
 
 # Global registries (simple and explicit)
-VARIABLE_REGISTRY = {}
-MODEL_REGISTRY = {}
-FEATURE_REGISTRY = {}
+VARIABLE_REGISTRY: dict[str, Any] = {}
+MODEL_REGISTRY: dict[str, type] = {}
+FEATURE_REGISTRY: dict[str, Callable[..., Any]] = {}
+MONITORING_REGISTRY: dict[str, Any] = {}
+EXPLAINABILITY_REGISTRY: dict[str, Any] = {}
+OPERATION_REGISTRY: dict[str, Callable[..., Any]] = {}
 
 
-def register_variable(name):
-    """
-    Decorator to register a variable plugin.
+def register_variable(name: str) -> Callable[[type], type]:
+    """Register a variable plugin and instantiate it immediately."""
 
-    Usage:
-        @register_variable("slope")
-        class SlopeVariable(...)
-
-    Result:
-        VARIABLE_REGISTRY["slope"] → instance of SlopeVariable
-    """
-
-    def decorator(cls):
+    def decorator(cls: type) -> type:
         VARIABLE_REGISTRY[name] = cls()
         return cls
 
     return decorator
 
 
-def register_model(name):
-    """
-    Registers model class (not instance!).
+def register_model(name: str) -> Callable[[type], type]:
+    """Register a model class for later instantiation."""
 
-    Why:
-    - Models require config → instantiated later
-    """
-
-    def decorator(cls):
+    def decorator(cls: type) -> type:
         MODEL_REGISTRY[name] = cls
         return cls
 
     return decorator
 
 
-def register_feature(name):
-    """
-    Registers feature engineering function.
+def register_feature(name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Register a feature engineering function."""
 
-    Feature pipelines are:
-    - stateless
-    - reusable across variables
-    """
-
-    def decorator(fn):
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         FEATURE_REGISTRY[name] = fn
+        return fn
+
+    return decorator
+
+
+def register_monitoring(name: str) -> Callable[[type], type]:
+    """Register a monitoring plugin class."""
+
+    def decorator(cls: type) -> type:
+        MONITORING_REGISTRY[name] = cls
+        return cls
+
+    return decorator
+
+
+def register_explainability(name: str) -> Callable[[type], type]:
+    """Register an explainability plugin class."""
+
+    def decorator(cls: type) -> type:
+        EXPLAINABILITY_REGISTRY[name] = cls
+        return cls
+
+    return decorator
+
+
+def register_operation(name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Register a DAG operation callable."""
+
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        OPERATION_REGISTRY[name] = fn
         return fn
 
     return decorator

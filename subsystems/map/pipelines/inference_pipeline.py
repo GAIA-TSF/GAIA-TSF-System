@@ -1,52 +1,40 @@
-from core.registry import VARIABLE_REGISTRY, FEATURE_REGISTRY
-from dataset.loader import load_new_data
-from utils.io import load_model
-from monitoring.monitoring import run_monitoring
+from __future__ import annotations
 
-"""
-Inference pipeline
+import logging
+from typing import Any
 
-Runs:
-data → prediction → residuals → monitoring
-"""
+import numpy as np
+
+from core.pipeline_executor import PipelineExecutor
+from core.registry import OPERATION_REGISTRY
+
+import pipelines.operations  # noqa: F401
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("map.inference_pipeline")
 
 
-def run_inference(config):
-    """
-    End-to-end inference + monitoring.
+def run_inference(config: Any) -> dict[str, Any]:
+    """Run the configured MAP inference DAG."""
+    logger.info("Starting configured MAP inference pipeline")
+    result = PipelineExecutor(config, OPERATION_REGISTRY).run("inference", initial_context={"input": None})
+    if not isinstance(result, dict):
+        raise TypeError("Configured inference pipeline must return a dictionary result.")
+    return _json_ready(result)
 
-    Pipeline:
-        data → preprocess → features → prediction → residuals → monitoring
-    """
 
-    print('\n=== INFERENCE PIPELINE ===')
-
-    variable = VARIABLE_REGISTRY[config.variable]
-
-    # 1. Load new/unseen data
-    data = load_new_data(config)
-
-    # 2. Apply same preprocessing as training
-    data = variable.preprocess(data, config)
-
-    # 3. Same feature pipeline (CRITICAL for consistency)
-    feature_fn = FEATURE_REGISTRY[variable.feature_pipeline()]
-    X, y = feature_fn(data, config)  # noqa: N806
-
-    # 4. Load trained model
-    model = load_model(config)
-
-    # 5. Predict
-    result = model.predict(X)  # noqa: N806
-
-    # 6. Residuals = observed - predicted
-    residuals = y - result.y_pred
-
-    # 7. Monitoring module
-    monitoring_output = run_monitoring(residuals, config)
-
-    return {
-        'prediction': result,
-        'residuals': residuals,
-        'monitoring': monitoring_output,
-    }
+def _json_ready(value: Any) -> Any:
+    """Convert NumPy-heavy operation output into a public dictionary result."""
+    if isinstance(value, dict):
+        return {
+            key: _json_ready(item)
+            for key, item in value.items()
+            if key not in {"dataset", "model"}
+        }
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, list):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    return value

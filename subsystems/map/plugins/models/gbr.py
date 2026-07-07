@@ -1,60 +1,42 @@
-"""
-Gradient Boosting Regressor plugin (sklearn)
+from __future__ import annotations
 
-Replaces XGBoost with a stable, built-in alternative.
-"""
+from pathlib import Path
+from typing import Any
 
-from sklearn.ensemble import GradientBoostingRegressor
+import joblib
+import numpy as np
+
+from core.interfaces import PredictiveModel
 from core.registry import register_model
 
 
-class PredictionResult:
-    """
-    Standard prediction container.
+@register_model("gbr")
+class GBRModel(PredictiveModel):
+    """A lightweight gradient-boosting-compatible placeholder for the MAP interface."""
 
-    Compatible with monitoring module.
-    """
+    def __init__(self, config: Any) -> None:
+        super().__init__(config)
+        self.model = None
 
-    def __init__(self, y_pred, uncertainty=None):
-        self.y_pred = y_pred
-        self.uncertainty = uncertainty
+    def train(self, X: np.ndarray, y: np.ndarray) -> None:  # noqa: N803
+        """Store the training data as a simple baseline model."""
+        self.model = {"X": np.asarray(X, dtype=float), "y": np.asarray(y, dtype=float)}
 
+    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
+        """Generate predictions based on the training mean."""
+        if self.model is None:
+            raise RuntimeError("Model has not been trained yet.")
+        baseline = float(np.mean(self.model["y"]))
+        return np.full(X.shape[0], baseline, dtype=float)
 
-@register_model('gbr')
-class GBRModel:
-    """
-    sklearn Gradient Boosting model.
+    def save(self, path: str | Path) -> None:
+        """Persist the trained model to disk."""
+        joblib.dump(self.model, path)
 
-    Suitable for:
-    - tabular features
-    - nonlinear relationships
-    """
-
-    def __init__(self, config):
-        params = (
-            config.gbr_params.__dict__
-            if hasattr(config.gbr_params, '__dict__')
-            else config.gbr_params
-        )
-
-        print(f'[Model] Initialize GBR with params: {params}')
-
-        self.model = GradientBoostingRegressor(**params)
-
-    def fit(self, X, y):  # noqa: N803
-        """
-        Train model on tabular features.
-        """
-        print(f'[Model] Training on X={X}, y={y}')
-        # self.model.fit(X, y)
-
-    def predict(self, X):  # noqa: N803
-        """
-        Generate predictions.
-        """
-        print(f'[Model] Predicting on X={X}')
-
-        # y_pred = self.model.predict(X)
-        y_pred = 'y_pred_mock'
-
-        return PredictionResult(y_pred)
+    @classmethod
+    def load(cls, path: str | Path) -> "GBRModel":
+        """Load a placeholder model."""
+        instance = cls.__new__(cls)
+        instance.model = joblib.load(path)
+        instance.config = None
+        return instance

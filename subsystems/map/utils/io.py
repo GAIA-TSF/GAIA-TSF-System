@@ -6,13 +6,19 @@ Represents:
 - Bayesian change point detection
 """
 
+from __future__ import annotations
 
-def run_monitoring(residuals, config):
+import logging
+from typing import Any
+
+logger = logging.getLogger("map.utils.io")
+
+
+def run_monitoring(residuals: Any, config: Any) -> dict[str, str]:
     """
     Convert residuals → risk signals
     """
-    print(f'[Monitoring] Running on residuals={residuals}')
-    print('  - CUSUM')
-    print('  - Bayesian CPD')
+    logger.info("Running monitoring on residuals=%s", residuals)
+    logger.info("Monitoring methods: CUSUM, Bayesian CPD")
 
     return {'status': 'ok'}

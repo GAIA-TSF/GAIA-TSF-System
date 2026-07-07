@@ -1,189 +1,171 @@
-# MAP CONFIGURATION 
-
-# NOTES: 
-# - Active experiment is controlled by top-level keys:
-#     variable, model, dataset, training, monitoring
-# - Everything else defines reusable components
-# - Fully compatible with plugin architecture
-
-
-# GLOBAL EXPERIMENT CONFIGURATION
 experiment:
-  name: "amd_gbr_baseline"
-  description: "AMD monitoring using Gradient Boosting"
+  name: "tsf_slope_baseline"
+  description: "TSF slope stability baseline workflow"
   seed: 42
 
+active_variable: slope
+active_model: rf
+active_feature_pipeline: temporal
 
-# ACTIVE SETUP (used by pipeline)
-variable: amd          # active variable plugin
-model: gbr             # active model plugin
-feature_pipeline: temporal
+dataset:
+  split:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
 
-dataset: amd_dataset
-training: default_training
-monitoring: default_monitoring
+stable_pixel_selector:
+  stable_pixel_std_threshold: 0.008
 
-
-# VARIABLES (PLUGIN DEFINITIONS)
 variables:
-
   slope:
-    description: "Slope stability from InSAR displacement"
-
+    description: "TSF slope stability from engineered deformation features"
     preprocessing:
       detrend: false
       normalize: true
-
     allowed_models:
-      - lstm
       - rf
-
+      - lstm
     default_feature_pipeline: temporal
 
   amd:
-    description: "Acid Mine Drainage index from Sentinel-2"
-
+    description: "Acid mine drainage monitoring"
     preprocessing:
       gap_fill: true
       smoothing: true
-      method_gap_fill: linear
-      method_smoothing: savgol
-
     allowed_models:
-      - gbr
       - rf
-
+      - gbr
     default_feature_pipeline: temporal
 
-
-# FEATURE PIPELINES
 features:
-
   temporal:
-    description: "Sliding window temporal features"
-
-    look_back: 12
-    horizon: 1
-
-    engineered_features:
-      - mean
-      - std
-      - trend
-      - slope
+    description: "Velocity, acceleration, jerk, temporal statistics and standard deviation"
+    source_dir: "results/features"
+    selected:
+      - velocity
       - acceleration
+      - jerk
+      - temporal_mean
+      - temporal_std
+    look_back: 3
+    target_feature: velocity
 
-  lagged:
-    description: "Lag-based features"
-
-    lags: [1, 2, 3, 6, 12]
-
-
-# MODELS (PLUGIN CONFIGURATION)
 models:
-
+  rf:
+    n_estimators: 200
+    max_depth: 10
+    random_state: 42
+    n_jobs: -1
+  xgb:
+    n_estimators: 300
+    learning_rate: 0.05
+    max_depth: 4
+    random_state: 42
+  gbr:
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 3
   lstm:
-    type: sequence
-
     hidden_size: 64
     num_layers: 2
     dropout: 0.2
 
-    optimizer:
-      lr: 0.001
-
-    training:
-      batch_size: 32
-      epochs: 50
-
-  rf:
-    type: tabular
-
-    n_estimators: 200
-    max_depth: 10
-    random_state: 42
-
-  gbr:
-    type: tabular
-
-    n_estimators: 100
-    learning_rate: 0.1
-    max_depth: 3
-
-
-# DATASETS
-datasets:
-
-  slope_dataset:
-    source: "InSAR displacement"
-    temporal_resolution: "monthly"
-
-    split:
-      method: temporal
-      train_ratio: 0.7
-      val_ratio: 0.15
-      test_ratio: 0.15
-
-  amd_dataset:
-    source: "Sentinel-2 AMD index"
-    temporal_resolution: "monthly"
-
-    split:
-      method: temporal
-      train_ratio: 0.7
-      val_ratio: 0.15
-      test_ratio: 0.15
-
-
-# TRAINING / VALIDATION
 training:
+  validation:
+    method: expanding_window
+    folds: 5
+  metrics:
+    - rmse
+    - mae
 
-  default_training:
-    validation:
-      method: expanding_window   # time-series CV
-      folds: 5
-
-    early_stopping:
-      enabled: true
-      patience: 10
-
-    metrics:
-      - rmse
-      - mae
-
-
-# MONITORING (PHYSICS-INFORMED LAYER)
 monitoring:
+  methods:
+    - residual
+    - zscore
+    - cusum
+  anomaly_threshold: 1.0
+  residual:
+    window: 12
+    threshold: 0.02
+  zscore:
+    threshold: 3.0
+  cusum:
+    threshold: 5.0
 
-  default_monitoring:
+explainability:
+  methods:
+    - shap
+    - lime
 
-    methods:
-      - cusum
-      - bayesian_cp
-      - regime
-
-    cusum:
-      k: 0.5
-      h: 5
-
-    bayesian_cp:
-      hazard: 0.01
-
-    regime:
-      thresholds:
-        acceleration: 0.1
-        deceleration: -0.1
-
-    residuals:
-      standardize: true
-      window: 12
-
-
-# LOGGING / REPRODUCIBILITY
 logging:
-
   save_model: true
   save_config: true
   log_metrics: true
 
+pipelines:
+  learning:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs:
+            - input
+        split:
+          op: splitter
+          inputs:
+            - load
+        window:
+          op: windowing
+          inputs:
+            - split
+        features:
+          op: feature_engineering
+          inputs:
+            - window
+        stable:
+          op: stable_pixel_selection
+          inputs:
+            - features
+        train:
+          op: trainer
+          inputs:
+            - stable
+        validate:
+          op: validation
+          inputs:
+            - train
+      output: validate
 
-
+  inference:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs:
+            - input
+        features:
+          op: feature_engineering
+          inputs:
+            - load
+        predict:
+          op: predictor
+          inputs:
+            - features
+        residual:
+          op: residual_analysis
+          inputs:
+            - predict
+        trend:
+          op: trend_detection
+          inputs:
+            - residual
+        anomaly:
+          op: anomaly_detection
+          inputs:
+            - residual
+        risk:
+          op: risk_scoring
+          inputs:
+            - trend
+            - anomaly
+      output: risk

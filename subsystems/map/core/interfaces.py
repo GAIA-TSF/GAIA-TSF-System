@@ -1,4 +1,37 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+
+@dataclass(slots=True)
+class Dataset:
+    """Container for temporal train/validation/test datasets.
+
+    Arrays are standardized as tabular supervised samples. For raster time
+    series, each row represents one pixel at one time step.
+    """
+
+    X_train: np.ndarray
+    y_train: np.ndarray
+    X_val: np.ndarray
+    y_val: np.ndarray
+    X_test: np.ndarray
+    y_test: np.ndarray
+    feature_names: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    train_time_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    val_time_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    test_time_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    train_pixel_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    val_pixel_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    test_pixel_indices: np.ndarray = field(default_factory=lambda: np.empty(0, dtype=int))
+    stable_selection_values: np.ndarray | None = None
+    raster_shape: tuple[int, ...] | None = None
 
 
 class VariablePlugin(ABC):
@@ -58,48 +91,67 @@ class VariablePlugin(ABC):
 
 
 class ModelPlugin(ABC):
-    """
-    Unified interface for ALL models (LSTM, RF, XGB, etc.)
-
-    Key design:
-    - Pipelines do NOT care about model type
-    - Everything follows fit() / predict()
-    """
+    """Legacy compatibility interface for model plugins."""
 
     def __init__(self, config):
-        self.config = config  # hyperparameters, etc.
+        self.config = config
 
     @abstractmethod
     def fit(self, X, y):  # noqa: N803
-        """
-        Train model.
-
-        X:
-            - sequences (LSTM)
-            - tabular features (RF/XGB)
-        """
+        """Train the model."""
         pass
 
     @abstractmethod
     def predict(self, X):  # noqa: N803
-        """
-        Must return PredictionResult.
-
-        Why:
-        - Monitoring requires standardized output
-        - Enables uncertainty propagation later
-        """
+        """Return standardized predictions."""
         pass
 
 
-class PredictionResult:
-    """
-    Standardized prediction container.
+class PredictiveModel(ABC):
+    """Abstract interface for all predictive models."""
 
-    Why:
-    - Monitoring module expects consistent structure
-    - Enables future extension (uncertainty, quantiles, etc.)
-    """
+    def __init__(self, config: Any) -> None:
+        self.config = config
+
+    @abstractmethod
+    def train(self, X: np.ndarray, y: np.ndarray) -> None:  # noqa: N803
+        """Train the predictive model."""
+
+    @abstractmethod
+    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
+        """Return predictions for the supplied feature matrix."""
+
+    @abstractmethod
+    def save(self, path: str | Path) -> None:
+        """Persist the model to disk."""
+
+    @abstractmethod
+    def load(self, path: str | Path) -> "PredictiveModel":
+        """Load a trained model from disk."""
+
+
+class MonitoringPlugin(ABC):
+    """Abstract interface for monitoring plugins."""
+
+    name: str = ""
+
+    @abstractmethod
+    def evaluate(self, residuals: np.ndarray, config: Any) -> dict[str, Any]:
+        """Evaluate residuals and return monitoring output."""
+
+
+class ExplainabilityPlugin(ABC):
+    """Abstract interface for explainability plugins."""
+
+    name: str = ""
+
+    @abstractmethod
+    def explain(self, model: Any, X: np.ndarray, config: Any) -> dict[str, Any]:  # noqa: N803
+        """Generate explainability artifacts."""
+
+
+class PredictionResult:
+    """Standardized prediction container."""
 
     def __init__(self, y_pred, uncertainty=None):
         self.y_pred = y_pred

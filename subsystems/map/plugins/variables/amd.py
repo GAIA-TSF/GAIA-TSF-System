@@ -1,5 +1,8 @@
-from core.registry import register_variable
+import logging
+from typing import Any
+
 from core.interfaces import VariablePlugin
+from core.registry import register_variable
 
 """
 AMD variable plugin
@@ -10,12 +13,14 @@ Encapsulates:
 - allowed models
 """
 
+logger = logging.getLogger("map.variables.amd")
+
 
 @register_variable('amd')
 class AMDVariable(VariablePlugin):
     name = 'amd'
 
-    def preprocess(self, data, config):
+    def preprocess(self, data: Any, config: Any) -> Any:
         """
         AMD index requires strong preprocessing:
 
@@ -26,15 +31,14 @@ class AMDVariable(VariablePlugin):
         This step is CRITICAL for stability of ML models.
         """
 
-        print('[AMD] Preprocessing: gap filling + smoothing')
+        logger.info("AMD preprocessing configured for gap filling and smoothing")
 
         # data = gap_fill(data)
         # data = smooth(data)
 
-        # return data
-        return 0
+        return data
 
-    def feature_pipeline(self):
+    def feature_pipeline(self) -> str:
         """
         Could be:
         - temporal
@@ -44,7 +48,7 @@ class AMDVariable(VariablePlugin):
         """
         return 'temporal'
 
-    def allowed_models(self):
+    def allowed_models(self) -> list[str]:
         """
         Gradient Boosting Regressor:
             - strong for tabular time-series features

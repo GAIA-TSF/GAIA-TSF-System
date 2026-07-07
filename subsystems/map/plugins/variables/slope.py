@@ -1,3 +1,5 @@
+from typing import Any
+
 from core.registry import register_variable
 from core.interfaces import VariablePlugin
 
@@ -6,7 +8,7 @@ from core.interfaces import VariablePlugin
 class SlopeVariable(VariablePlugin):
     name = 'slope'
 
-    def preprocess(self, data, config):
+    def preprocess(self, data: Any, config: Any) -> Any:
         """
         InSAR displacement:
         - usually already filtered
@@ -16,7 +18,7 @@ class SlopeVariable(VariablePlugin):
         """
         return data
 
-    def feature_pipeline(self):
+    def feature_pipeline(self) -> str:
         """
         Temporal features:
         - rolling stats
@@ -25,7 +27,7 @@ class SlopeVariable(VariablePlugin):
         """
         return 'temporal'
 
-    def allowed_models(self):
+    def allowed_models(self) -> list[str]:
         """
         LSTM → captures temporal dynamics
         RF → captures nonlinear patterns in engineered features

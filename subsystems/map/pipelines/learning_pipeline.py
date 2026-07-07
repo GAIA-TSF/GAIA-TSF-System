@@ -1,74 +1,34 @@
-# from utils.io import save_model, save_config
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.pipeline_executor import PipelineExecutor
+from core.registry import OPERATION_REGISTRY
+
+import pipelines.operations  # noqa: F401
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("map.learning_pipeline")
 
 
-"""
-Learning pipeline
+def run_learning(config: Any) -> dict[str, Any]:
+    """Run the configured MAP learning DAG."""
+    logger.info("Starting configured MAP learning pipeline")
+    result = PipelineExecutor(config, OPERATION_REGISTRY).run("learning", initial_context={"input": None})
+    if not isinstance(result, dict):
+        raise TypeError("Configured learning pipeline must return a dictionary result.")
+    return _json_ready(result)
 
-Unified training entry point
-"""
 
-
-def run_learning(config):
-    """
-    Unified training pipeline.
-
-    Replaces:
-        - lstm_learning
-        - future RF/GBR scripts
-
-    Steps:
-        1. Select variable
-        2. Load dataset
-        3. Preprocess
-        4. Feature engineering
-        5. Train model
-        6. Save artifacts
-    """
-    print('\n=== LEARNING PIPELINE ===')
-
-    # 1. Select variable plugin
-    # variable = VARIABLE_REGISTRY[config.variable]
-    print(f'[Pipeline] Selected variable: {config.variable}')
-
-    # 2. Load dataset (your existing dataset module)
-    # data = load_dataset(config)
-    print(f'[Pipeline] Dataset loaded: {config.dataset}')
-
-    # 3. Variable-specific preprocessing
-    # data = variable.preprocess(data, config)
-    # Resolve active variable config
-    var_cfg = getattr(config.variables, config.variable)
-
-    # Access preprocessing
-    preprocessing_cfg = var_cfg.preprocessing
-
-    print(f'[Pipeline] Preprocessing config: {preprocessing_cfg}')
-
-    # 4. Feature engineering
-    # feature_fn = FEATURE_REGISTRY[variable.feature_pipeline()]
-    # X, y = feature_fn(data, config)
-    # how to define feature pipeline?
-    print(f'[Pipeline] Feature engineering with pipeline: {config.features}')
-
-    # 5. Validate model choice
-    # assert config.model in variable.allowed_models(), \
-    #     f"Model {config.model} not allowed for {config.variable}"
-    print(f'[Pipeline] Selected model: {config.model}')
-
-    # 6. Train model
-    # model.fit(X, y)
-    print(f'[Pipeline] Training model: {config.training}')
-
-    # 7. Fine-tuning, validation, monitoring (if applicable)
-    # if config.monitoring:
-    #     monitor = Monitoring(config.monitoring)
-    #     monitor.evaluate(model, X_val, y_val)
-    print(f'[Pipeline] Monitoring with config: {config.monitoring}')
-
-    # 8. Save model + config (reproducibility)
-    # save_model(model, config)
-    # save_config(config)
-    print('[Pipeline] Saving model and config...')
-
-    # return model
-    return 0
+def _json_ready(value: Any) -> Any:
+    """Convert pipeline output into a lightweight public return value."""
+    if isinstance(value, dict):
+        return {
+            key: _json_ready(item)
+            for key, item in value.items()
+            if key not in {"dataset", "model", "train_rows", "stable_mask"}
+        }
+    if isinstance(value, list):
+        return [_json_ready(item) for item in value]
+    return value

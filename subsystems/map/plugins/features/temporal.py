@@ -1,14 +1,19 @@
 from core.registry import register_feature
 
+import logging
+from typing import Any
+
 """
 Temporal feature engineering
 
 Transforms time series into supervised learning format
 """
 
+logger = logging.getLogger("map.features.temporal")
+
 
 @register_feature('temporal')
-def temporal_features(data, config):
+def temporal_features(data: Any, config: Any) -> tuple[str, str]:
     """
     Converts time series into supervised learning format.
 
@@ -24,8 +29,10 @@ def temporal_features(data, config):
     - LSTM (sequence format)
     - RF/XGB (flattened features)
     """
-    print(
-        f'[Features] Temporal features (look_back={config.look_back}, horizon={config.horizon})'
+    logger.info(
+        "Temporal features configured with look_back=%s horizon=%s",
+        getattr(config, "look_back", None),
+        getattr(config, "horizon", None),
     )
 
     # Mock output

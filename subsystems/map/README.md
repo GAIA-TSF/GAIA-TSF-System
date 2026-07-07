@@ -1,88 +1,91 @@
-# Machine Learning Predictive Analytics (MAP) Sub-system
+# MAP subsystem architecture
 
-Trend detection, anomaly analysis, and dynamic risk scoring.
+The MAP subsystem is the predictive analytics core of GAIA-TSF. It consumes engineered features from the DAG subsystem and produces baseline models, predictions, residuals, anomaly summaries, and explainability artifacts without embedding variable-specific logic in the core pipeline.
 
-The **Machine Learning Predictive Analytics** sub-system functions as
-the core intelligence engine of the GAIA-TSF architecture, responsible
-for transforming historical and current monitoring data into
-actionable predictive insights (trend, anomaly, and risk scoring). The
-sub-system is designed to execute comprehensive modeling workflows
-that include data ingestion, feature engineering, model training,
-inference, and output results upload.
+## Architecture overview
 
-![ML Predictive Analytics](../../images/map_subsystem.png)
+- Learning pipeline: executes the configured `pipelines.learning.dag`, builds pixel-time samples from configured feature rasters, filters training rows through `StablePixelSelector`, trains a registered `PredictiveModel`, validates it, persists artifacts, and records the model version.
+- Inference pipeline: executes the configured `pipelines.inference.dag`, loads a trained model, rebuilds the same configured dataset, scores all monitored pixels in the inference split, and stores predictions and residuals independently.
+- Monitoring pipeline: evaluates residuals through configured plugins such as residual thresholding, z-score, CUSUM, BOCD, and regime detection, then writes combined anomaly score and binary anomaly arrays.
+- Explainability pipeline: runs configured explainability plugins such as SHAP, LIME, and DiCE and stores method summaries under `results/explainability/`.
 
-### Multi-Variable Time Series Monitoring Framework
-This subsystem implements a modular machine learning framework for monitoring geophysical processes from time series data. It is designed to support multiple variables (e.g., slope stability, AMD) and multiple model types (e.g., LSTM, Random Forest, XGBoost) within a unified, reproducible pipeline.
+## Key components
 
-### Key Features
-* **Plugin Architecture**
-  Variables, feature engineering pipelines, and models are implemented as independent plugins. This enables flexible combinations without modifying core code.
+- `config.yaml`: active variable, feature pipeline, model, training split, stable-pixel threshold, monitoring methods, and explainability methods.
+- `core/`: shared interfaces, plugin and operation registries, DAG executor, experiment manager, and persistent model registry.
+- `dataset/`: feature loading, dataset construction, temporal splitting, and window utilities.
+- `plugins/variables/`: variable-specific preprocessing and allowed-model declarations.
+- `plugins/selection/`: replaceable baseline-training pixel selectors.
+- `plugins/models/`: interchangeable predictive models implementing `train()`, `predict()`, `save()`, and `load()`.
+- `plugins/monitoring/`: interchangeable residual/anomaly monitoring methods.
+- `plugins/explainability/`: explainability plugin interfaces and registered placeholders.
+- `pipelines/`: DAG-backed learning/inference wrappers, operation adapters, monitoring, and explainability orchestration.
 
-* **Multi-Variable Support**
-  * **Slope Stability** (InSAR displacement time series)
-    * Models: LSTM, Random Forest
-    * Features: engineered temporal features
+## Configurable DAGs
 
-  * **AMD** (Sentinel-2 AMD index time series)`
-    * Models: XGBoost / LightGBM, Random Forest
-    * Features: gap filling, noise filtering, temporal features
+Learning and inference execution order is configured in `config.yaml` under `pipelines`. Each node names an operation registered in `core.registry.OPERATION_REGISTRY` and declares dependencies through `inputs`.
 
-* **Unified Pipelines**
-`
-  * `learning_pipeline`: training and experiment registration
-  * `inference_pipeline`: prediction, residual computation, and monitoring
-
-* **Physics-Informed Monitoring Layer**
-  Predictions are transformed into risk signals using methods such as:
-
-  * CUSUM (persistent acceleration detection)
-  * Bayesian online change point detection
-  * Regime classification (acceleration, deceleration, oscillation)
-
-
-### Architecture Overview
-
-```
-plugins/
-  variables/     # variable-specific logic (slope, AMD)
-  features/      # feature engineering pipelines
-  models/        # ML models (LSTM, RF, XGB)
-
-core/
-  interfaces.py  # common abstractions
-  registry.py    # plugin registration
-
-pipelines/
-  learning_pipeline.py
-  inference_pipeline.py
-
-dataset/         # data loading and windowing
-monitoring/      # change detection and risk analysis
-registry/        # experiment tracking
-utils/           # shared utilities
-```
-
-
-### Usage 
+Example:
 
 ```yaml
-variable: amd
-model: xgb
-
-look_back: 12
-horizon: 1
+pipelines:
+  learning:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs: [input]
+        features:
+          op: feature_engineering
+          inputs: [load]
+        stable:
+          op: stable_pixel_selection
+          inputs: [features]
+        train:
+          op: trainer
+          inputs: [stable]
+        validate:
+          op: validation
+          inputs: [train]
+      output: validate
 ```
+
+Built-in operations include `tensor_loader`, `splitter`, `windowing`, `feature_engineering`, `stable_pixel_selection`, `trainer`, `validation`, `predictor`, `residual_analysis`, `trend_detection`, `anomaly_detection`, and `risk_scoring`.
+
+## Usage
+
+Training:
 
 ```bash
-python run_learning.py --config config.yaml
-python run_inference.py --config config.yaml
+python subsystems/map/run_learning.py --config subsystems/map/config.yaml
 ```
 
+Inference:
 
-### Test
-
-```bash 
-TODO: 
+```bash
+python subsystems/map/run_inference.py --config subsystems/map/config.yaml
 ```
 
+Monitoring:
+
+```bash
+python -c "import sys, numpy as np; sys.path.insert(0, 'subsystems/map'); from utils.config_loader import load_config; from pipelines.monitoring_pipeline import run_monitoring_pipeline; config = load_config('subsystems/map/config.yaml'); residuals = np.load('results/residuals/residual_slope.npy'); run_monitoring_pipeline(config, residuals)"
+```
+
+Explainability:
+
+```bash
+python -c "import sys, numpy as np; sys.path.insert(0, 'subsystems/map'); from utils.config_loader import load_config; from core.registry import MODEL_REGISTRY; import plugins.models.rf; from pipelines.explainability_pipeline import run_explainability_pipeline; config = load_config('subsystems/map/config.yaml'); model = MODEL_REGISTRY['rf'].load('results/models/slope_rf.joblib'); X = np.load('results/predictions/prediction_slope.npy').reshape(-1, 1); run_explainability_pipeline(config, model, X)"
+```
+
+## Extensibility
+
+Future variables and monitoring methods can be added by implementing a new plugin class and registering it in the appropriate plugin package. The dataset builder and orchestration pipelines remain unchanged because feature names, variable selection, model selection, thresholds, and active monitoring/explainability methods are configuration-driven.
+
+## Outputs
+
+- `results/models/`: serialized model, metrics, and versioned model registry metadata.
+- `results/predictions/`: prediction arrays for monitored pixels.
+- `results/residuals/`: residual arrays and residual statistics.
+- `results/anomalies/`: combined anomaly score, binary anomaly arrays, and anomaly summary JSON.
+- `results/explainability/`: explainability plugin summaries grouped by method.

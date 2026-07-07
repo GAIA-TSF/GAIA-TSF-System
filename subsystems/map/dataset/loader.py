@@ -6,14 +6,21 @@ In real system:
 - constructs time series
 """
 
+from __future__ import annotations
 
-def load_dataset(config):
+import logging
+from typing import Any
+
+logger = logging.getLogger("map.dataset.loader")
+
+
+def load_dataset(config: Any) -> str:
     """Load training dataset"""
-    print('[Dataset] Loading AMD dataset')
+    logger.info("Loading AMD dataset")
     return 'raw_data'
 
 
-def load_new_data(config):
+def load_new_data(config: Any) -> str:
     """Load inference dataset"""
-    print('[Dataset] Loading NEW AMD data')
+    logger.info("Loading new AMD data")
     return 'new_data'

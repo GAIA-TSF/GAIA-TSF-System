@@ -1,16 +1,14 @@
-"""
-YAML config loader
+"""YAML config loader for the MAP subsystem."""
 
-Purpose:
-- Load experiment configuration from YAML
-- Convert into object with attribute-style access
+from __future__ import annotations
 
-Why:
-- Cleaner than dict["key"]
-- Compatible with existing pipeline code
-"""
+import logging
+from pathlib import Path
+from typing import Any
 
 import yaml
+
+logger = logging.getLogger("map.config_loader")
 
 
 class Config:
@@ -19,24 +17,24 @@ class Config:
         config.variable instead of config["variable"]
     """
 
-    def __init__(self, config_dict):
+    def __init__(self, config_dict: dict[str, Any]) -> None:
         for key, value in config_dict.items():
             # Recursively convert nested dictionaries
             if isinstance(value, dict):
                 value = Config(value)
             setattr(self, key, value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__dict__)
 
 
-def load_config(path='config.yaml'):
+def load_config(path: str | Path = 'config.yaml') -> Config:
     """
     Load YAML file and return Config object
     """
-    print(f'[Config] Loading config from {path}')
+    logger.info("Loading config from %s", path)
 
-    with open(path, 'r') as f:
-        config_dict = yaml.safe_load(f)
+    with Path(path).open('r', encoding="utf-8") as f:
+        config_dict = yaml.safe_load(f) or {}
 
     return Config(config_dict)
