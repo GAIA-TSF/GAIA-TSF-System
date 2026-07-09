@@ -43,11 +43,7 @@ class AssetChecker(GaiaBase):
         :param aoi: Shapely geometry of the AOI in WGS84 (EPSG:4326)
         :return: Coverage ratio in [0, 1]; 1.0 if no asset has a bbox
         """
-        spatial_geoms = [
-            box(*a['bbox'])
-            for a in assets
-            if a.get('bbox')
-        ]
+        spatial_geoms = [box(*a['bbox']) for a in assets if a.get('bbox')]
         if not spatial_geoms:
             return 1.0  # no bbox data — cannot penalise
         covered = unary_union(spatial_geoms)
