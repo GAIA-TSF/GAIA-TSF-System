@@ -39,18 +39,18 @@ class AssetChecker(GaiaBase):
         """
         Return the fraction of the AOI covered by the union of S2 asset bboxes.
 
-        :param assets: Full asset list (non-S2 assets are ignored)
+        :param assets: Full asset list; only assets that carry a bbox field contribute
         :param aoi: Shapely geometry of the AOI in WGS84 (EPSG:4326)
-        :return: Coverage ratio in [0, 1]; 1.0 if no S2 bboxes are available
+        :return: Coverage ratio in [0, 1]; 1.0 if no asset has a bbox
         """
-        s2_geoms = [
+        spatial_geoms = [
             box(*a['bbox'])
             for a in assets
-            if self._get_asset_type(a) == 's2' and a.get('bbox')
+            if a.get('bbox')
         ]
-        if not s2_geoms:
+        if not spatial_geoms:
             return 1.0  # no bbox data — cannot penalise
-        covered = unary_union(s2_geoms)
+        covered = unary_union(spatial_geoms)
         return covered.intersection(aoi).area / aoi.area
 
     def analyze_assets(

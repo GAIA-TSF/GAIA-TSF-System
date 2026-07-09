@@ -288,7 +288,7 @@ class TestAssetCheckerCoverage:
         assert result['result']['coverage_ratio'] is None
 
     def test_AC_010_no_bbox_in_assets_fallback_scores_10(self):
-        """When S2 assets have no bbox field the coverage check cannot run and scores 10."""
+        """When no asset has a bbox field the coverage check cannot run and scores 10."""
         checker = AssetChecker()
         assets = self._base_assets(_S2_ASSET)  # _S2_ASSET has no bbox key
         result = checker.analyze_assets(assets, aoi=_AOI, verbose=False)
