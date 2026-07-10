@@ -95,7 +95,7 @@ class TestEarthObservationDataLoader:
         )
         importer.import_zip()
 
-        # STAC query: search by bbox and datetime
+        # Verify STAC publication and asset integrity
         utils.import_via_stac(
             importer.stac_api_url,
             importer.stac_json['bbox'],
