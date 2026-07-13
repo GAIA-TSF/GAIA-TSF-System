@@ -39,7 +39,9 @@ def fetch_from_https(urls: List[str], logger: Any) -> List[Tuple[str, bytes]]:
             response.raise_for_status()
             filename = urlparse(url).path.rsplit('/', 1)[-1] or url
             results.append((filename, response.content))
-            logger.info(f'Downloaded {filename} ({len(response.content)} bytes) via HTTPS.')
+            logger.info(
+                f'Downloaded {filename} ({len(response.content)} bytes) via HTTPS.'
+            )
         except requests.RequestException as e:
             logger.error(f'Failed to fetch {url} over HTTPS: {e}')
     return results
