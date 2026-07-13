@@ -1,16 +1,16 @@
 import pytest
-import shutil
-from pathlib import Path
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import SettingsReader, ProjectConfigReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
+
 
 @pytest.fixture(scope='class')
 def project_config():
     return ProjectConfigReader(
         TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
     )
+
 
 class TestEOSearch:
     search_filter = {
@@ -19,7 +19,7 @@ class TestEOSearch:
         'end': '2025-06-05',
         'productType': 'S2_MSI_L2A',
     }
- 
+
     def test_DataAcquisitionGateway_001_eodag_search(self, project_config):
         """Test DataAcquisitionGateway module.
 
