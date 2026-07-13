@@ -214,3 +214,4 @@ config.yaml
 tests/data/*
 venv/
 *.swp
+tests/results/
