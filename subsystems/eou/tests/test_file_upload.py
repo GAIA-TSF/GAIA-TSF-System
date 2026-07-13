@@ -1,9 +1,3 @@
-import pytest
-import shutil
-from pathlib import Path
-
-from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import SettingsReader, ProjectConfigReader
 from tests.utils import TestUtils
 
 
@@ -23,5 +17,3 @@ class TestEOUpload:
         assert result['valid'] is True and result['driver'] == 'GTiff'
         assert len(result['errors']) < 1
         assert len(result['warnings']) < 1
-
-

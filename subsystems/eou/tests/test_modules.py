@@ -24,8 +24,8 @@ class TestModules:
         """
         subsystem = EarthObservationDataUploader()
 
-        assert hasattr(subsystem, "manual_file_loader")
-        assert hasattr(subsystem, "data_acquisition_gateway")
+        assert hasattr(subsystem, 'manual_file_loader')
+        assert hasattr(subsystem, 'data_acquisition_gateway')
 
         assert isinstance(subsystem.manual_file_loader, ManualFileLoader)
         assert isinstance(subsystem.data_acquisition_gateway, DataAcquisitionGateway)

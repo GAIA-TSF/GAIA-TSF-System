@@ -6,6 +6,7 @@ from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from lib.config import SettingsReader, ProjectConfigReader
 from tests.utils import TestUtils
 
+
 @pytest.fixture(scope='class')
 def project_config():
     return ProjectConfigReader(
@@ -20,7 +21,7 @@ class TestEODownload:
         'end': '2025-06-05',
         'productType': 'S2_MSI_L2A',
     }
- 
+
     def test_DataAcquisitionGateway_001_eodag_download(self, project_config):
         """Test DataAcquisitionGateway module.
 
