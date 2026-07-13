@@ -266,3 +266,17 @@ jobs:
             docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m pytest -v --junitxml=tests/results/geneneral.xml $i
             cd ..
           done
+
+  upload-test-results:
+    runs-on: ubuntu-24.04
+    needs: [ale, dag, dpr, eou, isu, map, ntf, qcl, rep, sdi, vid, general]
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Upload test results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: tests/results/
+          compression-level: 6
