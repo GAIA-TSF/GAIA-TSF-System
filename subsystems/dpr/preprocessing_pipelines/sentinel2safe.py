@@ -1,5 +1,7 @@
 import os
+import shutil
 import json
+import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path, PosixPath
 import numpy
@@ -62,6 +64,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 'dtype': bool,
                 'description': 'If True, saves each band to a separate raster file. If False, merges all '
                 'bands into a single multi-band raster.',
+                'default': False,
+            },
+            'zip_output_files': {
+                'dtype': bool,
+                'description': 'If True, export output files as a zipped folder.',
                 'default': False,
             },
         },
@@ -556,6 +563,62 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 numpy.abs(self._config['target_res'][0])
             )
 
+    def _zip_output_files(self):
+        self.logger.info('Conversion of outputs to zip file')
+        # Retrieve output metadata path
+        json_file = self.s2_metadata['properties']['s2:product_uri'].replace(
+            '.SAFE', '.json'
+        )
+        json_path = Path(self._config['output_folder'] / json_file).resolve()
+        if not json_path.exists():
+            self.logger.error(f'Metadata file {json_path} not found.')
+
+        # Name zipfile with the base name of the json metadata file and create a temp directory to store the assets
+        output_zip_path = json_path.with_suffix('.zip')
+        temp_dir = json_path.parent / f'_temp_{json_path.stem}_assets'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        with open(json_path, 'r', encoding='utf-8') as f:
+            stac_data = json.load(f)
+        assets = stac_data.get("assets", {})
+        assets_paths = []
+        for asset_key, asset_info in assets.items():
+            href = asset_info.get("href")
+            if not href:
+                self.logger.warning(f'Skipping asset "{asset_key}": No href found.')
+                continue
+
+            # Extract target filename for the zip archive
+            parsed_name = Path(href).name
+            temp_filename = parsed_name if parsed_name else f"{asset_key}.bin"
+            temp_file_path = temp_dir / temp_filename
+
+            # Resolve asset path relative to the STAC JSON file directory
+            asset_path = Path(href)
+            if not asset_path.is_absolute():
+                asset_path = (json_path.parent / href).resolve()
+            if asset_path.exists() and asset_path.is_file():
+                shutil.move(asset_path, temp_file_path)
+                assets_paths.append(temp_file_path)
+            else:
+                self.logger.warning(f'Conversion to zip file: Local asset file not found at {asset_path}')
+                continue
+
+        self.logger.info(f'Creating archive: {output_zip_path}')
+        with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zip_out:
+            # Add the JSON metadata file to the root of the ZIP
+            zip_out.write(json_path, arcname=json_path.name)
+
+            # Add downloaded assets into an 'assets/' folder within the ZIP
+            for asset_file in assets_paths:
+                zip_out.write(asset_file, arcname=f"assets/{asset_file.name}")
+
+        self.logger.info('Cleaning up temporary asset files...')
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+            os.remove(json_path)
+        self.logger.info(f'Successfully packaged outputs into {output_zip_path}')
+
     def _run(self):
         self._configure()
         # Ensure paths are Path objects
@@ -577,6 +640,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 or os.path.exists(path.replace('.tiff', '.jp2'))
                 or os.path.exists(path.replace('.tiff', '_B01.tiff'))
                 or os.path.exists(path.replace('.tiff', '_B01.jp2'))
+                or os.path.exists(path.replace('.tiff', '.zip'))
             ):
                 self.logger.info(
                     f'Skipping processing of {product}: '
@@ -612,6 +676,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self._process_and_merge_jp2(roi)
             self._update_stack_assets()
             self._save_json()
+            if self._config['zip_output_files'] is True:
+                self._zip_output_files()
         else:
             self.logger.error(
                 'Extraction failed: Required metadata files could not be located.'

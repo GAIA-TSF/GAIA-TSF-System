@@ -333,6 +333,56 @@ class TestSentinel2Workflow:
         del ds
         shutil.rmtree(output_folder)
 
+    def test_sentinel2_safe_processor_zip_outputs(self, sentinel2_data):
+        """Test the Sentinel2SafeProcessor with zip_output_files=True."""
+        # GDAL configuration to handle errors
+        gdal.UseExceptions()
+
+        # Get data from fixture
+        data_path = sentinel2_data['data_path']
+        roi = sentinel2_data['roi']
+
+        # Define an output folder to store the results
+        output_folder = os.path.abspath(
+            'subsystems/dpr/tests/sample_data/output_safe_processor_zip'
+        )
+
+        # Delete any pre-existing outputs
+        if os.path.exists(output_folder):
+            shutil.rmtree(output_folder)
+
+        # Set output resolution
+        res = (10, 10)
+
+        # Set resampling algorithm
+        r_alg = 'bilinear'
+
+        # Run the pipeline with split_bands=True
+        pipeline = Sentinel2SafeProcessor()
+        pipeline.configure(
+            input_safe=Path(data_path),
+            output_folder=Path(output_folder),
+            roi=roi,
+            target_res=res,
+            resampling_alg=r_alg,
+            split_bands=True,
+            overwrite=True,
+        )
+
+        # Verify configuration before running
+        assert pipeline._config['zip_output_files'] is True, (
+            'zip_output_files configuration not set correctly'
+        )
+
+        pipeline.run()
+
+        # Check if the zip file was created
+        base_filename = (
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+        )
+        json_path = os.path.join(output_folder, base_filename + '.zip')
+        assert os.path.exists(json_path), 'The zip file was not created.'
+
     def water_masking_data(self):
         # Set path to folder containing sentinel-2 sample scenes
         input_folder = TestUtils.get_data_path('dpr/sentinel2_yxsjoberg')
