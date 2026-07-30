@@ -437,7 +437,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 )
 
                 # save filename to assets
-                self.assets[band_name]['href'] = os.path.join('./', output_filename)
+                self.assets[band_name]['href'] = output_filename
+                # self.assets[band_name]['href'] = os.path.join('./', output_filename)
 
                 # Convert VRT to GeoTIFF or JP2
                 options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
@@ -483,7 +484,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # save file name to assets dictionary
             for band in band_names:
                 self.assets[band]['href'] = product_name
-                #self.assets[band]['href'] = os.path.join('./', product_name)
+                # self.assets[band]['href'] = os.path.join('./', product_name)
 
             options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
