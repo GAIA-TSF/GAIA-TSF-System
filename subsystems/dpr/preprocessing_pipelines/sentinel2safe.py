@@ -580,10 +580,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         with open(json_path, 'r', encoding='utf-8') as f:
             stac_data = json.load(f)
-        assets = stac_data.get("assets", {})
+        assets = stac_data.get('assets', {})
         assets_paths = []
         for asset_key, asset_info in assets.items():
-            href = asset_info.get("href")
+            href = asset_info.get('href')
             if not href:
                 self.logger.warning(f'Skipping asset "{asset_key}": No href found.')
                 continue
@@ -601,11 +601,13 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             #    shutil.move(asset_path, temp_file_path)
                 assets_paths.append(asset_path)
             else:
-                self.logger.warning(f'Conversion to zip file: Local asset file not found at {asset_path}')
+                self.logger.warning(
+                    f'Conversion to zip file: Local asset file not found at {asset_path}'
+                )
                 continue
 
         self.logger.info(f'Creating archive: {output_zip_path}')
-        with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zip_out:
+        with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_out:
             # Add the JSON metadata file to the root of the ZIP
             zip_out.write(json_path, arcname=json_path.name)
 
