@@ -483,7 +483,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # save file name to assets dictionary
             for band in band_names:
                 self.assets[band]['href'] = product_name
-                #self.assets[band]['href'] = os.path.join('./', product_name)
+                # self.assets[band]['href'] = os.path.join('./', product_name)
 
             options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
