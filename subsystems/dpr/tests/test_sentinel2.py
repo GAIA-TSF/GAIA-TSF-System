@@ -2,7 +2,8 @@ import json
 import os
 import shutil
 from pathlib import Path
-
+import requests
+import tempfile
 import numpy
 import glob
 import pytest
@@ -18,6 +19,10 @@ from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
 from lib.config import SettingsReader
+
+from subsystems.sdi.loader import InSituDataLoader
+from subsystems.sdi.loader import EarthObservationDataLoader
+from subsystems.sdi.utils import SdiUtils
 
 
 @pytest.fixture(scope='class')
@@ -98,8 +103,8 @@ class TestSentinel2Workflow:
         else:
             extension = '.tiff'
         filename = (
-            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-            + extension
+                os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+                + extension
         )
         raster_path = os.path.join(output_folder, filename)
         assert os.path.exists(raster_path), (
@@ -333,7 +338,7 @@ class TestSentinel2Workflow:
         del ds
         shutil.rmtree(output_folder)
 
-    def test_sentinel2_safe_processor_zip_outputs(self, sentinel2_data):
+    def test_sentinel2_safe_processor_export_outputs_to_sdi(self, sentinel2_data):
         """Test the Sentinel2SafeProcessor with zip_output_files=True."""
         # GDAL configuration to handle errors
         gdal.UseExceptions()
@@ -367,6 +372,7 @@ class TestSentinel2Workflow:
             resampling_alg=r_alg,
             split_bands=True,
             overwrite=True,
+            zip_output_files=True,
         )
 
         # Verify configuration before running
@@ -380,8 +386,52 @@ class TestSentinel2Workflow:
         base_filename = (
             os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
         )
-        json_path = os.path.join(output_folder, base_filename + '.zip')
-        assert os.path.exists(json_path), 'The zip file was not created.'
+        zip_path = os.path.join(output_folder, base_filename + '.zip')
+        assert os.path.exists(zip_path), 'The zip file was not created.'
+
+        utils = SdiUtils()
+        # Run the import: uploads raster to S3 and updates STAC
+        importer = EarthObservationDataLoader(zip_path=zip_path)
+        importer.import_zip()
+
+        # STAC query: search by bbox and datetime
+        stac_api_url = importer.stac_api_url
+        bbox = importer.stac_json['bbox']
+        datetime = importer.stac_json['properties']['datetime']
+
+        query_url = (
+            f'{stac_api_url}/search?bbox={",".join(map(str, bbox))}&datetime={datetime}'
+        )
+
+        # Send request to STAC API
+        resp = requests.post(query_url, json={})
+        resp.raise_for_status()
+        items = resp.json().get('features', [])
+        assert items, 'STAC query returned no items'
+
+        # Find the asset B01
+        for stac_item in items:
+            if 'B01' in stac_item['assets']:
+                asset = stac_item['assets']['B01']
+                asset_url = asset['href']
+
+        assert asset_url, 'STAC asset does not contain href'
+
+        # Download the file from STAC asset URL
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        r = requests.get(asset_url, stream=True)
+        r.raise_for_status()
+        with open(temp_file.name, 'wb') as f:
+            for chunk in r.iter_content(8192):
+                f.write(chunk)
+
+        # Compare MD5 hash of downloaded file and input GeoTIFF
+
+        md5_input = utils.file_md5(importer.raster_files[0])
+        md5_downloaded = utils.file_md5(temp_file.name)
+        assert md5_input == md5_downloaded, (
+            'Downloaded file does not match the original GeoTIFF'
+        )
 
     def water_masking_data(self):
         # Set path to folder containing sentinel-2 sample scenes
