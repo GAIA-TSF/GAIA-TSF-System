@@ -1,5 +1,4 @@
 import os
-import shutil
 import json
 import zipfile
 import xml.etree.ElementTree as ET
@@ -576,8 +575,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # Name zipfile with the base name of the json metadata file and create a temp directory to store the assets
         output_zip_path = json_path.with_suffix('.zip')
-        #temp_dir = json_path.parent / f'_temp_{json_path.stem}_assets'
-        #temp_dir.mkdir(parents=True, exist_ok=True)
+        # temp_dir = json_path.parent / f'_temp_{json_path.stem}_assets'
+        # temp_dir.mkdir(parents=True, exist_ok=True)
 
         with open(json_path, 'r', encoding='utf-8') as f:
             stac_data = json.load(f)
@@ -590,16 +589,16 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 continue
 
             # Extract target filename for the zip archive
-            #parsed_name = Path(href).name
-            #temp_filename = parsed_name if parsed_name else f"{asset_key}.bin"
-            #temp_file_path = temp_dir / temp_filename
+            # parsed_name = Path(href).name
+            # temp_filename = parsed_name if parsed_name else f"{asset_key}.bin"
+            # temp_file_path = temp_dir / temp_filename
 
             # Resolve asset path relative to the STAC JSON file directory
             asset_path = Path(href)
             if not asset_path.is_absolute():
                 asset_path = (json_path.parent / href).resolve()
             if asset_path.exists() and asset_path.is_file():
-            #    shutil.move(asset_path, temp_file_path)
+                #    shutil.move(asset_path, temp_file_path)
                 assets_paths.append(asset_path)
             else:
                 self.logger.warning(
@@ -619,12 +618,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # also add xml files if assets are OpenJPEG
             if self.driver_name == 'JP2OpenJPEG':
                 for asset_file in assets_paths:
-                    xml_path = Path(str(asset_file)+'.aux.xml')
+                    xml_path = Path(str(asset_file) + '.aux.xml')
                     if os.path.exists(xml_path):
                         zip_out.write(xml_path, arcname=xml_path.name)
 
-        #self.logger.info('Cleaning up temporary asset files...')
-        #if temp_dir.exists():
+        # self.logger.info('Cleaning up temporary asset files...')
+        # if temp_dir.exists():
         #    shutil.rmtree(temp_dir)
         #    os.remove(json_path)
         self.logger.info(f'Successfully packaged outputs into {output_zip_path}')

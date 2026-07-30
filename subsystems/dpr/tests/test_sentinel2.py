@@ -20,7 +20,6 @@ from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
 from lib.config import SettingsReader
 
-from subsystems.sdi.loader import InSituDataLoader
 from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 
@@ -103,8 +102,8 @@ class TestSentinel2Workflow:
         else:
             extension = '.tiff'
         filename = (
-                os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
-                + extension
+            os.path.basename(data_path).replace('.SAFE', '').replace('.zip', '')
+            + extension
         )
         raster_path = os.path.join(output_folder, filename)
         assert os.path.exists(raster_path), (
