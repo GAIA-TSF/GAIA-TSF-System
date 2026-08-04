@@ -111,15 +111,15 @@ class TestStreamingThroughput:
         sample_payload: dict,
     ) -> None:
         """All messages in a burst of 200 are forwarded to the ETL callback — no silent drops."""
-        N = 200
-        for i in range(N):
+        n = 200
+        for i in range(n):
             kafka_handler._execute_pipeline(
                 payload=sample_payload,
                 source='test_topic',
                 protocol='kafka',
                 dataset_id=f'burst_{i:04d}',
             )
-        assert mock_etl_callback.call_count == N
+        assert mock_etl_callback.call_count == n
 
     def test_STR_THR_003_qc_failures_do_not_stall_pipeline(
         self,
