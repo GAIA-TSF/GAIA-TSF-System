@@ -23,15 +23,18 @@ class WaterQualityParser(BaseParser):
         score = 0.0
 
         # 1. Filename Indicators (config.yaml: isu.parsers.water.filename_indicators)
-        filename_indicators = self._keywords('filename_indicators', [
-            'water',
-            'quality',
-            'sonde',
-            'hydro',
-            'chem',
-            'lab',
-            'sample',
-        ])
+        filename_indicators = self._keywords(
+            'filename_indicators',
+            [
+                'water',
+                'quality',
+                'sonde',
+                'hydro',
+                'chem',
+                'lab',
+                'sample',
+            ],
+        )
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -42,20 +45,23 @@ class WaterQualityParser(BaseParser):
             headers = [str(c).lower().strip() for c in df.columns]
 
             # config.yaml: isu.parsers.water.strong_indicators
-            strong_indicators = self._keywords('strong_indicators', [
-                'ph',
-                'conductivity',
-                'ec',
-                'turbidity',
-                'do',
-                'orp',
-                'sulfate',
-                'iron',
-                'fe',
-                'tds',
-                'nitrate',
-                'mg/l',
-            ])
+            strong_indicators = self._keywords(
+                'strong_indicators',
+                [
+                    'ph',
+                    'conductivity',
+                    'ec',
+                    'turbidity',
+                    'do',
+                    'orp',
+                    'sulfate',
+                    'iron',
+                    'fe',
+                    'tds',
+                    'nitrate',
+                    'mg/l',
+                ],
+            )
 
             matches = [h for h in headers if any(ind in h for ind in strong_indicators)]
             if matches:
@@ -63,7 +69,8 @@ class WaterQualityParser(BaseParser):
 
             # 3. Negative Indicators
             negative_indicators = self._keywords(
-                'negative_indicators', ['displacement', 'velocity', 'inclinometer', 'gnss']
+                'negative_indicators',
+                ['displacement', 'velocity', 'inclinometer', 'gnss'],
             )
             if any(neg in h for h in headers for neg in negative_indicators):
                 score -= 0.6
