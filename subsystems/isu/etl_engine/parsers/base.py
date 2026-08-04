@@ -12,10 +12,17 @@ class BaseParser(ABC):
 
     _ENCODINGS_TO_TRY = ['utf-8', 'gbk', 'gb18030', 'latin-1']
 
-    def __init__(self, logger, encodings=None):
+    def __init__(self, logger, encodings=None, keyword_overrides=None):
         self.logger = logger
         if encodings:
             self._ENCODINGS_TO_TRY = encodings
+        # Config-driven detect() keyword lists (config.yaml: isu.parsers.<name>).
+        # Falls back to each parser's hardcoded defaults when absent, so
+        # parsers keep working when instantiated without settings (e.g. tests).
+        self._keyword_overrides = keyword_overrides or {}
+
+    def _keywords(self, key: str, default: List[str]) -> List[str]:
+        return self._keyword_overrides.get(key) or default
 
     def _read_csv_bytes(self, content: bytes, **kwargs) -> Tuple[pd.DataFrame, str]:
         """Try common encodings in order; return (DataFrame, encoding_used)."""

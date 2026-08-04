@@ -11,12 +11,21 @@ class ParsingEngine:
     Replaces the legacy ImportCatalogue.
     """
 
-    def __init__(self, logger, encodings=None):
+    def __init__(self, logger, encodings=None, parser_settings=None):
         self.logger = logger
+        # parser_settings mirrors config.yaml's isu.parsers.<name> section,
+        # e.g. {'slope': {'strong_indicators': [...]}, 'water': {...}}.
+        parser_settings = parser_settings or {}
         # Register available parsers
         self.registered_parsers: List[BaseParser] = [
-            SlopeStabilityParser(self.logger, encodings=encodings),
-            WaterQualityParser(self.logger, encodings=encodings),
+            SlopeStabilityParser(
+                self.logger, encodings=encodings,
+                keyword_overrides=parser_settings.get('slope'),
+            ),
+            WaterQualityParser(
+                self.logger, encodings=encodings,
+                keyword_overrides=parser_settings.get('water'),
+            ),
         ]
         self.confidence_threshold = 0.6
 
