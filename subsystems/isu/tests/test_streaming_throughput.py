@@ -71,11 +71,14 @@ class TestStreamingThroughput:
     Kafka/Kinesis brokers and focus purely on pipeline processing capacity.
     """
 
-    @pytest.mark.parametrize('msg_count,min_rate', [
-        (20,  1),   # lower bound: pipeline must handle at least  1 msg/s
-        (100, 5),   # mid range: pipeline must handle at least    5 msg/s
-        (200, 10),  # upper bound: pipeline must handle at least 10 msg/s
-    ])
+    @pytest.mark.parametrize(
+        'msg_count,min_rate',
+        [
+            (20, 1),  # lower bound: pipeline must handle at least  1 msg/s
+            (100, 5),  # mid range: pipeline must handle at least    5 msg/s
+            (200, 10),  # upper bound: pipeline must handle at least 10 msg/s
+        ],
+    )
     def test_STR_THR_001_pipeline_meets_throughput_requirement(
         self,
         kafka_handler: KafkaStreamHandler,
