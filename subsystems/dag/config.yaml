@@ -1,10 +1,15 @@
 # GAIA-TSF DAG CONFIG
 
-# DIRS 
+# ENVIRONMENTS - DIRS
+environments: 
+  lukas-X1:
+    project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation'
+
 # skylake 
 # project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
 # mac 
-project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
+# project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
+
 
 # GLOBAL SETTINGS 
 global:
