@@ -19,11 +19,13 @@ class ParsingEngine:
         # Register available parsers
         self.registered_parsers: List[BaseParser] = [
             SlopeStabilityParser(
-                self.logger, encodings=encodings,
+                self.logger,
+                encodings=encodings,
                 keyword_overrides=parser_settings.get('slope'),
             ),
             WaterQualityParser(
-                self.logger, encodings=encodings,
+                self.logger,
+                encodings=encodings,
                 keyword_overrides=parser_settings.get('water'),
             ),
         ]

@@ -24,16 +24,19 @@ class SlopeStabilityParser(BaseParser):
         score = 0.0
 
         # 1. Filename Indicators (config.yaml: isu.parsers.slope.filename_indicators)
-        filename_indicators = self._keywords('filename_indicators', [
-            'slope',
-            'gnss',
-            'insar',
-            'piezo',
-            'ground_motion',
-            'egms',
-            'displacement',
-            'deformation',
-        ])
+        filename_indicators = self._keywords(
+            'filename_indicators',
+            [
+                'slope',
+                'gnss',
+                'insar',
+                'piezo',
+                'ground_motion',
+                'egms',
+                'displacement',
+                'deformation',
+            ],
+        )
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -47,29 +50,32 @@ class SlopeStabilityParser(BaseParser):
             # Header keyword table (config.yaml: isu.parsers.slope.strong_indicators).
             # Defaults include InSAR/deformation terms so this matches
             # pipeline.py's insar column keywords ('coherence', 'los', 'deformation').
-            strong_indicators = self._keywords('strong_indicators', [
-                'displacement',
-                'velocity',
-                'def_x',
-                'def_y',
-                'def_z',
-                'pressure',
-                'pore_water',
-                'kpa',
-                'kilopascal',
-                'pascal',
-                'piezo',
-                'inclinometer',
-                'tilt',
-                'angle',
-                'depth',
-                'dataset',  # dam/structure monitoring: DataSetI, DataSetII, …
-                'celsius',  # temperature paired with pressure sensors
-                'deformation',
-                'insar',
-                'coherence',
-                'los',
-            ])
+            strong_indicators = self._keywords(
+                'strong_indicators',
+                [
+                    'displacement',
+                    'velocity',
+                    'def_x',
+                    'def_y',
+                    'def_z',
+                    'pressure',
+                    'pore_water',
+                    'kpa',
+                    'kilopascal',
+                    'pascal',
+                    'piezo',
+                    'inclinometer',
+                    'tilt',
+                    'angle',
+                    'depth',
+                    'dataset',  # dam/structure monitoring: DataSetI, DataSetII, …
+                    'celsius',  # temperature paired with pressure sensors
+                    'deformation',
+                    'insar',
+                    'coherence',
+                    'los',
+                ],
+            )
 
             # Calculate the number of matched keywords
             matches = [h for h in headers if any(ind in h for ind in strong_indicators)]
