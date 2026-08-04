@@ -154,11 +154,22 @@ class BaseParser(ABC):
             return df
 
         try:
-            # Convert to datetime (coerce errors, dayfirst for EU format)
+            # Year-first strings (ISO-8601 "YYYY-MM-DD..." / "YYYY/MM/DD...")
+            # are unambiguous. Forcing dayfirst=True on them anyway makes
+            # pandas' batch format inference mis-swap month/day, which turns
+            # any row whose day-of-month is > 12 into an invalid date (e.g.
+            # "2018-01-13" gets read as month=13) and silently drops it.
+            # Only apply the dayfirst heuristic to genuinely ambiguous
+            # (non year-first, e.g. EU DD/MM/YYYY) formats.
+            sample = df[target_col].dropna().astype(str)
+            year_first = (
+                sample.str.match(r'^\d{4}[-/]').all() if not sample.empty else False
+            )
+
             df['iso_timestamp'] = pd.to_datetime(
                 df[target_col],
                 errors='coerce',
-                dayfirst=True,
+                dayfirst=not year_first,
             )
 
             # QC: Drop invalid timestamps

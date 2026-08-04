@@ -32,6 +32,7 @@ class SlopeStabilityParser(BaseParser):
             'ground_motion',
             'egms',
             'displacement',
+            'deformation',
         ]
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
@@ -61,6 +62,10 @@ class SlopeStabilityParser(BaseParser):
                 'depth',
                 'dataset',  # dam/structure monitoring: DataSetI, DataSetII, …
                 'celsius',  # temperature paired with pressure sensors
+                'deformation',  # InSAR / in-situ deformation monitoring
+                'insar',
+                'coherence',
+                'los',  # InSAR Line-Of-Sight, matches pipeline.py's insar column keywords
             }
 
             # Calculate the number of matched keywords
