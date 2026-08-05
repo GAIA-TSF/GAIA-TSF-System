@@ -20,7 +20,7 @@ class BulkUploadScheduler(GaiaBase):
         self.gateway = DataAcquisitionGateway()
 
         eou_settings = self.settings.get('eou', {}) if self.settings else {}
-        self.target_dir = eou_settings.get('data_dir', '/data/gaia_tsf/eo_data')
+        self.target_dir = eou_settings.get('data_dir', 'sentinel2')
         self.interval = eou_settings.get('scan_interval_seconds', 3600)
 
         self.base_search_filter = eou_settings.get(
@@ -33,6 +33,7 @@ class BulkUploadScheduler(GaiaBase):
 
         # Allow the lookback window size to be configurable (defaulting to a safe 3-day window)
         self.lookback_days = eou_settings.get('lookback_days', 3)
+        self.quicklook = False
 
         self.scheduler = BaseScheduler(
             interval_seconds=self.interval, logger=self.logger
@@ -92,7 +93,7 @@ class BulkUploadScheduler(GaiaBase):
             )
 
             downloaded_paths = self.gateway.backend.download_all(
-                results, target_dir=self.target_dir, quicklook=False
+                results, target_dir=self.target_dir, quicklook=self.quicklook
             )
 
             if downloaded_paths:

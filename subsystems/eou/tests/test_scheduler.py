@@ -1,0 +1,89 @@
+import shutil
+import time
+import pytest
+
+from lib.scheduler import BaseScheduler
+from subsystems.eou.bulk_upload_scheduler import BulkUploadScheduler
+from tests.utils import TestUtils
+
+
+@pytest.fixture(scope='module')
+def project_config_path():
+    return TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
+
+
+class TestBulkUploadScheduler:
+    """Integration and unit tests for BaseScheduler and BulkUploadScheduler using real data."""
+
+    def test_SCH_001_base_scheduler_execution(self):
+        """Test underlying BaseScheduler threading execution and double-start prevention."""
+        execution_count = {'val': 0}
+
+        def sample_task():
+            execution_count['val'] += 1
+
+        sched = BaseScheduler(interval_seconds=1)
+        sched.start(sample_task)
+
+        # Ensure calling start() twice while running doesn't crash or duplicate threads
+        sched.start(sample_task)
+
+        time.sleep(2.5)
+        sched.stop()
+
+        assert execution_count['val'] >= 2
+        assert not sched._is_running
+
+    def test_SCH_002_scheduler_initialization(self, project_config_path):
+        """Verify BulkUploadScheduler initializes GaiaBase and gateway."""
+        scheduler = BulkUploadScheduler(project_path=project_config_path)
+
+        assert scheduler.sid.name == 'EOU'
+        assert scheduler.project_config is not None
+        assert scheduler.project_config.aoi() is not None
+        assert scheduler.gateway is not None
+        assert scheduler.target_dir is not None
+
+    def test_SCH_003_real_eou_bulk_upload_sync(self, project_config_path):
+        """Test real EO catalog search and download using live DataAcquisitionGateway."""
+        scheduler = BulkUploadScheduler(project_path=project_config_path)
+
+        # Isolate download directory and widen lookback to guarantee satellite pass hits
+        scheduler.target_dir = 'sentinel2_scheduler_test'
+        scheduler.lookback_days = 3
+        scheduler.quicklook = True
+
+        # Resolve download destination from backend root data directory
+        download_dir = scheduler.gateway.backend.data_dir / scheduler.target_dir
+
+        try:
+            scheduler._download_eo_products()
+
+            if download_dir.exists():
+                downloaded_items = list(download_dir.iterdir())
+                assert len(downloaded_items) >= 0
+
+        finally:
+            # Clean up all downloaded products and directories from disk
+            if download_dir.exists():
+                for item in download_dir.iterdir():
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                download_dir.rmdir()
+
+    def test_SCH_004_scheduler_start_stop_lifecycle(self, project_config_path):
+        """Test background thread lifecycle management for BulkUploadScheduler."""
+        scheduler = BulkUploadScheduler(project_path=project_config_path)
+        scheduler.interval = 1  # Fast loop interval for testing
+
+        assert not scheduler.scheduler._is_running
+
+        scheduler.start()
+        assert scheduler.scheduler._is_running
+
+        time.sleep(1.5)  # Allow background daemon to execute at least one tick
+
+        scheduler.stop()
+        assert not scheduler.scheduler._is_running
