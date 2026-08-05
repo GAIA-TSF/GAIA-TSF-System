@@ -50,9 +50,10 @@ class TemporalFeatureExtractor(FeatureExtractor):
             outputs.update(
                 self._compute_rolling_std(feature_name, stack, enabled_features),
             )
-            outputs.update(
-                self._compute_smoothing(feature_name, stack, enabled_features),
-            )
+            # no savgol smoothing 
+            # outputs.update(
+            #     self._compute_smoothing(feature_name, stack, enabled_features),
+            # )
         return outputs
 
     def _compute_lags(
@@ -219,6 +220,12 @@ class TemporalFeatureExtractor(FeatureExtractor):
                 'fallback for smoothed time series.',
             )
             return self._savgol_series_numpy(stack, window, polyorder)
+        # TODO: remove 
+
+        # debug 
+        print(np.isnan(stack).sum())
+        print(np.isinf(stack).sum())
+        print(stack.shape)
 
         smoothed = savgol_filter(
             stack,

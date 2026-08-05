@@ -1,15 +1,16 @@
 # GAIA-TSF DAG CONFIG
 
-# ENVIRONMENTS - DIRS
+# ENVIRONMENT
 environments: 
-  lukas-X1:
+  lukas-X1: 
     project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation'
 
 # skylake 
 # project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
 # mac 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
-
+# X1 
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation'
 
 # GLOBAL SETTINGS 
 global:
@@ -41,7 +42,7 @@ slope_stability:
   feature_engineering:
     cumulative_displacement: true
     velocity: true
-    acceleration: true
+    acceleration: truefinal
     jerk: true
     minimum: true
     maximum: true
