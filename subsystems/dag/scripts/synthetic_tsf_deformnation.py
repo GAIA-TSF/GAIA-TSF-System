@@ -1,5 +1,5 @@
 """
-synthetic_tsf_benchmark.py
+synthetic_tsf_deformation.py
 
 Synthetic 3-year TSF InSAR benchmark generator.
 
@@ -24,12 +24,14 @@ from rasterio.transform import from_origin
 from scipy.ndimage import gaussian_filter
 from pathlib import Path
 from datetime import datetime, timedelta
-
+import json
+from pyproj import Transformer 
 
 ### CONFIGURATION ###
 
-project_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
-OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation'))
+# project_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
+project_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
+OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation_metadata'))
 OUTDIR.mkdir(exist_ok=True, parents=True)
 
 CRS = 'EPSG:32633'
@@ -89,12 +91,21 @@ mask = coh_field > 0.35
 rain_events = [790, 860, 950, 1030]
 
 
-### HELPERS ###
-def write_tif(path, arr, dtype='float32', nodata=None):
+### HELPERS ### 
+def write_tif(
+    path,
+    arr,
+    acquisition_date=None,
+    product_type=None,
+    stage=0,
+    dtype="float32",
+    nodata=None,
+):
+
     with rasterio.open(
         path,
-        'w',
-        driver='GTiff',
+        "w",
+        driver="GTiff",
         height=arr.shape[0],
         width=arr.shape[1],
         count=1,
@@ -102,9 +113,146 @@ def write_tif(path, arr, dtype='float32', nodata=None):
         crs=CRS,
         transform=transform,
         nodata=nodata,
-        compress='lzw',
+        compress="lzw",
     ) as dst:
+
         dst.write(arr.astype(dtype), 1)
+
+    if acquisition_date is not None:
+
+        write_stac_item(
+            path,
+            acquisition_date,
+            product_type,
+            stage,
+        )
+
+
+def write_stac_item(
+    tif_path,
+    acquisition_date,
+    product_type,
+    stage,
+):
+    """
+    Create STAC Item JSON next to a GeoTIFF.
+    """
+
+    transformer = Transformer.from_crs(
+        CRS,
+        "EPSG:4326",
+        always_xy=True,
+    )
+
+    xmin = XMIN
+    xmax = XMIN + NX * PIXEL_SIZE
+
+    ymax = YMAX
+    ymin = YMAX - NY * PIXEL_SIZE
+
+    lon_min, lat_min = transformer.transform(xmin, ymin)
+    lon_max, lat_max = transformer.transform(xmax, ymax)
+
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[
+            [lon_min, lat_min],
+            [lon_min, lat_max],
+            [lon_max, lat_max],
+            [lon_max, lat_min],
+            [lon_min, lat_min],
+        ]],
+    }
+
+    stage_name = {
+        0: "stable",
+        1: "latent",
+        2: "developing",
+        3: "accelerating",
+    }[stage]
+
+    item = {
+
+        "type": "Feature",
+
+        "stac_version": "1.0.0",
+
+        "id": tif_path.stem,
+
+        "bbox": [
+            lon_min,
+            lat_min,
+            lon_max,
+            lat_max,
+        ],
+
+        "geometry": geometry,
+
+        "properties": {
+
+            "datetime":
+                acquisition_date.strftime(
+                    "%Y-%m-%dT00:00:00Z"
+                ),
+
+            "platform":
+                "synthetic-tsf",
+
+            "constellation":
+                "synthetic",
+
+            "instruments": [
+                "simulation"
+            ],
+
+            "processing:level":
+                "L2",
+
+            "proj:epsg":
+                32633,
+
+            "simulation:type":
+                product_type,
+
+            "simulation:failure_stage":
+                stage_name,
+
+            "simulation:unit":
+                "m",
+
+        },
+
+        "assets": {
+
+            "data": {
+
+                "href":
+                    "./" + tif_path.name,
+
+                "type":
+                    "image/tiff; application=geotiff",
+
+                "roles": [
+                    "data"
+                ],
+
+            }
+
+        },
+
+        "collection":
+            "gaia-tsf-synthetic",
+
+    }
+
+    json_file = tif_path.with_suffix(".json")
+
+    with open(json_file, "w") as f:
+        json.dump(
+            item,
+            f,
+            indent=4,
+        )
 
 
 ### SYNTHETIC PRECIPITATION ###
@@ -184,21 +332,73 @@ for t in times:
         else:
             stage[label == 1] = 3
 
-    write_tif(OUTDIR / 'los' / f'tsf_los_{date_str}.tif', los_obs_masked, nodata=np.nan)
-
-    write_tif(OUTDIR / 'true_los' / f'true_los_{date_str}.tif', true_los)
-
-    write_tif(OUTDIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif', hotspot)
-
-    write_tif(OUTDIR / 'labels' / f'hotspot_label_{date_str}.tif', label, dtype='uint8')
-
+    # write_tif(OUTDIR / 'los' / f'tsf_los_{date_str}.tif', los_obs_masked, nodata=np.nan) 
     write_tif(
-        OUTDIR / 'failure_stage' / f'failure_stage_{date_str}.tif', stage, dtype='uint8'
+        OUTDIR / "los" / f"tsf_los_{date_str}.tif",
+        los_obs_masked,
+        acquisition_date=acquisition_date,
+        product_type="los",
+        stage=int(stage.max()),
+        nodata=np.nan,
     )
 
-    write_tif(OUTDIR / 'atmosphere' / f'atmosphere_{date_str}.tif', atmosphere)
+    # write_tif(OUTDIR / 'true_los' / f'true_los_{date_str}.tif', true_los)
+    write_tif(
+        OUTDIR / "true_los" / f"true_los_{date_str}.tif",
+        true_los,
+        acquisition_date=acquisition_date,
+        product_type="true_los",
+        stage=int(stage.max()),
+    )
 
-    write_tif(OUTDIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif', rainfall)
+    # write_tif(OUTDIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif', hotspot)
+    write_tif(
+        OUTDIR / "hotspot_prob" / f"hotspot_prob_{date_str}.tif",
+        hotspot,
+        acquisition_date=acquisition_date,
+        product_type="hotspot_probability",
+        stage=int(stage.max()),
+    )
+
+    # write_tif(OUTDIR / 'labels' / f'hotspot_label_{date_str}.tif', label, dtype='uint8')
+    write_tif(
+        OUTDIR / "labels" / f"hotspot_label_{date_str}.tif",
+        label,
+        acquisition_date=acquisition_date,
+        product_type="binary_label",
+        stage=int(stage.max()),
+        dtype="uint8",
+    )
+
+    # write_tif(
+    #     OUTDIR / 'failure_stage' / f'failure_stage_{date_str}.tif', stage, dtype='uint8'
+    # )
+    write_tif(
+        OUTDIR / "failure_stage" / f"failure_stage_{date_str}.tif",
+        stage,
+        acquisition_date=acquisition_date,
+        product_type="failure_stage",
+        stage=int(stage.max()),
+        dtype="uint8",
+    )
+
+    # write_tif(OUTDIR / 'atmosphere' / f'atmosphere_{date_str}.tif', atmosphere)
+    write_tif(
+        OUTDIR / "atmosphere" / f"atmosphere_{date_str}.tif",
+        atmosphere,
+        acquisition_date=acquisition_date,
+        product_type="atmosphere",
+        stage=int(stage.max()),
+    )
+
+    # write_tif(OUTDIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif', rainfall)
+    write_tif(
+        OUTDIR / "rainfall" / f"rainfall_trigger_{date_str}.tif",
+        rainfall,
+        acquisition_date=acquisition_date,
+        product_type="rainfall_trigger",
+        stage=int(stage.max()),
+    )
 
 
 ### PRECIPITATION CSV ###
