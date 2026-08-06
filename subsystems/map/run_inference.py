@@ -1,4 +1,5 @@
 """Command-line entry point for MAP inference and anomaly products."""
+
 from __future__ import annotations
 
 import argparse
@@ -17,12 +18,18 @@ from subsystems.map.utils.config_loader import load_config
 
 def main() -> None:
     """Parse the configuration path and run inference."""
-    parser = argparse.ArgumentParser(description="Run MAP inference and anomaly detection.")
-    parser.add_argument("--config", type=Path, required=True, help="Path to MAP config.yaml")
+    parser = argparse.ArgumentParser(
+        description='Run MAP inference and anomaly detection.'
+    )
+    parser.add_argument(
+        '--config', type=Path, required=True, help='Path to MAP config.yaml'
+    )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s'
+    )
     run_inference(load_config(args.config))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -1,4 +1,5 @@
 """Configurable statistical anomaly detection from MAP residuals."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from subsystems.map.monitoring.residual_analysis import ResidualAnalyzer
 @dataclass(frozen=True)
 class AnomalyResult:
     """Statistical score and persistent binary anomaly maps."""
+
     score_stack: np.ndarray
     binary_stack: np.ndarray
     summary: dict[str, Any]
@@ -24,20 +26,27 @@ class StatisticalAnomalyDetector:
     """Detect magnitude/z-score residual outliers with temporal persistence."""
 
     def __init__(self, config: dict[str, Any]) -> None:
-        self.residual_threshold = self._optional_positive(config.get("residual_threshold"))
-        self.zscore_threshold = self._optional_positive(config.get("zscore_threshold", 3.0))
-        self.persistence = int(config.get("persistence", 1))
+        self.residual_threshold = self._optional_positive(
+            config.get('residual_threshold')
+        )
+        self.zscore_threshold = self._optional_positive(
+            config.get('zscore_threshold', 3.0)
+        )
+        self.persistence = int(config.get('persistence', 1))
         if self.persistence < 1:
-            raise ValueError("anomaly_detection.persistence must be at least one.")
+            raise ValueError('anomaly_detection.persistence must be at least one.')
 
     def detect(self, dataset: Dataset, residual_stack: np.ndarray) -> AnomalyResult:
         """Return scores and binary rasters, limiting outputs to monitored pixels."""
         finite = residual_stack[np.isfinite(residual_stack)]
         if finite.size == 0:
-            raise ValueError("Cannot detect anomalies without finite residuals.")
+            raise ValueError('Cannot detect anomalies without finite residuals.')
         mean, std = float(np.mean(finite)), float(np.std(finite))
         zscores = np.divide(
-            residual_stack - mean, std, out=np.zeros_like(residual_stack), where=std > 0,
+            residual_stack - mean,
+            std,
+            out=np.zeros_like(residual_stack),
+            where=std > 0,
         )
         criteria: list[np.ndarray] = []
         score_parts: list[np.ndarray] = []
@@ -48,37 +57,51 @@ class StatisticalAnomalyDetector:
             criteria.append(np.abs(zscores) >= self.zscore_threshold)
             score_parts.append(np.abs(zscores) / self.zscore_threshold)
         if not criteria:
-            raise ValueError("Configure residual_threshold and/or zscore_threshold.")
+            raise ValueError('Configure residual_threshold and/or zscore_threshold.')
         initial = np.logical_or.reduce(criteria) & dataset.mask[np.newaxis, :, :]
         binary = self._persistent(initial)
-        score = np.where(dataset.mask[np.newaxis, :, :], np.maximum.reduce(score_parts), np.nan)
+        score = np.where(
+            dataset.mask[np.newaxis, :, :], np.maximum.reduce(score_parts), np.nan
+        )
         binary = binary & dataset.mask[np.newaxis, :, :]
         by_time = {
             date: int(np.count_nonzero(binary[index]))
             for index, date in enumerate(dataset.dates)
         }
         summary = {
-            "residual_mean": mean, "residual_std": std,
-            "residual_threshold": self.residual_threshold,
-            "zscore_threshold": self.zscore_threshold, "persistence": self.persistence,
-            "anomalous_pixels_by_acquisition": by_time,
-            "total_anomalous_samples": int(np.count_nonzero(binary)),
+            'residual_mean': mean,
+            'residual_std': std,
+            'residual_threshold': self.residual_threshold,
+            'zscore_threshold': self.zscore_threshold,
+            'persistence': self.persistence,
+            'anomalous_pixels_by_acquisition': by_time,
+            'total_anomalous_samples': int(np.count_nonzero(binary)),
         }
         return AnomalyResult(score, binary, summary)
 
-    def write(self, result: AnomalyResult, dataset: Dataset, output_dir: Path) -> list[Path]:
+    def write(
+        self, result: AnomalyResult, dataset: Dataset, output_dir: Path
+    ) -> list[Path]:
         """Write score/binary rasters and the JSON anomaly summary."""
         output_dir.mkdir(parents=True, exist_ok=True)
         paths: list[Path] = []
         for index, date in enumerate(dataset.dates):
             suffix = ResidualAnalyzer._safe_date(date)
-            score_path = output_dir / f"anomaly_score_{suffix}.tif"
-            binary_path = output_dir / f"anomaly_binary_{suffix}.tif"
-            ResidualAnalyzer._write_raster(score_path, result.score_stack[index], dataset, "anomaly_score")
-            ResidualAnalyzer._write_raster(binary_path, result.binary_stack[index].astype(float), dataset, "anomaly_binary")
+            score_path = output_dir / f'anomaly_score_{suffix}.tif'
+            binary_path = output_dir / f'anomaly_binary_{suffix}.tif'
+            ResidualAnalyzer._write_raster(
+                score_path, result.score_stack[index], dataset, 'anomaly_score'
+            )
+            ResidualAnalyzer._write_raster(
+                binary_path,
+                result.binary_stack[index].astype(float),
+                dataset,
+                'anomaly_binary',
+            )
             paths.extend((score_path, binary_path))
-        (output_dir / "anomaly_summary.json").write_text(
-            json.dumps(result.summary, indent=2, sort_keys=True), encoding="utf-8",
+        (output_dir / 'anomaly_summary.json').write_text(
+            json.dumps(result.summary, indent=2, sort_keys=True),
+            encoding='utf-8',
         )
         return paths
 
@@ -88,7 +111,7 @@ class StatisticalAnomalyDetector:
             return None
         numeric = float(value)
         if numeric <= 0:
-            raise ValueError("Anomaly thresholds must be positive.")
+            raise ValueError('Anomaly thresholds must be positive.')
         return numeric
 
     def _persistent(self, values: np.ndarray) -> np.ndarray:

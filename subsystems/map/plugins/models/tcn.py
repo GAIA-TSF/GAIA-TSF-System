@@ -11,7 +11,7 @@ from subsystems.map.core.interfaces import PredictionResult, PredictiveModel
 from subsystems.map.core.registry import register_model
 
 
-@register_model("tcn")
+@register_model('tcn')
 class TCNModel(PredictiveModel):
     """Future Temporal Convolutional Network contract placeholder."""
 
@@ -19,14 +19,22 @@ class TCNModel(PredictiveModel):
         super().__init__(config)
 
     def train(self, features: np.ndarray, targets: np.ndarray) -> None:
-        raise NotImplementedError("TCNModel is registered but not implemented in Scenario 1.")
+        raise NotImplementedError(
+            'TCNModel is registered but not implemented in Scenario 1.'
+        )
 
     def predict(self, features: np.ndarray) -> PredictionResult:
-        raise NotImplementedError("TCNModel is registered but not implemented in Scenario 1.")
+        raise NotImplementedError(
+            'TCNModel is registered but not implemented in Scenario 1.'
+        )
 
     def save(self, path: Path) -> None:
-        raise NotImplementedError("TCNModel is registered but not implemented in Scenario 1.")
+        raise NotImplementedError(
+            'TCNModel is registered but not implemented in Scenario 1.'
+        )
 
     @classmethod
-    def load(cls, path: Path) -> "TCNModel":
-        raise NotImplementedError("TCNModel is registered but not implemented in Scenario 1.")
+    def load(cls, path: Path) -> 'TCNModel':
+        raise NotImplementedError(
+            'TCNModel is registered but not implemented in Scenario 1.'
+        )

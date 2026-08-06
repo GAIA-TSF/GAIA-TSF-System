@@ -2,4 +2,4 @@
 
 from subsystems.map.core.interfaces import PredictiveModel, PredictionResult
 
-__all__ = ["PredictiveModel", "PredictionResult"]
+__all__ = ['PredictiveModel', 'PredictionResult']
