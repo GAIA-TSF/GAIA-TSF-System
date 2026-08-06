@@ -50,7 +50,7 @@ class TemporalFeatureExtractor(FeatureExtractor):
             outputs.update(
                 self._compute_rolling_std(feature_name, stack, enabled_features),
             )
-            # no savgol smoothing 
+            # no savgol smoothing
             # outputs.update(
             #     self._compute_smoothing(feature_name, stack, enabled_features),
             # )
@@ -220,9 +220,9 @@ class TemporalFeatureExtractor(FeatureExtractor):
                 'fallback for smoothed time series.',
             )
             return self._savgol_series_numpy(stack, window, polyorder)
-        # TODO: remove 
+        # TODO: remove
 
-        # debug 
+        # debug
         print(np.isnan(stack).sum())
         print(np.isinf(stack).sum())
         print(stack.shape)
