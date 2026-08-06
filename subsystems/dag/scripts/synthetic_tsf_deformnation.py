@@ -31,7 +31,7 @@ from pyproj import Transformer
 
 # project_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
 project_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
-OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation_metadata'))
+OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation_meta'))
 OUTDIR.mkdir(exist_ok=True, parents=True)
 
 CRS = 'EPSG:32633'
@@ -40,8 +40,8 @@ PIXEL_SIZE = 10
 NX = 100
 NY = 100
 
-XMIN = 500000
-YMAX = 6700000
+XMIN = 486768 # 500000
+YMAX = 6656348 # 6700000
 
 YEARS = 3
 REVISIT_DAYS = 12
