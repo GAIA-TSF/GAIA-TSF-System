@@ -6,4 +6,4 @@ from subsystems.map.plugins.models.lstm import LSTMModel
 from subsystems.map.plugins.models.rf import RFModel
 from subsystems.map.plugins.models.tcn import TCNModel
 
-__all__ = ["ConstantBaselineModel", "GBRModel", "LSTMModel", "RFModel", "TCNModel"]
+__all__ = ['ConstantBaselineModel', 'GBRModel', 'LSTMModel', 'RFModel', 'TCNModel']

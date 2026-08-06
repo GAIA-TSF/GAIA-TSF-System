@@ -101,7 +101,6 @@ def write_tif(
     dtype='float32',
     nodata=None,
 ):
-
     with rasterio.open(
         path,
         'w',

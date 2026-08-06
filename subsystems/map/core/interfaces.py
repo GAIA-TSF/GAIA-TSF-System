@@ -61,7 +61,7 @@ class PredictiveModel(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, path: Path) -> "PredictiveModel":
+    def load(cls, path: Path) -> 'PredictiveModel':
         """Load a fitted model from ``path``."""
 
     # Backward compatible aliases for early MAP plugins.

@@ -29,7 +29,11 @@ def temporal_features(data, config):
     - LSTM (sequence format)
     - RF/XGB (flattened features)
     """
-    LOGGER.info("Temporal feature plugin is deprecated; DAG supplies engineered features.")
+    LOGGER.info(
+        'Temporal feature plugin is deprecated; DAG supplies engineered features.'
+    )
 
     # Mock output
-    raise NotImplementedError("MAP consumes DAG-engineered rasters through DatasetBuilder.")
+    raise NotImplementedError(
+        'MAP consumes DAG-engineered rasters through DatasetBuilder.'
+    )

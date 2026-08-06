@@ -3,4 +3,4 @@
 from subsystems.map.plugins.variables.amd import AMDVariable
 from subsystems.map.plugins.variables.slope import SlopeVariable
 
-__all__ = ["AMDVariable", "SlopeVariable"]
+__all__ = ['AMDVariable', 'SlopeVariable']
