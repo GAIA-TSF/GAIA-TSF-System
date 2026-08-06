@@ -1,4 +1,9 @@
-from core.registry import register_feature
+import logging
+
+from subsystems.map.core.registry import register_feature
+
+
+LOGGER = logging.getLogger(__name__)
 
 """
 Temporal feature engineering
@@ -24,17 +29,7 @@ def temporal_features(data, config):
     - LSTM (sequence format)
     - RF/XGB (flattened features)
     """
-    print(
-        f'[Features] Temporal features (look_back={config.look_back}, horizon={config.horizon})'
-    )
+    LOGGER.info("Temporal feature plugin is deprecated; DAG supplies engineered features.")
 
     # Mock output
-    X = 'X_features'  # noqa: N806
-    y = 'y_target'
-
-    # return create_temporal_features(
-    #     data,
-    #     look_back=config.look_back,
-    #     horizon=config.horizon
-    # )
-    return X, y  # noqa: N803
+    raise NotImplementedError("MAP consumes DAG-engineered rasters through DatasetBuilder.")

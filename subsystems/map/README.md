@@ -67,16 +67,23 @@ utils/           # shared utilities
 ### Usage 
 
 ```yaml
-variable: amd
-model: xgb
+variable: slope
+model: rf
 
-look_back: 12
+look_back: 9
 horizon: 1
 ```
 
 ```bash
-python run_learning.py --config config.yaml
+python3 run_learning.py --config config.yaml
+
+python3 subsystems/map/run_learning.py  \
+  --config subsystems/map/config.yaml
+
 python run_inference.py --config config.yaml
+
+python3 subsystems/map/run_inference.py  \
+  --config subsystems/dag/config.yaml
 ```
 
 

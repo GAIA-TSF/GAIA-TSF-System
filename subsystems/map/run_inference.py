@@ -1,23 +1,28 @@
-"""
-CLI entry point for inference
-"""
+"""Command-line entry point for MAP inference and anomaly products."""
+from __future__ import annotations
 
-# at top of run_learning.py
+import argparse
+import logging
+from pathlib import Path
 import sys
-import os
-
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
-
-# Register plugins
-
-from utils.config_loader import load_config
-from pipelines.inference_pipeline import run_inference
 
 
-if __name__ == '__main__':
-    # Load config from YAML
-    config = load_config('config.yaml')
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-    run_inference(config)
+from subsystems.map.pipelines.inference_pipeline import run_inference
+from subsystems.map.utils.config_loader import load_config
+
+
+def main() -> None:
+    """Parse the configuration path and run inference."""
+    parser = argparse.ArgumentParser(description="Run MAP inference and anomaly detection.")
+    parser.add_argument("--config", type=Path, required=True, help="Path to MAP config.yaml")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    run_inference(load_config(args.config))
+
+
+if __name__ == "__main__":
+    main()

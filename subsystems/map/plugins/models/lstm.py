@@ -1,34 +1,31 @@
-from core.registry import register_model
-from core.interfaces import ModelPlugin, PredictionResult
+"""Reserved LSTM plugin name for a future sequence-model implementation."""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from subsystems.map.core.interfaces import PredictionResult, PredictiveModel
+from subsystems.map.core.registry import register_model
 
 
-@register_model('lstm')
-class LSTMModel(ModelPlugin):
-    def __init__(self, config):
+@register_model("lstm")
+class LSTMModel(PredictiveModel):
+    """Future LSTM contract placeholder, deliberately unavailable in Scenario 1."""
+
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__(config)
 
-        # Build architecture from config
-        # self.model = build_lstm(config)
+    def train(self, features: np.ndarray, targets: np.ndarray) -> None:
+        raise NotImplementedError("LSTMModel is not implemented in Scenario 1.")
 
-    def fit(self, X, y):  # noqa: N803
-        """
-        Training loop:
-        - batching
-        - optimizer
-        - early stopping
+    def predict(self, features: np.ndarray) -> PredictionResult:
+        raise NotImplementedError("LSTMModel is not implemented in Scenario 1.")
 
-        Encapsulated to keep pipeline clean.
-        """
-        # train_lstm(self.model, X, y, self.config)
+    def save(self, path: Path) -> None:
+        raise NotImplementedError("LSTMModel is not implemented in Scenario 1.")
 
-    def predict(self, X):  # noqa: N803
-        """
-        Returns standardized output.
-
-        Could later include:
-        - MC dropout uncertainty
-        - ensembles
-        """
-        y_pred = self.model.predict(X)  # noqa: N803
-
-        return PredictionResult(y_pred)
+    @classmethod
+    def load(cls, path: Path) -> "LSTMModel":
+        raise NotImplementedError("LSTMModel is not implemented in Scenario 1.")

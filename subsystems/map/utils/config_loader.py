@@ -1,42 +1,23 @@
-"""
-YAML config loader
+"""YAML configuration loading for MAP workflows."""
+from __future__ import annotations
 
-Purpose:
-- Load experiment configuration from YAML
-- Convert into object with attribute-style access
-
-Why:
-- Cleaner than dict["key"]
-- Compatible with existing pipeline code
-"""
+import logging
+from pathlib import Path
+from typing import Any
 
 import yaml
 
 
-class Config:
-    """
-    Simple wrapper to allow dot access:
-        config.variable instead of config["variable"]
-    """
-
-    def __init__(self, config_dict):
-        for key, value in config_dict.items():
-            # Recursively convert nested dictionaries
-            if isinstance(value, dict):
-                value = Config(value)
-            setattr(self, key, value)
-
-    def __repr__(self):
-        return str(self.__dict__)
+LOGGER = logging.getLogger(__name__)
 
 
-def load_config(path='config.yaml'):
-    """
-    Load YAML file and return Config object
-    """
-    print(f'[Config] Loading config from {path}')
-
-    with open(path, 'r') as f:
-        config_dict = yaml.safe_load(f)
-
-    return Config(config_dict)
+def load_config(path: str | Path) -> dict[str, Any]:
+    """Load a MAP YAML document into a plain, test-friendly mapping."""
+    config_path = Path(path).expanduser().resolve()
+    with config_path.open("r", encoding="utf-8") as stream:
+        config = yaml.safe_load(stream)
+    if not isinstance(config, dict):
+        raise ValueError("MAP configuration must contain a YAML mapping.")
+    config["_config_path"] = str(config_path)
+    LOGGER.info("Loaded MAP configuration from %s", config_path)
+    return config

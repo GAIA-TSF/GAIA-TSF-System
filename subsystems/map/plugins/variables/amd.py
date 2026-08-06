@@ -1,5 +1,11 @@
-from core.registry import register_variable
-from core.interfaces import VariablePlugin
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from subsystems.map.core.interfaces import VariablePlugin
+from subsystems.map.core.registry import register_variable
 
 """
 AMD variable plugin
@@ -15,7 +21,7 @@ Encapsulates:
 class AMDVariable(VariablePlugin):
     name = 'amd'
 
-    def preprocess(self, data, config):
+    def preprocess(self, data: np.ndarray, config: dict[str, Any]) -> np.ndarray:
         """
         AMD index requires strong preprocessing:
 
@@ -26,13 +32,11 @@ class AMDVariable(VariablePlugin):
         This step is CRITICAL for stability of ML models.
         """
 
-        print('[AMD] Preprocessing: gap filling + smoothing')
-
         # data = gap_fill(data)
         # data = smooth(data)
 
         # return data
-        return 0
+        return data
 
     def feature_pipeline(self):
         """
@@ -51,4 +55,4 @@ class AMDVariable(VariablePlugin):
         RF:
             - baseline, robust
         """
-        return ['gbr', 'rf']
+        return ['constant', 'gbr', 'rf']

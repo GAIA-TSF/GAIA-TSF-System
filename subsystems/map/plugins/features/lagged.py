@@ -1,4 +1,4 @@
-from core.registry import register_feature
+from subsystems.map.core.registry import register_feature
 
 
 @register_feature('lagged')

@@ -1,67 +1,42 @@
-"""
-Registry module
+"""Small explicit registries used to keep MAP pipelines plugin agnostic."""
 
-Purpose:
-- Central place where plugins (variables, models, features) are registered
-- Enables dynamic lookup based on config (no hardcoding)
+from __future__ import annotations
 
-Design:
-- Variables → instantiated immediately
-- Models → stored as class (require config at runtime)
-- Features → simple functions
-"""
-
-# Global registries (simple and explicit)
-VARIABLE_REGISTRY = {}
-MODEL_REGISTRY = {}
-FEATURE_REGISTRY = {}
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 
-def register_variable(name):
-    """
-    Decorator to register a variable plugin.
+T = TypeVar("T")
+VARIABLE_REGISTRY: dict[str, Any] = {}
+MODEL_REGISTRY: dict[str, type[Any]] = {}
+FEATURE_REGISTRY: dict[str, Callable[..., Any]] = {}
 
-    Usage:
-        @register_variable("slope")
-        class SlopeVariable(...)
 
-    Result:
-        VARIABLE_REGISTRY["slope"] → instance of SlopeVariable
-    """
-
-    def decorator(cls):
-        VARIABLE_REGISTRY[name] = cls()
-        return cls
-
+def register_variable(name: str) -> Callable[[type[T]], type[T]]:
+    """Register a stateless variable plugin instance under ``name``."""
+    def decorator(plugin_class: type[T]) -> type[T]:
+        if name in VARIABLE_REGISTRY:
+            raise ValueError(f"Variable plugin already registered: {name}")
+        VARIABLE_REGISTRY[name] = plugin_class()
+        return plugin_class
     return decorator
 
 
-def register_model(name):
-    """
-    Registers model class (not instance!).
-
-    Why:
-    - Models require config → instantiated later
-    """
-
-    def decorator(cls):
-        MODEL_REGISTRY[name] = cls
-        return cls
-
+def register_model(name: str) -> Callable[[type[T]], type[T]]:
+    """Register a predictive model class under ``name``."""
+    def decorator(plugin_class: type[T]) -> type[T]:
+        if name in MODEL_REGISTRY:
+            raise ValueError(f"Model plugin already registered: {name}")
+        MODEL_REGISTRY[name] = plugin_class
+        return plugin_class
     return decorator
 
 
-def register_feature(name):
-    """
-    Registers feature engineering function.
-
-    Feature pipelines are:
-    - stateless
-    - reusable across variables
-    """
-
-    def decorator(fn):
-        FEATURE_REGISTRY[name] = fn
-        return fn
-
+def register_feature(name: str) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Register an optional feature plugin under ``name``."""
+    def decorator(function: Callable[..., T]) -> Callable[..., T]:
+        if name in FEATURE_REGISTRY:
+            raise ValueError(f"Feature plugin already registered: {name}")
+        FEATURE_REGISTRY[name] = function
+        return function
     return decorator

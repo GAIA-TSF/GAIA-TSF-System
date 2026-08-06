@@ -1,12 +1,18 @@
-from core.registry import register_variable
-from core.interfaces import VariablePlugin
+from __future__ import annotations
+
+from typing import Any
+
+import numpy as np
+
+from subsystems.map.core.interfaces import VariablePlugin
+from subsystems.map.core.registry import register_variable
 
 
 @register_variable('slope')
 class SlopeVariable(VariablePlugin):
     name = 'slope'
 
-    def preprocess(self, data, config):
+    def preprocess(self, data: np.ndarray, config: dict[str, Any]) -> np.ndarray:
         """
         InSAR displacement:
         - usually already filtered
@@ -30,4 +36,4 @@ class SlopeVariable(VariablePlugin):
         LSTM → captures temporal dynamics
         RF → captures nonlinear patterns in engineered features
         """
-        return ['lstm', 'rf']
+        return ['constant', 'lstm', 'rf']

@@ -1,18 +1,9 @@
-"""
-Monitoring module (mock)
+"""Backward-compatible monitoring entry point."""
+from __future__ import annotations
 
-Represents:
-- CUSUM
-- Bayesian change point detection
-"""
+import numpy as np
 
 
-def run_monitoring(residuals, config):
-    """
-    Convert residuals → risk signals
-    """
-    print(f'[Monitoring] Running on residuals={residuals}')
-    print('  - CUSUM')
-    print('  - Bayesian CPD')
-
-    return {'status': 'ok'}
+def run_monitoring(residuals: np.ndarray, config: dict[str, object]) -> dict[str, object]:
+    """Deprecated adapter retained for callers of the prototype API."""
+    return {"residual_count": int(np.count_nonzero(np.isfinite(residuals))), "config": config}

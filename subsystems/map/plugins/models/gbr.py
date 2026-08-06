@@ -1,60 +1,43 @@
-"""
-Gradient Boosting Regressor plugin (sklearn)
+"""Gradient Boosting Regressor predictive model plugin."""
+from __future__ import annotations
 
-Replaces XGBoost with a stable, built-in alternative.
-"""
+import pickle
+from pathlib import Path
+from typing import Any
 
-from sklearn.ensemble import GradientBoostingRegressor
-from core.registry import register_model
+import numpy as np
 
-
-class PredictionResult:
-    """
-    Standard prediction container.
-
-    Compatible with monitoring module.
-    """
-
-    def __init__(self, y_pred, uncertainty=None):
-        self.y_pred = y_pred
-        self.uncertainty = uncertainty
+from subsystems.map.core.interfaces import PredictionResult, PredictiveModel
+from subsystems.map.core.registry import register_model
 
 
-@register_model('gbr')
-class GBRModel:
-    """
-    sklearn Gradient Boosting model.
+@register_model("gbr")
+class GBRModel(PredictiveModel):
+    """Sklearn gradient boosting model for future tabular MAP workflows."""
 
-    Suitable for:
-    - tabular features
-    - nonlinear relationships
-    """
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
+        super().__init__(config)
+        try:
+            from sklearn.ensemble import GradientBoostingRegressor
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("GBRModel requires the optional scikit-learn dependency.") from exc
+        self.model = GradientBoostingRegressor(**self.config)
 
-    def __init__(self, config):
-        params = (
-            config.gbr_params.__dict__
-            if hasattr(config.gbr_params, '__dict__')
-            else config.gbr_params
-        )
+    def train(self, features: np.ndarray, targets: np.ndarray) -> None:
+        self.model.fit(features, targets)
 
-        print(f'[Model] Initialize GBR with params: {params}')
+    def predict(self, features: np.ndarray) -> PredictionResult:
+        return PredictionResult(self.model.predict(features))
 
-        self.model = GradientBoostingRegressor(**params)
+    def save(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as stream:
+            pickle.dump(self, stream, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def fit(self, X, y):  # noqa: N803
-        """
-        Train model on tabular features.
-        """
-        print(f'[Model] Training on X={X}, y={y}')
-        # self.model.fit(X, y)
-
-    def predict(self, X):  # noqa: N803
-        """
-        Generate predictions.
-        """
-        print(f'[Model] Predicting on X={X}')
-
-        # y_pred = self.model.predict(X)
-        y_pred = 'y_pred_mock'
-
-        return PredictionResult(y_pred)
+    @classmethod
+    def load(cls, path: Path) -> "GBRModel":
+        with path.open("rb") as stream:
+            model = pickle.load(stream)
+        if not isinstance(model, cls):
+            raise TypeError(f"Model artifact is not a {cls.__name__}: {path}")
+        return model

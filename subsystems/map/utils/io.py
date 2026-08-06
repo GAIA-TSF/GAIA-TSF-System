@@ -1,18 +1,12 @@
-"""
-Monitoring module (mock)
+"""Deprecated module retained to avoid breaking prototype imports."""
 
-Represents:
-- CUSUM
-- Bayesian change point detection
-"""
+from __future__ import annotations
+
+from pathlib import Path
+
+from subsystems.map.plugins.models.predictive_model import PredictiveModel
 
 
-def run_monitoring(residuals, config):
-    """
-    Convert residuals → risk signals
-    """
-    print(f'[Monitoring] Running on residuals={residuals}')
-    print('  - CUSUM')
-    print('  - Bayesian CPD')
-
-    return {'status': 'ok'}
+def load_model(path: str | Path, model_class: type[PredictiveModel]) -> PredictiveModel:
+    """Load a MAP model with the explicit plugin class required for safety."""
+    return model_class.load(Path(path))

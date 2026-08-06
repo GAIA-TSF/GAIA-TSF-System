@@ -1,10 +1,8 @@
-"""
-Auto-load all plugins
+"""Built-in MAP plugins.
+
+Importing this package registers the maintained variable and model plugins.
 """
 
-# import plugins.variables.amd
-import plugins as plugins
+from subsystems.map.plugins import models, variables
 
-# import plugins.features.temporal
-import subsystems as subsystems
-# import subsystems.map.plugins.models.gbr
+__all__ = ["models", "variables"]

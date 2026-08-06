@@ -1,77 +1,28 @@
-"""
-CLI entry point for training
+"""Command-line entry point for MAP baseline learning."""
+from __future__ import annotations
 
-Usage:
-    python -m subsystems.map.run_learning --config config.yaml
-
-Purpose:
-- Load config from YAML (user-specified)
-- Register plugins
-- Run unified learning pipeline
-"""
-
-import sys
-import os
 import argparse
+import logging
+from pathlib import Path
+import sys
 
 
-# Ensure correct ROOT_DIR (important for imports)
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-ROOT_DIR = CURRENT_DIR
-while ROOT_DIR != '/':
-    if (
-        os.path.exists(os.path.join(ROOT_DIR, 'plugins'))
-        and os.path.exists(os.path.join(ROOT_DIR, 'core'))
-        and os.path.exists(os.path.join(ROOT_DIR, 'pipelines'))
-    ):
-        break
-    ROOT_DIR = os.path.dirname(ROOT_DIR)
-
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
-
-print(f'[DEBUG] Using ROOT_DIR: {ROOT_DIR}')
+from subsystems.map.pipelines.learning_pipeline import run_learning
+from subsystems.map.utils.config_loader import load_config
 
 
-# --------------------------------------------------
-# CLI ARGUMENTS
-# --------------------------------------------------
-def parse_args():
-    """
-    Parse command line arguments.
-
-    --config:
-        Path to YAML configuration file
-    """
-    parser = argparse.ArgumentParser(description='Run learning pipeline')
-
-    parser.add_argument('--config', type=str, required=True, help='Path to config.yaml')
-
-    return parser.parse_args()
+def main() -> None:
+    """Parse the configuration path and run learning."""
+    parser = argparse.ArgumentParser(description="Run the MAP learning pipeline.")
+    parser.add_argument("--config", type=Path, required=True, help="Path to MAP config.yaml")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    run_learning(load_config(args.config))
 
 
-# --------------------------------------------------
-# MAIN
-# --------------------------------------------------
-def main():
-    # 1. Parse CLI args
-    args = parse_args()
-
-    # 2. Load config
-    from utils.config_loader import load_config
-
-    config = load_config(args.config)
-
-    # print(f"[Pipeline] Loaded config: {config}")
-
-    # 3. Register plugins
-
-    # 4. Run pipeline
-    from pipelines.learning_pipeline import run_learning
-
-    run_learning(config)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
