@@ -36,37 +36,49 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         """Obtain the next task id from the DbLogger."""
         return self._db_handler().next_task_id()
 
-    def task_started(self, obj, **kwargs):
-        """Log a TASK_STARTED record, store the task_id in adapter context and return it."""
-        task_id = self._next_task_id()
-        msg = f'{obj.__class__.__name__} started'
-        # Persist task_id in adapter extra context so subsequent logs carry it
-        # and also pass it explicitly for this start event.
+    def __log_task(self, level: int, obj, *, task_id=None, msg_suffix=None, persist=False, **kwargs):
+        """Internal helper to log task-related events and avoid duplication.
+
+        - level: numeric logging level
+        - obj: related object (used for class name in message)
+        - task_id: optional task id to attach; if None, tries adapter.extra
+        - msg_suffix: string appended to class name (e.g. 'started')
+        - persist: if True, store task_id in adapter.extra for future logs
+        """
+        name = obj.__class__.__name__
+        msg = f"{name} {msg_suffix}" if msg_suffix else name
+
+        # ensure adapter extra is a mutable dict
         if not isinstance(self.extra, dict):
             self.extra = dict(self.extra or {})
-        self.extra['task_id'] = task_id
+
         extra = kwargs.pop('extra', {})
-        extra.update({'task_id': task_id})
-        self.log(TASK_STARTED, msg, extra=extra, **kwargs)
-        return task_id
+
+        # resolve task_id: explicit param -> adapter extra -> None
+        resolved_task_id = task_id if task_id is not None else self.extra.get('task_id')
+        if resolved_task_id is not None:
+            extra.update({'task_id': resolved_task_id})
+
+        if persist and resolved_task_id is not None:
+            self.extra['task_id'] = resolved_task_id
+
+        self.log(level, msg, extra=extra, **kwargs)
+        return resolved_task_id
+
+    def task_started(self, obj, **kwargs):
+        """Create new task id, persist it in adapter context and log start."""
+        task_id = self._next_task_id()
+        return self.__log_task(TASK_STARTED, obj, task_id=task_id, msg_suffix='started', persist=True, **kwargs)
 
     def task_finished(self, obj, **kwargs):
-        """Log a TASK_FINISHED record for the current task_id."""
+        """Log a task finished event using either provided or persisted task_id."""
         task_id = kwargs.pop('task_id', None)
-        msg = f'{obj.__class__.__name__} finished'
-        extra = kwargs.pop('extra', {})
-        if task_id is not None:
-            extra.update({'task_id': task_id})
-        self.log(TASK_FINISHED, msg, extra=extra, **kwargs)
+        return self.__log_task(TASK_FINISHED, obj, task_id=task_id, msg_suffix='finished', **kwargs)
 
     def task_failed(self, obj, **kwargs):
-        """Log a TASK_FAILED record for the current task_id."""
+        """Log a task failed event using either provided or persisted task_id."""
         task_id = kwargs.pop('task_id', None)
-        msg = f'{obj.__class__.__name__} failed'
-        extra = kwargs.pop('extra', {})
-        if task_id is not None:
-            extra.update({'task_id': task_id})
-        self.log(TASK_FAILED, msg, extra=extra, **kwargs)
+        return self.__log_task(TASK_FAILED, obj, task_id=task_id, msg_suffix='failed', **kwargs)
 
 
 class Logger:
