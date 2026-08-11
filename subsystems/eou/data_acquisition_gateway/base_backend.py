@@ -28,7 +28,7 @@ class DataAcquisitionBackend(ABC):
         self.logger = logger
 
         self.logger.task_started(self)
-        
+
     def set_config(self, config: dict) -> None:
         """
         Set backend configuration.

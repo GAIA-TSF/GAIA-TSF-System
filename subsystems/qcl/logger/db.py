@@ -40,12 +40,12 @@ class DbRecord(Base):
     )
     task_id = Column(
         Integer,
-        nullable=True, # TODO: False
+        nullable=True,  # TODO: False
         index=True,
     )
     log_level = relationship('DbLogLevel', back_populates='log')
     subsystem = relationship('DbSubsystem', back_populates='log')
-    
+
 
 class DbLogLevel(Base):
     """Table definition: log_level"""
