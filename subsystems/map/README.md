@@ -75,15 +75,9 @@ horizon: 1
 ```
 
 ```bash
-python3 run_learning.py --config config.yaml
+python3 subsystems/map/run_learning.py  --config subsystems/map/config.yaml
 
-python3 subsystems/map/run_learning.py  \
-  --config subsystems/map/config.yaml
-
-python run_inference.py --config config.yaml
-
-python3 subsystems/map/run_inference.py  \
-  --config subsystems/dag/config.yaml
+python3 subsystems/map/run_inference.py   --config subsystems/map/config.yaml
 ```
 
 

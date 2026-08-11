@@ -36,8 +36,33 @@ class StatisticalAnomalyDetector:
         if self.persistence < 1:
             raise ValueError('anomaly_detection.persistence must be at least one.')
 
-    def detect(self, dataset: Dataset, residual_stack: np.ndarray) -> AnomalyResult:
-        """Return scores and binary rasters, limiting outputs to monitored pixels."""
+    def detect(
+        self,
+        dataset: Dataset,
+        residual_stack: np.ndarray,
+        persistence_start_time_index: int = 0,
+        persistence_end_time_index: int | None = None,
+    ) -> AnomalyResult:
+        """Return scores and persistent binary rasters for monitored pixels.
+
+        Args:
+            dataset: MAP dataset that supplies dates and the TSF mask.
+            residual_stack: Residuals shaped ``(time, rows, columns)``.
+            persistence_start_time_index: First acquisition eligible for persistent
+                anomaly analysis. Earlier acquisitions reset the persistence run.
+            persistence_end_time_index: Exclusive final eligible acquisition index.
+        """
+        time_count = residual_stack.shape[0]
+        if not 0 <= persistence_start_time_index <= time_count:
+            raise ValueError(
+                'persistence_start_time_index must be within the residual time range.',
+            )
+        if persistence_end_time_index is None:
+            persistence_end_time_index = time_count
+        if not persistence_start_time_index < persistence_end_time_index <= time_count:
+            raise ValueError(
+                'persistence_end_time_index must be after the persistence start.',
+            )
         finite = residual_stack[np.isfinite(residual_stack)]
         if finite.size == 0:
             raise ValueError('Cannot detect anomalies without finite residuals.')
@@ -59,6 +84,8 @@ class StatisticalAnomalyDetector:
         if not criteria:
             raise ValueError('Configure residual_threshold and/or zscore_threshold.')
         initial = np.logical_or.reduce(criteria) & dataset.mask[np.newaxis, :, :]
+        initial[:persistence_start_time_index] = False
+        initial[persistence_end_time_index:] = False
         binary = self._persistent(initial)
         score = np.where(
             dataset.mask[np.newaxis, :, :], np.maximum.reduce(score_parts), np.nan
@@ -74,6 +101,14 @@ class StatisticalAnomalyDetector:
             'residual_threshold': self.residual_threshold,
             'zscore_threshold': self.zscore_threshold,
             'persistence': self.persistence,
+            'persistence_start_time_index': persistence_start_time_index,
+            'persistence_start_date': (
+                dataset.dates[persistence_start_time_index]
+                if persistence_start_time_index < len(dataset.dates)
+                else None
+            ),
+            'persistence_end_time_index': persistence_end_time_index,
+            'persistence_end_date': dataset.dates[persistence_end_time_index - 1],
             'anomalous_pixels_by_acquisition': by_time,
             'total_anomalous_samples': int(np.count_nonzero(binary)),
         }

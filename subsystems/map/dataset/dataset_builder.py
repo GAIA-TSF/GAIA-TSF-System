@@ -99,6 +99,34 @@ class DatasetBuilder:
             self._subset(dataset, dataset.time_indices >= validation_end),
         )
 
+    def split_temporal_window(
+        self,
+        dataset: Dataset,
+        start_index: int,
+        end_index: int,
+        train_ratio: float,
+        validation_ratio: float,
+        test_ratio: float,
+    ) -> DatasetSplits:
+        """Chronologically split samples contained within an exclusive time range."""
+        if not 0 <= start_index < end_index <= len(dataset.dates):
+            raise ValueError('Temporal window indices are outside the dataset range.')
+        if not np.isclose(train_ratio + validation_ratio + test_ratio, 1.0):
+            raise ValueError('Temporal split ratios must sum to 1.0.')
+        time_values = np.arange(start_index, end_index)
+        train_end = int(time_values.size * train_ratio)
+        validation_end = train_end + int(time_values.size * validation_ratio)
+        if train_end < 1 or validation_end <= train_end or validation_end >= time_values.size:
+            raise ValueError('Temporal window needs at least one acquisition per subset.')
+        return DatasetSplits(
+            self._subset(dataset, np.isin(dataset.time_indices, time_values[:train_end])),
+            self._subset(
+                dataset,
+                np.isin(dataset.time_indices, time_values[train_end:validation_end]),
+            ),
+            self._subset(dataset, np.isin(dataset.time_indices, time_values[validation_end:])),
+        )
+
     @staticmethod
     def _subset(dataset: Dataset, include: np.ndarray) -> Dataset:
         if not np.any(include):

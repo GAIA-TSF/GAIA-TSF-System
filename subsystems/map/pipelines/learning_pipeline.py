@@ -17,6 +17,7 @@ from subsystems.map.utils.artifacts import (
     write_diagnostics,
     write_json,
 )
+from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
 LOGGER = logging.getLogger(__name__)
@@ -60,8 +61,15 @@ class LearningPipeline:
         split = dataset_config['split']
         if split.get('method') != 'temporal':
             raise ValueError('Scenario 1 supports only dataset.split.method: temporal.')
-        datasets = builder.split_temporal(
+        calibration_window = resolve_temporal_window(
+            stable_dataset.dates,
+            dataset_config,
+            'calibration',
+        )
+        datasets = builder.split_temporal_window(
             stable_dataset,
+            calibration_window.start_index,
+            calibration_window.end_index,
             float(split['train_ratio']),
             float(split['validation_ratio']),
             float(split['test_ratio']),
@@ -89,6 +97,8 @@ class LearningPipeline:
             validation,
             datasets.validation.dates,
             datasets.validation.time_indices,
+            unit=self._plot_unit(),
+            value_scale=self._plot_value_scale(),
         )
         metadata = {
             'experiment': self.config.get('experiment', {}),
@@ -97,6 +107,10 @@ class LearningPipeline:
             'feature_names': feature_names,
             'target_feature': target_feature,
             'stable_pixel_count': int(np.count_nonzero(stable_mask)),
+            'calibration_window': {
+                'start_date': calibration_window.start_date,
+                'end_date': calibration_window.end_date,
+            },
             'sample_counts': {
                 'train': int(datasets.train.targets.size),
                 'validation': int(datasets.validation.targets.size),
@@ -142,6 +156,14 @@ class LearningPipeline:
         )
         random.seed(seed)
         np.random.seed(seed)
+
+    def _plot_unit(self) -> str:
+        """Return the configured physical unit used by diagnostic axes."""
+        return str(self.config.get('plotting', {}).get('deformation_unit', ''))
+
+    def _plot_value_scale(self) -> float:
+        """Return the configured conversion from native values to plot units."""
+        return float(self.config.get('plotting', {}).get('value_scale', 1.0))
 
 
 def run_learning(config: dict[str, Any]) -> dict[str, Any]:
