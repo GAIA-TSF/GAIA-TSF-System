@@ -12,9 +12,9 @@ from lib.config import SettingsReader
 TASK_STARTED = 101
 TASK_FINISHED = 102
 TASK_FAILED = 103
-logging.addLevelName(TASK_STARTED, "TASK_STARTED")
-logging.addLevelName(TASK_FINISHED, "TASK_FINISHED")
-logging.addLevelName(TASK_FAILED, "TASK_FAILED")
+logging.addLevelName(TASK_STARTED, 'TASK_STARTED')
+logging.addLevelName(TASK_FINISHED, 'TASK_FINISHED')
+logging.addLevelName(TASK_FAILED, 'TASK_FAILED')
 
 
 class CustomLoggerAdapter(logging.LoggerAdapter):
@@ -30,7 +30,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         for handler in getattr(self.logger, 'handlers', []):
             if isinstance(handler, DbLogger):
                 return handler
-        raise Exception("DbLogger not found")
+        raise Exception('DbLogger not found')
 
     def _next_task_id(self):
         """Obtain the next task id from the DbLogger."""
@@ -39,7 +39,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     def task_started(self, obj, **kwargs):
         """Log a TASK_STARTED record, store the task_id in adapter context and return it."""
         task_id = self._next_task_id()
-        msg = f"{obj.__class__.__name__} started"
+        msg = f'{obj.__class__.__name__} started'
         # Persist task_id in adapter extra context so subsequent logs carry it
         # and also pass it explicitly for this start event.
         if not isinstance(self.extra, dict):
@@ -53,7 +53,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     def task_finished(self, obj, **kwargs):
         """Log a TASK_FINISHED record for the current task_id."""
         task_id = kwargs.pop('task_id', None)
-        msg = f"{obj.__class__.__name__} finished"
+        msg = f'{obj.__class__.__name__} finished'
         extra = kwargs.pop('extra', {})
         if task_id is not None:
             extra.update({'task_id': task_id})
@@ -62,7 +62,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     def task_failed(self, obj, **kwargs):
         """Log a TASK_FAILED record for the current task_id."""
         task_id = kwargs.pop('task_id', None)
-        msg = f"{obj.__class__.__name__} failed"
+        msg = f'{obj.__class__.__name__} failed'
         extra = kwargs.pop('extra', {})
         if task_id is not None:
             extra.update({'task_id': task_id})
@@ -99,7 +99,7 @@ class Logger:
         :raises Exception:
             May raise exceptions depending on logging handler initialization
             (e.g. database connection errors).
-        
+
         Returns a CustomLoggerAdapter so task_* helpers are available on the
         returned object (previously the factory returned a plain
         logging.LoggerAdapter which lacked those methods).
