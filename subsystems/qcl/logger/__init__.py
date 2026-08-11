@@ -36,7 +36,9 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         """Obtain the next task id from the DbLogger."""
         return self._db_handler().next_task_id()
 
-    def __log_task(self, level: int, obj, *, task_id=None, msg_suffix=None, persist=False, **kwargs):
+    def __log_task(
+        self, level: int, obj, *, task_id=None, msg_suffix=None, persist=False, **kwargs
+    ):
         """Internal helper to log task-related events and avoid duplication.
 
         - level: numeric logging level
@@ -46,7 +48,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         - persist: if True, store task_id in adapter.extra for future logs
         """
         name = obj.__class__.__name__
-        msg = f"{name} {msg_suffix}" if msg_suffix else name
+        msg = f'{name} {msg_suffix}' if msg_suffix else name
 
         # ensure adapter extra is a mutable dict
         if not isinstance(self.extra, dict):
@@ -68,17 +70,28 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     def task_started(self, obj, **kwargs):
         """Create new task id, persist it in adapter context and log start."""
         task_id = self._next_task_id()
-        return self.__log_task(TASK_STARTED, obj, task_id=task_id, msg_suffix='started', persist=True, **kwargs)
+        return self.__log_task(
+            TASK_STARTED,
+            obj,
+            task_id=task_id,
+            msg_suffix='started',
+            persist=True,
+            **kwargs,
+        )
 
     def task_finished(self, obj, **kwargs):
         """Log a task finished event using either provided or persisted task_id."""
         task_id = kwargs.pop('task_id', None)
-        return self.__log_task(TASK_FINISHED, obj, task_id=task_id, msg_suffix='finished', **kwargs)
+        return self.__log_task(
+            TASK_FINISHED, obj, task_id=task_id, msg_suffix='finished', **kwargs
+        )
 
     def task_failed(self, obj, **kwargs):
         """Log a task failed event using either provided or persisted task_id."""
         task_id = kwargs.pop('task_id', None)
-        return self.__log_task(TASK_FAILED, obj, task_id=task_id, msg_suffix='failed', **kwargs)
+        return self.__log_task(
+            TASK_FAILED, obj, task_id=task_id, msg_suffix='failed', **kwargs
+        )
 
 
 class Logger:
