@@ -18,6 +18,7 @@ from subsystems.map.utils.artifacts import (
     write_observation_point_timeseries,
     write_persistent_residual_map,
 )
+from subsystems.map.utils.experiment_paths import experiment_model_directory
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
@@ -55,16 +56,22 @@ class InferencePipeline:
             'monitoring',
         )
         model_name = self._name('model')
-        model_path = (
-            self._path(self.config['outputs']['root']) / 'models' / 'baseline_model.pkl'
-        )
+        output_root = self._path(self.config['outputs']['root'])
+        model_path = experiment_model_directory(
+            output_root,
+            self.config,
+        ) / 'model.pkl'
+        if not model_path.is_file():
+            raise FileNotFoundError(
+                f'Model artifact not found for experiment {self.config["experiment"]["name"]!r}: '
+                f'{model_path}. Run MAP learning with the same configuration first.',
+            )
         model = MODEL_REGISTRY[model_name].load(model_path)
         prediction = model.predict(dataset.features)
         analyzer = ResidualAnalyzer()
         prediction_stack = analyzer.restore_stack(dataset, prediction.y_pred)
         observed_stack = analyzer.restore_stack(dataset, dataset.targets)
         residuals = analyzer.analyze(dataset, prediction.y_pred)
-        output_root = self._path(self.config['outputs']['root'])
         prediction_dir = output_root / 'predictions'
         self._write_predictions(
             prediction_dir,

@@ -68,7 +68,11 @@ utils/           # shared utilities
 
 ```yaml
 variable: slope
-model: rf
+model: trf  # ML Random Forest over DAG-provided temporal features
+
+# Model artifacts: results/models/slope_trf_model/
+experiment:
+  name: slope_trf_model
 
 look_back: 9
 horizon: 1
@@ -86,4 +90,3 @@ python3 subsystems/map/run_inference.py   --config subsystems/map/config.yaml
 ```bash 
 TODO: 
 ```
-

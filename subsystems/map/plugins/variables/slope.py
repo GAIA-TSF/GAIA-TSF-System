@@ -34,6 +34,7 @@ class SlopeVariable(VariablePlugin):
     def allowed_models(self):
         """
         LSTM → captures temporal dynamics
-        RF → captures nonlinear patterns in engineered features
+        RF → captures nonlinear patterns in generic engineered features
+        tRF → captures nonlinear patterns in DAG-provided temporal features
         """
-        return ['constant', 'lstm', 'rf']
+        return ['constant', 'lstm', 'rf', 'trf']

@@ -1,12 +1,12 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name: slope_constant_baseline
-  description: Stable-pixel constant baseline for synthetic TSF deformation monitoring
+  name: slope_trf # slope_constant_baseline | slope_trf 
+  description: Stable-pixel temporal Random Forest for synthetic TSF deformation monitoring
   seed: 42
 
 variable: slope
-model: constant
+model: trf # constant | trf 
 dataset: slope_dataset
 
 data:
@@ -15,6 +15,7 @@ data:
 
 outputs:
   root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results
+  # Model artifacts are stored in models/<experiment.name>/.
 
 variables:
   slope:
@@ -28,7 +29,12 @@ datasets:
   slope_dataset:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features:
+      # Predict velocity_lag1 from earlier temporal states only.
+      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
+      - velocity_lag2
+      - velocity_lag3
       - acceleration_lag1
+      - acceleration_lag2
     target_feature: velocity_lag1
     split:
       method: temporal
@@ -40,8 +46,8 @@ datasets:
         start_date: '2018-01-01'
         end_date: '2020-03-27'
       monitoring:
-        start_date: '2019-04-01'
-        end_date: '2019-10-30'
+        start_date: '2020-04-01'
+        end_date: '2020-10-30'
   amd_dataset:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features: [amd_lag1]
@@ -67,8 +73,13 @@ models:
     statistic: mean
   rf:
     n_estimators: 200
-    max_depth: 10
+    max_depth: 100
     random_state: 42
+  trf:
+    n_estimators: 200
+    max_depth: 20
+    random_state: 42
+    n_jobs: 6
   gbr:
     n_estimators: 100
     learning_rate: 0.1
@@ -77,6 +88,18 @@ models:
     hidden_size: 64
     num_layers: 2
   tcn: {}
+
+# Modelling results  
+# results/models/
+# ├── slope_constant_baseline/
+# │   ├── model.pkl
+# │   ├── metrics.json
+# │   └── experiment.json
+# └── slope_trf/
+#     ├── model.pkl
+#     ├── metrics.json
+#     └── experiment.json
+
 
 training:
   random_seed: 42

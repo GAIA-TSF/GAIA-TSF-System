@@ -17,6 +17,7 @@ from subsystems.map.utils.artifacts import (
     write_diagnostics,
     write_json,
 )
+from subsystems.map.utils.experiment_paths import experiment_model_directory
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
@@ -80,8 +81,8 @@ class LearningPipeline:
         validation = model.predict(datasets.validation.features).y_pred
         test = model.predict(datasets.test.features).y_pred
         output_root = self._path(self.config['outputs']['root'])
-        models_dir = output_root / 'models'
-        model_path = models_dir / 'baseline_model.pkl'
+        models_dir = experiment_model_directory(output_root, self.config)
+        model_path = models_dir / 'model.pkl'
         model.save(model_path)
         metrics = {
             'training': regression_metrics(
@@ -117,6 +118,7 @@ class LearningPipeline:
                 'test': int(datasets.test.targets.size),
             },
             'model_path': str(model_path),
+            'model_artifact_directory': str(models_dir),
             'metrics': metrics,
         }
         write_json(models_dir / 'experiment.json', metadata)

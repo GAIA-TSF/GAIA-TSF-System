@@ -5,5 +5,13 @@ from subsystems.map.plugins.models.gbr import GBRModel
 from subsystems.map.plugins.models.lstm import LSTMModel
 from subsystems.map.plugins.models.rf import RFModel
 from subsystems.map.plugins.models.tcn import TCNModel
+from subsystems.map.plugins.models.trf import TemporalRandomForestModel
 
-__all__ = ['ConstantBaselineModel', 'GBRModel', 'LSTMModel', 'RFModel', 'TCNModel']
+__all__ = [
+    'ConstantBaselineModel',
+    'GBRModel',
+    'LSTMModel',
+    'RFModel',
+    'TCNModel',
+    'TemporalRandomForestModel',
+]
