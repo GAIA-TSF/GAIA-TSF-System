@@ -4,7 +4,7 @@ import os
 import logging
 from datetime import datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.exc import OperationalError
@@ -38,9 +38,14 @@ class DbRecord(Base):
         nullable=False,
         index=True,
     )
+    task_id = Column(
+        Integer,
+        nullable=True, # TODO: False
+        index=True,
+    )
     log_level = relationship('DbLogLevel', back_populates='log')
     subsystem = relationship('DbSubsystem', back_populates='log')
-
+    
 
 class DbLogLevel(Base):
     """Table definition: log_level"""
@@ -139,6 +144,9 @@ class DbLogger(logging.Handler):
             project_name = record.project_name
         except AttributeError:
             site_id = project_name = None
+
+        task_id = getattr(record, 'task_id', None)
+
         db_record = DbRecord(
             subsystem_id=record.subsystem,
             timestamp=datetime.strptime(record.asctime, '%Y-%m-%d %H:%M:%S,%f'),
@@ -147,6 +155,7 @@ class DbLogger(logging.Handler):
             site_id=site_id,
             project_name=project_name,
             pid=os.getpid(),
+            task_id=task_id,
         )
         self._session.add(db_record)
         self._session.commit()
@@ -156,12 +165,16 @@ class DbLogger(logging.Handler):
         if self._session.query(DbLogLevel).count() != 0:
             return
 
+        # include custom task levels (use explicit numeric IDs to avoid circular import)
         log_levels = [
             DbLogLevel(id=logging.DEBUG, name='DEBUG', severity=logging.DEBUG),
             DbLogLevel(id=logging.INFO, name='INFO', severity=logging.INFO),
             DbLogLevel(id=logging.WARNING, name='WARNING', severity=logging.WARNING),
             DbLogLevel(id=logging.ERROR, name='ERROR', severity=logging.ERROR),
             DbLogLevel(id=logging.CRITICAL, name='CRITICAL', severity=logging.CRITICAL),
+            DbLogLevel(id=101, name='TASK_STARTED', severity=101),
+            DbLogLevel(id=102, name='TASK_FINISHED', severity=102),
+            DbLogLevel(id=103, name='TASK_FAILED', severity=103),
         ]
 
         self._session.add_all(log_levels)
@@ -197,3 +210,7 @@ class DbLogger(logging.Handler):
 
         self._session.add_all(subsystems)
         self._session.commit()
+
+    def next_task_id(self):
+        max_id = self._session.query(func.max(DbRecord.task_id)).scalar()
+        return (max_id or 0) + 1
