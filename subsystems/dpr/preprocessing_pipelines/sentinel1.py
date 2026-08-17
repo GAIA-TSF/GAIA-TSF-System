@@ -304,10 +304,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Unwrapping phases.')
         self.unwrap = self.sbas.unwrap_snaphu(
             intf_u.where(corr_mask), corr_mask
-        ).persist()
+        )
+        self.unwrap = self.unwrap.compute()
+#        ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
-        _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
+        # _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
 
     def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
         """Remove long-wavelength ramps from the unwrapped phase in radar geometry.
