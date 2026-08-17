@@ -38,7 +38,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
 
     def run(self) -> dict[str, Any]:
         """Run temporal feature engineering for the slope key variable."""
-        print('INFO: Processing temporal features.')
+        LOGGER.info('Processing temporal features.')
         scenario_config = self._scenario_config()
         result_config = scenario_config['results']['temporal_features']
         if not bool(result_config.get('enabled', False)):
@@ -74,6 +74,14 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             base_stacks,
             series.dates,
             result_config,
+        )
+        temporal_features.update(
+            self._build_calendar_features(
+                dates=series.dates,
+                spatial_shape=masked_data.shape[1:],
+                mask=mask,
+                result_config=result_config,
+            ),
         )
         output_paths = write_feature_rasters(
             features=temporal_features,
@@ -129,6 +137,86 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             else:
                 raise ValueError(f'Unsupported temporal input feature: {feature_name}')
         return stacks
+
+    def _build_calendar_features(
+        self,
+        dates: tuple[date, ...],
+        spatial_shape: tuple[int, int],
+        mask: np.ndarray,
+        result_config: dict[str, object],
+    ) -> dict[str, np.ndarray]:
+        """Create date-only annual seasonal feature stacks.
+
+        The values depend solely on the acquisition date, so they are available
+        at inference time and do not leak observations from the future.  Each
+        one-dimensional calendar signal is broadcast over the TSF raster grid.
+
+        Args:
+            dates: Acquisition dates ordered along the temporal axis.
+            spatial_shape: Raster height and width.
+            mask: TSF mask aligned with the raster grid.
+            result_config: Temporal-feature configuration section.
+
+        Returns:
+            Mapping of configured calendar feature names to stacks with shape
+            ``(time, height, width)``.
+
+        Raises:
+            ValueError: If the calendar configuration is invalid.
+        """
+        calendar_config = result_config.get('calendar', {})
+        if not isinstance(calendar_config, dict):
+            raise ValueError('temporal_features.calendar must be a mapping.')
+        if not bool(calendar_config.get('enabled', False)):
+            return {}
+
+        configured_features = calendar_config.get('features', [])
+        if not isinstance(configured_features, list) or not configured_features:
+            raise ValueError(
+                'temporal_features.calendar.features must be a non-empty list '
+                'when calendar features are enabled.',
+            )
+
+        period_days = calendar_config.get('annual_period_days')
+        if not isinstance(period_days, (int, float)) or period_days <= 0:
+            raise ValueError(
+                'temporal_features.calendar.annual_period_days must be positive.',
+            )
+
+        requested_features = [str(feature) for feature in configured_features]
+        supported_features = {'annual_sin', 'annual_cos'}
+        unsupported = set(requested_features) - supported_features
+        if unsupported:
+            raise ValueError(
+                'Unsupported calendar feature(s): '
+                f'{", ".join(sorted(unsupported))}.',
+            )
+
+        day_of_year = np.asarray(
+            [acquisition_date.timetuple().tm_yday for acquisition_date in dates],
+            dtype=np.float64,
+        )
+        phase = 2.0 * np.pi * (day_of_year - 1.0) / float(period_days)
+        feature_values = {
+            'annual_sin': np.sin(phase),
+            'annual_cos': np.cos(phase),
+        }
+        tsf_mask = mask.astype(bool, copy=False)
+        if tsf_mask.shape != spatial_shape:
+            raise ValueError('TSF mask shape does not match the feature grid.')
+
+        features: dict[str, np.ndarray] = {}
+        for feature_name in requested_features:
+            values = np.broadcast_to(
+                feature_values[feature_name][:, np.newaxis, np.newaxis],
+                (len(dates), *spatial_shape),
+            )
+            features[feature_name] = np.where(
+                tsf_mask[np.newaxis, :, :],
+                values,
+                np.nan,
+            ).astype(np.float32)
+        return features
 
     def _filenames(
         self,

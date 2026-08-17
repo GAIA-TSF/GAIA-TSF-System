@@ -10,7 +10,12 @@ import numpy as np
 
 from subsystems.map.core.registry import MODEL_REGISTRY
 from subsystems.map.dataset import DatasetBuilder, FeatureLoader
-from subsystems.map.monitoring import ResidualAnalyzer, StatisticalAnomalyDetector
+from subsystems.map.monitoring import (
+    ResidualAnalyzer,
+    StatisticalAnomalyDetector,
+    TemporalResidualMonitor,
+)
+from subsystems.map.monitoring.dashboard import write_slope_stability_dashboard
 from subsystems.map.utils.artifacts import (
     write_diagnostics,
     write_latest_residual_map,
@@ -201,7 +206,6 @@ class InferencePipeline:
             grid_transform=dataset.grid.transform,
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
-            points=self._observation_points(),
             colormap=self._persistent_residual_colormap(),
             persistence_start_time_index=int(
                 anomalies.summary['persistence_start_time_index'],
@@ -209,13 +213,62 @@ class InferencePipeline:
             persistence_end_time_index=int(
                 anomalies.summary['persistence_end_time_index'],
             ),
-            fraction_gamma=self._persistent_fraction_gamma(),
+            persistence_fraction_display_max=self._persistent_fraction_display_max(),
         )
+        dashboard_path: Path | None = None
+        dashboard_config = self._dashboard_config()
+        if bool(dashboard_config['enabled']):
+            uncertainty_stack = (
+                None
+                if prediction.uncertainty is None
+                else analyzer.restore_stack(dataset, prediction.uncertainty)
+            )
+            residual_monitor = TemporalResidualMonitor(dashboard_config)
+            temporal_monitoring = residual_monitor.analyze(
+                observed_stack=observed_stack,
+                prediction_stack=prediction_stack,
+                dates=dataset.dates,
+                calibration_window=(
+                    calibration_window.start_index,
+                    calibration_window.end_index,
+                ),
+                monitoring_window=(
+                    monitoring_window.start_index,
+                    monitoring_window.end_index,
+                ),
+                uncertainty_stack=uncertainty_stack,
+            )
+            dashboard_path = output_root / 'monitoring' / str(
+                dashboard_config['filename'],
+            )
+            write_slope_stability_dashboard(
+                output_path=dashboard_path,
+                dates=dataset.dates,
+                monitoring=temporal_monitoring,
+                observed_stack=observed_stack,
+                residual_stack=residuals.stack,
+                mask=dataset.mask,
+                grid_transform=dataset.grid.transform,
+                grid_width=dataset.grid.width,
+                grid_height=dataset.grid.height,
+                unit=self._plot_unit(),
+                value_scale=self._plot_value_scale(),
+                calibration_window=(
+                    calibration_window.start_index,
+                    calibration_window.end_index,
+                ),
+                monitoring_window=(
+                    monitoring_window.start_index,
+                    monitoring_window.end_index,
+                ),
+                residual_percentile=self._mean_residual_percentile(),
+            )
         result = {
             'prediction_count': int(prediction.y_pred.size),
             'residual_statistics': residuals.statistics,
             'anomaly_summary': anomalies.summary,
             'output_root': str(output_root),
+            'dashboard_path': None if dashboard_path is None else str(dashboard_path),
         }
         LOGGER.info('MAP inference completed in %s', output_root)
         return result
@@ -309,6 +362,14 @@ class InferencePipeline:
         """Return the configured odd pixel-window size for point diagnostics."""
         return int(self.config.get('plotting', {}).get('observation_window_size', 3))
 
+    def _dashboard_config(self) -> dict[str, Any]:
+        """Return the configured dashboard monitoring settings."""
+        monitoring = self.config.get('monitoring', {})
+        dashboard = monitoring.get('dashboard') if isinstance(monitoring, dict) else None
+        if not isinstance(dashboard, dict):
+            raise ValueError('monitoring.dashboard must be a mapping.')
+        return dashboard
+
     def _latest_residual_colormap(self) -> str:
         """Return the configured diverging colour map for the latest residual map."""
         return str(
@@ -360,16 +421,14 @@ class InferencePipeline:
             )
         )
 
-    def _persistent_fraction_gamma(self) -> float:
-        """Return the visual emphasis applied to low persistence fractions."""
+    def _persistent_fraction_display_max(self) -> float:
+        """Return the fixed linear maximum for persistent-anomaly fractions."""
         return float(
             self.config.get('plotting', {}).get(
-                'persistent_fraction_gamma',
+                'persistent_fraction_display_max',
                 1.0,
             )
         )
-
-
 
 def run_inference(config: dict[str, Any]) -> dict[str, Any]:
     """Backward-compatible functional inference entry point."""

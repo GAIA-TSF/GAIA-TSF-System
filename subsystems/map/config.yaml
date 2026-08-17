@@ -1,12 +1,12 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name: slope_trf # slope_constant_baseline | slope_trf 
+  name: slope_trf # slope_constant_baseline | slope_trf
   description: Stable-pixel temporal Random Forest for synthetic TSF deformation monitoring
   seed: 42
 
 variable: slope
-model: trf # constant | trf 
+model: trf # constant | trf
 dataset: slope_dataset
 
 data:
@@ -30,11 +30,15 @@ datasets:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features:
       # Predict velocity_lag1 from earlier temporal states only.
-      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
+      # Calendar features are date-only causal terms emitted by the DAG.
+      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2,
+      #  annual_sin, annual_cos]
       - velocity_lag2
       - velocity_lag3
       - acceleration_lag1
       - acceleration_lag2
+      - annual_sin
+      - annual_cos
     target_feature: velocity_lag1
     split:
       method: temporal
@@ -44,10 +48,10 @@ datasets:
     temporal_windows:
       calibration:
         start_date: '2018-01-01'
-        end_date: '2020-03-27'
+        end_date: '2020-01-01'
       monitoring:
-        start_date: '2020-04-01'
-        end_date: '2020-10-30'
+        start_date: '2020-01-01'
+        end_date: '2020-08-30'
   amd_dataset:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features: [amd_lag1]
@@ -89,7 +93,7 @@ models:
     num_layers: 2
   tcn: {}
 
-# Modelling results  
+# Modelling results
 # results/models/
 # ├── slope_constant_baseline/
 # │   ├── model.pkl
@@ -117,7 +121,8 @@ plotting:
   mean_residual_colormap: RdBu # _r
   mean_residual_percentile: 98.0
   persistent_residual_colormap: magma
-  persistent_fraction_gamma: 0.35
+  persistent_fraction_display_max: 0.25
+  persistent_fraction_gamma: 1.0
   # Coordinates use the CRS of tsf_mask.tif (EPSG:32633 for this synthetic TSF).
   observation_points:
     stable_tsf:
@@ -127,5 +132,24 @@ plotting:
 
 anomaly_detection:
   residual_threshold: 0.02
-  zscore_threshold: 2.0
+  zscore_threshold: 1.5
   persistence: 3
+
+monitoring:
+  dashboard:
+    enabled: true
+    filename: slope_stability_dashboard.png
+    # Uses the configured deformation display unit (mm/day).
+    anomaly_magnitude_threshold: 0.02
+    cusum:
+      # Negative: increasingly negative LOS deformation is instability.
+      instability_direction: negative
+      reference_value: 0.5
+      decision_threshold: 5.0
+      smoothing_span: 5
+      persistence_window: 20
+      persistence_threshold: 0.25
+    regime:
+      smoothing_span: 5
+      medium_risk_threshold: 0.3
+      high_risk_threshold: 0.7

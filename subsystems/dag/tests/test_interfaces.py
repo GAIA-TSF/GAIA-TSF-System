@@ -230,6 +230,11 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
                                 'enabled': True,
                                 'window': 3,
                             },
+                            'calendar': {
+                                'enabled': True,
+                                'annual_period_days': 365.2425,
+                                'features': ['annual_sin', 'annual_cos'],
+                            },
                             'smoothing': {
                                 'enabled': True,
                                 'method': 'savgol',
@@ -252,6 +257,8 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
     assert (output_dir / 'velocity_diff1.tif').exists()
     assert (output_dir / 'velocity_roll_mean.tif').exists()
     assert (output_dir / 'velocity_roll_std.tif').exists()
+    assert (output_dir / 'annual_sin.tif').exists()
+    assert (output_dir / 'annual_cos.tif').exists()
     # assert (output_dir / 'velocity_smooth.tif').exists()
     with rasterio.open(output_dir / 'velocity_lag1.tif') as dataset:
         assert dataset.count == 7
@@ -265,3 +272,8 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
         f'2018-01-{day:02d}' for day in range(1, 8)
     ]
     assert 'velocity_lag1' in metadata['feature_names']
+    assert 'annual_sin' in metadata['feature_names']
+    with rasterio.open(output_dir / 'annual_sin.tif') as dataset:
+        annual_sin = dataset.read(1, masked=True)
+        assert np.isclose(annual_sin[0, 0], 0.0)
+        assert annual_sin.mask[0, 1]

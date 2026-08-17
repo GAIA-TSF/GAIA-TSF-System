@@ -109,6 +109,13 @@ slope_stability:
       rolling_std:
         enabled: true
         window: 5
+      calendar:
+        # Date-only, causal annual seasonality terms for MAP temporal models.
+        enabled: true
+        annual_period_days: 365.2425
+        features:
+          - annual_sin
+          - annual_cos
       smoothing:
         enabled: true
         method: "savgol"

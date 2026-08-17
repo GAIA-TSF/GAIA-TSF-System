@@ -834,11 +834,10 @@ def write_persistent_residual_map(
     grid_transform: Any,
     grid_width: int,
     grid_height: int,
-    points: dict[str, dict[str, object]],
     colormap: str,
     persistence_start_time_index: int = 0,
     persistence_end_time_index: int | None = None,
-    fraction_gamma: float = 1.0,
+    persistence_fraction_display_max: float = 1.0,
 ) -> None:
     """Write a map of post-calibration persistent-anomaly fractions.
 
@@ -849,18 +848,17 @@ def write_persistent_residual_map(
         grid_transform: Raster affine transform for map-coordinate plotting.
         grid_width: Number of raster columns.
         grid_height: Number of raster rows.
-        points: Named point configuration containing ``coordinates: [x, y]``.
         colormap: Matplotlib sequential colour map name.
         persistence_start_time_index: First acquisition eligible for persistence.
         persistence_end_time_index: Exclusive final acquisition eligible for
             persistence.
-        fraction_gamma: Power normalization for low persistence fractions.
+        persistence_fraction_display_max: Fixed upper colour-bar limit for
+            persistence fractions.
     """
     import matplotlib
 
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    from matplotlib.colors import PowerNorm
 
     if persistent_anomalies.ndim != 3 or persistent_anomalies.shape[1:] != mask.shape:
         raise ValueError('Persistent anomalies and TSF mask have incompatible dimensions.')
@@ -871,13 +869,14 @@ def write_persistent_residual_map(
         raise ValueError(
             'Persistence analysis window must reference at least one acquisition.',
         )
-    if fraction_gamma <= 0:
-        raise ValueError('fraction_gamma must be positive.')
+    if not 0.0 < persistence_fraction_display_max <= 1.0:
+        raise ValueError('Persistence fraction display maximum must be in (0, 1].')
     eligible = persistent_anomalies[
         persistence_start_time_index:persistence_end_time_index
     ]
     persistence_fraction = np.mean(eligible.astype(np.float64), axis=0)
     persistence_fraction = np.where(mask, persistence_fraction, np.nan)
+    maximum_fraction = float(np.nanmax(persistence_fraction))
     left = grid_transform.c
     right = grid_transform.c + grid_transform.a * grid_width
     top = grid_transform.f
@@ -887,7 +886,8 @@ def write_persistent_residual_map(
     image = axis.imshow(
         persistence_fraction,
         cmap=colormap,
-        norm=PowerNorm(gamma=fraction_gamma, vmin=0, vmax=1),
+        vmin=0.0,
+        vmax=persistence_fraction_display_max,
         extent=extent,
         origin='upper',
     )
@@ -899,36 +899,18 @@ def write_persistent_residual_map(
         extent=extent,
         origin='upper',
     )
-    for name, point_config in points.items():
-        coordinates = point_config.get('coordinates')
-        if (
-            not isinstance(coordinates, list)
-            or len(coordinates) != 2
-            or not all(isinstance(value, (int, float)) for value in coordinates)
-        ):
-            raise ValueError(
-                f"Configured point '{name}' requires coordinates: [x, y].",
-            )
-        axis.scatter(
-            coordinates[0],
-            coordinates[1],
-            s=55,
-            edgecolor='black',
-            linewidth=0.8,
-            label=_point_display_name(name),
-        )
     colorbar = figure.colorbar(image, ax=axis, shrink=0.8)
-    colorbar.set_label('Persistent anomaly fraction [0–1]')
+    colorbar.set_label(
+        f'Persistent anomaly fraction [0–{persistence_fraction_display_max:.3f}]',
+    )
     axis.set(
         xlabel='Easting',
         ylabel='Northing',
         title=(
             'Post-calibration persistent residual anomaly fraction '
-            f'({eligible.shape[0]} acquisitions)'
+            f'({eligible.shape[0]} acquisitions; max {maximum_fraction:.3f})'
         ),
     )
-    if points:
-        axis.legend(loc='best')
     figure.savefig(
         output_dir / 'residual_persistent.png',
         dpi=180,
