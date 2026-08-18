@@ -49,17 +49,8 @@ class InferencePipeline:
         ).load(
             list(dict.fromkeys([*feature_names, target_feature])),
         )
-        dataset = DatasetBuilder().build(loaded, feature_names, target_feature)
-        calibration_window = resolve_temporal_window(
-            dataset.dates,
-            dataset_config,
-            'calibration',
-        )
-        monitoring_window = resolve_temporal_window(
-            dataset.dates,
-            dataset_config,
-            'monitoring',
-        )
+        builder = DatasetBuilder()
+        dataset = builder.build(loaded, feature_names, target_feature)
         model_name = self._name('model')
         output_root = self._path(self.config['outputs']['root'])
         model_path = experiment_model_directory(
@@ -72,6 +63,19 @@ class InferencePipeline:
                 f'{model_path}. Run MAP learning with the same configuration first.',
             )
         model = MODEL_REGISTRY[model_name].load(model_path)
+        specification = model.sequence_spec()
+        if specification is not None:
+            dataset = builder.build_sequences(dataset, *specification)
+        calibration_window = resolve_temporal_window(
+            dataset.dates,
+            dataset_config,
+            'calibration',
+        )
+        monitoring_window = resolve_temporal_window(
+            dataset.dates,
+            dataset_config,
+            'monitoring',
+        )
         prediction = model.predict(dataset.features)
         analyzer = ResidualAnalyzer()
         prediction_stack = analyzer.restore_stack(dataset, prediction.y_pred)

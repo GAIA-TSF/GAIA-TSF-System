@@ -69,5 +69,30 @@ class PredictiveModel(ABC):
         """Alias for :meth:`train`."""
         self.train(features, targets)
 
+    def sequence_spec(self) -> tuple[int, int] | None:
+        """Return required ``(look_back, horizon)`` for sequence models.
+
+        Tabular model plugins return ``None``.  Sequence-aware pipelines use
+        the specification to build causal per-pixel sequences without knowing
+        a particular model implementation.
+        """
+        return None
+
+    def set_random_seed(self, seed: int) -> None:
+        """Set the pipeline reproducibility seed when a plugin needs it."""
+        self._random_seed = int(seed)
+
+    def set_validation_data(
+        self,
+        features: np.ndarray,
+        targets: np.ndarray,
+    ) -> None:
+        """Supply held-out validation data to models that train by epochs.
+
+        Most model plugins do not need validation data while fitting and retain
+        this no-op implementation. Sequence models can use it to record an
+        epoch-level validation learning curve without exposing test data.
+        """
+
 
 ModelPlugin = PredictiveModel

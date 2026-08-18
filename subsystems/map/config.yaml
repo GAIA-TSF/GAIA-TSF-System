@@ -1,12 +1,12 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name: slope_trf # slope_constant_baseline | slope_trf
-  description: Stable-pixel temporal Random Forest for synthetic TSF deformation monitoring
+  name: slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
+  description: Stable-pixel LSTM for synthetic TSF deformation monitoring
   seed: 42
 
 variable: slope
-model: trf # constant | trf
+model: lstm # constant | trf | lstm
 dataset: slope_dataset
 
 data:
@@ -29,17 +29,16 @@ datasets:
   slope_dataset:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features:
-      # Predict velocity_lag1 from earlier temporal states only.
-      # Calendar features are date-only causal terms emitted by the DAG.
-      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2,
-      #  annual_sin, annual_cos]
       - velocity_lag2
       - velocity_lag3
       - acceleration_lag1
       - acceleration_lag2
-      - annual_sin
-      - annual_cos
+      # - acceleration_lag3
+      # - annual_cos
+      # - annual_sin
+      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
     target_feature: velocity_lag1
+    # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]
     split:
       method: temporal
       train_ratio: 0.5
@@ -91,6 +90,16 @@ models:
   lstm:
     hidden_size: 64
     num_layers: 2
+    dropout: 0.2
+    bidirectional: false
+    look_back: 12 # it uses the prior 12 acquisitions
+    horizon: 1    # to predict the next acquisition
+    device: cpu
+    optimizer:
+      lr: 0.001
+    training:
+      batch_size: 256
+      epochs: 50
   tcn: {}
 
 # Modelling results
@@ -107,6 +116,31 @@ models:
 
 training:
   random_seed: 42
+
+explainability:
+  enabled: false
+  shap:
+    # Stratified across validation acquisition dates; values are samples, not rows per date.
+    sample_size: 12000
+    dependence_features:
+      - velocity_lag2
+      - acceleration_lag1
+      - annual_sin
+      - annual_cos
+  grouped_permutation:
+    # Evaluated across all held-out temporal validation samples.
+    n_repeats: 10
+    groups:
+      velocity_history:
+        - velocity_lag2
+        - velocity_lag3
+      acceleration_history:
+        - acceleration_lag1
+        - acceleration_lag2
+        - acceleration_lag3
+      annual_seasonality:
+        - annual_sin
+        - annual_cos
 
 plotting:
   deformation_unit: mm/day

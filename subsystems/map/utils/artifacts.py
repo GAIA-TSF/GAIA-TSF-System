@@ -30,6 +30,54 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
+def write_learning_curve(
+    output_dir: Path,
+    training_losses: list[float],
+    validation_losses: list[float] | None = None,
+) -> None:
+    """Write model training and validation loss curves when available.
+
+    Args:
+        output_dir: Model artifact directory.
+        training_losses: Mean training loss recorded once for each epoch.
+        validation_losses: Optional held-out validation loss recorded at the
+            end of each epoch.
+    """
+    if not training_losses:
+        return
+    import matplotlib
+
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    figure, axis = plt.subplots(figsize=(8, 4))
+    axis.plot(
+        np.arange(1, len(training_losses) + 1),
+        training_losses,
+        color='tab:blue',
+        linewidth=1.8,
+        label='Training loss',
+    )
+    if validation_losses:
+        axis.plot(
+            np.arange(1, len(validation_losses) + 1),
+            validation_losses,
+            color='tab:orange',
+            linewidth=1.8,
+            label='Validation loss',
+        )
+    axis.set(
+        xlabel='Epoch',
+        ylabel='Mean squared error (normalized target)',
+        title='LSTM learning curve',
+    )
+    axis.grid(alpha=0.25)
+    axis.legend()
+    figure.savefig(output_dir / 'learning_curve.png', dpi=150, bbox_inches='tight')
+    plt.close(figure)
+
+
 def _point_display_name(name: str) -> str:
     """Return the user-facing label for a configured observation point."""
     if name == 'deformation_zone':

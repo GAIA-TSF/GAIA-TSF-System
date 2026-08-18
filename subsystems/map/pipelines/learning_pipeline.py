@@ -9,15 +9,18 @@ from typing import Any
 
 import numpy as np
 
+from subsystems.map.core.interfaces import PredictiveModel
 from subsystems.map.core.registry import MODEL_REGISTRY, VARIABLE_REGISTRY
-from subsystems.map.dataset import DatasetBuilder, FeatureLoader
+from subsystems.map.dataset import Dataset, DatasetBuilder, FeatureLoader
 from subsystems.map.plugins.selection.stable_pixel_selector import StablePixelSelector
 from subsystems.map.utils.artifacts import (
     regression_metrics,
     write_diagnostics,
     write_json,
+    write_learning_curve,
 )
 from subsystems.map.utils.experiment_paths import experiment_model_directory
+from subsystems.map.utils.explainability import write_tree_explainability
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
@@ -46,6 +49,11 @@ class LearningPipeline:
         dataset_config = self._named_config('datasets', self._required_name('dataset'))
         feature_names = [str(name) for name in dataset_config['features']]
         target_feature = str(dataset_config['target_feature'])
+        if target_feature in feature_names:
+            raise ValueError(
+                'dataset.features must not contain dataset.target_feature; this '
+                f'would leak the target into learning: {target_feature}.',
+            )
         loaded = FeatureLoader(
             self._feature_paths(), self._path(dataset_config['mask_path'])
         ).load(
@@ -59,6 +67,8 @@ class LearningPipeline:
         stable_dataset = builder.build(
             loaded, feature_names, target_feature, stable_mask
         )
+        model = MODEL_REGISTRY[model_name](self._named_config('models', model_name))
+        stable_dataset = self._sequence_dataset(builder, stable_dataset, model)
         split = dataset_config['split']
         if split.get('method') != 'temporal':
             raise ValueError('Scenario 1 supports only dataset.split.method: temporal.')
@@ -76,7 +86,11 @@ class LearningPipeline:
             float(split['test_ratio']),
         )
         self._seed()
-        model = MODEL_REGISTRY[model_name](self._named_config('models', model_name))
+        model.set_random_seed(self._random_seed())
+        model.set_validation_data(
+            datasets.validation.features,
+            datasets.validation.targets,
+        )
         model.train(datasets.train.features, datasets.train.targets)
         validation = model.predict(datasets.validation.features).y_pred
         test = model.predict(datasets.test.features).y_pred
@@ -92,6 +106,11 @@ class LearningPipeline:
             'test': regression_metrics(datasets.test.targets, test),
         }
         write_json(models_dir / 'metrics.json', metrics)
+        write_learning_curve(
+            models_dir,
+            list(getattr(model, 'training_history', [])),
+            list(getattr(model, 'validation_history', [])),
+        )
         write_diagnostics(
             models_dir,
             datasets.validation.targets,
@@ -100,6 +119,15 @@ class LearningPipeline:
             datasets.validation.time_indices,
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
+        )
+        explainability = write_tree_explainability(
+            models_dir,
+            model,
+            datasets.validation,
+            self.config.get('explainability', {}),
+            self._random_seed(),
+            self._plot_unit(),
+            self._plot_value_scale(),
         )
         metadata = {
             'experiment': self.config.get('experiment', {}),
@@ -120,6 +148,7 @@ class LearningPipeline:
             'model_path': str(model_path),
             'model_artifact_directory': str(models_dir),
             'metrics': metrics,
+            'explainability': explainability,
         }
         write_json(models_dir / 'experiment.json', metadata)
         LOGGER.info('MAP learning completed: %s', model_path)
@@ -151,13 +180,30 @@ class LearningPipeline:
         return value
 
     def _seed(self) -> None:
-        seed = int(
+        seed = self._random_seed()
+        random.seed(seed)
+        np.random.seed(seed)
+
+    def _random_seed(self) -> int:
+        """Return the configured reproducibility seed."""
+        return int(
             self.config.get('training', {}).get(
                 'random_seed', self.config.get('experiment', {}).get('seed', 42)
             )
         )
-        random.seed(seed)
-        np.random.seed(seed)
+
+    @staticmethod
+    def _sequence_dataset(
+        builder: DatasetBuilder,
+        dataset: Dataset,
+        model: PredictiveModel,
+    ) -> Dataset:
+        """Convert tabular samples only when a model declares sequence input."""
+        specification = model.sequence_spec()
+        if specification is None:
+            return dataset
+        look_back, horizon = specification
+        return builder.build_sequences(dataset, look_back, horizon)
 
     def _plot_unit(self) -> str:
         """Return the configured physical unit used by diagnostic axes."""

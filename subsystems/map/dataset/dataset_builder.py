@@ -99,6 +99,95 @@ class DatasetBuilder:
             self._subset(dataset, dataset.time_indices >= validation_end),
         )
 
+    def build_sequences(
+        self,
+        dataset: Dataset,
+        look_back: int,
+        horizon: int,
+    ) -> Dataset:
+        """Build causal, per-pixel sequences for a sequence-model plugin.
+
+        Every sequence contains ``look_back`` consecutive feature vectors. The
+        target occurs ``horizon`` acquisitions after the final input vector;
+        consequently no target-time observation can enter the model input.
+
+        Args:
+            dataset: Flat temporal samples created from DAG feature rasters.
+            look_back: Number of prior acquisitions in each input sequence.
+            horizon: Number of acquisitions between sequence end and target.
+
+        Returns:
+            A dataset whose feature matrix has shape
+            ``(samples, look_back, features)``.
+
+        Raises:
+            ValueError: If the sequence specification is invalid or produces
+                no complete per-pixel samples.
+        """
+        if look_back < 1 or horizon < 1:
+            raise ValueError('Sequence look_back and horizon must be positive.')
+        if dataset.features.ndim != 2:
+            raise ValueError('Sequence construction requires a tabular dataset.')
+
+        rows_by_time = {
+            time_index: np.flatnonzero(dataset.time_indices == time_index)
+            for time_index in np.unique(dataset.time_indices)
+        }
+        sequence_features: list[np.ndarray] = []
+        sequence_targets: list[np.ndarray] = []
+        sequence_times: list[np.ndarray] = []
+        sequence_pixels: list[np.ndarray] = []
+        first_target_time = look_back + horizon - 1
+        for target_time in range(first_target_time, len(dataset.dates)):
+            input_times = range(
+                target_time - horizon - look_back + 1,
+                target_time - horizon + 1,
+            )
+            required_times = [*input_times, target_time]
+            if any(time not in rows_by_time for time in required_times):
+                continue
+            common_pixels = dataset.pixel_indices[rows_by_time[required_times[0]]]
+            for time_index in required_times[1:]:
+                common_pixels = np.intersect1d(
+                    common_pixels,
+                    dataset.pixel_indices[rows_by_time[time_index]],
+                    assume_unique=True,
+                )
+            if common_pixels.size == 0:
+                continue
+
+            feature_steps: list[np.ndarray] = []
+            for time_index in input_times:
+                rows = rows_by_time[time_index]
+                pixel_values = dataset.pixel_indices[rows]
+                matches = np.searchsorted(pixel_values, common_pixels)
+                feature_steps.append(dataset.features[rows[matches]])
+            target_rows = rows_by_time[target_time]
+            target_pixels = dataset.pixel_indices[target_rows]
+            target_matches = np.searchsorted(target_pixels, common_pixels)
+            sequence_features.append(np.stack(feature_steps, axis=1))
+            sequence_targets.append(dataset.targets[target_rows[target_matches]])
+            sequence_times.append(
+                np.full(common_pixels.size, target_time, dtype=np.int64),
+            )
+            sequence_pixels.append(common_pixels)
+
+        if not sequence_features:
+            raise ValueError(
+                'No complete causal sequences remain for the configured '
+                'look_back and horizon.',
+            )
+        return Dataset(
+            np.concatenate(sequence_features, axis=0),
+            np.concatenate(sequence_targets),
+            np.concatenate(sequence_times),
+            np.concatenate(sequence_pixels),
+            dataset.feature_names,
+            dataset.dates,
+            dataset.grid,
+            dataset.mask,
+        )
+
     def split_temporal_window(
         self,
         dataset: Dataset,
