@@ -3,7 +3,7 @@
 import time
 import pytest
 from unittest.mock import MagicMock
-from subsystems.isu.bulk_upload_scheduler.scheduler import Scheduler
+from lib.scheduler import BaseScheduler
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ class TestScheduler:
         def mock_task():
             execution_count['val'] += 1
 
-        sched = Scheduler(interval_seconds=1, logger=mock_qcl_logger)
+        sched = BaseScheduler(interval_seconds=1, logger=mock_qcl_logger)
         sched.start(mock_task)
         time.sleep(2.5)
         sched.stop()
@@ -34,7 +34,7 @@ class TestScheduler:
 
     def test_SCH_002_double_start_prevention(self, mock_qcl_logger):
         """Test that starting twice doesn't crash."""
-        sched = Scheduler(interval_seconds=1, logger=mock_qcl_logger)
+        sched = BaseScheduler(interval_seconds=1, logger=mock_qcl_logger)
         sched.start(lambda: None)
         sched.start(lambda: None)
 

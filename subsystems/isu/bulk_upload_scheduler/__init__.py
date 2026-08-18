@@ -4,8 +4,8 @@ from typing import Any, List, Optional, Tuple
 
 
 from lib.base import GaiaBase, SubsystemId
+from lib.scheduler import BaseScheduler
 
-from .scheduler import Scheduler
 from .source_fetchers import (
     fetch_from_ftp,
     fetch_from_https,
@@ -51,7 +51,7 @@ class BulkUploadScheduler(GaiaBase):
         self._seen_remote_files = set()
 
         # Pass the auto-generated logger to the underlying thread scheduler
-        self.scheduler = Scheduler(interval_seconds=interval, logger=self.logger)
+        self.scheduler = BaseScheduler(interval_seconds=interval, logger=self.logger)
 
         if self.source_type == 'local':
             self._ensure_directories()
