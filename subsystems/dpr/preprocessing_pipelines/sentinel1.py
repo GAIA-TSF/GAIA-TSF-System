@@ -303,14 +303,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
         self.logger.info('Unwrapping phases.')
-        # Force full materialization of the unwrapped phase before proceeding.
-        # Using .persist() here occasionally led to Dask "lost dependencies"
-        # errors in downstream detrending/LSTSQ/geocoding steps because parts
-        # of the unwrap graph could still be lazily evaluated. An explicit
-        # .compute() acts as a synchronization barrier and ensures all SNAPHU
-        # results are available before the next processing stage starts.
-        # See https://github.com/GAIA-TSF/GAIA-TSF-System/issues/419
-        self.unwrap = self.sbas.unwrap_snaphu(intf_u.where(corr_mask), corr_mask)
+        self.unwrap = self.sbas.unwrap_snaphu(
+            intf_u.where(corr_mask), corr_mask
+        ).persist()
+
+        # Trigger computation to catch SNAPHU execution errors immediately
         self.unwrap = self.unwrap.compute()
 
     def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
