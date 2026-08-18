@@ -927,7 +927,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             'threads_per_worker': glob_config['dask_parameters']['threads_per_worker'],
             'memory_limit': glob_config['dask_parameters']['memory_limit'],
         }
-        self.logger.debug(f"Dask parameters: {dask_kwargs}")
+        self.logger.debug(f'Dask parameters: {dask_kwargs}')
 
         start = time.time()
 
