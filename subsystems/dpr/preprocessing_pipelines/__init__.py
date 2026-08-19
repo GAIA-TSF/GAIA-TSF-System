@@ -1,6 +1,7 @@
 from subsystems.dpr.base_pipeline import PipelineFactory
 from .sentinel1 import Sentinel1Pipeline
 from .sentinel2safe import Sentinel2SafeProcessor
+from .sentinel2zip import Sentinel2ZipStacAssets
 
 
 class PreprocessingPipelines(PipelineFactory):
@@ -19,4 +20,5 @@ class PreprocessingPipelines(PipelineFactory):
         self._pipelines = {
             'sentinel1': Sentinel1Pipeline(),
             'sentinel2_safe_processor': Sentinel2SafeProcessor(),
+            'sentinel2_zip_stac_assets': Sentinel2ZipStacAssets(),
         }
