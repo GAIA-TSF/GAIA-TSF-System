@@ -13,7 +13,10 @@ from pyproj import Transformer
 gdal.UseExceptions()
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor, Sentinel2ZipStacAssets
+from subsystems.dpr.preprocessing_pipelines import (
+    Sentinel2SafeProcessor,
+    Sentinel2ZipStacAssets,
+)
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
 from lib.config import SettingsReader

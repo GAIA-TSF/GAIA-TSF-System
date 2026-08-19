@@ -22,7 +22,7 @@ class Sentinel2ZipStacAssets(PreprocessingBasePipeline):
             'delete_original': {
                 'dtype': bool,
                 'description': 'If true delete input STAC metadata file and its assets after the zip archive is '
-                               'created.',
+                'created.',
                 'default': False,
             },
         },
@@ -99,15 +99,17 @@ class Sentinel2ZipStacAssets(PreprocessingBasePipeline):
         """
         Generates an archive from the input paths of the json metadata file and assets.
         """
-        with zipfile.ZipFile(self.zip_path, mode="w", compression=zipfile.ZIP_DEFLATED) as zipf:
+        with zipfile.ZipFile(
+            self.zip_path, mode='w', compression=zipfile.ZIP_DEFLATED
+        ) as zipf:
             for raw_path in self.asset_paths:
                 path = raw_path.resolve()
                 if path.exists():
                     # Add single file to root of ZIP archive
                     zipf.write(path, arcname=path.name)
-                    self.logger.info(f"- Added file to zip: {path.name}")
+                    self.logger.info(f'- Added file to zip: {path.name}')
                 else:
-                    self.logger.warning(f"- Skipping file (not found): {path.name}")
+                    self.logger.warning(f'- Skipping file (not found): {path.name}')
 
     def _run(self):
         self._initialize()
@@ -119,9 +121,7 @@ class Sentinel2ZipStacAssets(PreprocessingBasePipeline):
             self.output_folder = Path(self.output_folder).resolve()
         # Check if input json file exists
         if not self.input_json.is_file():
-            self.logger.error(
-                f'File {self.input_json} does not exist.'
-            )
+            self.logger.error(f'File {self.input_json} does not exist.')
         # Ensure output folder exists
         self._config['output_folder'].mkdir(parents=True, exist_ok=True)
 
@@ -130,7 +130,7 @@ class Sentinel2ZipStacAssets(PreprocessingBasePipeline):
             self.metadata = json.load(f)
 
         # locate raster associated to metadata, return assets count and paths
-        self.logger.info(f"Parsing metadata from {self.input_json.stem}")
+        self.logger.info(f'Parsing metadata from {self.input_json.stem}')
         self._list_stac_assets()
         # Check that the list of assets is not empty and proceed with creating a zip archive
         if self.asset_count == 0:
@@ -139,29 +139,35 @@ class Sentinel2ZipStacAssets(PreprocessingBasePipeline):
             )
         else:
             # set path to output zip
-            self.zip_filename = f"{self.input_json.stem}.zip"
+            self.zip_filename = f'{self.input_json.stem}.zip'
             self.zip_path = self.output_folder / self.zip_filename
-            self.logger.info(f"Packaging metadata & assets into zip folder: {self.zip_path}")
+            self.logger.info(
+                f'Packaging metadata & assets into zip folder: {self.zip_path}'
+            )
             # Add JSON path to asset paths and create the archive
-            self.asset_paths = [self.input_json] + [Path(self.input_json.parent / p) for p in self.asset_paths]
+            self.asset_paths = [self.input_json] + [
+                Path(self.input_json.parent / p) for p in self.asset_paths
+            ]
             # also add xml files if assets are OpenJPEG
             for path in self.asset_paths:
-                if path.suffix.lower() == ".jp2" or path.suffix.lower() == ".jpeg":
+                if path.suffix.lower() == '.jp2' or path.suffix.lower() == '.jpeg':
                     xml_path = path.with_suffix('.jp2.aux.xml')
                     if os.path.exists(xml_path):
                         self.asset_paths.append(xml_path)
             self._zip_stac_assets()
             # Check that the archive was created and only delete the originals if true
             if os.path.exists(self.zip_path):
-                with zipfile.ZipFile(self.zip_path, "r") as zf:
-                    self.logger.info("Successfully packaged zip archive.")
+                with zipfile.ZipFile(self.zip_path, 'r') as zf:
+                    self.logger.info('Successfully packaged zip archive.')
                     for zip_info in zf.infolist():
-                        self.logger.info(f" - {zip_info.filename} ({zip_info.file_size} bytes)")
+                        self.logger.info(
+                            f' - {zip_info.filename} ({zip_info.file_size} bytes)'
+                        )
                 if self.delete_original is True:
                     for raw_path in self.asset_paths:
                         path = raw_path.resolve()
                         if path.exists():
-                            self.logger.info(f"Deleting original file: {path}")
+                            self.logger.info(f'Deleting original file: {path}')
                             path.unlink()
             else:
-                self.logger.warning("The zip archive has not been created.")
+                self.logger.warning('The zip archive has not been created.')
