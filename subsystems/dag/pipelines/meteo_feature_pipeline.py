@@ -49,6 +49,12 @@ class MeteoFeaturePipeline(Pipeline):
             }
         reference = next(iter(series_by_name.values()))
         self._validate_series(series_by_name, reference)
+        insar_reference = self._load_insar_reference(inputs)
+        self.loader.validate_profile(
+            reference.profile,
+            insar_reference.profile,
+            insar_reference.source_paths[0],
+        )
 
         data = {name: series.data for name, series in series_by_name.items()}
         static = scenario.get('static', {})
@@ -62,7 +68,14 @@ class MeteoFeaturePipeline(Pipeline):
                 )
                 data = {name: apply_mask(stack, mask) for name, stack in data.items()}
 
-        features = self.extractor.compute(data, reference.dates, feature_config)
+        daily_features = self.extractor.compute(
+            data, reference.dates, feature_config
+        )
+        features = self._sample_on_insar_dates(
+            daily_features,
+            reference.dates,
+            insar_reference.dates,
+        )
         output_dir = self._resolve_path(str(results['output_dir']))
         filenames = results.get('filenames', {})
         if not isinstance(filenames, dict):
@@ -71,9 +84,9 @@ class MeteoFeaturePipeline(Pipeline):
             features,
             output_dir,
             {str(key): str(value) for key, value in filenames.items()},
-            reference.profile,
+            insar_reference.profile,
             str(results.get('raster_format', 'GTiff')),
-            tuple(value.isoformat() for value in reference.dates),
+            tuple(value.isoformat() for value in insar_reference.dates),
         )
         metadata_path = output_dir / str(
             results.get('metadata_filename', 'metadata.json')
@@ -84,13 +97,20 @@ class MeteoFeaturePipeline(Pipeline):
                 'feature_names': sorted(features),
                 'creation_date': datetime.now(tz=timezone.utc).isoformat(),
                 'processing_parameters': feature_config,
-                'dates': [value.isoformat() for value in reference.dates],
+                'dates': [value.isoformat() for value in insar_reference.dates],
+                'meteorological_dates': [
+                    value.isoformat() for value in reference.dates
+                ],
+                'temporal_reference': 'insar_acquisitions',
                 'input_files': {
                     name: [str(path) for path in series.source_paths]
                     for name, series in series_by_name.items()
                 },
+                'insar_input_files': [
+                    str(path) for path in insar_reference.source_paths
+                ],
                 'output_files': output_paths,
-                'spatial_reference': str(reference.profile.crs),
+                'spatial_reference': str(insar_reference.profile.crs),
                 'statistics': {
                     name: feature_statistics(values)
                     for name, values in features.items()
@@ -122,6 +142,33 @@ class MeteoFeaturePipeline(Pipeline):
         if not inputs:
             raise ValueError('At least one meteorological feature must be enabled.')
         return inputs
+
+    def _load_insar_reference(
+        self, inputs: dict[str, Any]
+    ) -> RasterTimeSeries:
+        config = self._mapping(inputs, 'insar')
+        return self.loader.load(
+            self._resolve_path(str(config['directory'])),
+            str(config['filename_pattern']),
+        )
+
+    def _sample_on_insar_dates(
+        self,
+        features: dict[str, np.ndarray],
+        weather_dates: tuple[date, ...],
+        insar_dates: tuple[date, ...],
+    ) -> dict[str, np.ndarray]:
+        weather_index = {value: index for index, value in enumerate(weather_dates)}
+        missing_dates = [value for value in insar_dates if value not in weather_index]
+        if missing_dates:
+            formatted = ', '.join(value.isoformat() for value in missing_dates[:5])
+            suffix = ' ...' if len(missing_dates) > 5 else ''
+            raise ValueError(
+                'Meteorological data do not cover all InSAR acquisition dates: '
+                f'{formatted}{suffix}'
+            )
+        indices = [weather_index[value] for value in insar_dates]
+        return {name: values[indices] for name, values in features.items()}
 
     def _load_table_inputs(
         self,

@@ -2,7 +2,7 @@
 # Paths target the configured synthetic TSF project directly.
 experiment:
   name: slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
-  description: Stable-pixel LSTM for synthetic TSF deformation monitoring
+  description: Stable-pixel LSTM for synthetic TSF deformation monitoring with meteo data.
   seed: 42
 
 variable: slope
@@ -10,11 +10,12 @@ model: lstm # constant | trf | lstm
 dataset: slope_dataset
 
 data:
-  features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results/features
-  temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results/temporal_features
+  features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/features
+  temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/temporal_features
+  meteo_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/meteo_features
 
 outputs:
-  root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/results
+  root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results
   # Model artifacts are stored in models/<experiment.name>/.
 
 variables:
@@ -36,6 +37,12 @@ datasets:
       # - acceleration_lag3
       # - annual_cos
       # - annual_sin
+      - temperature_mean
+      - precipitation
+      - precip_7d
+      - precip_14d
+      - precip_30d
+      - precip_60d
       # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
     target_feature: velocity_lag1
     # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]

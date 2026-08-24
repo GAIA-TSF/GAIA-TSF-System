@@ -39,12 +39,17 @@ def test_meteo_pipeline_writes_dated_feature_rasters(tmp_path):
         _write_raster(project / 'inputs' / 'mean' / f'mean_{suffix}.tif', 1.0)
         _write_raster(project / 'inputs' / 'min' / f'min_{suffix}.tif', -1.0)
         _write_raster(project / 'inputs' / 'max' / f'max_{suffix}.tif', 2.0)
+        _write_raster(project / 'inputs' / 'insar' / f'los_{suffix}.tif', 0.0)
     _write_raster(project / 'static' / 'mask.tif', 1.0)
 
     config = {
         'project_dir': str(project),
         'meteorology': {
             'inputs': {
+                'insar': {
+                    'directory': 'inputs/insar',
+                    'filename_pattern': 'los_*.tif',
+                },
                 'precipitation': {
                     'directory': 'inputs/precip',
                     'filename_pattern': 'precip_*.tif',
@@ -94,6 +99,7 @@ def test_meteo_pipeline_writes_dated_feature_rasters(tmp_path):
 def test_meteo_pipeline_reads_daily_csv_input(tmp_path):
     project = tmp_path / 'project'
     _write_raster(project / 'static' / 'mask.tif', 1.0)
+    _write_raster(project / 'inputs' / 'insar' / 'los_20250102.tif', 0.0)
     input_path = project / 'inputs' / 'meteodata.csv'
     input_path.parent.mkdir(parents=True)
     input_path.write_text(
@@ -106,6 +112,10 @@ def test_meteo_pipeline_reads_daily_csv_input(tmp_path):
         'project_dir': str(project),
         'meteorology': {
             'inputs': {
+                'insar': {
+                    'directory': 'inputs/insar',
+                    'filename_pattern': 'los_*.tif',
+                },
                 'table': {
                     'path': 'inputs/meteodata.csv',
                     'date_column': 'date',
@@ -127,4 +137,6 @@ def test_meteo_pipeline_reads_daily_csv_input(tmp_path):
 
     output_path = project / 'results' / 'meteo' / 'precip_7d.tif'
     with rasterio.open(output_path) as dataset:
-        assert dataset.read(2)[0, 0] == 5.0
+        assert dataset.count == 1
+        assert dataset.descriptions == ('2025-01-02',)
+        assert dataset.read(1)[0, 0] == 5.0

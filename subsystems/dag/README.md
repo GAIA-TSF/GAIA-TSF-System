@@ -68,7 +68,10 @@ The pipeline writes one dated multiband GeoTIFF per enabled feature and a
 `metadata.json` file to `meteorology.results.output_dir`.
 
 The default configuration reads daily observations from `inputs/meteodata.csv`
-and broadcasts them over the configured TSF mask. A CSV must contain `date`,
+and broadcasts them over the configured TSF mask. Features are engineered on
+the daily series and then sampled on `meteorology.inputs.insar` acquisition
+dates, making every output band align with the InSAR temporal axis. A CSV must
+contain `date`,
 `precipitation`, `temperature_mean`, `temperature_min`, and `temperature_max`
 columns. Separate dated GeoTIFF series are also supported through per-variable
 `directory` and `filename_pattern` input mappings.

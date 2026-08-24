@@ -126,6 +126,9 @@ slope_stability:
 # METEOROLOGICAL FEATURES
 meteorology:
   inputs:
+    insar:
+      directory: "inputs/los"
+      filename_pattern: "tsf_los_*.tif"
     table:
       path: "inputs/meteodata.csv"
       date_column: "date"
