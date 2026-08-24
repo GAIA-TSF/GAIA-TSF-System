@@ -12,6 +12,7 @@ Outputs:
 - Atmosphere GeoTIFFs
 - Rainfall trigger GeoTIFFs
 - Coherence mask GeoTIFF
+- Raw daily meteodata CSV (precipitation and temperature observations)
 - Metadata CSV
 - Failure timeline CSV
 """
@@ -31,8 +32,10 @@ from pyproj import Transformer
 
 # project_dir = '/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
 project_dir = '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/'
-OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation_meta'))
+OUTDIR = Path(os.path.join(project_dir, 'synthetic_tsf_deformation_meteo'))
 OUTDIR.mkdir(exist_ok=True, parents=True)
+INPUTS_DIR = OUTDIR / 'inputs'
+STATIC_DIR = OUTDIR / 'static'
 
 CRS = 'EPSG:32633'
 PIXEL_SIZE = 10
@@ -59,7 +62,6 @@ MEAS_SIGMA = 0.003
 
 RANDOM_SEED = 42
 
-
 np.random.seed(RANDOM_SEED)
 
 transform = from_origin(XMIN, YMAX, PIXEL_SIZE, PIXEL_SIZE)
@@ -76,7 +78,9 @@ for d in [
     'rainfall',
     'aux',
 ]:
-    (OUTDIR / d).mkdir(parents=True, exist_ok=True)
+    (INPUTS_DIR / d).mkdir(parents=True, exist_ok=True)
+
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 Y, X = np.mgrid[0:NY, 0:NX]
 
@@ -212,11 +216,58 @@ def write_stac_item(
         )
 
 
-### SYNTHETIC PRECIPITATION ###
-precip_records = []
-
-# rainfall trigger events that contribute to instability
+### SYNTHETIC METEODATA ###
+# Rainfall trigger events that contribute to instability. Weather is exported
+# daily so the DAG can derive rolling features over complete lookback periods.
 trigger_events = {790: 45, 860: 62, 950: 78, 1030: 55}
+
+
+def generate_meteodata():
+    """Generate raw daily weather observations for downstream DAG processing."""
+    simulation_days = np.arange(0, YEARS * 365)
+    dates = pd.to_datetime(START_DATE) + pd.to_timedelta(simulation_days, unit='D')
+
+    # A simple wet/dry process produces dry days and right-skewed rain amounts.
+    wet_days = np.random.random(len(simulation_days)) < 0.38
+    precipitation = np.where(
+        wet_days,
+        np.random.gamma(shape=1.5, scale=4.0, size=len(simulation_days)),
+        0.0,
+    )
+    for event_day, event_precipitation in trigger_events.items():
+        if event_day < len(precipitation):
+            precipitation[event_day] = event_precipitation
+
+    # Seasonal temperature cycle, daily synoptic variability, and diurnal range.
+    seasonal_temperature = 8.0 + 11.0 * np.sin(
+        2 * np.pi * (simulation_days - 105) / 365
+    )
+    temperature_mean = seasonal_temperature + np.random.normal(
+        0, 3.0, len(simulation_days)
+    )
+    diurnal_range = np.maximum(
+        2.0, np.random.normal(8.0, 2.0, len(simulation_days))
+    )
+    temperature_min = temperature_mean - diurnal_range / 2
+    temperature_max = temperature_mean + diurnal_range / 2
+
+    meteo = pd.DataFrame(
+        {
+            'date': dates,
+            'precipitation': precipitation,
+            'temperature_mean': temperature_mean,
+            'temperature_min': temperature_min,
+            'temperature_max': temperature_max,
+        }
+    )
+
+    meteo['date'] = meteo['date'].dt.strftime('%Y%m%d')
+    numeric_columns = meteo.select_dtypes(include=[np.number]).columns
+    meteo[numeric_columns] = meteo[numeric_columns].round(2)
+    return meteo
+
+
+meteo_data = generate_meteodata()
 
 ### DATA SIMULATION ###
 
@@ -224,17 +275,6 @@ for t in times:
     acquisition_date = START_DATE + timedelta(days=int(t))
 
     date_str = acquisition_date.strftime('%Y%m%d')
-
-    # PRECIPITATION
-    # background precipitation
-    precip_mm = np.random.gamma(shape=1.5, scale=4.0)
-
-    # stronger events used for instability triggering
-    for ev_day, ev_precip in trigger_events.items():
-        if abs(t - ev_day) <= 6:
-            precip_mm = ev_precip
-
-    precip_records.append({'date': date_str, 'precipitation_mm': round(precip_mm, 1)})
 
     background = -0.005 * (t / (YEARS * 365)) * bowl
 
@@ -289,9 +329,9 @@ for t in times:
         else:
             stage[label == 1] = 3
 
-    # write_tif(OUTDIR / 'los' / f'tsf_los_{date_str}.tif', los_obs_masked, nodata=np.nan)
+    # write_tif(INPUTS_DIR / 'los' / f'tsf_los_{date_str}.tif', los_obs_masked, nodata=np.nan)
     write_tif(
-        OUTDIR / 'los' / f'tsf_los_{date_str}.tif',
+        INPUTS_DIR / 'los' / f'tsf_los_{date_str}.tif',
         los_obs_masked,
         acquisition_date=acquisition_date,
         product_type='los',
@@ -299,27 +339,27 @@ for t in times:
         nodata=np.nan,
     )
 
-    # write_tif(OUTDIR / 'true_los' / f'true_los_{date_str}.tif', true_los)
+    # write_tif(INPUTS_DIR / 'true_los' / f'true_los_{date_str}.tif', true_los)
     write_tif(
-        OUTDIR / 'true_los' / f'true_los_{date_str}.tif',
+        INPUTS_DIR / 'true_los' / f'true_los_{date_str}.tif',
         true_los,
         acquisition_date=acquisition_date,
         product_type='true_los',
         stage=int(stage.max()),
     )
 
-    # write_tif(OUTDIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif', hotspot)
+    # write_tif(INPUTS_DIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif', hotspot)
     write_tif(
-        OUTDIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif',
+        INPUTS_DIR / 'hotspot_prob' / f'hotspot_prob_{date_str}.tif',
         hotspot,
         acquisition_date=acquisition_date,
         product_type='hotspot_probability',
         stage=int(stage.max()),
     )
 
-    # write_tif(OUTDIR / 'labels' / f'hotspot_label_{date_str}.tif', label, dtype='uint8')
+    # write_tif(INPUTS_DIR / 'labels' / f'hotspot_label_{date_str}.tif', label, dtype='uint8')
     write_tif(
-        OUTDIR / 'labels' / f'hotspot_label_{date_str}.tif',
+        INPUTS_DIR / 'labels' / f'hotspot_label_{date_str}.tif',
         label,
         acquisition_date=acquisition_date,
         product_type='binary_label',
@@ -328,10 +368,10 @@ for t in times:
     )
 
     # write_tif(
-    #     OUTDIR / 'failure_stage' / f'failure_stage_{date_str}.tif', stage, dtype='uint8'
+    #     INPUTS_DIR / 'failure_stage' / f'failure_stage_{date_str}.tif', stage, dtype='uint8'
     # )
     write_tif(
-        OUTDIR / 'failure_stage' / f'failure_stage_{date_str}.tif',
+        INPUTS_DIR / 'failure_stage' / f'failure_stage_{date_str}.tif',
         stage,
         acquisition_date=acquisition_date,
         product_type='failure_stage',
@@ -339,18 +379,18 @@ for t in times:
         dtype='uint8',
     )
 
-    # write_tif(OUTDIR / 'atmosphere' / f'atmosphere_{date_str}.tif', atmosphere)
+    # write_tif(INPUTS_DIR / 'atmosphere' / f'atmosphere_{date_str}.tif', atmosphere)
     write_tif(
-        OUTDIR / 'atmosphere' / f'atmosphere_{date_str}.tif',
+        INPUTS_DIR / 'atmosphere' / f'atmosphere_{date_str}.tif',
         atmosphere,
         acquisition_date=acquisition_date,
         product_type='atmosphere',
         stage=int(stage.max()),
     )
 
-    # write_tif(OUTDIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif', rainfall)
+    # write_tif(INPUTS_DIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif', rainfall)
     write_tif(
-        OUTDIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif',
+        INPUTS_DIR / 'rainfall' / f'rainfall_trigger_{date_str}.tif',
         rainfall,
         acquisition_date=acquisition_date,
         product_type='rainfall_trigger',
@@ -358,13 +398,28 @@ for t in times:
     )
 
 
-### PRECIPITATION CSV ###
-pd.DataFrame(precip_records).to_csv(OUTDIR / 'meteo_precipitation.csv', index=False)
+### METEODATA CSV ###
+meteo_data.to_csv(INPUTS_DIR / 'meteodata.csv', index=False)
+# Retain the acquisition-date precipitation export for existing consumers.
+acquisition_date_strings = {
+    (START_DATE + timedelta(days=int(day))).strftime('%Y%m%d') for day in times
+}
+meteo_data.loc[
+    meteo_data['date'].isin(acquisition_date_strings),
+    ['date', 'precipitation'],
+].rename(columns={'precipitation': 'precipitation_mm'}).to_csv(
+    INPUTS_DIR / 'meteo_precipitation.csv',
+    index=False,
+)
 
 ### AUXILIARY EXPORTS ###
-write_tif(OUTDIR / 'aux' / 'coherence_mask.tif', mask.astype(np.uint8), dtype='uint8')
+write_tif(
+    INPUTS_DIR / 'aux' / 'coherence_mask.tif',
+    mask.astype(np.uint8),
+    dtype='uint8',
+)
 
-write_tif(OUTDIR / 'aux' / 'tsf_mask.tif', (bowl > 0.1).astype(np.uint8), dtype='uint8')
+write_tif(STATIC_DIR / 'tsf_mask.tif', (bowl > 0.1).astype(np.uint8), dtype='uint8')
 
 pd.DataFrame(
     {
@@ -381,7 +436,7 @@ pd.DataFrame(
             (START_DATE + timedelta(days=970)).strftime('%Y-%m-%d'),
         ],
     }
-).to_csv(OUTDIR / 'failure_timeline.csv', index=False)
+).to_csv(INPUTS_DIR / 'failure_timeline.csv', index=False)
 
 pd.DataFrame(
     {
@@ -406,7 +461,7 @@ pd.DataFrame(
             MEAS_SIGMA,
         ],
     }
-).to_csv(OUTDIR / 'metadata.csv', index=False)
+).to_csv(INPUTS_DIR / 'metadata.csv', index=False)
 
 print('Finished.')
 print(f'Output: {OUTDIR.resolve()}')
