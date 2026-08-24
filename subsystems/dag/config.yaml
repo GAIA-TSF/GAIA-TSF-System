@@ -3,14 +3,14 @@
 # ENVIRONMENT
 environments: 
   lukas-X1: 
-    project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation'
+    project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo'
 
 # skylake 
 # project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
 # mac 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # X1 
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation'
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo'
 
 # GLOBAL SETTINGS 
 global:
@@ -122,6 +122,43 @@ slope_stability:
         window: 7
         polyorder: 2
       filenames: {}
+
+# METEOROLOGICAL FEATURES
+meteorology:
+  inputs:
+    table:
+      path: "inputs/meteodata.csv"
+      date_column: "date"
+      columns:
+        precipitation: "precipitation"
+        temperature_mean: "temperature_mean"
+        temperature_min: "temperature_min"
+        temperature_max: "temperature_max"
+  static:
+    tsf_mask: "static/tsf_mask.tif"
+  feature_engineering:
+    precipitation: true
+    precip_7d: true
+    precip_14d: true
+    precip_30d: true
+    precip_60d: true
+    days_since_heavy_rain: true
+    max_precip_7d: true
+    temperature_mean: true
+    temperature_min: true
+    temperature_max: true
+    temp_7d_mean: true
+    temp_30d_mean: true
+    temperature_anomaly: true
+    heavy_rain_threshold: 20.0
+    cold_regions:
+      enabled: false
+    freezing_point: 0.0
+  results:
+    output_dir: "results/meteo_features"
+    raster_format: "GTiff"
+    metadata_filename: "metadata.json"
+    filenames: {}
 
 # PREPROCESSING
 preprocessing:

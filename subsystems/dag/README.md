@@ -20,6 +20,7 @@ image stacks (e.g., Sentinel-2) and co-located in-situ measurements
 - Feature engineering:
   - Slope stability: displacement → velocity → acceleration
   - AMD: spectral indices and AMD index
+  - Meteorology: precipitation accumulations/extremes and temperature metrics
 - Masking (AOI, water mask)
 - Data preprocessing:
   - normalization (min-max, z-score)
@@ -52,25 +53,51 @@ image stacks (e.g., Sentinel-2) and co-located in-situ measurements
 
 **Workflow:** Raw EO Data -> Ingestion -> Preprocessing (Harmonization: spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> ML-ready dataset 
 
+### Meteorological features
+
+Meteorological processing is available through the `meteo_features` pipeline.
+The repository configuration is ready for the synthetic project's daily CSV:
+
+```bash
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline meteo_features \
+  --config subsystems/dag/config.yaml
+```
+
+The pipeline writes one dated multiband GeoTIFF per enabled feature and a
+`metadata.json` file to `meteorology.results.output_dir`.
+
+The default configuration reads daily observations from `inputs/meteodata.csv`
+and broadcasts them over the configured TSF mask. A CSV must contain `date`,
+`precipitation`, `temperature_mean`, `temperature_min`, and `temperature_max`
+columns. Separate dated GeoTIFF series are also supported through per-variable
+`directory` and `filename_pattern` input mappings.
+
 
 ## Run the pipelines 
 
 Run slope stability pipelines 
 
-```
+```bash
 python3 subsystems/dag/run_pipeline.py  \
   --pipeline slope_eda \
   --config subsystems/dag/config.yaml
 
 ```
 
-```
+```bash
 python3 subsystems/dag/run_pipeline.py \
   --pipeline slope_features \
   --config subsystems/dag/config.yaml
 ```
 
+```bash
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline meteo_features \
+  --config subsystems/dag/config.yaml
 ```
+
+```bash
 python3 subsystems/dag/run_pipeline.py \
   --pipeline slope_temporal_features \
   --config subsystems/dag/config.yaml

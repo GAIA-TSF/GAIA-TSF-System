@@ -16,7 +16,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--pipeline',
         required=True,
-        choices=['slope_eda', 'slope_features', 'slope_temporal_features'],
+        choices=[
+            'slope_eda',
+            'slope_features',
+            'slope_temporal_features',
+            'meteo_features',
+        ],
         help='Pipeline to run.',
     )
     parser.add_argument(
@@ -51,6 +56,14 @@ def main() -> None:
         )
 
         result = SlopeTemporalFeaturePipeline(args.config).run()
+        print(len(result))
+
+    elif args.pipeline == 'meteo_features':
+        from subsystems.dag.pipelines.meteo_feature_pipeline import (
+            MeteoFeaturePipeline,
+        )
+
+        result = MeteoFeaturePipeline(args.config).run()
         print(len(result))
 
     else:

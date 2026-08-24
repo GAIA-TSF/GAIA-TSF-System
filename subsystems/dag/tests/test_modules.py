@@ -9,6 +9,7 @@ from rasterio.transform import from_origin
 
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
+from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
 from subsystems.dag.plugins.features.temporal_features import TemporalFeatureExtractor
 from subsystems.dag.utils.raster import apply_mask
 from subsystems.dag.utils.statistics import time_series_statistics
@@ -174,3 +175,63 @@ def test_temporal_feature_extractor_computes_enabled_features():
     )
     # assert features['velocity_smooth'][-1, 0, 0] == pytest.approx(24.0)
     assert np.isnan(features['velocity_lag1'][-1, 0, 1])
+
+
+def test_meteo_feature_extractor_computes_daily_rolling_features():
+    dates = tuple(date(2024, 1, day) for day in range(1, 9))
+    precipitation = np.arange(1, 9, dtype=np.float32).reshape(8, 1, 1)
+    precipitation[2, 0, 0] = 20.0
+    mean = np.arange(-3, 5, dtype=np.float32).reshape(8, 1, 1)
+    minimum = mean - 1
+    maximum = mean + 1
+
+    features = MeteoFeatureExtractor().compute(
+        {
+            'precipitation': precipitation,
+            'temperature_mean': mean,
+            'temperature_min': minimum,
+            'temperature_max': maximum,
+        },
+        dates,
+        {
+            **{
+                name: True
+                for name in (
+                    *MeteoFeatureExtractor.PRECIPITATION_FEATURES,
+                    *MeteoFeatureExtractor.TEMPERATURE_FEATURES,
+                )
+            },
+            'cold_regions': {'enabled': True},
+            'heavy_rain_threshold': 20.0,
+            'temperature_baseline': 0.0,
+        },
+    )
+
+    assert features['precipitation'][-1, 0, 0] == pytest.approx(8.0)
+    # A 7-day window on 8 January includes 2--8 January.
+    assert features['precip_7d'][-1, 0, 0] == pytest.approx(52.0)
+    assert features['precip_14d'][-1, 0, 0] == pytest.approx(53.0)
+    assert features['max_precip_7d'][-1, 0, 0] == pytest.approx(20.0)
+    assert features['days_since_heavy_rain'][-1, 0, 0] == pytest.approx(5.0)
+    assert features['temperature_mean'][-1, 0, 0] == pytest.approx(4.0)
+    assert features['temp_7d_mean'][-1, 0, 0] == pytest.approx(1.0)
+    assert features['temp_30d_mean'][-1, 0, 0] == pytest.approx(0.5)
+    assert features['temperature_anomaly'][0, 0, 0] == pytest.approx(-3.0)
+    assert features['freeze_thaw'][3, 0, 0] == pytest.approx(1.0)
+    assert features['freezing_degree_days'][0, 0, 0] == pytest.approx(3.0)
+    assert features['thawing_degree_days'][-1, 0, 0] == pytest.approx(4.0)
+
+
+def test_meteo_rolling_windows_use_calendar_days_and_preserve_nan():
+    dates = (date(2024, 1, 1), date(2024, 1, 8), date(2024, 1, 9))
+    precipitation = np.array([1.0, 8.0, np.nan], dtype=np.float32).reshape(3, 1, 1)
+
+    features = MeteoFeatureExtractor().compute(
+        {'precipitation': precipitation},
+        dates,
+        {'precip_7d': True, 'days_since_heavy_rain': True},
+    )
+
+    assert features['precip_7d'][1, 0, 0] == pytest.approx(8.0)
+    assert features['precip_7d'][2, 0, 0] == pytest.approx(8.0)
+    assert np.isnan(features['days_since_heavy_rain']).all()
