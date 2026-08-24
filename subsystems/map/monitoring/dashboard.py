@@ -191,7 +191,10 @@ def _plot_cusum(
             label='Oscillation',
             zorder=3,
         )
-    axis.set(title='CUSUM early warning', ylabel='CUSUM statistic')
+    axis.set(
+        title='Observed-velocity acceleration CUSUM',
+        ylabel='CUSUM statistic',
+    )
 
 
 def _plot_regime_risk(

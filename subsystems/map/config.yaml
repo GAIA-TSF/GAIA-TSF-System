@@ -1,18 +1,20 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name: slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
-  description: Stable-pixel LSTM for synthetic TSF deformation monitoring with meteo data.
+  name:  slope_trf # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
+  description: Stable-pixel TRF for synthetic TSF deformation monitoring with meteo data.
   seed: 42
 
 variable: slope
-model: lstm # constant | trf | lstm
+model: trf # constant | trf | lstm
 dataset: slope_dataset
 
 data:
   features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/features
   temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/temporal_features
   meteo_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/meteo_features
+  # Select exact acquisition-date values; "previous" supports sparse causal data.
+  temporal_alignment_method: exact
 
 outputs:
   root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results
@@ -28,7 +30,7 @@ variables:
 # slope_temporal_feature_pipeline outputs and can be changed without code edits.
 datasets:
   slope_dataset:
-    mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
+    mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/static/tsf_mask.tif
     features:
       - velocity_lag2
       - velocity_lag3
@@ -85,7 +87,8 @@ models:
     n_estimators: 200
     max_depth: 20
     random_state: 42
-    n_jobs: 6
+    # Keep one RF prediction worker per xAI worker to prevent oversubscription.
+    n_jobs: 1
   gbr:      # Gradient Boosting model to be implemented 
     n_estimators: 100
     learning_rate: 0.1
@@ -102,7 +105,7 @@ models:
       lr: 0.001
     training:
       batch_size: 256
-      epochs: 50
+      epochs: 10
   tcn: {}   # Temporal CNN model to be implemented 
   ensemble: [] # Ensemble of above defined models 
 
@@ -122,18 +125,23 @@ training:
   random_seed: 42
 
 explainability:
-  enabled: false
+  enabled: true # false
+  parallel:
+    # Parallel workers for independent grouped-permutation feature groups.
+    n_jobs: 4
   shap:
     # Stratified across validation acquisition dates; values are samples, not rows per date.
-    sample_size: 12000
+    sample_size: 1000 # 12000
     dependence_features:
       - velocity_lag2
       - acceleration_lag1
-      - annual_sin
-      - annual_cos
+      - precipitation
+      - precip_30d
+      - temperature_mean
+
   grouped_permutation:
     # Evaluated across all held-out temporal validation samples.
-    n_repeats: 10
+    n_repeats: 5 # 10
     groups:
       velocity_history:
         - velocity_lag2
@@ -145,6 +153,13 @@ explainability:
       annual_seasonality:
         - annual_sin
         - annual_cos
+      meteorological_conditions:
+        - precipitation
+        - precip_7d
+        - precip_14d
+        - precip_30d
+        - precip_60d
+        - temperature_mean
 
 plotting:
   deformation_unit: mm/day
@@ -164,9 +179,9 @@ plotting:
   # Coordinates use the CRS of tsf_mask.tif (EPSG:32633 for this synthetic TSF).
   observation_points:
     stable_tsf:
-      coordinates: [500255.0, 6699495.0]
+      coordinates: [487023.0, 6655843.0]
     deformation_zone:
-      coordinates: [500755.0, 6699595.0]
+      coordinates: [487523.0, 6655943.0]
 
 anomaly_detection:
   residual_threshold: 0.02
@@ -182,6 +197,8 @@ monitoring:
     cusum:
       # Negative: increasingly negative LOS deformation is instability.
       instability_direction: negative
+      # Use physical deformation acceleration, not fluctuating model residuals.
+      signal: observed_velocity
       reference_value: 0.5
       decision_threshold: 5.0
       smoothing_span: 5

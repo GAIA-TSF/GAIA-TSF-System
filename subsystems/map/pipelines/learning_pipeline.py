@@ -55,9 +55,12 @@ class LearningPipeline:
                 f'would leak the target into learning: {target_feature}.',
             )
         loaded = FeatureLoader(
-            self._feature_paths(), self._path(dataset_config['mask_path'])
+            self._feature_paths(),
+            self._path(dataset_config['mask_path']),
+            self._temporal_alignment_method(),
         ).load(
             list(dict.fromkeys([*feature_names, target_feature])),
+            reference_feature=target_feature,
         )
         selector = StablePixelSelector(
             float(self.config['baseline_model']['stable_pixel_std_threshold'])
@@ -155,11 +158,19 @@ class LearningPipeline:
         return metadata
 
     def _feature_paths(self) -> list[Path]:
+        """Return every configured DAG feature directory, including meteo data."""
         data = self.config['data']
-        return [
-            self._path(data['features_directory']),
-            self._path(data['temporal_features_directory']),
-        ]
+        keys = (
+            'features_directory',
+            'temporal_features_directory',
+            'meteo_features_directory',
+        )
+        paths = [self._path(data[key]) for key in keys if data.get(key)]
+        return list(dict.fromkeys(paths))
+
+    def _temporal_alignment_method(self) -> str:
+        """Return configured causal temporal alignment for external features."""
+        return str(self.config['data'].get('temporal_alignment_method', 'exact'))
 
     def _path(self, value: object) -> Path:
         path = Path(str(value)).expanduser()

@@ -50,3 +50,23 @@ def test_grouped_permutation_importance_preserves_group_membership() -> None:
     assert by_group['signal_group']['rmse_increase_mean'] > 0.0
     assert by_group['noise_group']['rmse_increase_mean'] == 0.0
     assert skipped == {}
+
+
+def test_grouped_permutation_importance_is_reproducible_in_parallel() -> None:
+    """Parallel group evaluation yields the same deterministic values as serial."""
+    features = np.column_stack((np.arange(20, dtype=float), np.ones(20)))
+    arguments = (
+        _FirstFeatureEstimator(),
+        features,
+        features[:, 0],
+        ['signal', 'noise'],
+        {'signal_group': ['signal'], 'noise_group': ['noise']},
+        4,
+        42,
+        1000.0,
+    )
+
+    serial, _ = grouped_permutation_importance(*arguments, n_jobs=1)
+    parallel, _ = grouped_permutation_importance(*arguments, n_jobs=2)
+
+    assert serial == parallel

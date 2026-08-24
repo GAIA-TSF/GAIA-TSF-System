@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from pathlib import Path
 from typing import Any, Protocol
@@ -72,9 +73,13 @@ def write_tree_explainability(
 
     shap_config = _mapping(config, 'shap')
     permutation_config = _mapping(config, 'grouped_permutation')
+    parallel_config = config.get('parallel', {'n_jobs': 1})
+    if not isinstance(parallel_config, dict):
+        raise ValueError('explainability.parallel must be a mapping.')
     sample_size = _positive_int(shap_config, 'sample_size')
     dependence_features = _string_list(shap_config, 'dependence_features')
     repeat_count = _positive_int(permutation_config, 'n_repeats')
+    parallel_jobs = _positive_int(parallel_config, 'n_jobs')
     groups = _feature_groups(permutation_config)
 
     sample_indices = temporal_stratified_sample_indices(
@@ -134,6 +139,7 @@ def write_tree_explainability(
         repeat_count,
         random_seed,
         target_value_scale,
+        parallel_jobs,
     )
     _write_grouped_permutation_plot(
         output_dir / 'feature_importance_grouped.png',
@@ -155,6 +161,7 @@ def write_tree_explainability(
         },
         'grouped_permutation': {
             'n_repeats': repeat_count,
+            'n_jobs': parallel_jobs,
             'metric_unit': target_unit,
             'groups': importance,
             'skipped_groups': skipped_groups,
@@ -224,13 +231,15 @@ def grouped_permutation_importance(
     n_repeats: int,
     random_seed: int,
     value_scale: float = 1.0,
+    n_jobs: int = 1,
 ) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
     """Calculate held-out importance by permuting configured feature groups.
 
     A single row permutation is applied to every column in one group. This
     breaks its relationship to the target while retaining correlation within
     that group, such as the sine/cosine seasonal pair. Reported metrics are
-    converted to display units with ``value_scale``.
+    converted to display units with ``value_scale``. Independent feature groups
+    are evaluated concurrently when ``n_jobs`` is greater than one.
     """
     if features.ndim != 2 or features.shape[0] != targets.size:
         raise ValueError('Features and targets must contain aligned 2D samples.')
@@ -238,6 +247,8 @@ def grouped_permutation_importance(
         raise ValueError('n_repeats must be positive.')
     if value_scale <= 0:
         raise ValueError('value_scale must be positive.')
+    if n_jobs < 1:
+        raise ValueError('n_jobs must be positive.')
     if len(feature_names) != features.shape[1]:
         raise ValueError('feature_names do not match the feature matrix width.')
 
@@ -246,39 +257,81 @@ def grouped_permutation_importance(
         metric: value * value_scale for metric, value in baseline_metrics.items()
     }
     name_to_index = {name: index for index, name in enumerate(feature_names)}
-    generator = np.random.default_rng(random_seed)
-    importance: list[dict[str, Any]] = []
+    group_tasks: list[tuple[int, str, list[str]]] = []
     skipped: dict[str, list[str]] = {}
-    for group_name, names in configured_groups.items():
+    for group_index, (group_name, names) in enumerate(configured_groups.items()):
         active_names = [name for name in names if name in name_to_index]
         missing_names = [name for name in names if name not in name_to_index]
         if missing_names:
             skipped[group_name] = missing_names
         if not active_names:
             continue
-        column_indices = [name_to_index[name] for name in active_names]
-        rmse_increases: list[float] = []
-        mae_increases: list[float] = []
-        for _ in range(n_repeats):
-            permuted = features.copy()
-            permutation = generator.permutation(features.shape[0])
-            permuted[:, column_indices] = features[permutation][:, column_indices]
-            permuted_metrics = regression_metrics(targets, estimator.predict(permuted))
-            rmse_increases.append(permuted_metrics['rmse'] - baseline_metrics['rmse'])
-            mae_increases.append(permuted_metrics['mae'] - baseline_metrics['mae'])
-        importance.append(
-            {
-                'group': group_name,
-                'active_features': active_names,
-                'rmse_increase_mean': float(np.mean(rmse_increases) * value_scale),
-                'rmse_increase_std': float(np.std(rmse_increases) * value_scale),
-                'mae_increase_mean': float(np.mean(mae_increases) * value_scale),
-                'mae_increase_std': float(np.std(mae_increases) * value_scale),
-                'baseline_metrics': display_baseline_metrics,
-            },
+        group_tasks.append((group_index, group_name, active_names))
+
+    def compute(task: tuple[int, str, list[str]]) -> dict[str, Any]:
+        group_index, group_name, active_names = task
+        return _permutation_group_importance(
+            estimator,
+            features,
+            targets,
+            name_to_index,
+            baseline_metrics,
+            display_baseline_metrics,
+            group_index,
+            group_name,
+            active_names,
+            n_repeats,
+            random_seed,
+            value_scale,
         )
+
+    if n_jobs == 1 or len(group_tasks) < 2:
+        importance = [compute(task) for task in group_tasks]
+    else:
+        worker_count = min(n_jobs, len(group_tasks))
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            importance = list(executor.map(compute, group_tasks))
     importance.sort(key=lambda item: item['rmse_increase_mean'], reverse=True)
     return importance, skipped
+
+
+def _permutation_group_importance(
+    estimator: _Regressor,
+    features: np.ndarray,
+    targets: np.ndarray,
+    name_to_index: dict[str, int],
+    baseline_metrics: dict[str, float],
+    display_baseline_metrics: dict[str, float],
+    group_index: int,
+    group_name: str,
+    active_names: list[str],
+    n_repeats: int,
+    random_seed: int,
+    value_scale: float,
+) -> dict[str, Any]:
+    """Evaluate one feature group with a deterministic independent RNG stream."""
+    column_indices = [name_to_index[name] for name in active_names]
+    generator = np.random.default_rng(
+        np.random.SeedSequence((random_seed, group_index)),
+    )
+    rmse_increases: list[float] = []
+    mae_increases: list[float] = []
+    for _ in range(n_repeats):
+        permuted = features.copy()
+        permutation = generator.permutation(features.shape[0])
+        permuted[:, column_indices] = features[permutation][:, column_indices]
+        permuted_metrics = regression_metrics(targets, estimator.predict(permuted))
+        rmse_increases.append(permuted_metrics['rmse'] - baseline_metrics['rmse'])
+        mae_increases.append(permuted_metrics['mae'] - baseline_metrics['mae'])
+    return {
+        'group': group_name,
+        'active_features': active_names,
+        'rmse_increase_mean': float(np.mean(rmse_increases) * value_scale),
+        'rmse_increase_std': float(np.std(rmse_increases) * value_scale),
+        'mae_increase_mean': float(np.mean(mae_increases) * value_scale),
+        'mae_increase_std': float(np.std(mae_increases) * value_scale),
+        'baseline_metrics': display_baseline_metrics,
+    }
 
 
 def _tree_shap_values(estimator: _Regressor, features: np.ndarray) -> np.ndarray:

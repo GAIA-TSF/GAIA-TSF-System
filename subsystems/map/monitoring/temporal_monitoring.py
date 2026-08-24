@@ -29,7 +29,7 @@ class TemporalMonitoringResult:
 
 
 class TemporalResidualMonitor:
-    """Derive early-warning signals from the spatially averaged residual series."""
+    """Derive residual anomalies and physical acceleration warnings for a TSF."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         """Configure monitoring thresholds and smoothing from a mapping."""
@@ -38,6 +38,7 @@ class TemporalResidualMonitor:
         self.cusum_reference = self._non_negative(cusum, 'reference_value')
         self.cusum_decision = self._positive(cusum, 'decision_threshold')
         self.instability_direction = self._direction(cusum, 'instability_direction')
+        self.cusum_signal = self._cusum_signal(cusum)
         self.smoothing_span = self._positive_integer(cusum, 'smoothing_span')
         self.persistence_window = self._positive_integer(cusum, 'persistence_window')
         self.persistence_threshold = self._unit_interval(
@@ -60,7 +61,7 @@ class TemporalResidualMonitor:
         monitoring_window: tuple[int, int],
         uncertainty_stack: np.ndarray | None = None,
     ) -> TemporalMonitoringResult:
-        """Analyze mean TSF residuals using configured calendar windows.
+        """Analyze mean TSF residuals and calibrated acceleration behaviour.
 
         Args:
             observed_stack: Observations shaped ``(time, rows, columns)``.
@@ -89,8 +90,13 @@ class TemporalResidualMonitor:
         residual_mean = observed_mean - predicted_mean
         anomaly_magnitude = np.abs(residual_mean)
         time_days = self._days_from_start(dates)
-        residual_rate = self._gradient(residual_mean, time_days)
-        trend = self._ema(residual_rate, self.smoothing_span)
+        cusum_values = (
+            observed_mean
+            if self.cusum_signal == 'observed_velocity'
+            else residual_mean
+        )
+        acceleration = self._gradient(cusum_values, time_days)
+        trend = self._ema(acceleration, self.smoothing_span)
 
         calibration_start, calibration_end = calibration_window
         baseline = trend[calibration_start:calibration_end]
@@ -116,22 +122,7 @@ class TemporalResidualMonitor:
             & (acceleration_cusum > self.cusum_decision)
             & (persistence >= self.persistence_threshold)
         )
-        normalized_acceleration = self._gradient(zscore, time_days)
-        acceleration_baseline = normalized_acceleration[
-            calibration_start:calibration_end
-        ]
-        acceleration_baseline = acceleration_baseline[
-            np.isfinite(acceleration_baseline)
-        ]
-        acceleration_std = max(
-            float(np.std(acceleration_baseline)),
-            np.finfo(np.float64).eps,
-        )
-        acceleration_mean = float(np.mean(acceleration_baseline))
-        positive_shift = np.maximum(
-            0.0,
-            (normalized_acceleration - acceleration_mean) / acceleration_std,
-        )
+        positive_shift = np.maximum(0.0, zscore)
         instantaneous_risk = (1.0 - np.exp(-positive_shift)) * persistence
         regime_risk = self._ema(instantaneous_risk, self.risk_smoothing_span)
         regime_risk = np.where(monitoring_mask, regime_risk, 0.0)
@@ -161,10 +152,9 @@ class TemporalResidualMonitor:
     ) -> np.ndarray:
         """Return per-pixel persistent directional CUSUM acceleration flags.
 
-        The same calibration, directional convention and CUSUM parameters used
-        in the aggregate dashboard are applied independently to every TSF
-        pixel. This provides a spatial counterpart to the temporal red CUSUM
-        warning signal.
+        This is a residual-based spatial diagnostic. The aggregate dashboard
+        normally uses observed-velocity acceleration, because residual changes
+        describe model error rather than physical deformation acceleration.
 
         Args:
             residual_stack: Observation-minus-prediction residual stack.
@@ -431,3 +421,14 @@ class TemporalResidualMonitor:
             'monitoring.dashboard.cusum.instability_direction must be '
             "'positive' or 'negative'.",
         )
+
+    @staticmethod
+    def _cusum_signal(config: dict[str, Any]) -> str:
+        """Return the configured physical or residual CUSUM input series."""
+        value = str(config.get('signal', 'observed_velocity'))
+        if value not in {'observed_velocity', 'residual'}:
+            raise ValueError(
+                'monitoring.dashboard.cusum.signal must be '
+                '"observed_velocity" or "residual".',
+            )
+        return value

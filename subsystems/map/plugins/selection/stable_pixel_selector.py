@@ -26,7 +26,25 @@ class StablePixelSelector:
         if observations.ndim != 3 or observations.shape[1:] != valid_mask.shape:
             raise ValueError('Observations and TSF mask have incompatible dimensions.')
         finite_count = np.sum(np.isfinite(observations), axis=0)
-        temporal_std = np.nanstd(observations, axis=0)
+        temporal_mean = np.divide(
+            np.nansum(observations, axis=0),
+            finite_count,
+            out=np.full(valid_mask.shape, np.nan, dtype=np.float64),
+            where=finite_count > 0,
+        )
+        squared_deviation = np.where(
+            np.isfinite(observations),
+            np.square(observations - temporal_mean[np.newaxis, :, :]),
+            0.0,
+        )
+        temporal_std = np.sqrt(
+            np.divide(
+                np.sum(squared_deviation, axis=0),
+                finite_count,
+                out=np.full(valid_mask.shape, np.nan, dtype=np.float64),
+                where=finite_count >= 2,
+            ),
+        )
         stable = (
             valid_mask.astype(bool)
             & (finite_count >= 2)
