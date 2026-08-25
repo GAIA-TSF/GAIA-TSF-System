@@ -116,6 +116,4 @@ class SlopeStabilityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise GaiaDataError(
-                f'Slope parser failed to process {filename}: {str(e)}'
-            )
+            raise GaiaDataError(f'Slope parser failed to process {filename}: {str(e)}')
