@@ -11,12 +11,12 @@ class ParsingEngine:
     Replaces the legacy ImportCatalogue.
     """
 
-    def __init__(self, logger):
+    def __init__(self, logger, encodings=None):
         self.logger = logger
         # Register available parsers
         self.registered_parsers: List[BaseParser] = [
-            SlopeStabilityParser(self.logger),
-            WaterQualityParser(self.logger),
+            SlopeStabilityParser(self.logger, encodings=encodings),
+            WaterQualityParser(self.logger, encodings=encodings),
         ]
         self.confidence_threshold = 0.6
 

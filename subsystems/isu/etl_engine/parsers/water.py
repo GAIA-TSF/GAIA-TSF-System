@@ -85,6 +85,7 @@ class WaterQualityParser(BaseParser):
             # 2. Standardize Timestamp
             #
             df = self.standardize_timestamp(df)
+            df = self.ensure_qc_column(df)
 
             return df
 

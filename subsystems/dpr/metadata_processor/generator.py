@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Optional, List, Dict, Any
-    from subsystem.qcl.logger import Logger
+    from subsystems.qcl.logger import Logger
 
+import os
 import json
+from abc import ABC, abstractmethod
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -17,16 +19,111 @@ from lib.exceptions import GaiaUnsupportedDataError
 from lib.base import GaiaBase, SubsystemId
 
 
-class RasterDataset:
+class BaseDataset(ABC):
+    """
+    Abstract base class for datasets providing spatial and temporal metadata.
+    """
+
+    def __init__(self, path: str):
+        self.path = Path(path)
+
+    @property
+    def stac_item(self) -> Dict[str, Any]:
+        """Get the STAC item representation for this path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        return self.get_stac_item()
+
+    @abstractmethod
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        pass
+
+    @staticmethod
+    def _build_geometry(bbox: List[float]) -> Dict[str, Any]:
+        """Create GeoJSON Polygon for the STAC Item.
+
+        :param list[float] bbox: [minx, miny, maxx, maxy]
+
+        :return: GeoJSON Polygon
+        :rtype: dict
+        """
+        return {
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [bbox[0], bbox[1]],
+                    [bbox[0], bbox[3]],
+                    [bbox[2], bbox[3]],
+                    [bbox[2], bbox[1]],
+                    [bbox[0], bbox[1]],
+                ]
+            ],
+        }
+
+
+class RasterDataset(BaseDataset):
     """
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
     :param str path: Path to the raster data source
     """
 
+    MIME_LOOKUP: Dict[str, str] = {
+        'GTiff': 'image/tiff; application=geotiff',
+        'JP2OpenJPEG': 'image/jp2',
+    }
+
     def __init__(self, path: str):
         self.path = path
         self.dataset = gdal.Open(path)
+
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        :return: A dictionary representing the STAC item with
+        """
+        item_id = self.path.stem
+        now = datetime.now(UTC).isoformat()
+
+        bbox = self.get_bbox_wgs84()
+        geometry = self._build_geometry(bbox)
+
+        width, height = self.size
+
+        return {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': [
+                'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+                'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
+            ],
+            'id': item_id,
+            'collection': 'eo-rasters',
+            'properties': {
+                'datetime': now,
+                'proj:epsg': self.get_epsg(),
+                'proj:shape': [height, width],
+                'proj:transform': list(self.geotransform),
+                'raster:bands': self.get_band_metadata(),
+            },
+            'bbox': bbox,
+            'geometry': geometry,
+            'assets': {
+                'data': {
+                    'href': self.path.name,
+                    'type': self.MIME_LOOKUP.get(
+                        self.driver, 'application/octet-stream'
+                    ),
+                    'roles': ['data'],
+                }
+            },
+            'links': [],
+        }
 
     @property
     def driver(self) -> str:
@@ -141,47 +238,605 @@ class RasterDataset:
         return bands
 
 
+class SentinelCDSEDataset(BaseDataset, ABC):
+    """
+    GDAL dataset wrapper for extracting spatial and raster metadata.
+
+    :param str path: Path to the raster data source
+
+    :raises RuntimeError: If the file cannot be opened.
+    """
+
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format.
+
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        # common STAC definition
+        item_standard = self.create_item(
+            granule_href=str(self.path),
+            additional_providers=None,
+            tolerance=None,
+            asset_href_prefix=None,
+        )
+        item_standard.set_self_href(os.path.split(self.path)[0])
+        # make HREFs relative; otherwise, it wouldn't be possible to test it
+        # locally (comparison would fail for HREFs)
+        item_standard.make_asset_hrefs_relative()
+        item_dict_standard = item_standard.to_dict()
+
+        # now our tweaks
+        item_dict_transformed = self._transform_item(item_dict_standard)
+
+        return item_dict_transformed
+
+    @staticmethod
+    @abstractmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools item to the desired format.
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+        pass
+
+
+class Sentinel1SLCDataset(SentinelCDSEDataset):
+    def __init__(self, path: str):
+        from stactools.sentinel1.slc.stac import create_item
+
+        self.create_item = create_item
+        super().__init__(path)
+
+    @staticmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools Sentinel-1 SLC item to the desired format.
+
+        This method reshapes a standard Sentinel-1 STAC item by:
+        - Remapping band assets from semantic names (e.g., 'nir') to band
+          numbers (e.g., 'B08')
+        - Collecting EO band information as a section separate from raster:bands
+        - Updating properties with processing-level and tile information
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+
+        # Mapping original asset names to our nomenclature
+        asset_mappings = {
+            'safe-manifest': 'metadata',
+            'iw3-vv': 'VV',
+            'iw3-vh': 'VH',
+        }
+        asset_mapping_keys = asset_mappings.keys()
+        sar_bands_keys = ('VV', 'VH')
+
+        # create new assets dictionary with band number keys
+        new_assets = {}
+        sar_bands = []
+
+        for asset_key, asset_value in item.get('assets', {}).items():
+            if asset_key in asset_mapping_keys:
+                # assets section
+                new_key = asset_mappings[asset_key]
+
+                new_assets[new_key] = {
+                    'href': asset_value.get('href'),
+                    'type': asset_value.get('type'),
+                    'roles': asset_value.get('roles'),
+                }
+
+                if new_key in sar_bands_keys:
+                    new_assets[new_key].update({'sar:polarizations': new_key})
+
+                    # sar:bands section
+                    sar_bands.append(
+                        {
+                            **asset_value.get('eo:bands')[0],
+                            'center_frequency': item.get('properties').get(
+                                'sar:center_frequency'
+                            ),
+                            'gsd': 10,
+                        }
+                    )
+
+        # Build the new item
+        new_item = {
+            'type': item.get('type'),
+            'stac_version': '1.0.0',
+            'id': item.get('id'),
+            'bbox': item.get('bbox'),
+            'geometry': item.get('geometry'),
+            'properties': {
+                'datetime': item.get('properties', {}).get('datetime'),
+                'platform': item.get('properties', {}).get('platform'),
+                'constellation': item.get('properties', {}).get('constellation'),
+                'instruments': ['C-SAR'],
+                'processing:level': item.get('properties', {}).get(
+                    's1:processing_level'
+                ),
+                'sar:instrument_mode': item.get('properties', {}).get(
+                    'sar:instrument_mode'
+                ),
+                'sar:product_type': item.get('properties', {}).get('sar:product_type'),
+                'sar:polarizations': item.get('properties', {}).get(
+                    'sar:polarizations'
+                ),
+                'sar:frequency_band': item.get('properties', {}).get(
+                    'sar:frequency_band'
+                ),
+                'sar:resolution_range': item.get('assets', {})
+                .get('iw3-vh', {})
+                .get('sar:resolution_range'),
+                'sar:resolution_azimuth': item.get('assets', {})
+                .get('iw3-vh', {})
+                .get('sar:resolution_azimuth'),
+                'sat:orbit_state': item.get('properties', {}).get('sat:orbit_state'),
+                'sat:relative_orbit': item.get('properties', {}).get(
+                    'sat:relative_orbit'
+                ),
+                'view:incident_angle': 39.5,
+                's1:product_uri': item.get('id') + '.SAFE',
+            },
+            'assets': new_assets,
+            'collection': 'sentinel-1-slc',
+            'links': [item.get('links')[1]],
+            'sar:bands': sar_bands,
+            'providers': [
+                {
+                    'name': provider.get('name'),
+                    'roles': provider.get('roles'),
+                }
+                for provider in item.get('properties', {}).get('providers', [])
+            ],
+        }
+
+        return new_item
+
+
+class Sentinel1GRDDataset(SentinelCDSEDataset):
+    def __init__(self, path: str):
+        from stactools.sentinel1.grd.stac import create_item
+
+        self.create_item = create_item
+        super().__init__(path)
+
+    @staticmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools Sentinel-2 item to the desired format.
+
+        This method reshapes a standard Sentinel-1 STAC item by:
+        - Remapping band assets from semantic names (e.g., 'nir') to band
+          numbers (e.g., 'B08')
+        - Collecting EO band information as a section separate from raster:bands
+        - Updating properties with processing-level and tile information
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+
+        # Mapping original asset names to our nomenclature
+        asset_mappings = {
+            'safe-manifest': 'metadata',
+            'vv': 'VV',
+            'vh': 'VH',
+        }
+        asset_mapping_keys = asset_mappings.keys()
+        sar_bands_keys = ('VV', 'VH')
+
+        # create new assets dictionary with band number keys
+        new_assets = {}
+        sar_bands = []
+
+        for asset_key, asset_value in item.get('assets', {}).items():
+            if asset_key in asset_mapping_keys:
+                # assets section
+                new_key = asset_mappings[asset_key]
+
+                new_assets[new_key] = {
+                    'href': asset_value.get('href'),
+                    'type': asset_value.get('type'),
+                    'roles': asset_value.get('roles'),
+                }
+
+                if new_key in sar_bands_keys:
+                    new_assets[new_key].update({'sar:polarizations': new_key})
+
+                    # sar:bands section
+                    sar_bands.append(
+                        {
+                            **asset_value.get('eo:bands')[0],
+                            'center_frequency': item.get('properties').get(
+                                'sar:center_frequency'
+                            ),
+                            'gsd': item.get('properties').get(
+                                'sar:pixel_spacing_range'
+                            ),
+                        }
+                    )
+
+        # Build the new item
+        new_item = {
+            'type': item.get('type'),
+            'stac_version': '1.0.0',
+            'id': item.get('id'),
+            'bbox': item.get('bbox'),
+            'geometry': item.get('geometry'),
+            'properties': {
+                'datetime': item.get('properties', {}).get('datetime'),
+                'platform': item.get('properties', {}).get('platform'),
+                'constellation': item.get('properties', {}).get('constellation'),
+                'instruments': ['C-SAR'],
+                'processing:level': item.get('properties', {}).get(
+                    's1:processing_level'
+                ),
+                'sar:instrument_mode': item.get('properties', {}).get(
+                    'sar:instrument_mode'
+                ),
+                'sar:product_type': item.get('properties', {}).get('sar:product_type'),
+                'sar:polarizations': item.get('properties', {}).get(
+                    'sar:polarizations'
+                ),
+                'sar:frequency_band': item.get('properties', {}).get(
+                    'sar:frequency_band'
+                ),
+                'sar:resolution_range': item.get('properties', {}).get(
+                    'sar:resolution_range'
+                ),
+                'sar:resolution_azimuth': item.get('properties', {}).get(
+                    'sar:resolution_azimuth'
+                ),
+                'sat:orbit_state': item.get('properties', {}).get('sat:orbit_state'),
+                'sat:relative_orbit': item.get('properties', {}).get(
+                    'sat:relative_orbit'
+                ),
+                'view:incident_angle': 39.5,
+                's1:product_uri': item.get('id') + '.SAFE',
+            },
+            'assets': new_assets,
+            'collection': 'sentinel-1-grd',
+            'links': [item.get('links')[1]],
+            'sar:bands': sar_bands,
+            'providers': [
+                {
+                    'name': provider.get('name'),
+                    'roles': provider.get('roles'),
+                }
+                for provider in item.get('properties', {}).get('providers', [])
+            ],
+        }
+
+        return new_item
+
+
+class Sentinel2Dataset(SentinelCDSEDataset):
+    def __init__(self, path: str):
+        from stactools.sentinel2.stac import create_item
+
+        self.create_item = create_item
+        super().__init__(path)
+
+    @staticmethod
+    def _transform_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform a stactools Sentinel-2 item to the desired format.
+
+        This method reshapes a standard Sentinel-2 STAC item by:
+        - Remapping band assets from semantic names (e.g., 'nir') to band
+          numbers (e.g., 'B08')
+        - Collecting EO band information as a section separate from raster:bands
+        - Updating properties with processing-level and tile information
+
+        :param item: The dictionary representation of a standard STAC item as
+            produced by stactools.
+        :return: A transformed STAC item dictionary with
+        """
+
+        # Mapping from semantic band names to band numbers
+        band_mapping = {
+            'coastal': 'B01',
+            'blue': 'B02',
+            'green': 'B03',
+            'red': 'B04',
+            'rededge1': 'B05',
+            'rededge2': 'B06',
+            'rededge3': 'B07',
+            'nir': 'B08',
+            'nir08': 'B8A',
+            'nir09': 'B09',
+            # band 10 missing
+            'swir16': 'B11',
+            'swir22': 'B12',
+        }
+
+        # create new assets dictionary with band number keys
+        new_assets = {}
+        eo_bands = []
+
+        for asset_key, asset_value in item.get('assets', {}).items():
+            # metadata assets section
+            if asset_key in ['product_metadata', 'granule_metadata', 'safe_manifest']:
+                role = 'metadata'
+                if asset_key == 'product_metadata':
+                    # we want it called scene_metadata, not product_metadata
+                    new_key = 'scene_metadata'
+                else:
+                    new_key = asset_key
+
+                new_assets[new_key] = {
+                    'href': asset_value.get('href'),
+                    'type': asset_value.get('type'),
+                    'roles': [role],
+                }
+
+            # bands assets section
+            if asset_key not in band_mapping.keys():
+                continue
+
+            band_info = asset_value['eo:bands'][0]
+            band_name = band_info.get('name')
+
+            # Create new asset
+            new_asset = {
+                'href': asset_value.get('href'),
+                'type': asset_value.get('type', 'image/jp2'),
+                'roles': asset_value.get('roles', ['data']),
+            }
+
+            # Use the band name as key
+            new_assets[band_name] = new_asset
+
+            eo_bands.append(
+                {
+                    'name': band_name,
+                    'common_name': band_info.get('common_name'),
+                    'center_wavelength': band_info.get('center_wavelength'),
+                    'gsd': asset_value.get('gsd'),
+                }
+            )
+
+        # Build the new item
+        new_item = {
+            'type': item.get('type'),
+            'stac_version': '1.0.0',
+            'id': item.get('id'),
+            'bbox': item.get('bbox'),
+            'geometry': item.get('geometry'),
+            'properties': {
+                'datetime': item.get('properties', {}).get('datetime'),
+                'start_datetime': item.get('properties', {}).get('datetime'),
+                'end_datetime': item.get('properties', {}).get('datetime'),
+                'platform': item.get('properties', {}).get('platform'),
+                'constellation': item.get('properties', {}).get('constellation'),
+                'instruments': item.get('properties', {}).get('instruments'),
+                'processing:level': 'L2A',
+                'eo:cloud_cover': item.get('properties', {}).get('eo:cloud_cover'),
+                'view:sun_azimuth': item.get('properties', {}).get('view:sun_azimuth'),
+                'view:sun_elevation': item.get('properties', {}).get(
+                    'view:sun_elevation'
+                ),
+                'sat:relative_orbit': item.get('properties', {}).get(
+                    'sat:relative_orbit'
+                ),
+                's2:tile_id': item.get('properties', {}).get('grid:code').split('-')[1],
+                's2:product_uri': item.get('properties', {}).get('s2:product_uri'),
+            },
+            'assets': new_assets,
+            'collection': 'sentinel-2-l2a',
+            'links': [
+                {
+                    'rel': 'self',
+                    'href': 'https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a/items/'
+                    + item.get('id'),
+                }
+            ],
+            'eo:bands': sorted(eo_bands, key=lambda x: x['name']),
+            'providers': [
+                {
+                    'name': provider.get('name'),
+                    'roles': provider.get('roles'),
+                }
+                for provider in item.get('properties', {}).get('providers', [])
+            ],
+        }
+
+        return new_item
+
+
+class SentinelASFDataset(BaseDataset):
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format.
+
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        ds = gdal.Open(self.get_tif_path())
+
+        info = gdal.Info(ds, format='json')
+
+        corner_coords = info['cornerCoordinates']
+        upper_left = corner_coords['upperLeft']
+        lower_left = corner_coords['lowerLeft']
+        upper_right = corner_coords['upperRight']
+        lower_right = corner_coords['lowerRight']
+
+        safe_name = os.path.split(self.path)[-1]
+
+        item = {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'id': safe_name[:-5],
+            'bbox': [lower_left[0], lower_left[1], upper_left[0], upper_left[1]],
+            'geometry': {
+                'type': 'Polygon',
+                'coordinates': [[lower_left, lower_right, upper_right, upper_left]],
+            },
+            'properties': {
+                'datetime': info['metadata']['']['TIFFTAG_DATETIME'],
+                'platform': 'sentinel-1a',
+                'constellation': 'sentinel-1',
+                'instruments': ['C-SAR'],
+                'processing:level': None,
+                'sar:instrument_mode': 'IW',
+                'sar:product_type': 'SLC',
+                'sar:polarizations': ['VV', 'VH'],
+                'sar:frequency_band': 'C',
+                'sar:resolution_range': 3.5,
+                'sar:resolution_azimuth': 22.6,
+                'sat:orbit_state': 'descending',
+                'sat:relative_orbit': 66,
+                'view:incident_angle': 39.5,
+                's1:product_uri': safe_name,
+            },
+            'assets': {
+                'VH': {
+                    'href': './'
+                    + os.path.join(
+                        os.path.split(os.path.split(self.path)[0])[-1], safe_name
+                    ),
+                    'type': 'image/tiff; application=geotiff',
+                    'roles': ['data'],
+                },
+            },
+            'collection': 'sentinel-1-slc',
+            'links': [
+                {
+                    'rel': 'about',
+                    'href': 'https://sentinels.copernicus.eu/web/sentinel/technical-guides/sentinel-1-sar/products-algorithms/level-1-algorithms/single-look-complex',
+                    'title': 'Sentinel-1 Single Look Complex (SLC) Technical Guide',
+                }
+            ],
+            'sar:bands': info['stac']['eo:bands'],
+            'providers': [
+                {
+                    'name': 'ASF',
+                    'roles': 'provider',
+                }
+            ],
+        }
+
+        return item
+
+    def get_tif_path(self):
+        measurement_path = self.path / 'measurement'
+        return measurement_path / os.listdir(measurement_path)[0]
+
+
+class InsituDataset(BaseDataset):
+    """
+    Wrapper for in-situ CSV datasets providing spatial and temporal metadata
+    for STAC item generation. Relies on the metadata dict provided by ISU,
+    since CSV files do not embed spatial information like GeoTIFF.
+
+    :param str path: Path to the CSV file
+    :param dict metadata: Metadata dict from ISU containing time_range, location, schema, crs, sensor_type
+    """
+
+    STAC_EXTENSIONS: List[str] = [
+        'https://stac-extensions.github.io/table/v1.2.0/schema.json',
+        'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
+    ]
+
+    def __init__(self, path: str, metadata: Dict[str, Any]):
+        self.path = Path(path)
+        self._meta = metadata
+        self._data = metadata.get('data', {})
+
+    def get_stac_item(self) -> Dict[str, Any]:
+        """Retrieve and transform a STAC item from the given path.
+
+        This method creates a standard STAC item using the stactools library,
+        then applies custom transformations to match the desired format for
+        Sentinel-2 L2A data.
+
+        :return: A dictionary containing the transformed STAC item with band
+            assets, metadata assets, and updated properties.
+        """
+        bbox = self.get_bbox()
+        time_range = self.get_time_range()
+        schema = self.get_schema()
+
+        properties: Dict[str, Any] = {
+            'datetime': time_range['start'] if time_range else None,
+            'start_datetime': time_range['start'] if time_range else None,
+            'end_datetime': time_range['end'] if time_range else None,
+            'proj:epsg': self.epsg,
+        }
+        sensor_type = self.get_sensor_type()
+        if sensor_type:
+            properties['sensor_type'] = sensor_type
+
+        stac_item: Dict[str, Any] = {
+            'type': 'Feature',
+            'stac_version': '1.0.0',
+            'stac_extensions': self.STAC_EXTENSIONS,
+            'id': self.path.stem,
+            'collection': self._data.get('collection', 'insitu'),
+            'properties': properties,
+            'geometry': self._build_geometry(bbox) if bbox else None,
+            'bbox': bbox,
+            'assets': {
+                'data': {
+                    'href': self.path.name,
+                    'type': 'text/csv',
+                    'roles': ['data'],
+                    'table:columns': [
+                        col if isinstance(col, dict) else {'name': col}
+                        for col in schema
+                    ],
+                }
+            },
+            'links': [],
+        }
+
+        return stac_item
+
+    @property
+    def epsg(self) -> int:
+        crs = self._data.get('crs', 'EPSG:4326')
+        return int(crs.split(':')[1])
+
+    def get_bbox(self) -> Optional[List[float]]:
+        """Returns [min_lon, min_lat, max_lon, max_lat] or None."""
+        loc = self._data.get('location')
+        return loc['bbox'] if loc else None
+
+    def get_time_range(self) -> Optional[Dict[str, str]]:
+        """Returns {'start': ..., 'end': ...} or None."""
+        return self._data.get('time_range')
+
+    def get_schema(self) -> List[str]:
+        """Returns list of column names."""
+        return self._data.get('schema', [])
+
+    def get_sensor_type(self) -> Optional[str]:
+        """Returns sensor type string or None."""
+        return self._data.get('sensor_type')
+
+
 class StacItemFactory:
     """
     Creates STAC Item metadata from a RasterDataset.
     """
 
-    MIME_LOOKUP: Dict[str, str] = {
-        'GTiff': 'image/tiff; application=geotiff',
-        'JP2OpenJPEG': 'image/jp2',
-    }
-
-    def __init__(self, raster: RasterDataset, logger: Logger):
+    def __init__(self, dataset: BaseDataset, logger: Logger):
         """
         Initialize StacItemFactory.
 
-        :param RasterDataset raster: RasterDataset instance
+        :param BaseDataset dataset: BaseDataset instance
         :param Logger logger: specified logger to be used
         """
-        self.raster = raster
+        self.dataset = dataset
         self.logger = logger
-
-    def _build_geometry(self, bbox: List[float]) -> Dict[str, Any]:
-        """
-        Creates GeoJSON Polygon for the STAC Item.
-
-        :param list[float] bbox: [minx, miny, maxx, maxy]
-
-        :return: GeoJSON Polygon
-        :rtype: dict
-        """
-        return {
-            'type': 'Polygon',
-            'coordinates': [
-                [
-                    [bbox[0], bbox[1]],
-                    [bbox[0], bbox[3]],
-                    [bbox[2], bbox[3]],
-                    [bbox[2], bbox[1]],
-                    [bbox[0], bbox[1]],
-                ]
-            ],
-        }
 
     def create_item(self) -> Dict[str, Any]:
         """
@@ -190,43 +845,8 @@ class StacItemFactory:
         :return: STAC Item
         :rtype: dict
         """
-        item_id = self.raster.path.stem
-        now = datetime.now(UTC).isoformat()
+        stac_item = self.dataset.stac_item
 
-        bbox = self.raster.get_bbox_wgs84()
-        geometry = self._build_geometry(bbox)
-
-        width, height = self.raster.size
-
-        stac_item: Dict[str, Any] = {
-            'type': 'Feature',
-            'stac_version': '1.0.0',
-            'stac_extensions': [
-                'https://stac-extensions.github.io/projection/v1.0.0/schema.json',
-                'https://stac-extensions.github.io/raster/v1.1.0/schema.json',
-            ],
-            'id': item_id,
-            'collection': 'undefined',
-            'properties': {
-                'datetime': now,
-                'proj:epsg': self.raster.get_epsg(),
-                'proj:shape': [height, width],
-                'proj:transform': list(self.raster.geotransform),
-                'raster:bands': self.raster.get_band_metadata(),
-            },
-            'bbox': bbox,
-            'geometry': geometry,
-            'assets': {
-                'data': {
-                    'href': self.raster.path.name,
-                    'type': self.MIME_LOOKUP.get(
-                        self.raster.driver, 'application/octet-stream'
-                    ),
-                    'roles': ['data'],
-                }
-            },
-            'links': [],
-        }
         self.logger.debug(f'STAC item created: {stac_item}')
 
         return stac_item
@@ -259,26 +879,47 @@ class MetadataGenerator(GaiaBase):
     def __init__(self):
         """Initialize metadata generator."""
         super().__init__(SubsystemId.DPR)
+        self._isu_metadata: Dict[str, Any] = {}
 
-    def set_datasource(self, data_source: str):
+    def set_isu_metadata(self, metadata: Dict[str, Any]) -> None:
+        """Store ISU-provided metadata for use when processing CSV datasources.
+
+        :param dict metadata: Metadata dict from ISU (time_range, location, schema, crs, sensor_type).
+        """
+        self._isu_metadata = metadata
+
+    def set_datasource(self, data_source: str | Path):
         """Set the data source for which metadata should be generated.
 
         :param str data_source: path to the datasource (raster, tabular data...)
         """
-        # TODO: allowed file extensions should be part of internal settings (see #89)
-        # TODO: do we want to rely on file extension only?
-        if Path(data_source).suffix in ('.tif', '.jp2'):
-            self.logger.info(f'Metadata generator datasource: {data_source}')
+        self.logger.info(f'Metadata generator datasource: {data_source}')
+        if Path(data_source).suffix in ('.csv',):
+            self._ds = InsituDataset(data_source, self._isu_metadata)
+            self._factory = StacItemFactory(self._ds, self.logger)
+        elif Path(data_source).suffix in ('.tif', '.jp2'):
             self._ds = RasterDataset(data_source)
             self._factory = StacItemFactory(self._ds, self.logger)
-        elif Path(data_source).suffix in ('.csv',):
-            # TODO: ISU
-            pass
-        else:
-            # TODO: replace by GAIA-TSF exception
-            raise GaiaUnsupportedDataError(
-                f'Unsupported datasource {data_source}', self.logger
-            )
+        elif (
+            'S1' in str(data_source)
+            and '_SLC' in str(data_source)
+            and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
+        ):
+            self._ds = Sentinel1SLCDataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
+        elif (
+            'S1' in str(data_source)
+            and '_GRD' in str(data_source)
+            and os.path.isfile(os.path.join(data_source, 'manifest.safe'))
+        ):
+            self._ds = Sentinel1GRDDataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
+        elif os.path.isfile(os.path.join(data_source, 'manifest.safe')):
+            self._ds = Sentinel2Dataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
+        else:  # ASF
+            self._ds = SentinelASFDataset(data_source)
+            self._factory = StacItemFactory(self._ds, self.logger)
 
     @property
     def stac(self) -> StacItemFactory:

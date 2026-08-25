@@ -3,7 +3,7 @@ FROM ghcr.io/stac-utils/stac-fastapi:latest
 
 # Dependencies for psycopg3
 RUN apt-get update && apt-get install -y libpq-dev gcc curl
-RUN pip install --no-cache-dir psycopg[binary] psycopg_pool
+RUN pip install --no-cache-dir psycopg[binary] psycopg_pool gunicorn
 RUN rm -rf /var/lib/apt/lists/*
 
 COPY wait-for-db.sh /usr/local/bin/wait-for-db.sh
@@ -11,5 +11,7 @@ RUN chmod +x /usr/local/bin/wait-for-db.sh
 
 COPY wait-migrate-start.sh /usr/local/bin/wait-migrate-start.sh
 RUN chmod +x /usr/local/bin/wait-migrate-start.sh
+
+COPY create_default_collections.py /usr/local/bin/create_default_collections.py
 
 ENTRYPOINT ["wait-migrate-start.sh"]
