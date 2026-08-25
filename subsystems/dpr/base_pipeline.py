@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from lib.base import GaiaBase, SubsystemId
 from lib.exceptions import GaiaConfigError
 
+
 class BasePipeline(ABC, GaiaBase):
     metadata = {'title': 'unknown', 'abstract': 'unknown', 'params': None}
 
