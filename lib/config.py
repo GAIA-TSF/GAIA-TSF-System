@@ -43,12 +43,12 @@ class ConfigReader(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
             value = self[item] if self._root is None else self[self._root][item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item)
 
         return self._wrap(value)
 
@@ -104,12 +104,12 @@ class ConfigNode(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
             value = self[item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item)
 
         if isinstance(value, dict):
             return ConfigNode(value)
@@ -266,7 +266,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         layer = ds.GetLayer(0)
 
         if layer.GetFeatureCount() > 1:
-            raise RuntimeError('AOI: Only one feature expected')
+            raise GaiaConfigError('AOI: Only one feature expected')
 
         srs = layer.GetSpatialRef()
         target_srs = osr.SpatialReference()
@@ -281,7 +281,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         feature = layer.GetNextFeature()
         if feature is None:
             ds = None
-            raise RuntimeError('No features found')
+            raise GaiaConfigError('No features found')
 
         geom = feature.GetGeometryRef().Clone()
         if transform is not None:

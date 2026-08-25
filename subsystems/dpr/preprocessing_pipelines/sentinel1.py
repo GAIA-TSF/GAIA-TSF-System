@@ -24,7 +24,7 @@ from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
 from lib.config import SettingsReader
-
+from lib.exceptions import GaiaDataError, GaiaConfigError
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
@@ -84,7 +84,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None.
         """
         if not any(datadir.glob('*.SAFE/')):
-            raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
+            raise GaiaDataError(f"No '.SAFE' directories found in {datadir}.")
         self.logger.info('Downloading precise orbit files.')
         s1 = S1.scan_slc(datadir)
         S1.download_orbits(datadir, s1)
@@ -130,12 +130,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if datadir == workdir:
-            raise ValueError(
+            raise GaiaDataError(
                 f'Safety Triggered: datadir and workdir are the same location ({datadir}). '
                 'Aborting to prevent accidental data deletion.'
             )
         if workdir in datadir.parents:
-            raise ValueError(
+            raise GaiaDataError(
                 f'Safety Triggered: workdir ({workdir}) is a parent of datadir ({datadir}). '
                 'Aborting to prevent accidental data deletion.'
             )
@@ -235,7 +235,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         valid = [r for r in results if r['n_comp'] == 1]
         if not valid:
-            raise RuntimeError('No connected network found. Try increasing thresholds.')
+            raise GaiaConfigError('No connected network found. Try increasing thresholds.')
 
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
@@ -284,7 +284,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.intf is None or self.corr is None:
-            raise RuntimeError(
+            raise GaiaDataError(
                 'Interferograms and correlation must be computed before unwrapping.'
             )
 
@@ -298,7 +298,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Verify we have valid pixels to unwrap
         n_valid = int(np.isfinite(corr_mask).sum().compute())
         if n_valid == 0:
-            raise RuntimeError(
+            raise GaiaDataError(
                 f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
             )
 
@@ -319,7 +319,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.unwrap is None:
-            raise RuntimeError('Phase must be unwrapped before detrending.')
+            raise GaiaDataError('Phase must be unwrapped before detrending.')
 
         # Determine spatial scales
         ramp_wavelength = ramp_factor * base_wavelength
@@ -347,7 +347,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.detrend is None or self.corr is None:
-            raise RuntimeError('Missing detrended phase or correlation data.')
+            raise GaiaDataError('Missing detrended phase or correlation data.')
 
         # Grid Alignment & SBAS Solve
         corr_ra = self.corr
@@ -384,7 +384,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.disp_ll is None:
-            raise RuntimeError(
+            raise GaiaDataError(
                 'Missing displacement data. Run _compute_displacement first.'
             )
 
@@ -667,7 +667,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         # Extract and Merge InSAR Layers
         if self.disp_ll is None or self.risk_map is None:
-            raise RuntimeError(
+            raise GaiaDataError(
                 'InSAR displacement or risk map not found. Run previous steps first.'
             )
 
@@ -888,7 +888,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
             if not t_dim:
-                raise ValueError(
+                raise GaiaDataError(
                     'Could not find a valid time/date dimension in self.disp_ll.'
                 )
 
