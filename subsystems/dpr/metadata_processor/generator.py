@@ -15,7 +15,6 @@ from osgeo import gdal, osr
 
 gdal.UseExceptions()
 
-from lib.exceptions import GaiaUnsupportedDataError
 from lib.base import GaiaBase, SubsystemId
 
 
@@ -871,9 +870,6 @@ class StacItemFactory:
 class MetadataGenerator(GaiaBase):
     """
     The automatic generation of metadata during ingestion.
-
-
-    :raises GaiaUnsupportedDataError: If the file cannot be opened.
     """
 
     def __init__(self):

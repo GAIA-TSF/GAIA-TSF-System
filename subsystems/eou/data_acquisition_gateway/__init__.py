@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 
-from lib.exceptions import GaiaUnsupportedDataError
+from lib.exceptions import GaiaConfigError
 from lib.base import GaiaBase, SubsystemId
 
 
@@ -30,7 +30,7 @@ class DataAcquisitionGateway(GaiaBase):
                 ASFDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            raise GaiaUnsupportedDataError(
+            raise GaiaConfigError(
                 f'Unsupported data acquisition backend: {backend}'
             )
 
