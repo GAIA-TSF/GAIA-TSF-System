@@ -21,8 +21,10 @@ def resolve_temporal_window(
     dates: tuple[str, ...],
     config: dict[str, Any],
     name: str,
+    *,
+    end_inclusive: bool = True,
 ) -> TemporalWindow:
-    """Resolve a named inclusive ISO-date window into an exclusive index range.
+    """Resolve a named ISO-date window into an exclusive index range.
 
     Args:
         dates: Chronological acquisition date labels in ISO ``YYYY-MM-DD`` format.
@@ -51,7 +53,12 @@ def resolve_temporal_window(
     selected = [
         index
         for index, acquisition_date in enumerate(acquisition_dates)
-        if start_date <= acquisition_date <= end_date
+        if start_date <= acquisition_date
+        and (
+            acquisition_date <= end_date
+            if end_inclusive
+            else acquisition_date < end_date
+        )
     ]
     if not selected:
         raise ValueError(f'Temporal window {name} contains no acquisition dates.')

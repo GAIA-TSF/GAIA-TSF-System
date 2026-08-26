@@ -29,6 +29,30 @@ global:
     chunk_size: [256, 256]
     n_workers: 16
 
+# SYNTHETIC IN-SITU CO-LOCATION
+in_situ:
+  inputs:
+    directory: "inputs/true_los"
+    filename_pattern: "*.tif"
+  static:
+    observation_points: "static/observation_points.gpkg"
+    # Attribute currently used in the GeoPackage (spelling retained).
+    label_column: "label"
+  sampling:
+    # Nodata-aware square mean around each point; must be a positive odd value.
+    window_size: 3
+    sensor_noise_std_mm: 1.0
+  output_csv: "inputs/in_situ_deformation.csv"
+  platform: "OFFICE_REVIEW"
+  qc: 0
+  validation:
+    insar_directory: "inputs/los"
+    filename_pattern: "tsf_los_*.tif"
+    # Both raster series are stored in metres; validation output uses mm.
+    unit_scale: 1000.0
+    output_csv: "results/validation/insar_insitu_colocation.csv"
+    statistics_json: "results/validation/insar_insitu_statistics.json"
+
 
 # DAG PROCESS SETTINGS 
 slope_stability: 

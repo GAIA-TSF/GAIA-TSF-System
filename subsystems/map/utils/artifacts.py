@@ -257,7 +257,7 @@ def write_diagnostics(
     axis.grid(alpha=0.25)
     axis.set(
         xlabel='Acquisition date',
-        ylabel=f'Deformation{unit_label}',
+        ylabel=f'LOS deformation rate{unit_label}',
         title='Mean time-series comparison',
     )
     figure.savefig(
@@ -353,7 +353,7 @@ def write_diagnostics(
         axis.set_xticks(positions, labels, rotation=45, ha='right')
         axis.set(
             xlabel='Acquisition date',
-            ylabel=f'Deformation{unit_label}',
+            ylabel=f'LOS deformation rate{unit_label}',
             title='Prediction with uncertainty',
         )
         axis.legend(loc='best')
@@ -650,8 +650,12 @@ def write_observation_point_timeseries(
     axis.tick_params(axis='x', rotation=45)
     axis.set(
         xlabel='Acquisition date',
-        ylabel=f'Observed deformation [{unit}]' if unit else 'Observed deformation',
-        title='Observed deformation at configured TSF points (3x3 pixels)',
+        ylabel=(
+            f'Observed LOS deformation rate [{unit}]'
+            if unit
+            else 'Observed LOS deformation rate'
+        ),
+        title='Observed LOS deformation rate at configured TSF points (3x3 pixels)',
     )
     axis.legend()
     axis.grid(alpha=0.25)

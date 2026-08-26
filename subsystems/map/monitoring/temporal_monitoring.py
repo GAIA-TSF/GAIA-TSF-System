@@ -17,12 +17,15 @@ class TemporalMonitoringResult:
     predicted_mean: np.ndarray
     uncertainty_mean: np.ndarray | None
     residual_mean: np.ndarray
+    velocity: np.ndarray
+    acceleration: np.ndarray
     anomaly_magnitude: np.ndarray
     anomaly_threshold: float
     acceleration_cusum: np.ndarray
     deceleration_cusum: np.ndarray
     oscillation: np.ndarray
     persistent_acceleration: np.ndarray
+    dynamics: np.ndarray
     regime_risk: np.ndarray
     medium_risk_threshold: float
     high_risk_threshold: float
@@ -46,6 +49,7 @@ class TemporalResidualMonitor:
             'persistence_threshold',
         )
         regime = self._section(config, 'regime')
+        self.regime_signal = self._regime_signal(regime)
         self.risk_smoothing_span = self._positive_integer(regime, 'smoothing_span')
         self.medium_risk_threshold = self._unit_interval(regime, 'medium_risk_threshold')
         self.high_risk_threshold = self._unit_interval(regime, 'high_risk_threshold')
@@ -122,8 +126,40 @@ class TemporalResidualMonitor:
             & (acceleration_cusum > self.cusum_decision)
             & (persistence >= self.persistence_threshold)
         )
-        positive_shift = np.maximum(0.0, zscore)
-        instantaneous_risk = (1.0 - np.exp(-positive_shift)) * persistence
+        persistent_deceleration = (
+            monitoring_mask
+            & (deceleration_cusum > self.cusum_decision)
+            & (persistence >= self.persistence_threshold)
+        )
+        dynamics = np.full(zscore.size, 'stable', dtype='<U12')
+        dynamics[persistent_deceleration] = 'decelerating'
+        dynamics[persistent_acceleration] = 'accelerating'
+        # Regime evidence is deliberately model-relative.  Raw physical
+        # acceleration contains the expected annual cycle, so standardising it
+        # directly against a single calibration mean incorrectly flags the same
+        # seasonal curvature when it recurs in later years.  Comparing the
+        # observed acceleration with the baseline model's acceleration removes
+        # that expected behaviour before testing for an unexpected shift.
+        if self.regime_signal == 'unexpected_acceleration':
+            expected_acceleration = self._gradient(predicted_mean, time_days)
+            expected_trend = self._ema(expected_acceleration, self.smoothing_span)
+            regime_signal = (trend - expected_trend) * self.instability_direction
+        else:
+            regime_signal = directional_trend
+        regime_baseline = regime_signal[calibration_start:calibration_end]
+        regime_baseline = regime_baseline[np.isfinite(regime_baseline)]
+        if regime_baseline.size < 3:
+            raise ValueError('Calibration period contains too few valid baseline samples.')
+        regime_std = max(float(np.std(regime_baseline)), np.finfo(np.float64).eps)
+        regime_zscore = (
+            regime_signal - float(np.mean(regime_baseline))
+        ) / regime_std
+        regime_persistence = self._sign_persistence(
+            regime_zscore,
+            self.persistence_window,
+        )
+        positive_shift = np.maximum(0.0, regime_zscore)
+        instantaneous_risk = (1.0 - np.exp(-positive_shift)) * regime_persistence
         regime_risk = self._ema(instantaneous_risk, self.risk_smoothing_span)
         regime_risk = np.where(monitoring_mask, regime_risk, 0.0)
         return TemporalMonitoringResult(
@@ -131,12 +167,15 @@ class TemporalResidualMonitor:
             predicted_mean=predicted_mean,
             uncertainty_mean=uncertainty_mean,
             residual_mean=residual_mean,
+            velocity=observed_mean,
+            acceleration=acceleration,
             anomaly_magnitude=anomaly_magnitude,
             anomaly_threshold=self.anomaly_threshold,
             acceleration_cusum=acceleration_cusum,
             deceleration_cusum=deceleration_cusum,
             oscillation=oscillation,
             persistent_acceleration=persistent_acceleration,
+            dynamics=dynamics,
             regime_risk=regime_risk,
             medium_risk_threshold=self.medium_risk_threshold,
             high_risk_threshold=self.high_risk_threshold,
@@ -430,5 +469,16 @@ class TemporalResidualMonitor:
             raise ValueError(
                 'monitoring.dashboard.cusum.signal must be '
                 '"observed_velocity" or "residual".',
+            )
+        return value
+
+    @staticmethod
+    def _regime_signal(config: dict[str, Any]) -> str:
+        """Return the configured model-relative or raw regime input series."""
+        value = str(config.get('signal', 'unexpected_acceleration'))
+        if value not in {'unexpected_acceleration', 'observed_acceleration'}:
+            raise ValueError(
+                'monitoring.dashboard.regime.signal must be '
+                '"unexpected_acceleration" or "observed_acceleration".',
             )
         return value

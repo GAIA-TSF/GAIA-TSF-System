@@ -76,6 +76,36 @@ contain `date`,
 columns. Separate dated GeoTIFF series are also supported through per-variable
 `directory` and `filename_pattern` input mappings.
 
+### Synthetic in-situ co-location
+
+Create the in-situ CSV by spatially overlaying every labelled point from the
+GeoPackage configured under `in_situ.static.observation_points` on each
+configured TRUE_LOS acquisition:
+
+```bash
+python3 subsystems/dag/scripts/extract_synthetic_tsf_in-situ_deformations.py \
+  --config subsystems/dag/config.yaml
+```
+
+The DAG `in_situ.sampling.window_size` setting controls the square, nodata-aware
+pixel neighbourhood used for each sample. The script accepts any number of
+uniquely labelled observation points. All paths are resolved below the DAG
+`project_dir`; use `--project-dir` to override that root.
+
+Run the independent validation step after extraction:
+
+```bash
+python3 subsystems/dag/scripts/compare_insar_insitu.py \
+  --config subsystems/dag/config.yaml
+```
+
+This script samples the configured satellite LOS rasters at the locations and
+dates in the in-situ CSV. It writes a two-column
+`insar_los,insitu_deformation` comparison CSV and a JSON report containing
+sample counts, dataset means, bias, MAE, RMSE, Pearson correlation, and R².
+Their paths and the raster-to-output unit scale are configured under
+`in_situ.validation`.
+
 
 ## Run the pipelines 
 

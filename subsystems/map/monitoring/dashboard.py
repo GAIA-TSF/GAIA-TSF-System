@@ -118,8 +118,22 @@ def _plot_predictions(
     """Plot mean observations, predictions and predictive uncertainty."""
     observed = result.observed_mean[positions] * value_scale
     predicted = result.predicted_mean[positions] * value_scale
-    axis.scatter(positions, observed, color='black', s=12, alpha=0.8, label='Observed')
-    axis.scatter(positions, predicted, color='tab:blue', s=12, alpha=0.75, label='Predicted')
+    axis.scatter(
+        positions,
+        observed,
+        color='black',
+        s=12,
+        alpha=0.8,
+        label='Observed mean LOS velocity',
+    )
+    axis.scatter(
+        positions,
+        predicted,
+        color='tab:blue',
+        s=12,
+        alpha=0.75,
+        label='Predicted mean LOS velocity',
+    )
     if result.uncertainty_mean is not None:
         uncertainty = result.uncertainty_mean[positions] * value_scale
         axis.fill_between(
@@ -130,7 +144,10 @@ def _plot_predictions(
             alpha=0.2,
             label='Prediction uncertainty',
         )
-    axis.set(title='Observations and predictions', ylabel=f'Deformation rate [{unit}]')
+    axis.set(
+        title='Mean LOS velocity and baseline prediction',
+        ylabel=f'Mean LOS velocity [{unit}]',
+    )
 
 
 def _plot_anomaly_magnitude(
@@ -149,7 +166,7 @@ def _plot_anomaly_magnitude(
         label='|Mean residual|',
     )
     axis.axhline(
-        result.anomaly_threshold,
+        result.anomaly_threshold * value_scale,
         color='black',
         linestyle='--',
         linewidth=1.2,
@@ -255,9 +272,9 @@ def _plot_latest_observation(
     )
     _map_outline(axis, mask, extent)
     colorbar = plt.colorbar(image, ax=axis, shrink=0.72)
-    colorbar.set_label(f'Observation [{unit}]')
+    colorbar.set_label(f'LOS deformation rate [{unit}]')
     axis.set(
-        title=f'InSAR observation ({dates[observation_index]})',
+        title=f'InSAR LOS deformation rate ({dates[observation_index]})',
         xlabel='Easting',
         ylabel='Northing',
     )

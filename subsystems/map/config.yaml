@@ -56,10 +56,10 @@ datasets:
     temporal_windows:
       calibration:
         start_date: '2018-01-01'
-        end_date: '2020-01-01'
+        end_date: '2019-07-01'
       monitoring:
-        start_date: '2020-01-01'
-        end_date: '2020-08-30'
+        start_date: '2019-07-01'
+        end_date: '2020-10-30'
   amd_dataset:
     mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
     features: [amd_lag1]
@@ -78,6 +78,7 @@ datasets:
         end_date: '2020-12-28'
 
 baseline_model:
+  # Native m/day standard deviation, not the display unit used by plots.
   stable_pixel_std_threshold: 0.008
 
 models:
@@ -125,7 +126,7 @@ training:
   random_seed: 42
 
 explainability:
-  enabled: true # false
+  enabled: false # true # false
   parallel:
     # Parallel workers for independent grouped-permutation feature groups.
     n_jobs: 4
@@ -162,6 +163,9 @@ explainability:
         - temperature_mean
 
 plotting:
+  # MAP rasters and model outputs are stored in native metres per day.  The
+  # following display conversion is applied only to figures and CSV exports.
+  native_deformation_rate_unit: m/day
   deformation_unit: mm/day
   value_scale: 1000.0
   cumulative_displacement_unit: mm
@@ -184,7 +188,8 @@ plotting:
       coordinates: [487523.0, 6655943.0]
 
 anomaly_detection:
-  residual_threshold: 0.02
+  # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
+  residual_threshold: 0.00002
   zscore_threshold: 1.5
   persistence: 3
 
@@ -192,8 +197,8 @@ monitoring:
   dashboard:
     enabled: true
     filename: slope_stability_dashboard.png
-    # Uses the configured deformation display unit (mm/day).
-    anomaly_magnitude_threshold: 0.02
+    # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
+    anomaly_magnitude_threshold: 0.00002
     cusum:
       # Negative: increasingly negative LOS deformation is instability.
       instability_direction: negative
@@ -205,6 +210,9 @@ monitoring:
       persistence_window: 20
       persistence_threshold: 0.25
     regime:
+      # Compare observed acceleration to the modelled baseline acceleration,
+      # so recurring seasonal curvature is not interpreted as a regime shift.
+      signal: unexpected_acceleration
       smoothing_span: 5
       medium_risk_threshold: 0.3
       high_risk_threshold: 0.7

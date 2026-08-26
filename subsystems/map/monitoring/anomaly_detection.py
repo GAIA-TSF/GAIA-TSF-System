@@ -115,7 +115,12 @@ class StatisticalAnomalyDetector:
         return AnomalyResult(score, binary, summary)
 
     def write(
-        self, result: AnomalyResult, dataset: Dataset, output_dir: Path
+        self,
+        result: AnomalyResult,
+        dataset: Dataset,
+        output_dir: Path,
+        *,
+        residual_rate_unit: str = '',
     ) -> list[Path]:
         """Write score/binary rasters and the JSON anomaly summary."""
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -134,8 +139,14 @@ class StatisticalAnomalyDetector:
                 'anomaly_binary',
             )
             paths.extend((score_path, binary_path))
+        summary = {
+            **result.summary,
+            'residual_rate_unit': residual_rate_unit,
+            'anomaly_score_unit': 'dimensionless',
+            'anomaly_binary_unit': 'flag (0 or 1)',
+        }
         (output_dir / 'anomaly_summary.json').write_text(
-            json.dumps(result.summary, indent=2, sort_keys=True),
+            json.dumps(summary, indent=2, sort_keys=True),
             encoding='utf-8',
         )
         return paths

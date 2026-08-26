@@ -18,6 +18,7 @@ from subsystems.map.monitoring import (
 from subsystems.map.monitoring.dashboard import write_slope_stability_dashboard
 from subsystems.map.utils.artifacts import (
     write_diagnostics,
+    write_json,
     write_latest_residual_map,
     write_mean_residual_map,
     write_observation_point_timeseries,
@@ -73,6 +74,7 @@ class InferencePipeline:
             dataset.dates,
             dataset_config,
             'calibration',
+            end_inclusive=False,
         )
         monitoring_window = resolve_temporal_window(
             dataset.dates,
@@ -92,7 +94,14 @@ class InferencePipeline:
             prediction_stack,
             prediction.uncertainty,
         )
-        analyzer.write(residuals, dataset, output_root / 'residuals')
+        analyzer.write(
+            residuals,
+            dataset,
+            output_root / 'residuals',
+            native_unit=self._native_plot_unit(),
+            display_unit=self._plot_unit(),
+            value_scale=self._plot_value_scale(),
+        )
         write_latest_residual_map(
             output_dir=output_root / 'residuals',
             residual_stack=residuals.stack,
@@ -205,7 +214,12 @@ class InferencePipeline:
             persistence_start_time_index=monitoring_window.start_index,
             persistence_end_time_index=monitoring_window.end_index,
         )
-        detector.write(anomalies, dataset, output_root / 'anomalies')
+        detector.write(
+            anomalies,
+            dataset,
+            output_root / 'anomalies',
+            residual_rate_unit=self._native_plot_unit(),
+        )
         write_persistent_residual_map(
             output_dir=output_root / 'residuals',
             persistent_anomalies=anomalies.binary_stack,
@@ -272,11 +286,15 @@ class InferencePipeline:
             )
         result = {
             'prediction_count': int(prediction.y_pred.size),
-            'residual_statistics': residuals.statistics,
+            'residual_statistics_native': residuals.statistics,
+            'native_deformation_rate_unit': self._native_plot_unit(),
+            'display_deformation_rate_unit': self._plot_unit(),
+            'value_scale_to_display_unit': self._plot_value_scale(),
             'anomaly_summary': anomalies.summary,
             'output_root': str(output_root),
             'dashboard_path': None if dashboard_path is None else str(dashboard_path),
         }
+        write_json(output_root / 'inference_metadata.json', result)
         LOGGER.info('MAP inference completed in %s', output_root)
         return result
 
@@ -293,18 +311,30 @@ class InferencePipeline:
         for index, date in enumerate(dataset.dates):
             path = output_dir / f'prediction_{writer._safe_date(date)}.tif'
             writer._write_raster(
-                path, prediction_stack[index], dataset, 'baseline_prediction'
+                path,
+                prediction_stack[index],
+                dataset,
+                'baseline_prediction_rate',
+                unit=self._native_plot_unit(),
             )
             observed_path = output_dir / f'observed_{writer._safe_date(date)}.tif'
             writer._write_raster(
-                observed_path, observed_stack[index], dataset, 'observed_deformation'
+                observed_path,
+                observed_stack[index],
+                dataset,
+                'observed_deformation_rate',
+                unit=self._native_plot_unit(),
             )
         if uncertainty is not None:
             uncertainty_stack = writer.restore_stack(dataset, uncertainty)
             for index, date in enumerate(dataset.dates):
                 path = output_dir / f'uncertainty_{writer._safe_date(date)}.tif'
                 writer._write_raster(
-                    path, uncertainty_stack[index], dataset, 'prediction_uncertainty'
+                    path,
+                    uncertainty_stack[index],
+                    dataset,
+                    'prediction_uncertainty_rate',
+                    unit=self._native_plot_unit(),
                 )
 
     def _feature_paths(self) -> list[Path]:
@@ -343,6 +373,15 @@ class InferencePipeline:
     def _plot_unit(self) -> str:
         """Return the configured physical unit used by diagnostic axes."""
         return str(self.config.get('plotting', {}).get('deformation_unit', ''))
+
+    def _native_plot_unit(self) -> str:
+        """Return the native rate unit stored in MAP raster artifacts."""
+        return str(
+            self.config.get('plotting', {}).get(
+                'native_deformation_rate_unit',
+                self._plot_unit(),
+            )
+        )
 
     def _plot_value_scale(self) -> float:
         """Return the configured conversion from native values to plot units."""

@@ -50,17 +50,43 @@ class ResidualAnalyzer:
         return ResidualResult(residuals, stack, statistics)
 
     def write(
-        self, result: ResidualResult, dataset: Dataset, output_dir: Path
+        self,
+        result: ResidualResult,
+        dataset: Dataset,
+        output_dir: Path,
+        *,
+        native_unit: str = '',
+        display_unit: str = '',
+        value_scale: float = 1.0,
     ) -> list[Path]:
-        """Write one residual GeoTIFF per acquisition and aggregate statistics JSON."""
+        """Write native residual rasters and unit-explicit statistics JSON."""
+        if value_scale <= 0:
+            raise ValueError('Residual statistics value_scale must be positive.')
         output_dir.mkdir(parents=True, exist_ok=True)
         paths: list[Path] = []
         for index, date in enumerate(dataset.dates):
             path = output_dir / f'residual_{self._safe_date(date)}.tif'
-            self._write_raster(path, result.stack[index], dataset, 'residual')
+            self._write_raster(
+                path,
+                result.stack[index],
+                dataset,
+                'residual_rate',
+                unit=native_unit,
+            )
             paths.append(path)
+        display_statistics = {
+            key: value if key == 'count' else float(value) * value_scale
+            for key, value in result.statistics.items()
+        }
+        payload = {
+            'native_rate_unit': native_unit,
+            'display_rate_unit': display_unit,
+            'value_scale_to_display_unit': value_scale,
+            'statistics_native': result.statistics,
+            'statistics_display': display_statistics,
+        }
         (output_dir / 'residual_statistics.json').write_text(
-            json.dumps(result.statistics, indent=2, sort_keys=True),
+            json.dumps(payload, indent=2, sort_keys=True),
             encoding='utf-8',
         )
         return paths
@@ -82,7 +108,12 @@ class ResidualAnalyzer:
 
     @staticmethod
     def _write_raster(
-        path: Path, values: np.ndarray, dataset: Dataset, description: str
+        path: Path,
+        values: np.ndarray,
+        dataset: Dataset,
+        description: str,
+        *,
+        unit: str = '',
     ) -> None:
         if rasterio is None:
             raise RuntimeError(
@@ -104,3 +135,5 @@ class ResidualAnalyzer:
         ) as raster:
             raster.write(output, 1)
             raster.set_band_description(1, description)
+            if unit:
+                raster.update_tags(1, units=unit)
