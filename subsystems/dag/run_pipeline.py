@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
             'slope_features',
             'slope_temporal_features',
             'meteo_features',
+            'topographic_features',
         ],
         help='Pipeline to run.',
     )
@@ -64,6 +65,14 @@ def main() -> None:
         )
 
         result = MeteoFeaturePipeline(args.config).run()
+        print(len(result))
+
+    elif args.pipeline == 'topographic_features':
+        from subsystems.dag.pipelines.topographic_feature_pipeline import (
+            TopographicFeaturePipeline,
+        )
+
+        result = TopographicFeaturePipeline(args.config).run()
         print(len(result))
 
     else:

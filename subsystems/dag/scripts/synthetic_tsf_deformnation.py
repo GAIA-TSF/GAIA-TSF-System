@@ -12,6 +12,7 @@ Outputs:
 - Atmosphere GeoTIFFs
 - Rainfall trigger GeoTIFFs
 - Coherence mask GeoTIFF
+- Static TSF DEM GeoTIFF
 - Raw daily meteodata CSV (precipitation and temperature observations)
 - Metadata CSV
 - Failure timeline CSV
@@ -61,6 +62,16 @@ ATM_SIGMA = 0.012
 MEAS_SIGMA = 0.003
 
 RANDOM_SEED = 42
+
+# Static TSF terrain model (metres).
+DEM_BASE_ELEVATION = 450.0
+DEM_EAST_SLOPE = 0.012
+DEM_SOUTH_SLOPE = 0.006
+DEM_BASIN_DEPTH = 8.0
+DEM_EMBANKMENT_HEIGHT = 15.0
+DEM_EMBANKMENT_RADIUS = 39.0
+DEM_EMBANKMENT_WIDTH = 3.0
+DEM_ROUGHNESS_STD = 0.75
 
 np.random.seed(RANDOM_SEED)
 
@@ -214,6 +225,39 @@ def write_stac_item(
             f,
             indent=4,
         )
+
+
+def generate_tsf_dem():
+    """Generate a deterministic terrain surface containing the synthetic TSF.
+
+    The surface combines regional relief, a shallow impoundment depression,
+    and a raised perimeter embankment aligned with the TSF mask boundary.
+    A dedicated random generator keeps DEM creation from changing the temporal
+    simulation's seeded random sequence.
+    """
+    x_distance_m = (X - (NX - 1) / 2) * PIXEL_SIZE
+    y_distance_m = (Y - (NY - 1) / 2) * PIXEL_SIZE
+    regional_terrain = (
+        DEM_BASE_ELEVATION
+        + DEM_EAST_SLOPE * x_distance_m
+        + DEM_SOUTH_SLOPE * y_distance_m
+    )
+
+    distance_pixels = np.hypot(X - 50, Y - 50)
+    impoundment = -DEM_BASIN_DEPTH * bowl
+    embankment = DEM_EMBANKMENT_HEIGHT * np.exp(
+        -((distance_pixels - DEM_EMBANKMENT_RADIUS) ** 2)
+        / (2 * DEM_EMBANKMENT_WIDTH**2)
+    )
+
+    dem_rng = np.random.default_rng(RANDOM_SEED + 1)
+    roughness = gaussian_filter(
+        dem_rng.normal(0.0, DEM_ROUGHNESS_STD, (NY, NX)),
+        sigma=5,
+    )
+    return (regional_terrain + impoundment + embankment + roughness).astype(
+        np.float32
+    )
 
 
 ### SYNTHETIC METEODATA ###
@@ -421,6 +465,12 @@ write_tif(
 
 write_tif(STATIC_DIR / 'tsf_mask.tif', (bowl > 0.1).astype(np.uint8), dtype='uint8')
 
+tsf_dem = generate_tsf_dem()
+write_tif(STATIC_DIR / 'tsf_dem.tif', tsf_dem, dtype='float32', nodata=np.nan)
+with rasterio.open(STATIC_DIR / 'tsf_dem.tif', 'r+') as dem_dataset:
+    dem_dataset.set_band_description(1, 'TSF elevation')
+    dem_dataset.update_tags(1, units='m')
+
 pd.DataFrame(
     {
         'event': [
@@ -449,6 +499,9 @@ pd.DataFrame(
             'final_hotspot_amplitude_m',
             'atmosphere_sigma_m',
             'measurement_sigma_m',
+            'dem_base_elevation_m',
+            'dem_basin_depth_m',
+            'dem_embankment_height_m',
         ],
         'value': [
             CRS,
@@ -459,6 +512,9 @@ pd.DataFrame(
             A_MAX,
             ATM_SIGMA,
             MEAS_SIGMA,
+            DEM_BASE_ELEVATION,
+            DEM_BASIN_DEPTH,
+            DEM_EMBANKMENT_HEIGHT,
         ],
     }
 ).to_csv(INPUTS_DIR / 'metadata.csv', index=False)

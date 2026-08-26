@@ -110,6 +110,15 @@ InSAR mean centred on every in-situ location.
 
 ## Run the pipelines 
 
+Generate the static DEM-derived topographic feature set (DEM, slope in degrees,
+and PI/topographic position index):
+
+```bash
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline topographic_features \
+  --config subsystems/dag/config.yaml
+```
+
 Run slope stability pipelines 
 
 ```bash

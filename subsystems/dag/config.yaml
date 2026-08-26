@@ -57,6 +57,19 @@ in_situ:
 
 
 # DAG PROCESS SETTINGS 
+static_topography:
+  dem: "static/tsf_dem.tif"
+  # PI is elevation minus the mean elevation in this local pixel window.
+  pi_window_size: 3
+  results:
+    output_dir: "results/static_features"
+    raster_format: "GTiff"
+    metadata_filename: "metadata.json"
+    filenames:
+      dem: "dem.tif"
+      slope: "slope.tif"
+      pi: "pi.tif"
+
 slope_stability: 
   inputs:
     los:
