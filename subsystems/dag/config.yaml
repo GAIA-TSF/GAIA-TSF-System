@@ -48,6 +48,8 @@ in_situ:
   validation:
     insar_directory: "inputs/los"
     filename_pattern: "tsf_los_*.tif"
+    # Nodata-aware InSAR pixel window centred on each in-situ location.
+    sampling_window_size: 3
     # Both raster series are stored in metres; validation output uses mm.
     unit_scale: 1000.0
     output_csv: "results/validation/insar_insitu_colocation.csv"

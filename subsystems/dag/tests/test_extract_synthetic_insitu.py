@@ -36,12 +36,15 @@ def test_extracts_all_geopackage_points_with_window_mean(tmp_path):
         dst.write(raster, 1)
     los = project / "inputs" / "los"
     los.mkdir()
+    insar_raster = np.zeros((5, 5), dtype="float32")
+    insar_raster[1, 1] = 0.09
+    insar_raster[3, 3] = 0.18
     with rasterio.open(
         los / "tsf_los_20180101.tif", "w", driver="GTiff",
         width=5, height=5, count=1, dtype="float32", crs="EPSG:32633",
         transform=from_origin(0, 50, 10, 10),
     ) as dst:
-        dst.write(raster * 2, 1)
+        dst.write(insar_raster, 1)
 
     static = project / "static"
     static.mkdir()
@@ -66,6 +69,7 @@ def test_extracts_all_geopackage_points_with_window_mean(tmp_path):
             "validation": {
                 "insar_directory": "inputs/los",
                 "filename_pattern": "*.tif",
+                "sampling_window_size": 3,
                 "unit_scale": 1000,
                 "output_csv": "results/validation/comparison.csv",
                 "statistics_json": "results/validation/statistics.json",
@@ -90,16 +94,18 @@ def test_extracts_all_geopackage_points_with_window_mean(tmp_path):
 
     comparison = pd.read_csv(project / "results" / "validation" / "comparison.csv")
     assert list(comparison.columns) == ["insar_los", "insitu_deformation"]
-    assert np.allclose(comparison["insar_los"], [12.0, 36.0])
+    # The centre pixels are 90 and 180 mm; the exported values prove that the
+    # comparison uses the configured 3x3 mean (9 pixels), not the centre pixel.
+    assert np.allclose(comparison["insar_los"], [10.0, 20.0])
     assert np.allclose(comparison["insitu_deformation"], [6.0, 18.0])
     statistics = json.loads(
         (project / "results" / "validation" / "statistics.json").read_text()
     )
     assert statistics["sample_count"] == 2
-    assert np.isclose(statistics["mean_absolute_error"], 12.0)
+    assert np.isclose(statistics["mean_absolute_error"], 3.0)
     assert np.isclose(
         statistics["root_mean_squared_error"],
-        np.sqrt((6**2 + 18**2) / 2),
+        np.sqrt((4**2 + 2**2) / 2),
     )
 
 

@@ -44,7 +44,9 @@ def sample_neighbourhood(
 ) -> float:
     """Transform an in-situ WGS84 location and average its raster neighbourhood."""
     if window_size < 1 or window_size % 2 == 0:
-        raise ValueError("in_situ.sampling.window_size must be a positive odd integer")
+        raise ValueError(
+            "in_situ.validation.sampling_window_size must be a positive odd integer"
+        )
     transformer = Transformer.from_crs("EPSG:4326", src.crs, always_xy=True)
     x, y = transformer.transform(longitude, latitude)
     row, col = src.index(x, y)
@@ -116,7 +118,7 @@ def compare(config_path: Path, project_dir: Path | None = None) -> pd.DataFrame:
     insar_files = sorted(insar_dir.glob(validation.get("filename_pattern", "*.tif")))
     if not insar_files:
         raise FileNotFoundError(f"No InSAR GeoTIFFs found in {insar_dir}")
-    window_size = int(settings.get("sampling", {}).get("window_size", 3))
+    window_size = int(validation.get("sampling_window_size", 3))
     scale = float(validation.get("unit_scale", 1000.0))
 
     rows: list[dict[str, float]] = []

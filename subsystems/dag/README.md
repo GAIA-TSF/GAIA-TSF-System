@@ -104,7 +104,8 @@ dates in the in-situ CSV. It writes a two-column
 `insar_los,insitu_deformation` comparison CSV and a JSON report containing
 sample counts, dataset means, bias, MAE, RMSE, Pearson correlation, and R².
 Their paths and the raster-to-output unit scale are configured under
-`in_situ.validation`.
+`in_situ.validation`. `sampling_window_size: 3` selects a 3×3 nodata-aware
+InSAR mean centred on every in-situ location.
 
 
 ## Run the pipelines 
