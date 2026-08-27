@@ -46,7 +46,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             )
         except ValueError as e:
             # Handle pygmtsar empty result GeoDataFrame initialization failure
-            if "without a geometry column is not supported" in str(e):
+            if 'without a geometry column is not supported' in str(e):
                 return GeoDataFrame()
             raise e
 
