@@ -125,6 +125,35 @@ Non-finite pixels remain missing and constant-valued features normalize to
 zero. With `per_feature: true`, each feature is scaled independently to prevent
 large-range variables from dominating downstream models.
 
+Missing-value handling is also disabled by default. Enable mean or median
+imputation, or consistently drop incomplete sample positions across features:
+
+```yaml
+preprocessing:
+  missing_values:
+    enabled: true
+    strategy: median  # mean | median | drop
+    max_nan_ratio: 0.2
+```
+
+Structural nodata outside configured TSF masks remains missing and is excluded
+from the missing-ratio calculation.
+
+Logarithmic outlier transformation is likewise opt-in. By default the signed
+`log1p` form is used, preserving the direction of negative deformation values:
+
+```yaml
+preprocessing:
+  outliers:
+    enabled: true
+    method: log
+    features: [precipitation, precip_30d]
+    signed_log: true
+```
+
+An empty `features` list transforms every generated feature. The same stage
+also supports quantile clipping through `method: clip` and `clip_range`.
+
 Generate the static DEM-derived topographic feature set (DEM, slope in degrees,
 and PI/topographic position index):
 

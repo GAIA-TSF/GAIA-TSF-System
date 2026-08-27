@@ -212,11 +212,18 @@ preprocessing:
     per_feature: true
 
   missing_values:
+    # Disabled by default; enable explicitly to impute or drop incomplete samples.
+    enabled: false
     strategy: "median"   # mean | median | drop
     max_nan_ratio: 0.2
 
   outliers:
-    method: "clip"     # clip | log
+    # Disabled by default. With an empty feature list, apply to every feature.
+    enabled: false
+    method: "log"      # log | clip
+    features: []
+    # Signed log1p supports both positive and negative deformation values.
+    signed_log: true
     clip_range: [0.01, 0.99]
 
   categorical:

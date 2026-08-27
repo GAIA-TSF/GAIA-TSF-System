@@ -15,7 +15,9 @@ import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
 from subsystems.dag.plugins.ingestion.meteo_loader import MeteoRasterLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
+from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.raster import RasterProfile, RasterTimeSeries, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -59,6 +61,7 @@ class MeteoFeaturePipeline(Pipeline):
 
         data = {name: series.data for name, series in series_by_name.items()}
         static = scenario.get('static', {})
+        mask = None
         if static:
             if not isinstance(static, dict):
                 raise ValueError('meteorology.static must be a mapping.')
@@ -76,6 +79,14 @@ class MeteoFeaturePipeline(Pipeline):
             daily_features,
             reference.dates,
             insar_reference.dates,
+        )
+        features = handle_missing_values(
+            features,
+            self.config.get('preprocessing', {}).get('missing_values'),
+            mask,
+        )
+        features = transform_outliers(
+            features, self.config.get('preprocessing', {}).get('outliers')
         )
         features = normalize_features(
             features, self.config.get('preprocessing', {}).get('normalization')
@@ -103,6 +114,12 @@ class MeteoFeaturePipeline(Pipeline):
                 'processing_parameters': feature_config,
                 'normalization': self.config.get('preprocessing', {}).get(
                     'normalization', {'enabled': False}
+                ),
+                'missing_values': self.config.get('preprocessing', {}).get(
+                    'missing_values', {'enabled': False}
+                ),
+                'outliers': self.config.get('preprocessing', {}).get(
+                    'outliers', {'enabled': False}
                 ),
                 'dates': [value.isoformat() for value in insar_reference.dates],
                 'meteorological_dates': [

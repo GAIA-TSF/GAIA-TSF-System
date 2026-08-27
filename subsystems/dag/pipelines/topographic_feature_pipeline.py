@@ -16,7 +16,9 @@ from subsystems.dag.plugins.features.topographic_features import (
     TopographicFeatureExtractor,
 )
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
+from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.raster import RasterProfile
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -71,6 +73,12 @@ class TopographicFeaturePipeline(Pipeline):
         features = self.extractor.compute(
             dem, pixel_size_x, pixel_size_y, pi_window_size
         )
+        features = handle_missing_values(
+            features, self.config.get('preprocessing', {}).get('missing_values')
+        )
+        features = transform_outliers(
+            features, self.config.get('preprocessing', {}).get('outliers')
+        )
         features = normalize_features(
             features, self.config.get('preprocessing', {}).get('normalization')
         )
@@ -79,6 +87,12 @@ class TopographicFeaturePipeline(Pipeline):
         )
         normalized = isinstance(normalization, dict) and bool(
             normalization.get('enabled', False)
+        )
+        outliers = self.config.get('preprocessing', {}).get('outliers', {})
+        log_transformed = (
+            isinstance(outliers, dict)
+            and bool(outliers.get('enabled', False))
+            and str(outliers.get('method', 'log')).lower() == 'log'
         )
         output = settings.get('results', {})
         if not isinstance(output, dict):
@@ -104,10 +118,22 @@ class TopographicFeaturePipeline(Pipeline):
                 'pi_definition': 'elevation minus local mean elevation',
                 'pi_window_size': pi_window_size,
                 'normalization': normalization,
+                'missing_values': self.config.get('preprocessing', {}).get(
+                    'missing_values', {'enabled': False}
+                ),
+                'outliers': outliers,
                 'units': (
                     {'dem': 'normalized', 'slope': 'normalized', 'pi': 'normalized'}
                     if normalized
-                    else {'dem': 'm', 'slope': 'degree', 'pi': 'm'}
+                    else (
+                        {
+                            'dem': 'log-transformed',
+                            'slope': 'log-transformed',
+                            'pi': 'log-transformed',
+                        }
+                        if log_transformed
+                        else {'dem': 'm', 'slope': 'degree', 'pi': 'm'}
+                    )
                 ),
                 'output_files': output_paths,
                 'statistics': {

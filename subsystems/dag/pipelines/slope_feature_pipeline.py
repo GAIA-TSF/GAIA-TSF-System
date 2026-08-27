@@ -18,7 +18,9 @@ import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
+from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -55,6 +57,14 @@ class SlopeFeaturePipeline(Pipeline):
         mask = self._load_mask(mask_path, series.data.shape[1:])
         masked_data = apply_mask(series.data, mask)
         features = self.extractor.compute(masked_data, series.dates, feature_config)
+        features = handle_missing_values(
+            features,
+            self.config.get('preprocessing', {}).get('missing_values'),
+            mask,
+        )
+        features = transform_outliers(
+            features, self.config.get('preprocessing', {}).get('outliers')
+        )
         features = normalize_features(
             features, self.config.get('preprocessing', {}).get('normalization')
         )
@@ -180,6 +190,12 @@ class SlopeFeaturePipeline(Pipeline):
             'processing_parameters': feature_config,
             'normalization': self.config.get('preprocessing', {}).get(
                 'normalization', {'enabled': False}
+            ),
+            'missing_values': self.config.get('preprocessing', {}).get(
+                'missing_values', {'enabled': False}
+            ),
+            'outliers': self.config.get('preprocessing', {}).get(
+                'outliers', {'enabled': False}
             ),
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
