@@ -47,7 +47,9 @@ def resolve_temporal_window(
         end_date = date.fromisoformat(end_value)
         acquisition_dates = [date.fromisoformat(value) for value in dates]
     except ValueError as exc:
-        raise ValueError('MAP temporal windows require ISO YYYY-MM-DD acquisition dates.') from exc
+        raise ValueError(
+            'MAP temporal windows require ISO YYYY-MM-DD acquisition dates.'
+        ) from exc
     if end_date < start_date:
         raise ValueError(f'Temporal window {name} ends before it starts.')
     selected = [

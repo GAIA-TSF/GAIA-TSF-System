@@ -219,7 +219,9 @@ class FeatureLoader:
 
         source_day_values = self._parse_dates(source_dates, name)
         reference_day_values = self._parse_dates(reference_dates, 'reference')
-        indices = np.searchsorted(source_day_values, reference_day_values, side='right') - 1
+        indices = (
+            np.searchsorted(source_day_values, reference_day_values, side='right') - 1
+        )
         if np.any(indices < 0):
             first_missing = reference_dates[int(np.flatnonzero(indices < 0)[0])]
             raise ValueError(

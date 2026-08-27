@@ -267,9 +267,7 @@ def generate_tsf_dem():
         dem_rng.normal(0.0, DEM_ROUGHNESS_STD, (NY, NX)),
         sigma=5,
     )
-    return (regional_terrain + impoundment + embankment + roughness).astype(
-        np.float32
-    )
+    return (regional_terrain + impoundment + embankment + roughness).astype(np.float32)
 
 
 ### SYNTHETIC METEODATA ###
@@ -301,9 +299,7 @@ def generate_meteodata():
     temperature_mean = seasonal_temperature + np.random.normal(
         0, 3.0, len(simulation_days)
     )
-    diurnal_range = np.maximum(
-        2.0, np.random.normal(8.0, 2.0, len(simulation_days))
-    )
+    diurnal_range = np.maximum(2.0, np.random.normal(8.0, 2.0, len(simulation_days)))
     temperature_min = temperature_mean - diurnal_range / 2
     temperature_max = temperature_mean + diurnal_range / 2
 
