@@ -17,7 +17,9 @@ class BulkUploadScheduler(GaiaBase):
     def __init__(self, project_path: Optional[str] = None):
         super().__init__(SubsystemId.EOU, project_path=project_path)
 
-        bulk_import_settings = self.settings.get('eou', {}).get('bulk_import', {}) if self.settings else {}
+        bulk_import_settings = (
+            self.settings.get('eou', {}).get('bulk_import', {}) if self.settings else {}
+        )
         self.interval = bulk_import_settings.get('scan_interval_seconds', 3600)
         self.lookback_days = bulk_import_settings.get('lookback_days', 3)
         self.quicklook = False
@@ -56,9 +58,7 @@ class BulkUploadScheduler(GaiaBase):
             end = today.isoformat()
             start = start_date.isoformat()
 
-            self.logger.info(
-                f'Scanning catalog window: {start} to {end}'
-            )
+            self.logger.info(f'Scanning catalog window: {start} to {end}')
             # -------------------------------
 
             for filter_node in self.project_config.eou:

@@ -64,8 +64,7 @@ class TestBulkUploadScheduler:
         # Resolve download destination from backend root data directory
         data_dir = Path(SettingsReader()['storage']['data_dir']).resolve()
         download_dirs = [
-            data_dir / item.target_dir
-            for item in scheduler.project_config.eou
+            data_dir / item.target_dir for item in scheduler.project_config.eou
         ]
 
         try:
@@ -86,7 +85,9 @@ class TestBulkUploadScheduler:
                             item.unlink()
                     download_dir.rmdir()
 
-    def test_SCH_004_scheduler_start_stop_lifecycle(self, project_config_path, monkeypatch):
+    def test_SCH_004_scheduler_start_stop_lifecycle(
+        self, project_config_path, monkeypatch
+    ):
         """Test background thread lifecycle management for BulkUploadScheduler."""
         monkeypatch.setenv('GAIA_PROJECT_PATH', str(project_config_path))
         scheduler = BulkUploadScheduler(project_path=project_config_path)
