@@ -35,9 +35,7 @@ class BulkUploadScheduler(GaiaBase):
         self.lookback_days = eou_settings.get('lookback_days', 3)
         self.quicklook = False
 
-        self.scheduler = Scheduler(
-            interval_seconds=self.interval, logger=self.logger
-        )
+        self.scheduler = Scheduler(interval_seconds=self.interval, logger=self.logger)
 
     def start(self) -> None:
         """Starts the periodic background scanning thread."""
