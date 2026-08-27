@@ -18,6 +18,7 @@ import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.temporal_features import TemporalFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 from subsystems.dag.utils.temporal import temporal_gradient
@@ -82,6 +83,10 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 mask=mask,
                 result_config=result_config,
             ),
+        )
+        temporal_features = normalize_features(
+            temporal_features,
+            self.config.get('preprocessing', {}).get('normalization'),
         )
         output_paths = write_feature_rasters(
             features=temporal_features,
@@ -311,6 +316,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             ],
             'creation_date': datetime.now(tz=UTC).isoformat(),
             'processing_parameters': result_config,
+            'normalization': self.config.get('preprocessing', {}).get(
+                'normalization', {'enabled': False}
+            ),
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
             'spatial_reference': str(profile.crs),

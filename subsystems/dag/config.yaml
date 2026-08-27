@@ -206,6 +206,8 @@ meteorology:
 preprocessing:
 
   normalization:
+    # Disabled by default; enable explicitly for model-ready normalized features.
+    enabled: false
     method: "zscore"   # minmax | zscore
     per_feature: true
 

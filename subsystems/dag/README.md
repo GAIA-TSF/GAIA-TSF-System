@@ -110,6 +110,21 @@ InSAR mean centred on every in-situ location.
 
 ## Run the pipelines 
 
+Feature normalization is disabled by default. Enable it globally for generated
+DAG features with either Min-Max scaling or Z-score standardization:
+
+```yaml
+preprocessing:
+  normalization:
+    enabled: true
+    method: zscore  # zscore | minmax
+    per_feature: true
+```
+
+Non-finite pixels remain missing and constant-valued features normalize to
+zero. With `per_feature: true`, each feature is scaled independently to prevent
+large-range variables from dominating downstream models.
+
 Generate the static DEM-derived topographic feature set (DEM, slope in degrees,
 and PI/topographic position index):
 

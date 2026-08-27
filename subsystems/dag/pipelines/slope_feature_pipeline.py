@@ -18,6 +18,7 @@ import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -54,6 +55,9 @@ class SlopeFeaturePipeline(Pipeline):
         mask = self._load_mask(mask_path, series.data.shape[1:])
         masked_data = apply_mask(series.data, mask)
         features = self.extractor.compute(masked_data, series.dates, feature_config)
+        features = normalize_features(
+            features, self.config.get('preprocessing', {}).get('normalization')
+        )
 
         filenames = result_config['filenames']
         if not isinstance(filenames, dict):
@@ -174,6 +178,9 @@ class SlopeFeaturePipeline(Pipeline):
             'feature_names': sorted(features),
             'creation_date': datetime.now(tz=UTC).isoformat(),
             'processing_parameters': feature_config,
+            'normalization': self.config.get('preprocessing', {}).get(
+                'normalization', {'enabled': False}
+            ),
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
             'spatial_reference': str(profile.crs),

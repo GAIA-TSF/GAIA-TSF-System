@@ -16,6 +16,7 @@ from subsystems.dag.plugins.features.topographic_features import (
     TopographicFeatureExtractor,
 )
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.raster import RasterProfile
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -70,6 +71,15 @@ class TopographicFeaturePipeline(Pipeline):
         features = self.extractor.compute(
             dem, pixel_size_x, pixel_size_y, pi_window_size
         )
+        features = normalize_features(
+            features, self.config.get('preprocessing', {}).get('normalization')
+        )
+        normalization = self.config.get('preprocessing', {}).get(
+            'normalization', {}
+        )
+        normalized = isinstance(normalization, dict) and bool(
+            normalization.get('enabled', False)
+        )
         output = settings.get('results', {})
         if not isinstance(output, dict):
             raise ValueError('static_topography.results must be a mapping.')
@@ -93,7 +103,12 @@ class TopographicFeaturePipeline(Pipeline):
                 'source_dem': str(dem_path),
                 'pi_definition': 'elevation minus local mean elevation',
                 'pi_window_size': pi_window_size,
-                'units': {'dem': 'm', 'slope': 'degree', 'pi': 'm'},
+                'normalization': normalization,
+                'units': (
+                    {'dem': 'normalized', 'slope': 'normalized', 'pi': 'normalized'}
+                    if normalized
+                    else {'dem': 'm', 'slope': 'degree', 'pi': 'm'}
+                ),
                 'output_files': output_paths,
                 'statistics': {
                     name: feature_statistics(values)

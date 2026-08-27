@@ -15,6 +15,7 @@ import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
 from subsystems.dag.plugins.ingestion.meteo_loader import MeteoRasterLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
+from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.raster import RasterProfile, RasterTimeSeries, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -76,6 +77,9 @@ class MeteoFeaturePipeline(Pipeline):
             reference.dates,
             insar_reference.dates,
         )
+        features = normalize_features(
+            features, self.config.get('preprocessing', {}).get('normalization')
+        )
         output_dir = self._resolve_path(str(results['output_dir']))
         filenames = results.get('filenames', {})
         if not isinstance(filenames, dict):
@@ -97,6 +101,9 @@ class MeteoFeaturePipeline(Pipeline):
                 'feature_names': sorted(features),
                 'creation_date': datetime.now(tz=timezone.utc).isoformat(),
                 'processing_parameters': feature_config,
+                'normalization': self.config.get('preprocessing', {}).get(
+                    'normalization', {'enabled': False}
+                ),
                 'dates': [value.isoformat() for value in insar_reference.dates],
                 'meteorological_dates': [
                     value.isoformat() for value in reference.dates
