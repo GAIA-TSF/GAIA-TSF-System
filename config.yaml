@@ -45,6 +45,7 @@ qcl:
       - sentinel-2
     insitu_mime_types:
       - application/x-postgresql
+    coverage_threshold: 0.95
   validation_rules:
     in_situ:
       require_unique_id: true
