@@ -291,9 +291,29 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         return aoi_geom
 
+    def data_dir(self):
+        """
+        Get the data directory for the project.
 
-class SettingsReader(ConfigReader):
+        The directory is created if it does not already exist.
+
+        :return: Path to the project data directory.
+        :rtype: pathlib.Path
+        """
+        root_dir = SettingsReader()['storage']['data_dir']
+
+        project_dir = Path(root_dir, self.site_id)
+        if not project_dir.exists():
+            project_dir.mkdir()
+
+        return project_dir
+
+
+class SettingsReader(ConfigReader, YamlValidator):
     """Get internal system settings."""
 
     def __init__(self):
-        super().__init__(Path(__file__).parent.parent / 'config.yaml')
+        ConfigReader.__init__(self, Path(__file__).parent.parent / 'config.yaml')
+        YamlValidator.__init__(self, {'storage': {'data_dir': None}})
+
+        self.validate(dict(self))
