@@ -6,10 +6,9 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
+import yaml
 from rasterio.transform import from_origin
 from shapely.geometry import Point
-import yaml
-
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "extract_synthetic_tsf_in-situ_deformations.py"
 SPEC = importlib.util.spec_from_file_location("extract_synthetic_insitu", SCRIPT)

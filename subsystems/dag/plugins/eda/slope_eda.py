@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-import json
-import logging
 
 import numpy as np
 
@@ -14,7 +14,6 @@ from subsystems.dag.core.interfaces import Plugin
 from subsystems.dag.utils import plotting
 from subsystems.dag.utils.raster import temporal_mean, temporal_std
 from subsystems.dag.utils.statistics import finite_values, time_series_statistics
-
 
 LOGGER = logging.getLogger(__name__)
 

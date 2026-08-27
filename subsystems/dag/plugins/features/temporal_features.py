@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date
 import logging
+from datetime import date
 
 import numpy as np
 
 from subsystems.dag.core.interfaces import FeatureExtractor
-
 
 LOGGER = logging.getLogger(__name__)
 

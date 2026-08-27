@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -11,9 +11,9 @@ import numpy as np
 import rasterio
 import yaml
 
+import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
-import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.topographic_features import (
     TopographicFeatureExtractor,
 )
@@ -23,7 +23,6 @@ from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.raster import RasterProfile
 from subsystems.dag.utils.statistics import feature_statistics
-
 
 LOGGER = logging.getLogger(__name__)
 

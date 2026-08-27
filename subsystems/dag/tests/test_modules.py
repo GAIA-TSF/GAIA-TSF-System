@@ -7,10 +7,10 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
-from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
+from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.features.temporal_features import TemporalFeatureExtractor
+from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.raster import apply_mask
 from subsystems.dag.utils.statistics import time_series_statistics
 

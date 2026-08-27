@@ -4,8 +4,8 @@ import json
 
 import numpy as np
 import rasterio
-from rasterio.transform import from_origin
 import yaml
+from rasterio.transform import from_origin
 
 from subsystems.dag.pipelines.topographic_feature_pipeline import (
     TopographicFeaturePipeline,

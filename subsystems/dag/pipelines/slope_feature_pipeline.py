@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from datetime import timezone
+from datetime import datetime, timezone
 
 UTC = timezone.utc
+import logging
 from pathlib import Path
 from typing import Any
-import logging
 
 import numpy as np
 import rasterio
 import yaml
 
+import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
-import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
@@ -25,7 +24,6 @@ from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
-
 
 LOGGER = logging.getLogger(__name__)
 

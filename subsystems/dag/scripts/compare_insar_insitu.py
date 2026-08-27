@@ -3,19 +3,18 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 import json
-from pathlib import Path
 import re
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from pyproj import Transformer
 import rasterio
-from rasterio.windows import Window
 import yaml
-
+from pyproj import Transformer
+from rasterio.windows import Window
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
 DATE_PATTERN = re.compile(r"(20\d{6})")
@@ -87,7 +86,7 @@ def comparison_statistics(comparison: pd.DataFrame) -> dict[str, float | int | N
     )
     denominator = float(np.sum((insitu - np.mean(insitu)) ** 2))
     return {
-        "sample_count": int(len(valid)),
+        "sample_count": len(valid),
         "excluded_count": int(len(comparison) - len(valid)),
         "mean_insar_los": float(np.mean(insar)),
         "mean_insitu_deformation": float(np.mean(insitu)),

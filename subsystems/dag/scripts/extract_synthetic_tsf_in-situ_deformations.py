@@ -8,18 +8,18 @@ deterministic sensor noise is applied, and observations are written to CSV.
 from __future__ import annotations
 
 import argparse
+import re
 from datetime import datetime
 from pathlib import Path
-import re
 from typing import Any
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
+import yaml
 from pyproj import Transformer
 from rasterio.windows import Window
-import yaml
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
 DATE_PATTERN = re.compile(r"(20\d{6})")

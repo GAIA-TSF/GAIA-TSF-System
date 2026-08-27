@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from pathlib import Path
 import logging
 import re
+from datetime import date, datetime
+from pathlib import Path
 
 import numpy as np
 import rasterio
 
 from subsystems.dag.core.interfaces import RasterLoader
 from subsystems.dag.utils.raster import RasterProfile, RasterTimeSeries
-
 
 LOGGER = logging.getLogger(__name__)
 

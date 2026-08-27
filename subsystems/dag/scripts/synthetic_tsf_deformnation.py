@@ -18,16 +18,17 @@ Outputs:
 - Failure timeline CSV
 """
 
+import json
 import os
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import rasterio
+from pyproj import Transformer
 from rasterio.transform import from_origin
 from scipy.ndimage import gaussian_filter
-from pathlib import Path
-from datetime import datetime, timedelta
-import json
-from pyproj import Transformer
 
 ### CONFIGURATION ###
 

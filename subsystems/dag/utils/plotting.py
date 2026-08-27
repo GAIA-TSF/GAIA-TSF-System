@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from pathlib import Path
-import os
 
 os.environ.setdefault('MPLCONFIGDIR', '/tmp/matplotlib')
 

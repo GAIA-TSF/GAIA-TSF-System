@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
-import logging
 
 import numpy as np
 import rasterio
 import yaml
 
+import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
-import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.eda.slope_eda import SlopeEDA, SlopeEDAResult
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.raster import apply_mask, write_single_band_raster
-
 
 LOGGER = logging.getLogger(__name__)
 

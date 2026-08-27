@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+import csv
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
-import csv
 
 import numpy as np
 import rasterio
 import yaml
 
+import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
-import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
 from subsystems.dag.plugins.ingestion.meteo_loader import MeteoRasterLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
