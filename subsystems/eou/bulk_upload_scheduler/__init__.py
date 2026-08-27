@@ -2,7 +2,7 @@ import datetime
 from typing import Optional
 
 from lib.base import GaiaBase, SubsystemId
-from lib.scheduler import BaseScheduler
+from lib.scheduler import Scheduler
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 
 
@@ -35,7 +35,7 @@ class BulkUploadScheduler(GaiaBase):
         self.lookback_days = eou_settings.get('lookback_days', 3)
         self.quicklook = False
 
-        self.scheduler = BaseScheduler(
+        self.scheduler = Scheduler(
             interval_seconds=self.interval, logger=self.logger
         )
 

@@ -3,7 +3,7 @@ import time
 from typing import Callable, Optional, Any
 
 
-class BaseScheduler:
+class Scheduler:
     """
     Thread-safe scheduler for running periodic tasks.
     Supports dependency injection for logging.

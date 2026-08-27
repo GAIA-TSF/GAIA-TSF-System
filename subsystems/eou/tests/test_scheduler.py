@@ -2,7 +2,7 @@ import shutil
 import time
 import pytest
 
-from lib.scheduler import BaseScheduler
+from lib.scheduler import Scheduler
 from subsystems.eou.bulk_upload_scheduler import BulkUploadScheduler
 from tests.utils import TestUtils
 
@@ -22,7 +22,7 @@ class TestBulkUploadScheduler:
         def sample_task():
             execution_count['val'] += 1
 
-        sched = BaseScheduler(interval_seconds=1)
+        sched = Scheduler(interval_seconds=1)
         sched.start(sample_task)
 
         # Ensure calling start() twice while running doesn't crash or duplicate threads
