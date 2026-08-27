@@ -20,7 +20,7 @@ Outputs:
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -51,7 +51,7 @@ YMAX = 6656348  # 6700000
 YEARS = 3
 REVISIT_DAYS = 12
 
-START_DATE = datetime(2018, 1, 1)
+START_DATE = datetime(2018, 1, 1, tzinfo=timezone.utc)
 
 INCIDENCE_DEG = 39.0
 FAILURE_START_DAY = 730

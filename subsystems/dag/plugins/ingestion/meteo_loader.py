@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -82,7 +82,7 @@ class MeteoRasterLoader(RasterLoader):
                 'Invalid meteo filename. Expected a YYYYMMDD.tif suffix, '
                 f'got {path.name}'
             )
-        return datetime.strptime(match.group(1), '%Y%m%d').date()
+        return date.fromisoformat(match.group(1))
 
     @staticmethod
     def validate_profile(

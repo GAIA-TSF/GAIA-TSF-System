@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -30,7 +30,7 @@ def parse_date(filename: str) -> datetime:
     match = DATE_PATTERN.search(filename)
     if not match:
         raise ValueError(f"Cannot parse an acquisition date from {filename!r}")
-    return datetime.strptime(match.group(1), "%Y%m%d")
+    return datetime.strptime(match.group(1), "%Y%m%d").replace(tzinfo=timezone.utc)
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -38,7 +38,7 @@ def load_config(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
     if not isinstance(config, dict):
-        raise ValueError(f"Configuration must be a mapping: {path}")
+        raise TypeError(f"Configuration must be a mapping: {path}")
     return config
 
 
@@ -103,7 +103,7 @@ def extract(
     config = load_config(config_path)
     settings = config.get("in_situ")
     if not isinstance(settings, dict):
-        raise ValueError("in_situ must be a mapping in the DAG configuration")
+        raise TypeError("in_situ must be a mapping in the DAG configuration")
     if project_dir is None:
         root = config.get("project_dir")
         if not root:

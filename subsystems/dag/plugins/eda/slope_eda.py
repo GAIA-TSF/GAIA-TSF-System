@@ -113,7 +113,7 @@ class SlopeEDA(Plugin):
     ) -> EDAOutputPaths:
         filenames = options['filenames']
         if not isinstance(filenames, dict):
-            raise ValueError('EDA filenames configuration must be a mapping.')
+            raise TypeError('EDA filenames configuration must be a mapping.')
         return EDAOutputPaths(
             statistics=output_dir / str(filenames['statistics']),
             temporal_mean_std=output_dir / str(filenames['temporal_mean_std']),

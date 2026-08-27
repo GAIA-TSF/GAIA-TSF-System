@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,7 @@ def load_config(path: Path) -> dict[str, Any]:
     with path.open(encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
     if not isinstance(config, dict):
-        raise ValueError(f"Configuration must be a mapping: {path}")
+        raise TypeError(f"Configuration must be a mapping: {path}")
     return config
 
 
@@ -34,7 +34,7 @@ def parse_date(filename: str) -> datetime:
     match = DATE_PATTERN.search(filename)
     if not match:
         raise ValueError(f"Cannot parse an acquisition date from {filename!r}")
-    return datetime.strptime(match.group(1), "%Y%m%d")
+    return datetime.strptime(match.group(1), "%Y%m%d").replace(tzinfo=timezone.utc)
 
 
 def sample_neighbourhood(
@@ -112,10 +112,10 @@ def compare(config_path: Path, project_dir: Path | None = None) -> pd.DataFrame:
     config = load_config(config_path)
     settings = config.get("in_situ")
     if not isinstance(settings, dict):
-        raise ValueError("in_situ must be a mapping in the DAG configuration")
+        raise TypeError("in_situ must be a mapping in the DAG configuration")
     validation = settings.get("validation")
     if not isinstance(validation, dict):
-        raise ValueError("in_situ.validation must be a mapping")
+        raise TypeError("in_situ.validation must be a mapping")
     root = project_dir or config.get("project_dir")
     if not root:
         raise ValueError("project_dir is required")

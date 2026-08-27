@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from datetime import date, datetime, timezone
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -56,7 +57,7 @@ class MeteoFeaturePipeline(Pipeline):
         table_config = inputs.get('table')
         if table_config is not None:
             if not isinstance(table_config, dict):
-                raise ValueError('meteorology.inputs.table must be a mapping.')
+                raise TypeError('meteorology.inputs.table must be a mapping.')
             series_by_name = self._load_table_inputs(
                 table_config, scenario, requested_inputs
             )
@@ -78,7 +79,7 @@ class MeteoFeaturePipeline(Pipeline):
         mask = None
         if static:
             if not isinstance(static, dict):
-                raise ValueError('meteorology.static must be a mapping.')
+                raise TypeError('meteorology.static must be a mapping.')
             mask_value = static.get('tsf_mask')
             if mask_value:
                 mask = self._load_mask(
@@ -108,7 +109,7 @@ class MeteoFeaturePipeline(Pipeline):
         output_dir = self._resolve_path(str(results['output_dir']))
         filenames = results.get('filenames', {})
         if not isinstance(filenames, dict):
-            raise ValueError('meteorology.results.filenames must be a mapping.')
+            raise TypeError('meteorology.results.filenames must be a mapping.')
         output_paths = write_feature_rasters(
             features,
             output_dir,
@@ -219,7 +220,7 @@ class MeteoFeaturePipeline(Pipeline):
             raise FileNotFoundError(f'Meteorological table does not exist: {path}')
         columns = table.get('columns', {})
         if not isinstance(columns, dict):
-            raise ValueError('meteorology.inputs.table.columns must be a mapping.')
+            raise TypeError('meteorology.inputs.table.columns must be a mapping.')
         date_column = str(table.get('date_column', 'date'))
 
         dates: list[date] = []
@@ -241,7 +242,7 @@ class MeteoFeaturePipeline(Pipeline):
         date_tuple = tuple(dates)
         if not date_tuple:
             raise ValueError(f'Meteorological table is empty: {path}')
-        date_pairs = zip(date_tuple, date_tuple[1:])
+        date_pairs = pairwise(date_tuple)
         if any(current <= previous for previous, current in date_pairs):
             raise ValueError(
                 'Meteorological table dates must be strictly chronological.'
@@ -276,12 +277,10 @@ class MeteoFeaturePipeline(Pipeline):
 
     def _parse_table_date(self, value: str) -> date:
         text = value.strip()
-        for date_format in ('%Y%m%d', '%Y-%m-%d'):
-            try:
-                return datetime.strptime(text, date_format).date()
-            except ValueError:
-                pass
-        raise ValueError(f'Invalid meteorological date: {value!r}')
+        try:
+            return date.fromisoformat(text)
+        except ValueError as exc:
+            raise ValueError(f'Invalid meteorological date: {value!r}') from exc
 
     def _load_input(
         self, name: str, inputs: dict[str, Any]
@@ -319,7 +318,7 @@ class MeteoFeaturePipeline(Pipeline):
         with path.open('r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
         if not isinstance(config, dict):
-            raise ValueError('DAG config must be a mapping.')
+            raise TypeError('DAG config must be a mapping.')
         return config
 
     def _project_dir(self) -> Path:
@@ -334,7 +333,7 @@ class MeteoFeaturePipeline(Pipeline):
     def _mapping(self, value: dict[str, Any], key: str) -> dict[str, Any]:
         result = value.get(key)
         if not isinstance(result, dict):
-            raise ValueError(f'{key} must be a mapping.')
+            raise TypeError(f'{key} must be a mapping.')
         return result
 
     def _resolve_path(self, value: str) -> Path:

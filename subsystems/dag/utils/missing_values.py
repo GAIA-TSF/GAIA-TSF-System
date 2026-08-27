@@ -37,7 +37,7 @@ def handle_missing_values(
     """
     settings = config or {}
     if not isinstance(settings, dict):
-        raise ValueError('preprocessing.missing_values must be a mapping.')
+        raise TypeError('preprocessing.missing_values must be a mapping.')
     if not bool(settings.get('enabled', False)):
         return features
     strategy = str(settings.get('strategy', 'median')).lower()

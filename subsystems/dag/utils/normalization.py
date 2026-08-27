@@ -34,7 +34,7 @@ def normalize_features(
     """
     settings = config or {}
     if not isinstance(settings, dict):
-        raise ValueError('preprocessing.normalization must be a mapping.')
+        raise TypeError('preprocessing.normalization must be a mapping.')
     if not bool(settings.get('enabled', False)):
         return features
     method = str(settings.get('method', 'zscore')).lower()

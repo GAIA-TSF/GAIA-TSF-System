@@ -36,7 +36,7 @@ class TopographicFeaturePipeline(Pipeline):
         with config_path.open(encoding='utf-8') as stream:
             self.config = yaml.safe_load(stream)
         if not isinstance(self.config, dict):
-            raise ValueError('DAG config must be a mapping.')
+            raise TypeError('DAG config must be a mapping.')
         project_dir = self.config.get('project_dir')
         if not isinstance(project_dir, str) or not project_dir.strip():
             raise KeyError('Missing required project_dir in config.yaml.')
@@ -64,7 +64,7 @@ class TopographicFeaturePipeline(Pipeline):
         """
         settings = self.config.get('static_topography')
         if not isinstance(settings, dict):
-            raise ValueError('static_topography must be a mapping.')
+            raise TypeError('static_topography must be a mapping.')
         dem_path = self._resolve(str(settings.get('dem', 'static/tsf_dem.tif')))
         if not dem_path.exists():
             raise FileNotFoundError(f'DEM does not exist: {dem_path}')
@@ -109,11 +109,11 @@ class TopographicFeaturePipeline(Pipeline):
         )
         output = settings.get('results', {})
         if not isinstance(output, dict):
-            raise ValueError('static_topography.results must be a mapping.')
+            raise TypeError('static_topography.results must be a mapping.')
         output_dir = self._resolve(str(output.get('output_dir', 'results/static_features')))
         filenames = output.get('filenames', {})
         if not isinstance(filenames, dict):
-            raise ValueError('static_topography.results.filenames must be a mapping.')
+            raise TypeError('static_topography.results.filenames must be a mapping.')
         output_paths = write_feature_rasters(
             features,
             output_dir,

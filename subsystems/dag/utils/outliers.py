@@ -29,7 +29,7 @@ def transform_outliers(
     """
     settings = config or {}
     if not isinstance(settings, dict):
-        raise ValueError('preprocessing.outliers must be a mapping.')
+        raise TypeError('preprocessing.outliers must be a mapping.')
     if not bool(settings.get('enabled', False)):
         return features
     method = str(settings.get('method', 'log')).lower()
@@ -37,7 +37,7 @@ def transform_outliers(
         raise ValueError("Outlier method must be 'log' or 'clip'.")
     configured_names = settings.get('features', [])
     if not isinstance(configured_names, list):
-        raise ValueError('preprocessing.outliers.features must be a list.')
+        raise TypeError('preprocessing.outliers.features must be a list.')
     selected = {str(name) for name in configured_names}
     unknown = selected.difference(features)
     if unknown:

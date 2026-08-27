@@ -71,7 +71,7 @@ class SlopeFeaturePipeline(Pipeline):
 
         filenames = result_config['filenames']
         if not isinstance(filenames, dict):
-            raise ValueError('Feature filenames configuration must be a mapping.')
+            raise TypeError('Feature filenames configuration must be a mapping.')
         output_paths = write_feature_rasters(
             features=features,
             output_dir=output_dir,
@@ -104,7 +104,7 @@ class SlopeFeaturePipeline(Pipeline):
         with config_path.open('r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
         if not isinstance(config, dict):
-            raise ValueError('DAG config must be a mapping.')
+            raise TypeError('DAG config must be a mapping.')
         return config
 
     def _scenario_config(self) -> dict[str, Any]:
@@ -115,7 +115,7 @@ class SlopeFeaturePipeline(Pipeline):
                 'Missing slope_stability section in config.yaml.',
             ) from exc
         if not isinstance(scenario_config, dict):
-            raise ValueError('slope_stability config must be a mapping.')
+            raise TypeError('slope_stability config must be a mapping.')
         return scenario_config
 
     def _feature_config(self, scenario_config: dict[str, Any]) -> dict[str, bool]:
@@ -126,7 +126,7 @@ class SlopeFeaturePipeline(Pipeline):
                 'Missing slope_stability.feature_engineering section in config.yaml.',
             ) from exc
         if not isinstance(feature_config, dict):
-            raise ValueError('slope_stability.feature_engineering must be a mapping.')
+            raise TypeError('slope_stability.feature_engineering must be a mapping.')
         return {
             str(name): bool(enabled)
             for name, enabled in feature_config.items()

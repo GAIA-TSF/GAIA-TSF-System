@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -92,7 +92,7 @@ class Sentinel1LOSLoader(RasterLoader):
             raise ValueError(
                 f'Invalid LOS filename. Expected tsf_los_YYYYMMDD.tif, got {path.name}',
             )
-        return datetime.strptime(match.group(1), '%Y%m%d').date()
+        return date.fromisoformat(match.group(1))
 
     def _validate_unique_dates(self, dates: tuple[date, ...]) -> None:
         if len(set(dates)) != len(dates):

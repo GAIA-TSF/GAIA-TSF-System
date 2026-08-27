@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -215,7 +216,7 @@ class MeteoFeatureExtractor(FeatureExtractor):
     def _validate_dates(self, dates: tuple[date, ...]) -> None:
         if not dates:
             raise ValueError('At least one meteorological date is required.')
-        if any(current <= previous for previous, current in zip(dates, dates[1:])):
+        if any(current <= previous for previous, current in pairwise(dates)):
             raise ValueError('Meteorological dates must be strictly chronological.')
 
     def _rolling(

@@ -282,7 +282,7 @@ class TemporalFeatureExtractor(FeatureExtractor):
     ) -> dict[str, object]:
         section = config.get(name, {})
         if not isinstance(section, dict):
-            raise ValueError(f'Temporal feature config for {name} must be a mapping.')
+            raise TypeError(f'Temporal feature config for {name} must be a mapping.')
         return section
 
     def _orders(self, config: dict[str, object]) -> list[int]:

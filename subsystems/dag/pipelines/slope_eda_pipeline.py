@@ -68,7 +68,7 @@ class SlopeEDAPipeline(Pipeline):
         with config_path.open('r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
         if not isinstance(config, dict):
-            raise ValueError('DAG config must be a mapping.')
+            raise TypeError('DAG config must be a mapping.')
         return config
 
     def _scenario_config(self) -> dict[str, Any]:
@@ -79,7 +79,7 @@ class SlopeEDAPipeline(Pipeline):
                 'Missing slope_stability section in config.yaml.',
             ) from exc
         if not isinstance(scenario_config, dict):
-            raise ValueError('slope_stability config must be a mapping.')
+            raise TypeError('slope_stability config must be a mapping.')
         return scenario_config
 
     def _create_loader(self) -> Sentinel1LOSLoader:
@@ -134,7 +134,7 @@ class SlopeEDAPipeline(Pipeline):
     ) -> None:
         filenames = result_config['filenames']
         if not isinstance(filenames, dict):
-            raise ValueError('EDA filenames configuration must be a mapping.')
+            raise TypeError('EDA filenames configuration must be a mapping.')
         raster_format = str(result_config.get('raster_format', 'GTiff'))
         write_single_band_raster(
             output_dir / str(filenames['mean_map']),
