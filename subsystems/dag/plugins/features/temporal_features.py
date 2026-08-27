@@ -1,3 +1,5 @@
+"""Lag, difference, rolling, and smoothed temporal raster features."""
+
 from __future__ import annotations
 
 from datetime import date

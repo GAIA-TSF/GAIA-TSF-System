@@ -1,3 +1,5 @@
+"""Opt-in logarithmic transformation and quantile clipping of outliers."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -9,7 +11,22 @@ def transform_outliers(
     features: dict[str, np.ndarray],
     config: dict[str, Any] | None,
 ) -> dict[str, np.ndarray]:
-    """Apply an opt-in log transform or quantile clipping to feature values."""
+    """Implement DA_R_10 with opt-in log transformation or quantile clipping.
+
+    Args:
+        features: Named feature arrays whose non-finite cells must be preserved.
+        config: ``preprocessing.outliers`` mapping. An empty ``features`` list
+            selects all features. ``log`` applies signed ``log1p`` by default;
+            ``clip`` uses the configured lower and upper quantiles.
+
+    Returns:
+        The original mapping when disabled; otherwise, a mapping containing
+        transformed ``float32`` arrays for selected features.
+
+    Raises:
+        ValueError: If configuration, feature names, quantiles, or unsigned-log
+            input values are invalid.
+    """
     settings = config or {}
     if not isinstance(settings, dict):
         raise ValueError('preprocessing.outliers must be a mapping.')

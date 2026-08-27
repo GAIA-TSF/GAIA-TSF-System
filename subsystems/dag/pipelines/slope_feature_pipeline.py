@@ -1,3 +1,5 @@
+"""Generate masked, optionally preprocessed deformation feature rasters."""
+
 from __future__ import annotations
 
 from datetime import datetime

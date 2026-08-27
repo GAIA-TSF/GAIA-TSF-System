@@ -1,4 +1,9 @@
-"""Create synthetic in-situ observations by sampling the TRUE_LOS rasters."""
+"""Create synthetic in-situ observations by sampling TRUE_LOS rasters.
+
+Labelled GeoPackage points are transformed to the raster CRS and sampled with
+a nodata-aware neighborhood. Metre values are converted to millimetres,
+deterministic sensor noise is applied, and observations are written to CSV.
+"""
 
 from __future__ import annotations
 
@@ -29,6 +34,7 @@ def parse_date(filename: str) -> datetime:
 
 
 def load_config(path: Path) -> dict[str, Any]:
+    """Load and validate the top-level DAG YAML mapping."""
     with path.open(encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
     if not isinstance(config, dict):
@@ -41,7 +47,11 @@ def load_observation_points(
     target_crs: Any,
     label_column: str,
 ) -> dict[str, tuple[float, float]]:
-    """Load every uniquely labelled point and transform it to the raster CRS."""
+    """Load uniquely labelled points and transform them to the raster CRS.
+
+    Empty/duplicate labels, absent CRS metadata, and non-point geometries are
+    rejected because they would make temporal observations ambiguous.
+    """
     if not points_file.exists():
         raise FileNotFoundError(f"Observation points file not found: {points_file}")
     frame = gpd.read_file(points_file)
@@ -85,6 +95,11 @@ def extract(
     project_dir: Path | None = None,
     output_csv: Path | None = None,
 ) -> pd.DataFrame:
+    """Extract synthetic observations and write their configured CSV.
+
+    This step does not perform InSAR validation; that operation belongs to the
+    independent ``compare_insar_insitu.py`` script.
+    """
     config = load_config(config_path)
     settings = config.get("in_situ")
     if not isinstance(settings, dict):
@@ -162,6 +177,7 @@ def extract(
 
 
 def main() -> None:
+    """Parse command-line options and execute in-situ extraction."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--project-dir", type=Path)

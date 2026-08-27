@@ -1,3 +1,5 @@
+"""Generate causal multi-band temporal features from Sentinel-1 LOS data."""
+
 from __future__ import annotations
 
 from datetime import date, datetime

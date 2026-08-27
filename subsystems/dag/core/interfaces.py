@@ -1,3 +1,5 @@
+"""Abstract contracts implemented by DAG pipelines, loaders, and extractors."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

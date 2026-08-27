@@ -1,3 +1,5 @@
+"""Static deformation-feature extraction from multi-temporal LOS rasters."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -10,7 +12,7 @@ from subsystems.dag.utils.temporal import linear_trend, nanmean_time, temporal_g
 
 
 class SlopeFeatureExtractor(FeatureExtractor):
-    """Compute deformation features from Sentinel-1 LOS time series."""
+    """Compute DA_R_01 model-ready features from Sentinel-1 LOS time series."""
 
     @property
     def name(self) -> str:

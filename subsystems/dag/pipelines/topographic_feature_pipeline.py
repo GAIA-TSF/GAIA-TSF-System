@@ -1,3 +1,5 @@
+"""Generate static DEM, slope, and PI rasters on the source DEM grid."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -27,9 +29,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TopographicFeaturePipeline(Pipeline):
-    """Create aligned static DEM, slope, and topographic-position features."""
+    """Create DA_R_04 aligned DEM, slope, and topographic-position features."""
 
     def __init__(self, config_path: Path) -> None:
+        """Load DAG configuration and resolve the registered terrain extractor."""
         self.config_path = config_path
         with config_path.open(encoding='utf-8') as stream:
             self.config = yaml.safe_load(stream)
@@ -45,10 +48,21 @@ class TopographicFeaturePipeline(Pipeline):
         self.extractor = extractor
 
     def _resolve(self, value: str) -> Path:
+        """Resolve an absolute path or a path relative to ``project_dir``."""
         path = Path(value).expanduser()
         return path if path.is_absolute() else (self.project_dir / path).resolve()
 
     def run(self) -> dict[str, Any]:
+        """Read the configured DEM and write preprocessed static features.
+
+        Returns:
+            Pipeline name, generated feature names, output directory, and
+            metadata path. Output rasters retain the source DEM grid and CRS.
+
+        Raises:
+            FileNotFoundError: If the source DEM is absent.
+            ValueError: If configuration or raster content is invalid.
+        """
         settings = self.config.get('static_topography')
         if not isinstance(settings, dict):
             raise ValueError('static_topography must be a mapping.')

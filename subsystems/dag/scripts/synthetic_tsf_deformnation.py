@@ -116,6 +116,17 @@ def write_tif(
     dtype='float32',
     nodata=None,
 ):
+    """Write an aligned single-band synthetic GeoTIFF and optional STAC item.
+
+    Args:
+        path: Destination raster path.
+        arr: Two-dimensional values on the global synthetic grid.
+        acquisition_date: Optional acquisition time used for STAC metadata.
+        product_type: Simulation product identifier stored in the STAC item.
+        stage: Integer failure stage from zero (stable) to three (accelerating).
+        dtype: Rasterio-compatible output data type.
+        nodata: Optional output nodata value.
+    """
     with rasterio.open(
         path,
         'w',

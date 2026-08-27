@@ -29,7 +29,7 @@ global:
     chunk_size: [256, 256]
     n_workers: 16
 
-# SYNTHETIC IN-SITU CO-LOCATION
+# SYNTHETIC IN-SITU CO-LOCATION (DA_R_02, DA_R_03)
 in_situ:
   inputs:
     directory: "inputs/true_los"
@@ -56,7 +56,8 @@ in_situ:
     statistics_json: "results/validation/insar_insitu_statistics.json"
 
 
-# DAG PROCESS SETTINGS 
+# DAG PROCESS SETTINGS (DA_R_01)
+# Contextual DEM/slope/PI features contribute to DA_R_04.
 static_topography:
   dem: "static/tsf_dem.tif"
   # PI is elevation minus the mean elevation in this local pixel window.
@@ -70,6 +71,7 @@ static_topography:
       slope: "slope.tif"
       pi: "pi.tif"
 
+# Sentinel-1 model-ready deformation features (DA_R_01).
 slope_stability: 
   inputs:
     los:
@@ -81,7 +83,7 @@ slope_stability:
   feature_engineering:
     cumulative_displacement: true
     velocity: true
-    acceleration: truefinal
+    acceleration: true
     jerk: true
     minimum: true
     maximum: true
@@ -162,7 +164,7 @@ slope_stability:
         polyorder: 2
       filenames: {}
 
-# METEOROLOGICAL FEATURES
+# METEOROLOGICAL FEATURES (DA_R_01, DA_R_02)
 meteorology:
   inputs:
     insar:
@@ -202,23 +204,23 @@ meteorology:
     metadata_filename: "metadata.json"
     filenames: {}
 
-# PREPROCESSING
+# PREPROCESSING (DA_R_05, DA_R_09, DA_R_10)
 preprocessing:
 
   normalization:
-    # Disabled by default; enable explicitly for model-ready normalized features.
+    # DA_R_05. Disabled by default; supports minmax and zscore when enabled.
     enabled: false
     method: "zscore"   # minmax | zscore
     per_feature: true
 
   missing_values:
-    # Disabled by default; enable explicitly to impute or drop incomplete samples.
+    # DA_R_09. Disabled by default; impute or drop incomplete samples when enabled.
     enabled: false
     strategy: "median"   # mean | median | drop
     max_nan_ratio: 0.2
 
   outliers:
-    # Disabled by default. With an empty feature list, apply to every feature.
+    # DA_R_10. Disabled by default. Empty feature list applies to every feature.
     enabled: false
     method: "log"      # log | clip
     features: []
@@ -230,7 +232,9 @@ preprocessing:
     enabled: false     # DA_R_08
 
 
-# HARMONIZATION
+# HARMONIZATION (DA_R_02, DA_R_06)
+# Generic harmonization remains disabled; individual pipelines enforce aligned
+# grids and meteorological/InSAR acquisition-date alignment.
 harmonization:
 
   spatial:
@@ -243,13 +247,13 @@ harmonization:
     max_gap_days: 30
 
 
-# MASKING
+# MASKING (DA_R_06)
 masking:
   apply_aoi: true
   apply_water_mask: true
 
 
-# VALIDATION
+# VALIDATION (DA_R_01, DA_R_06)
 validation:
 
   check_spatial_consistency: true

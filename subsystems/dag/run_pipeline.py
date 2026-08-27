@@ -1,3 +1,5 @@
+"""Configuration-driven DAG entry point for DA_R_01 and the MAP handoff."""
+
 from __future__ import annotations
 
 from pathlib import Path

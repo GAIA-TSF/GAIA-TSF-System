@@ -1,3 +1,5 @@
+"""Align meteorological observations to InSAR dates and generate features."""
+
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
@@ -23,9 +25,15 @@ from subsystems.dag.utils.statistics import feature_statistics
 
 
 class MeteoFeaturePipeline(Pipeline):
-    """Create meteorological feature rasters from dated input GeoTIFFs."""
+    """Create causal meteorological rasters aligned to InSAR acquisitions.
+
+    Inputs may be a daily CSV table or separate dated GeoTIFF series. Generated
+    features are sampled on the InSAR reference dates, optionally masked and
+    preprocessed, then written as dated multiband GeoTIFFs with JSON metadata.
+    """
 
     def __init__(self, config_path: Path) -> None:
+        """Load configuration and instantiate registered loader/extractor plugins."""
         self.config_path = config_path
         self.config = self._load_config(config_path)
         self.project_dir = self._project_dir()
@@ -33,6 +41,12 @@ class MeteoFeaturePipeline(Pipeline):
         self.extractor = self._create_extractor()
 
     def run(self) -> dict[str, Any]:
+        """Execute meteorological ingestion, alignment, and feature generation.
+
+        Returns:
+            Pipeline metadata containing generated feature names and artifact
+            paths.
+        """
         scenario = self._scenario_config()
         feature_config = self._mapping(scenario, 'feature_engineering')
         inputs = self._mapping(scenario, 'inputs')

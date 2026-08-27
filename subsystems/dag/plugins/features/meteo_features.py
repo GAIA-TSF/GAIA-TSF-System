@@ -1,3 +1,5 @@
+"""Causal precipitation and temperature feature engineering."""
+
 from __future__ import annotations
 
 from datetime import date
@@ -9,7 +11,7 @@ from subsystems.dag.core.interfaces import FeatureExtractor
 
 
 class MeteoFeatureExtractor(FeatureExtractor):
-    """Create causal meteorological features from aligned daily raster stacks.
+    """Create DA_R_01/DA_R_02 causal features from aligned daily raster stacks.
 
     Input arrays have shape ``(time, rows, columns)`` and are expected in
     millimetres (precipitation) and degrees Celsius (temperature).  Rolling
@@ -42,6 +44,7 @@ class MeteoFeatureExtractor(FeatureExtractor):
 
     @property
     def name(self) -> str:
+        """Return the plugin registry name."""
         return 'meteo_feature_extractor'
 
     def compute(

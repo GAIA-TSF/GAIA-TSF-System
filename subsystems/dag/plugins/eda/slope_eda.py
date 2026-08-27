@@ -1,3 +1,5 @@
+"""Exploratory statistics, plots, and maps for Sentinel-1 LOS time series."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

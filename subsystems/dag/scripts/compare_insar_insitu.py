@@ -1,4 +1,4 @@
-"""Spatially co-locate InSAR LOS rasters and in-situ CSV measurements."""
+"""Implement DA_R_03 by spatially co-locating InSAR and in-situ samples."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ DATE_PATTERN = re.compile(r"(20\d{6})")
 
 
 def load_config(path: Path) -> dict[str, Any]:
+    """Load a DAG YAML mapping, rejecting non-mapping documents."""
     with path.open(encoding="utf-8") as stream:
         config = yaml.safe_load(stream) or {}
     if not isinstance(config, dict):
@@ -30,6 +31,7 @@ def load_config(path: Path) -> dict[str, Any]:
 
 
 def parse_date(filename: str) -> datetime:
+    """Extract an acquisition date encoded as YYYYMMDD in a raster filename."""
     match = DATE_PATTERN.search(filename)
     if not match:
         raise ValueError(f"Cannot parse an acquisition date from {filename!r}")
@@ -42,7 +44,11 @@ def sample_neighbourhood(
     latitude: float,
     window_size: int,
 ) -> float:
-    """Transform an in-situ WGS84 location and average its raster neighbourhood."""
+    """Transform a WGS84 location and average its raster neighborhood.
+
+    The result is the nodata-aware mean of an odd square window centered on the
+    containing pixel, expressed in the raster's native unit.
+    """
     if window_size < 1 or window_size % 2 == 0:
         raise ValueError(
             "in_situ.validation.sampling_window_size must be a positive odd integer"
@@ -63,7 +69,11 @@ def sample_neighbourhood(
 
 
 def comparison_statistics(comparison: pd.DataFrame) -> dict[str, float | int | None]:
-    """Calculate JSON-safe agreement statistics for finite paired samples."""
+    """Calculate JSON-safe statistics for finite paired samples.
+
+    Results include counts, means, InSAR-minus-in-situ bias, MAE, RMSE,
+    Pearson correlation, and predictive R². Undefined metrics are ``None``.
+    """
     valid = comparison.replace([np.inf, -np.inf], np.nan).dropna()
     if valid.empty:
         raise ValueError("No finite InSAR/in-situ pairs are available for validation")
@@ -94,6 +104,12 @@ def comparison_statistics(comparison: pd.DataFrame) -> dict[str, float | int | N
 
 
 def compare(config_path: Path, project_dir: Path | None = None) -> pd.DataFrame:
+    """Create independent InSAR/in-situ validation artifacts.
+
+    Rows and rasters are joined on acquisition date. Satellite values are
+    neighborhood means around CSV locations. Configured output paths receive a
+    two-column comparison CSV and statistical JSON report.
+    """
     config = load_config(config_path)
     settings = config.get("in_situ")
     if not isinstance(settings, dict):
@@ -160,6 +176,7 @@ def compare(config_path: Path, project_dir: Path | None = None) -> pd.DataFrame:
 
 
 def main() -> None:
+    """Parse command-line options and run the comparison step."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--project-dir", type=Path)

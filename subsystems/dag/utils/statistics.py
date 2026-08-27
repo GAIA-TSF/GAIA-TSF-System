@@ -1,3 +1,5 @@
+"""Nodata-aware descriptive statistics for time series and feature rasters."""
+
 from __future__ import annotations
 
 from datetime import date

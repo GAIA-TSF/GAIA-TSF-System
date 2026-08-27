@@ -1,3 +1,5 @@
+"""Shared raster data contracts, masking operations, and GeoTIFF writers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,3 +1,5 @@
+"""Opt-in Min-Max and Z-score preprocessing for model-ready features."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -9,10 +11,26 @@ def normalize_features(
     features: dict[str, np.ndarray],
     config: dict[str, Any] | None,
 ) -> dict[str, np.ndarray]:
-    """Normalize feature arrays while preserving non-finite pixels.
+    """Implement DA_R_05 while preserving non-finite feature pixels.
 
     Normalization is disabled when the configuration is absent or when
     ``enabled`` is false. Constant-valued features become zero when enabled.
+
+    Args:
+        features: Named 2-D or 3-D feature arrays. Each feature is normalized
+            across all of its finite spatial and temporal values.
+        config: ``preprocessing.normalization`` mapping. Supported keys are
+            ``enabled``, ``method`` (``minmax`` or ``zscore``), and
+            ``per_feature``. When ``per_feature`` is false, all named features
+            share one offset and scale.
+
+    Returns:
+        The original mapping when disabled; otherwise, a new mapping of
+        ``float32`` arrays with NaN locations preserved.
+
+    Raises:
+        ValueError: If configuration is invalid or enabled shared
+            normalization receives no finite values.
     """
     settings = config or {}
     if not isinstance(settings, dict):

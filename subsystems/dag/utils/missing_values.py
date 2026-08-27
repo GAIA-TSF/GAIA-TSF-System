@@ -1,3 +1,5 @@
+"""Opt-in imputation and consistent incomplete-sample removal."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -10,12 +12,28 @@ def handle_missing_values(
     config: dict[str, Any] | None,
     valid_mask: np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
-    """Handle non-finite feature values according to opt-in configuration.
+    """Implement DA_R_09 according to opt-in missing-value configuration.
 
     ``mean`` and ``median`` impute independently for each feature. ``drop``
     preserves raster dimensions but marks every incomplete sample position as
     missing across all features, allowing downstream dataset construction to
     remove those entries consistently.
+
+    Args:
+        features: Equally shaped named feature arrays.
+        config: ``preprocessing.missing_values`` mapping containing
+            ``enabled``, ``strategy``, and ``max_nan_ratio``.
+        valid_mask: Optional spatial or spatiotemporal analysis-domain mask.
+            Structural nodata outside this mask is neither counted nor imputed.
+
+    Returns:
+        The original mapping when disabled; otherwise, new ``float32`` arrays
+        produced by the selected strategy.
+
+    Raises:
+        ValueError: If shapes or configuration are invalid, the permitted
+            missing ratio is exceeded, or an all-missing feature cannot be
+            imputed.
     """
     settings = config or {}
     if not isinstance(settings, dict):

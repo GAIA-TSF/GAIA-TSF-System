@@ -1,3 +1,5 @@
+"""Writers for model-ready DAG feature rasters and JSON metadata."""
+
 from __future__ import annotations
 
 from pathlib import Path

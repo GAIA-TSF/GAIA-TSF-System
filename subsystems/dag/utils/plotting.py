@@ -1,3 +1,5 @@
+"""Reusable non-interactive plotting helpers for DAG diagnostic artifacts."""
+
 from __future__ import annotations
 
 from datetime import date

@@ -1,3 +1,5 @@
+"""DEM-derived slope and topographic-position feature calculations."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -11,6 +13,7 @@ class TopographicFeatureExtractor(Plugin):
 
     @property
     def name(self) -> str:
+        """Return the registry name used by the topographic pipeline."""
         return 'topographic_feature_extractor'
 
     def compute(
@@ -20,6 +23,24 @@ class TopographicFeatureExtractor(Plugin):
         pixel_size_y: float,
         pi_window_size: int,
     ) -> dict[str, np.ndarray]:
+        """Compute DEM, slope angle, and topographic position index.
+
+        PI is elevation minus the nodata-aware local mean elevation. Slope is
+        calculated from x/y gradients and returned in degrees.
+
+        Args:
+            dem: Two-dimensional elevation array in metres.
+            pixel_size_x: Positive east-west grid spacing in metres.
+            pixel_size_y: Positive north-south grid spacing in metres.
+            pi_window_size: Odd local-mean window size of at least three pixels.
+
+        Returns:
+            ``dem``, ``slope``, and ``pi`` float32 arrays aligned to the input.
+
+        Raises:
+            ValueError: If dimensions, spacing, window size, or elevations are
+                invalid.
+        """
         if dem.ndim != 2:
             raise ValueError('DEM must be a two-dimensional raster.')
         if pixel_size_x <= 0 or pixel_size_y <= 0:

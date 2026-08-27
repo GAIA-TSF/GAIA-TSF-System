@@ -1,3 +1,5 @@
+"""Load and validate chronological Sentinel-1 LOS GeoTIFF stacks."""
+
 from __future__ import annotations
 
 from datetime import date, datetime

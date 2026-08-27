@@ -1,3 +1,5 @@
+"""Configuration-driven exploratory analysis pipeline for Sentinel-1 LOS."""
+
 from __future__ import annotations
 
 from pathlib import Path

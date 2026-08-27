@@ -6,22 +6,22 @@ Spatial Data Infrastructure (SDI) into structured inputs suitable for
 machine learning analysis. Its primary function is to prepare data in
 structures that are harmonised and ready for downstream consumption,
 adhering to the principle that "garbage in, garbage out" dictates
-model performance. The sub-system ingests multi-temporal satellite
-image stacks (e.g., Sentinel-2) and co-located in-situ measurements
-(e.g., pH, pore pressure) to produce model-ready feature tensors.
+model performance. The implemented workflows ingest Sentinel-1 LOS stacks,
+meteorological observations, static terrain, and synthetic in-situ locations.
+Sentinel-2 spectral-index processing remains planned work.
 
 ![Data Agregation Architecture](../../images/dag_subsystem.png)
 
 ## Key Capabilities
 
-- Multi-temporal EO data ingestion (Sentinel-1, Sentinel-2)
+- Multi-temporal Sentinel-1 LOS ingestion
 - Exploratory Data Analysis (EDA): step important to select the following steps 
 - Spatial harmonization (resampling to common grid)
 - Feature engineering:
   - Slope stability: displacement → velocity → acceleration
-  - AMD: spectral indices and AMD index
+  - Static terrain: DEM, slope, and topographic position index (PI)
   - Meteorology: precipitation accumulations/extremes and temperature metrics
-- Masking (AOI, water mask)
+- TSF-mask application with grid consistency checks
 - Data preprocessing:
   - normalization (min-max, z-score)
   - missing value handling
@@ -35,7 +35,7 @@ image stacks (e.g., Sentinel-2) and co-located in-situ measurements
   - Sentinel-1 LOS displacement time series
   - AOI mask
 
-- **AMD (KV2)**
+- **AMD (KV2, planned)**
   - Sentinel-2 multispectral time series
   - AOI mask
   - TSF, clean water mask (optionally leak water mask) 
@@ -43,15 +43,24 @@ image stacks (e.g., Sentinel-2) and co-located in-situ measurements
 ## Outputs
 
 - graphs and maps 
-- ML-ready features: spatiotemporal feature cubes
+- Metadata-described GeoTIFF feature rasters consumed by MAP
 - Derived features:
   - velocity, acceleration (slope stability), etc. 
-  - AMD index spectral features and its temporal derivatives 
+  - Static DEM, slope, and PI contextual features
 - Ready for probabilistic anomaly detection (MAP subsystem)
 
 ## Architecture
 
-**Workflow:** Raw EO Data -> Ingestion -> Preprocessing (Harmonization: spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> ML-ready dataset 
+**Implemented workflow:** filesystem inputs → ingestion → grid/date validation →
+TSF masking → feature engineering → optional preprocessing → GeoTIFF features
+and JSON metadata → MAP feature loading.
+
+## Requirements traceability
+
+The maintained implementation status, verification method, evidence, and known
+gaps for DA_R_01–DA_R_10 and DA_IR_02 are recorded in
+[REQUIREMENTS.md](REQUIREMENTS.md). The matrix intentionally distinguishes
+implemented behavior from planned or partially integrated behavior.
 
 ### Meteorological features
 
@@ -76,7 +85,7 @@ contain `date`,
 columns. Separate dated GeoTIFF series are also supported through per-variable
 `directory` and `filename_pattern` input mappings.
 
-### Synthetic in-situ co-location
+### In-situ co-location
 
 Create the in-situ CSV by spatially overlaying every labelled point from the
 GeoPackage configured under `in_situ.static.observation_points` on each

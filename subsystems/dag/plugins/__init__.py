@@ -1,3 +1,5 @@
+"""Import and register the built-in DAG plugin implementations."""
+
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
 from subsystems.dag.plugins.eda.slope_eda import SlopeEDA
 from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor

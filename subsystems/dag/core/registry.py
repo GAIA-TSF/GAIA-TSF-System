@@ -1,3 +1,5 @@
+"""Runtime registry used to decouple DAG pipelines from plugin implementations."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -11,6 +13,7 @@ class PluginRegistry:
     """Registry for creating plugins by name."""
 
     def __init__(self) -> None:
+        """Create an empty name-to-factory registry."""
         self._factories: dict[str, Callable[[], object]] = {}
 
     def register(self, name: str, factory: Callable[[], T]) -> None:

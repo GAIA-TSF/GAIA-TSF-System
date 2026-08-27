@@ -1,3 +1,5 @@
+"""Load dated meteorological GeoTIFFs into the common raster-series contract."""
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -18,9 +20,15 @@ class MeteoRasterLoader(RasterLoader):
 
     @property
     def name(self) -> str:
+        """Return the plugin registry name."""
         return 'meteo_raster_loader'
 
     def load(self, directory: Path, filename_pattern: str) -> RasterTimeSeries:
+        """Load matching single-band rasters in acquisition-date order.
+
+        Filenames must contain YYYYMMDD. All rasters must share their spatial
+        grid and nodata contract.
+        """
         if not directory.exists():
             raise FileNotFoundError(
                 f'Meteo input directory does not exist: {directory}'
@@ -82,6 +90,7 @@ class MeteoRasterLoader(RasterLoader):
         current: RasterProfile,
         path: Path,
     ) -> None:
+        """Raise ``ValueError`` when a candidate grid differs from a reference."""
         if current.crs != expected.crs:
             raise ValueError(
                 f'CRS mismatch for {path}: {current.crs} != {expected.crs}'
