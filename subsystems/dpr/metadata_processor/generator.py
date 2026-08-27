@@ -16,6 +16,7 @@ from osgeo import gdal, osr
 gdal.UseExceptions()
 
 from lib.base import GaiaBase, SubsystemId
+from lib.config import SettingsReader
 
 
 class BaseDataset(ABC):
@@ -852,16 +853,22 @@ class StacItemFactory:
 
         return stac_item
 
-    def save(self, output_path: str) -> str:
+    def save(self, output_path: Path | None = None) -> Path:
         """
-        Saves the STAC Item to a JSON file.
+        Save the generated STAC Item to a JSON file.
 
-        :param str output_path: Path to the output JSON
+        If ``output_path`` is not provided, a temporary JSON file is created
+        automatically.
 
-        :return: output path
+        :param output_path: Path to the output JSON file. If ``None``, a temporary file is created.
+        :type output_path: str | None
+
+        :returns: Path to the saved JSON file.
         :rtype: str
         """
         item = self.create_item()
+        if output_path is None:
+            output_path = SettingsReader().temp_file('.json')
         with open(output_path, 'w') as f:
             json.dump(item, f, indent=4)
         self.logger.info(f'STAC item saved: {output_path}')

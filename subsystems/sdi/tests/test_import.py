@@ -1,6 +1,3 @@
-import requests
-import tempfile
-
 import psycopg
 import pytest
 
@@ -98,53 +95,12 @@ class TestEarthObservationDataLoader:
         )
         importer.import_zip()
 
-        # STAC query: search by bbox and datetime
-        stac_api_url = importer.stac_api_url
-        bbox = importer.stac_json['bbox']
-        datetime = importer.stac_json['properties']['datetime']
-
-        query_url = (
-            f'{stac_api_url}/search?bbox={",".join(map(str, bbox))}&datetime={datetime}'
-        )
-
-        # Send request to STAC API
-        resp = requests.post(query_url, json={})
-        resp.raise_for_status()
-        items = resp.json().get('features', [])
-        assert items, 'STAC query returned no items'
-
-        # Find the asset B01
-        for stac_item in items:
-            if 'B01' in stac_item['assets']:
-                asset = stac_item['assets']['B01']
-                asset_url = asset['href']
-
-        assert asset_url, 'STAC asset does not contain href'
-
-        # Download the file from STAC asset URL
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        r = requests.get(asset_url, stream=True)
-        r.raise_for_status()
-        with open(temp_file.name, 'wb') as f:
-            for chunk in r.iter_content(8192):
-                f.write(chunk)
-
-        # Compare MD5 hash of downloaded file and input GeoTIFF
-
-        md5_input = utils.file_md5(importer.raster_files[0])
-        md5_downloaded = utils.file_md5(temp_file.name)
-        assert md5_input == md5_downloaded, (
-            'Downloaded file does not match the original GeoTIFF'
-        )
-
-        # Search for COG item
-        for stac_item in items:
-            if 'B01_cog' in stac_item['assets']:
-                asset = stac_item['assets']['B01_cog']
-                asset_cog_url = asset['href']
-
-        assert asset_cog_url, (
-            'STAC asset for COG does not contain href or assets does not exist'
+        # Verify STAC publication and asset integrity
+        utils.import_via_stac(
+            importer.stac_api_url,
+            importer.stac_json['bbox'],
+            importer.stac_json['properties']['datetime'],
+            importer.raster_files[0],
         )
 
     def test_failing_import(self):

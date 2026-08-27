@@ -34,4 +34,5 @@ class DataAcquisitionGateway(GaiaBase):
         self.backend = DataAcquisitionBackend(
             data_dir=Path(self.settings['storage']['data_dir']), logger=self.logger
         )
+        self.logger.debug(f'DataAcquisitionGateway initialized with {backend} backend')
         self.backend.set_config(self.settings['eou'][backend])
