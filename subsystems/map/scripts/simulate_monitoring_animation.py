@@ -330,7 +330,7 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     axes[2].xaxis.set_major_locator(mdates.AutoDateLocator())
     locator = axes[2].xaxis.get_major_locator()
     axes[2].xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
-    observed_line, = axes[0].plot(
+    (observed_line,) = axes[0].plot(
         [],
         [],
         color='0.62',
@@ -339,7 +339,7 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         linewidth=1,
         label='Historical observed rate',
     )
-    current_observation, = axes[0].plot(
+    (current_observation,) = axes[0].plot(
         [],
         [],
         color='black',
@@ -349,14 +349,14 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         label='Current observation',
         zorder=5,
     )
-    predicted_line, = axes[0].plot(
+    (predicted_line,) = axes[0].plot(
         [], [], color='#4c78a8', label='Predicted baseline rate'
     )
-    velocity_line, = axes[1].plot([], [], color='#4c78a8', label='Velocity')
-    acceleration_line, = acceleration_axis.plot(
+    (velocity_line,) = axes[1].plot([], [], color='#4c78a8', label='Velocity')
+    (acceleration_line,) = acceleration_axis.plot(
         [], [], color='#e45756', label='Acceleration'
     )
-    probability_line, = axes[2].plot(
+    (probability_line,) = axes[2].plot(
         [], [], color='#7b2cbf', linewidth=2, label='P(regime change)'
     )
     cursors = [
@@ -375,7 +375,9 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     axes[0].legend(loc='upper left', fontsize=8)
     axes[2].legend(loc='upper left', fontsize=8)
     velocity_handles, velocity_labels = axes[1].get_legend_handles_labels()
-    acceleration_handles, acceleration_labels = acceleration_axis.get_legend_handles_labels()
+    acceleration_handles, acceleration_labels = (
+        acceleration_axis.get_legend_handles_labels()
+    )
     axes[1].legend(
         velocity_handles + acceleration_handles,
         velocity_labels + acceleration_labels,
@@ -386,9 +388,7 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     def update(current: int) -> tuple[Any, ...]:
         visible = np.arange(len(dates)) <= current
         historical = np.arange(len(dates)) < current
-        observed_line.set_data(
-            dates[historical], result.observed[historical] * scale
-        )
+        observed_line.set_data(dates[historical], result.observed[historical] * scale)
         current_observation.set_data(
             [dates[current]], [result.observed[current] * scale]
         )

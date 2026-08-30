@@ -47,10 +47,14 @@ def transform_outliers(
     clip_range = settings.get('clip_range', [0.01, 0.99])
     if method == 'clip':
         if not isinstance(clip_range, (list, tuple)) or len(clip_range) != 2:
-            raise ValueError('preprocessing.outliers.clip_range must contain two values.')
+            raise ValueError(
+                'preprocessing.outliers.clip_range must contain two values.'
+            )
         lower_quantile, upper_quantile = map(float, clip_range)
         if not 0.0 <= lower_quantile < upper_quantile <= 1.0:
-            raise ValueError('Outlier clip quantiles must satisfy 0 <= low < high <= 1.')
+            raise ValueError(
+                'Outlier clip quantiles must satisfy 0 <= low < high <= 1.'
+            )
 
     signed = bool(settings.get('signed_log', True))
     transformed: dict[str, np.ndarray] = {}
@@ -67,7 +71,7 @@ def transform_outliers(
         if method == 'log':
             if not signed and np.any(array[finite] < 0):
                 raise ValueError(
-                    f"Feature {name!r} contains negative values; enable signed_log."
+                    f'Feature {name!r} contains negative values; enable signed_log.'
                 )
             result[finite] = (
                 np.sign(array[finite]) * np.log1p(np.abs(array[finite]))
@@ -75,9 +79,7 @@ def transform_outliers(
                 else np.log1p(array[finite])
             )
         else:
-            lower, upper = np.quantile(
-                array[finite], [lower_quantile, upper_quantile]
-            )
+            lower, upper = np.quantile(array[finite], [lower_quantile, upper_quantile])
             result[finite] = np.clip(array[finite], lower, upper)
         transformed[name] = result.astype(np.float32)
     return transformed

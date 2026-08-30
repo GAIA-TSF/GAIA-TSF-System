@@ -128,7 +128,9 @@ def write_diagnostics(
     observed = np.asarray(observed, dtype=np.float64)
     predicted = np.asarray(predicted, dtype=np.float64)
     if observed.shape != predicted.shape or observed.shape != time_indices.shape:
-        raise ValueError('Observed, predicted, and time_indices must have equal shapes.')
+        raise ValueError(
+            'Observed, predicted, and time_indices must have equal shapes.'
+        )
     if uncertainty is not None:
         uncertainty = np.asarray(uncertainty, dtype=np.float64)
         if uncertainty.shape != predicted.shape:
@@ -305,8 +307,7 @@ def write_diagnostics(
 
     if uncertainty is not None:
         uncertainty_mean = [
-            float(np.mean(uncertainty[time_indices == index]))
-            for index in unique_times
+            float(np.mean(uncertainty[time_indices == index])) for index in unique_times
         ]
         figure, axis = plt.subplots(figsize=(16, 4))
         predicted_mean_array = np.asarray(predicted_mean)
@@ -729,7 +730,9 @@ def write_latest_residual_map(
     if residual_stack.ndim != 3 or residual_stack.shape[1:] != mask.shape:
         raise ValueError('Residual stack and TSF mask have incompatible dimensions.')
     if len(dates) != residual_stack.shape[0]:
-        raise ValueError('Residual stack and acquisition dates have incompatible lengths.')
+        raise ValueError(
+            'Residual stack and acquisition dates have incompatible lengths.'
+        )
     if value_scale <= 0:
         raise ValueError('value_scale must be positive.')
     if not 0 < percentile <= 100:
@@ -752,9 +755,11 @@ def write_latest_residual_map(
             recent_dates,
             fallback_interval_days,
         )
-        increments = 0.5 * (
-            recent_residuals[1:] + recent_residuals[:-1]
-        ) * intervals[1:, np.newaxis, np.newaxis]
+        increments = (
+            0.5
+            * (recent_residuals[1:] + recent_residuals[:-1])
+            * intervals[1:, np.newaxis, np.newaxis]
+        )
         valid_increment = np.any(np.isfinite(increments), axis=0)
         values = np.where(
             valid_increment,
@@ -913,7 +918,9 @@ def write_persistent_residual_map(
     import matplotlib.pyplot as plt
 
     if persistent_anomalies.ndim != 3 or persistent_anomalies.shape[1:] != mask.shape:
-        raise ValueError('Persistent anomalies and TSF mask have incompatible dimensions.')
+        raise ValueError(
+            'Persistent anomalies and TSF mask have incompatible dimensions.'
+        )
     time_count = persistent_anomalies.shape[0]
     if persistence_end_time_index is None:
         persistence_end_time_index = time_count
@@ -969,6 +976,7 @@ def write_persistent_residual_map(
         bbox_inches='tight',
     )
     plt.close(figure)
+
 
 def _write_point_cumulative_displacement_diagnostic(
     output_dir: Path,

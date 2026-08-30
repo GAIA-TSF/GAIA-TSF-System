@@ -51,7 +51,9 @@ class TemporalResidualMonitor:
         regime = self._section(config, 'regime')
         self.regime_signal = self._regime_signal(regime)
         self.risk_smoothing_span = self._positive_integer(regime, 'smoothing_span')
-        self.medium_risk_threshold = self._unit_interval(regime, 'medium_risk_threshold')
+        self.medium_risk_threshold = self._unit_interval(
+            regime, 'medium_risk_threshold'
+        )
         self.high_risk_threshold = self._unit_interval(regime, 'high_risk_threshold')
         if self.medium_risk_threshold >= self.high_risk_threshold:
             raise ValueError('monitoring.dashboard.regime thresholds must increase.')
@@ -95,9 +97,7 @@ class TemporalResidualMonitor:
         anomaly_magnitude = np.abs(residual_mean)
         time_days = self._days_from_start(dates)
         cusum_values = (
-            observed_mean
-            if self.cusum_signal == 'observed_velocity'
-            else residual_mean
+            observed_mean if self.cusum_signal == 'observed_velocity' else residual_mean
         )
         acceleration = self._gradient(cusum_values, time_days)
         trend = self._ema(acceleration, self.smoothing_span)
@@ -106,7 +106,9 @@ class TemporalResidualMonitor:
         baseline = trend[calibration_start:calibration_end]
         baseline = baseline[np.isfinite(baseline)]
         if baseline.size < 3:
-            raise ValueError('Calibration period contains too few valid residual samples.')
+            raise ValueError(
+                'Calibration period contains too few valid residual samples.'
+            )
         baseline_std = max(float(np.std(baseline)), np.finfo(np.float64).eps)
         directional_trend = trend * self.instability_direction
         directional_baseline = directional_trend[calibration_start:calibration_end]
@@ -149,11 +151,11 @@ class TemporalResidualMonitor:
         regime_baseline = regime_signal[calibration_start:calibration_end]
         regime_baseline = regime_baseline[np.isfinite(regime_baseline)]
         if regime_baseline.size < 3:
-            raise ValueError('Calibration period contains too few valid baseline samples.')
+            raise ValueError(
+                'Calibration period contains too few valid baseline samples.'
+            )
         regime_std = max(float(np.std(regime_baseline)), np.finfo(np.float64).eps)
-        regime_zscore = (
-            regime_signal - float(np.mean(regime_baseline))
-        ) / regime_std
+        regime_zscore = (regime_signal - float(np.mean(regime_baseline))) / regime_std
         regime_persistence = self._sign_persistence(
             regime_zscore,
             self.persistence_window,
@@ -222,9 +224,7 @@ class TemporalResidualMonitor:
             rate * self.instability_direction,
             self.smoothing_span,
         )
-        calibration = directional_rate[
-            calibration_window[0]:calibration_window[1]
-        ]
+        calibration = directional_rate[calibration_window[0] : calibration_window[1]]
         finite_calibration = np.isfinite(calibration)
         calibration_count = np.sum(finite_calibration, axis=0)
         baseline_mean = np.divide(
@@ -246,7 +246,9 @@ class TemporalResidualMonitor:
                 where=calibration_count > 0,
             ),
         )
-        valid_baseline = np.isfinite(baseline_mean) & (baseline_std > np.finfo(float).eps)
+        valid_baseline = np.isfinite(baseline_mean) & (
+            baseline_std > np.finfo(float).eps
+        )
         zscore = np.divide(
             directional_rate - baseline_mean[np.newaxis, :, :],
             baseline_std[np.newaxis, :, :],
@@ -269,7 +271,9 @@ class TemporalResidualMonitor:
             output[index] = run >= persistence
         return output
 
-    def _cusum(self, zscore: np.ndarray, monitoring_start: int) -> tuple[np.ndarray, np.ndarray]:
+    def _cusum(
+        self, zscore: np.ndarray, monitoring_start: int
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Return one-sided positive and negative CUSUM signals."""
         positive = np.zeros(zscore.size, dtype=np.float64)
         negative = np.zeros(zscore.size, dtype=np.float64)
@@ -372,7 +376,7 @@ class TemporalResidualMonitor:
     def _window_mask(length: int, window: tuple[int, int]) -> np.ndarray:
         """Return a Boolean mask for an exclusive index window."""
         mask = np.zeros(length, dtype=bool)
-        mask[window[0]:window[1]] = True
+        mask[window[0] : window[1]] = True
         return mask
 
     @staticmethod
@@ -386,7 +390,9 @@ class TemporalResidualMonitor:
     ) -> None:
         """Validate common temporal monitoring input invariants."""
         if observed.ndim != 3 or observed.shape != predicted.shape:
-            raise ValueError('Observed and prediction stacks must be matching 3D arrays.')
+            raise ValueError(
+                'Observed and prediction stacks must be matching 3D arrays.'
+            )
         if observed.shape[0] != len(dates):
             raise ValueError('Acquisition dates and temporal stacks are incompatible.')
         if uncertainty is not None and uncertainty.shape != observed.shape:

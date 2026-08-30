@@ -30,7 +30,7 @@ class LearningPipeline:
         self.config_path = Path(str(config['_config_path']))
 
     def run(self) -> dict[str, Any]:
-        """Select stable pixels, train, validate, 
+        """Select stable pixels, train, validate,
         persist and register the experiment."""
         import subsystems.map.plugins.models  # noqa: F401
         import subsystems.map.plugins.variables  # noqa: F401
@@ -38,7 +38,7 @@ class LearningPipeline:
         variable_name = self._required_name('variable')
         model_name = self._required_name('model')
         variable = VARIABLE_REGISTRY[variable_name]
-        
+
         if model_name not in variable.allowed_models():
             raise ValueError(
                 f"Model '{model_name}' is not allowed for variable '{variable_name}'."

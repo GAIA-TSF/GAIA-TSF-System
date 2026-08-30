@@ -57,10 +57,13 @@ class InferencePipeline:
         dataset = builder.build(loaded, feature_names, target_feature)
         model_name = self._name('model')
         output_root = self._path(self.config['outputs']['root'])
-        model_path = experiment_model_directory(
-            output_root,
-            self.config,
-        ) / 'model.pkl'
+        model_path = (
+            experiment_model_directory(
+                output_root,
+                self.config,
+            )
+            / 'model.pkl'
+        )
         if not model_path.is_file():
             raise FileNotFoundError(
                 f'Model artifact not found for experiment {self.config["experiment"]["name"]!r}: '
@@ -120,10 +123,10 @@ class InferencePipeline:
             cumulative_unit=self._cumulative_plot_unit(),
         )
         monitoring_residuals = residuals.stack[
-            monitoring_window.start_index:monitoring_window.end_index
+            monitoring_window.start_index : monitoring_window.end_index
         ]
         monitoring_dates = dataset.dates[
-            monitoring_window.start_index:monitoring_window.end_index
+            monitoring_window.start_index : monitoring_window.end_index
         ]
         write_latest_residual_map(
             output_dir=output_root / 'residuals',
@@ -259,8 +262,12 @@ class InferencePipeline:
                 ),
                 uncertainty_stack=uncertainty_stack,
             )
-            dashboard_path = output_root / 'monitoring' / str(
-                dashboard_config['filename'],
+            dashboard_path = (
+                output_root
+                / 'monitoring'
+                / str(
+                    dashboard_config['filename'],
+                )
             )
             write_slope_stability_dashboard(
                 output_path=dashboard_path,
@@ -419,7 +426,9 @@ class InferencePipeline:
     def _dashboard_config(self) -> dict[str, Any]:
         """Return the configured dashboard monitoring settings."""
         monitoring = self.config.get('monitoring', {})
-        dashboard = monitoring.get('dashboard') if isinstance(monitoring, dict) else None
+        dashboard = (
+            monitoring.get('dashboard') if isinstance(monitoring, dict) else None
+        )
         if not isinstance(dashboard, dict):
             raise ValueError('monitoring.dashboard must be a mapping.')
         return dashboard
@@ -483,6 +492,7 @@ class InferencePipeline:
                 1.0,
             )
         )
+
 
 def run_inference(config: dict[str, Any]) -> dict[str, Any]:
     """Backward-compatible functional inference entry point."""
