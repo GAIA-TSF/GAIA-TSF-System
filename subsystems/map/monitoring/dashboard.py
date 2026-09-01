@@ -67,7 +67,11 @@ def write_slope_stability_dashboard(
     residual_axis = figure.add_subplot(grid[2:, 2])
 
     _plot_predictions(
-        temporal_axes[0], positions, monitoring, unit, value_scale,
+        temporal_axes[0],
+        positions,
+        monitoring,
+        unit,
+        value_scale,
     )
     _plot_anomaly_magnitude(temporal_axes[1], positions, monitoring, unit, value_scale)
     _plot_cusum(temporal_axes[2], positions, monitoring)
@@ -103,7 +107,9 @@ def write_slope_stability_dashboard(
         value_scale,
         residual_percentile,
     )
-    figure.suptitle('Slope stability monitoring dashboard', fontsize=16, fontweight='bold')
+    figure.suptitle(
+        'Slope stability monitoring dashboard', fontsize=16, fontweight='bold'
+    )
     figure.savefig(output_path, dpi=180, bbox_inches='tight')
     plt.close(figure)
 
@@ -295,9 +301,7 @@ def _plot_monitoring_residual_mean(
     """Plot the per-pixel mean residual rate for the monitoring period only."""
     import matplotlib.pyplot as plt
 
-    monitoring_residuals = residual_stack[
-        monitoring_window[0]:monitoring_window[1]
-    ]
+    monitoring_residuals = residual_stack[monitoring_window[0] : monitoring_window[1]]
     finite_count = np.sum(np.isfinite(monitoring_residuals), axis=0)
     values = np.divide(
         np.nansum(monitoring_residuals, axis=0),
@@ -340,6 +344,8 @@ def _map_outline(
         extent=extent,
         origin='upper',
     )
+
+
 def _shade_windows(
     axis: Any,
     calibration_window: tuple[int, int],
@@ -349,12 +355,18 @@ def _shade_windows(
     axis.axvspan(
         calibration_window[0] - 0.5,
         calibration_window[1] - 0.5,
-        color='#f4d35e', alpha=0.2, label='Calibration', zorder=0,
+        color='#f4d35e',
+        alpha=0.2,
+        label='Calibration',
+        zorder=0,
     )
     axis.axvspan(
         monitoring_window[0] - 0.5,
         monitoring_window[1] - 0.5,
-        color='#95d5b2', alpha=0.2, label='Monitoring', zorder=0,
+        color='#95d5b2',
+        alpha=0.2,
+        label='Monitoring',
+        zorder=0,
     )
 
 
@@ -373,7 +385,9 @@ def _format_time_axis(
     axis.set_xlabel('Acquisition date')
 
 
-def _extent(transform: Any, width: int, height: int) -> tuple[float, float, float, float]:
+def _extent(
+    transform: Any, width: int, height: int
+) -> tuple[float, float, float, float]:
     """Return an imshow extent from a raster transform and dimensions."""
     left = transform.c
     right = transform.c + transform.a * width
@@ -401,13 +415,12 @@ def _validate(
     residual_percentile: float,
 ) -> None:
     """Validate dashboard raster dimensions and display conversion."""
-    if (
-        observed.ndim != 3
-        or residual_stack.shape != observed.shape
-    ):
+    if observed.ndim != 3 or residual_stack.shape != observed.shape:
         raise ValueError('Dashboard observation and residual stacks must match in 3D.')
     if observed.shape[0] != len(dates) or observed.shape[1:] != mask.shape:
-        raise ValueError('Dashboard dates or mask are incompatible with temporal stacks.')
+        raise ValueError(
+            'Dashboard dates or mask are incompatible with temporal stacks.'
+        )
     if value_scale <= 0:
         raise ValueError('Dashboard value_scale must be positive.')
     if not 0.0 < residual_percentile <= 100.0:

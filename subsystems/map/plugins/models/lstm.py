@@ -94,14 +94,20 @@ class LSTMModel(PredictiveModel):
         self._target_std = float(self._safe_std(np.asarray(np.std(observed))))
         normalized_features = (sequences - self._feature_mean) / self._feature_std
         normalized_targets = (observed - self._target_mean) / self._target_std
-        self._network = self._build_network(normalized_features.shape[-1]).to(self.device)
+        self._network = self._build_network(normalized_features.shape[-1]).to(
+            self.device
+        )
         optimizer = self._torch.optim.Adam(
             self._network.parameters(),
             lr=self.learning_rate,
         )
         criterion = self._nn.MSELoss()
-        feature_tensor = self._torch.as_tensor(normalized_features, dtype=self._torch.float32)
-        target_tensor = self._torch.as_tensor(normalized_targets, dtype=self._torch.float32)
+        feature_tensor = self._torch.as_tensor(
+            normalized_features, dtype=self._torch.float32
+        )
+        target_tensor = self._torch.as_tensor(
+            normalized_targets, dtype=self._torch.float32
+        )
         validation_tensors = self._normalized_validation_tensors()
         generator = self._torch.Generator(device='cpu')
         generator.manual_seed(self._seed_value())
@@ -113,7 +119,7 @@ class LSTMModel(PredictiveModel):
             total_count = 0
             order = self._torch.randperm(feature_tensor.shape[0], generator=generator)
             for start in range(0, feature_tensor.shape[0], self.batch_size):
-                batch_index = order[start:start + self.batch_size]
+                batch_index = order[start : start + self.batch_size]
                 inputs = feature_tensor[batch_index].to(self.device)
                 batch_targets = target_tensor[batch_index].to(self.device)
                 optimizer.zero_grad()
@@ -145,7 +151,11 @@ class LSTMModel(PredictiveModel):
 
     def predict(self, features: np.ndarray) -> PredictionResult:
         """Predict target deformation for causal input sequences."""
-        if self._network is None or self._feature_mean is None or self._feature_std is None:
+        if (
+            self._network is None
+            or self._feature_mean is None
+            or self._feature_std is None
+        ):
             raise RuntimeError('LSTMModel must be trained or loaded before prediction.')
         if self._target_mean is None or self._target_std is None:
             raise RuntimeError('LSTM target normalization is unavailable.')
@@ -156,7 +166,9 @@ class LSTMModel(PredictiveModel):
         self._network.eval()
         with self._torch.no_grad():
             output = self._network(
-                self._torch.as_tensor(normalized, dtype=self._torch.float32).to(self.device),
+                self._torch.as_tensor(normalized, dtype=self._torch.float32).to(
+                    self.device
+                ),
             ).squeeze(-1)
         predictions = output.detach().cpu().numpy()
         return PredictionResult(predictions * self._target_std + self._target_mean)
@@ -201,7 +213,9 @@ class LSTMModel(PredictiveModel):
         model._feature_std = np.asarray(payload['feature_std'], dtype=np.float64)
         model._target_mean = float(payload['target_mean'])
         model._target_std = float(payload['target_std'])
-        model.training_history = [float(value) for value in payload.get('training_history', [])]
+        model.training_history = [
+            float(value) for value in payload.get('training_history', [])
+        ]
         model.validation_history = [
             float(value) for value in payload.get('validation_history', [])
         ]

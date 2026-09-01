@@ -45,16 +45,19 @@ def handle_missing_values(
         raise ValueError("Missing-value strategy must be 'mean', 'median', or 'drop'.")
     max_missing_ratio = float(settings.get('max_nan_ratio', 1.0))
     if not 0.0 <= max_missing_ratio <= 1.0:
-        raise ValueError('preprocessing.missing_values.max_nan_ratio must be in [0, 1].')
+        raise ValueError(
+            'preprocessing.missing_values.max_nan_ratio must be in [0, 1].'
+        )
     if not features:
         return features
 
     shapes = {values.shape for values in features.values()}
     if len(shapes) != 1:
-        raise ValueError('All features must have the same shape for missing-value handling.')
+        raise ValueError(
+            'All features must have the same shape for missing-value handling.'
+        )
     arrays = {
-        name: values.astype(np.float64, copy=False)
-        for name, values in features.items()
+        name: values.astype(np.float64, copy=False) for name, values in features.items()
     }
     shape = next(iter(shapes))
     if valid_mask is None:
@@ -77,7 +80,7 @@ def handle_missing_values(
         ratio = float(np.count_nonzero(domain & ~np.isfinite(values)) / domain_size)
         if ratio > max_missing_ratio:
             raise ValueError(
-                f"Feature {name!r} missing-value ratio {ratio:.3f} exceeds "
+                f'Feature {name!r} missing-value ratio {ratio:.3f} exceeds '
                 f'configured maximum {max_missing_ratio:.3f}.'
             )
 
@@ -95,7 +98,7 @@ def handle_missing_values(
     for name, values in arrays.items():
         finite = domain & np.isfinite(values)
         if not np.any(finite):
-            raise ValueError(f"Feature {name!r} contains no finite values to impute.")
+            raise ValueError(f'Feature {name!r} contains no finite values to impute.')
         fill_value = float(statistic(values[finite]))
         handled[name] = np.where(
             domain,

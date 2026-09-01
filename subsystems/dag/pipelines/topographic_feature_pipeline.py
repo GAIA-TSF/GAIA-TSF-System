@@ -95,9 +95,7 @@ class TopographicFeaturePipeline(Pipeline):
         features = normalize_features(
             features, self.config.get('preprocessing', {}).get('normalization')
         )
-        normalization = self.config.get('preprocessing', {}).get(
-            'normalization', {}
-        )
+        normalization = self.config.get('preprocessing', {}).get('normalization', {})
         normalized = isinstance(normalization, dict) and bool(
             normalization.get('enabled', False)
         )
@@ -110,7 +108,9 @@ class TopographicFeaturePipeline(Pipeline):
         output = settings.get('results', {})
         if not isinstance(output, dict):
             raise TypeError('static_topography.results must be a mapping.')
-        output_dir = self._resolve(str(output.get('output_dir', 'results/static_features')))
+        output_dir = self._resolve(
+            str(output.get('output_dir', 'results/static_features'))
+        )
         filenames = output.get('filenames', {})
         if not isinstance(filenames, dict):
             raise TypeError('static_topography.results.filenames must be a mapping.')
@@ -121,7 +121,9 @@ class TopographicFeaturePipeline(Pipeline):
             profile,
             str(output.get('raster_format', 'GTiff')),
         )
-        metadata_path = output_dir / str(output.get('metadata_filename', 'metadata.json'))
+        metadata_path = output_dir / str(
+            output.get('metadata_filename', 'metadata.json')
+        )
         write_json(
             metadata_path,
             {

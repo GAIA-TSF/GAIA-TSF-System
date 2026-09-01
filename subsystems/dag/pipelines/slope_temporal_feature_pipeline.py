@@ -204,8 +204,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         unsupported = set(requested_features) - supported_features
         if unsupported:
             raise ValueError(
-                'Unsupported calendar feature(s): '
-                f'{", ".join(sorted(unsupported))}.',
+                f'Unsupported calendar feature(s): {", ".join(sorted(unsupported))}.',
             )
 
         day_of_year = np.asarray(

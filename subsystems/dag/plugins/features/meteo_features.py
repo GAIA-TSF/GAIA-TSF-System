@@ -80,9 +80,7 @@ class MeteoFeatureExtractor(FeatureExtractor):
                 if name in requested:
                     outputs[name] = self._rolling(precipitation, dates, days, 'sum')
             if 'max_precip_7d' in requested:
-                outputs['max_precip_7d'] = self._rolling(
-                    precipitation, dates, 7, 'max'
-                )
+                outputs['max_precip_7d'] = self._rolling(precipitation, dates, 7, 'max')
             if 'days_since_heavy_rain' in requested:
                 threshold = float(enabled_features.get('heavy_rain_threshold', 20.0))
                 if threshold < 0:

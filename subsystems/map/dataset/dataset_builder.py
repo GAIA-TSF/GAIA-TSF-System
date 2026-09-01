@@ -205,15 +205,25 @@ class DatasetBuilder:
         time_values = np.arange(start_index, end_index)
         train_end = int(time_values.size * train_ratio)
         validation_end = train_end + int(time_values.size * validation_ratio)
-        if train_end < 1 or validation_end <= train_end or validation_end >= time_values.size:
-            raise ValueError('Temporal window needs at least one acquisition per subset.')
+        if (
+            train_end < 1
+            or validation_end <= train_end
+            or validation_end >= time_values.size
+        ):
+            raise ValueError(
+                'Temporal window needs at least one acquisition per subset.'
+            )
         return DatasetSplits(
-            self._subset(dataset, np.isin(dataset.time_indices, time_values[:train_end])),
+            self._subset(
+                dataset, np.isin(dataset.time_indices, time_values[:train_end])
+            ),
             self._subset(
                 dataset,
                 np.isin(dataset.time_indices, time_values[train_end:validation_end]),
             ),
-            self._subset(dataset, np.isin(dataset.time_indices, time_values[validation_end:])),
+            self._subset(
+                dataset, np.isin(dataset.time_indices, time_values[validation_end:])
+            ),
         )
 
     @staticmethod

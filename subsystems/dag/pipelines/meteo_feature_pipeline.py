@@ -87,9 +87,7 @@ class MeteoFeaturePipeline(Pipeline):
                 )
                 data = {name: apply_mask(stack, mask) for name, stack in data.items()}
 
-        daily_features = self.extractor.compute(
-            data, reference.dates, feature_config
-        )
+        daily_features = self.extractor.compute(data, reference.dates, feature_config)
         features = self._sample_on_insar_dates(
             daily_features,
             reference.dates,
@@ -169,8 +167,12 @@ class MeteoFeaturePipeline(Pipeline):
         if requested.intersection(self.extractor.PRECIPITATION_FEATURES):
             inputs.append('precipitation')
         mean_features = {
-            'temperature_mean', 'temp_7d_mean', 'temp_30d_mean',
-            'temperature_anomaly', 'freezing_degree_days', 'thawing_degree_days',
+            'temperature_mean',
+            'temp_7d_mean',
+            'temp_30d_mean',
+            'temperature_anomaly',
+            'freezing_degree_days',
+            'thawing_degree_days',
         }
         if requested.intersection(mean_features):
             inputs.append('temperature_mean')
@@ -182,9 +184,7 @@ class MeteoFeaturePipeline(Pipeline):
             raise ValueError('At least one meteorological feature must be enabled.')
         return inputs
 
-    def _load_insar_reference(
-        self, inputs: dict[str, Any]
-    ) -> RasterTimeSeries:
+    def _load_insar_reference(self, inputs: dict[str, Any]) -> RasterTimeSeries:
         config = self._mapping(inputs, 'insar')
         return self.loader.load(
             self._resolve_path(str(config['directory'])),
@@ -282,9 +282,7 @@ class MeteoFeaturePipeline(Pipeline):
         except ValueError as exc:
             raise ValueError(f'Invalid meteorological date: {value!r}') from exc
 
-    def _load_input(
-        self, name: str, inputs: dict[str, Any]
-    ) -> RasterTimeSeries:
+    def _load_input(self, name: str, inputs: dict[str, Any]) -> RasterTimeSeries:
         value = self._mapping(inputs, name)
         return self.loader.load(
             self._resolve_path(str(value['directory'])),
