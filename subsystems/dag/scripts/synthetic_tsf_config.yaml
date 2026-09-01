@@ -1,0 +1,115 @@
+# Synthetic TSF deformation simulator configuration for Sentinel-1 SBAS-InSAR.
+# Units are millimetres unless a key states otherwise. Pixel coordinates are
+# [x, y] from the upper-left. Negative displacement denotes settlement/motion
+# away from the satellite.
+
+# Default profile; --scenario NAME overrides this value.
+# spatial_propagation, external_trigger, gradual_acceleration 
+active_scenario: gradual_acceleration
+
+simulation:
+  # Parent only: the simulator appends the selected output_directory and inputs/.
+  output_root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments
+  random_seed: 42             # Reproducible terrain, weather, and noise.
+  start_date: "2018-01-01"    # UTC ISO-8601 date.
+  duration_days: 1095         # Three years; 2-5 years is typical for trend tests.
+  # Same-track repeat interval. Use 6 days only when a consistent S1A/S1B pair
+  # is available for the study period; 12 days is conservative and avoids
+  # assuming that both satellites contribute to every interferometric stack.
+  revisit_days: 12
+
+grid:
+  crs: EPSG:32633             # UTM zone 33N; change for another study area.
+  pixel_size_m: 10
+  width_px: 100               # 1 km east-west extent.
+  height_px: 100              # 1 km north-south extent.
+  xmin: 486768                # Western edge in CRS coordinates.
+  ymax: 6656348               # Northern edge in CRS coordinates.
+
+observation:
+  # Sentinel-1 IW is C-band SAR (wavelength about 5.55 cm). A mid-swath angle
+  # near 39 degrees is plausible; local IW incidence commonly varies by burst.
+  incidence_angle_deg: 39
+  # Per-acquisition LOS noise. Around 8-20 mm for atmosphere and 2-5 mm for
+  # residual measurement noise gives a realistic, moderately noisy SBAS stack.
+  atmospheric_sigma_mm: 12
+  measurement_sigma_mm: 3
+  # 0.30-0.40 is a permissive threshold for retaining deforming bare surfaces;
+  # vegetation or strict quality screening would normally require 0.45-0.60.
+  coherence_threshold: 0.35
+
+baseline:
+  # Low-amplitude motion common to every archetype.
+  final_settlement_mm: -5      # Quiet-zone secular motion: ~1.7 mm/year.
+  seasonal_amplitude_mm: 10   # Plausible hydrological/thermal LOS seasonality.
+  seasonal_period_days: 365
+
+classification:
+  # Probability above this threshold becomes an anomalous binary label.
+  hotspot_probability_threshold: 0.20 # Sensitive truth mask; 0.3-0.5 is stricter.
+
+scenarios:
+  # Stable first year -> creep -> velocity increase -> acceleration -> failure.
+  gradual_acceleration:
+    archetype: gradual_acceleration
+    output_directory: synthetic_tsf_deformation_gradual_acceleration
+    center_px: [75, 40]       # Hotspot on the eastern embankment.
+    sigma_px: [5, 8]          # 1-sigma radii: 50 m by 80 m.
+    onset_day: 365             # One stable year establishes an SBAS baseline.
+    velocity_increase_day: 600 # About 8 months of initially slow creep.
+    acceleration_day: 800      # About 6.5 months of linear acceleration.
+    failure_day: 1030          # Leaves ~65 days of post-failure observations.
+    slow_velocity_mm_per_day: -0.01       # Approximately -3.7 mm/year.
+    linear_acceleration_mm_per_day2: -0.0002 # Velocity reaches ~-0.05 mm/day.
+    exponential_growth_rate_per_day: 0.012 # Approximately 58-day doubling.
+    maximum_displacement_mm: -250         # Caps extreme pre-failure motion.
+
+  # A local source enlarges and migrates northwest before reaching critical area.
+  spatial_propagation:
+    archetype: spatial_propagation
+    output_directory: synthetic_tsf_deformation_spatial_propagation
+    initial_center_px: [75, 40]
+    initiation_day: 500       # ~17 stable months before localization.
+    failure_day: 1030         # ~18 months available to observe propagation.
+    initial_sigma_px: [2.5, 3.0]          # 25 m by 30 m initial radii.
+    # Equivalent expansion of 0.25 and 0.12 m/day at 10 m pixels.
+    propagation_rate_px_per_day: [0.025, 0.012]
+    maximum_sigma_px: [18, 12]            # Maximum 180 m by 120 m radii.
+    # Hotspot migration of about 0.17 m/day towards the southwest in raster
+    # coordinates; this produces an observable but gradual shift.
+    center_velocity_px_per_day: [-0.015, 0.008]
+    core_velocity_mm_per_day: -0.15       # Approximately -55 mm/year.
+    velocity_growth_per_day: 0.002        # Approximately doubles in 500 days.
+    failure_area_fraction: 0.20           # Critical share of complete grid.
+    heterogeneity:
+      enabled: true
+      correlation_length_px: 8            # Smooth material changes over ~80 m.
+      coefficient_of_variation: 0.35
+
+  # Intense rain gives a delayed transient response; later strong shaking gives
+  # an instantaneous offset. The first event starts a persistent faster regime.
+  external_trigger:
+    archetype: externally_triggered
+    output_directory: synthetic_tsf_deformation_external_trigger
+    baseline_velocity_mm_per_day: -0.01   # ~-3.7 mm/year before triggering.
+    post_trigger_velocity_mm_per_day: -0.25 # ~-91 mm/year initial critical rate.
+    post_trigger_acceleration_mm_per_day2: -0.0005
+    events:
+      - id: rainfall_01
+        type: rainfall
+        day: 720                         # End of second wet-season cycle.
+        precipitation_mm: 75              # Intense daily rainfall.
+        response_delay_days: 3            # Approximate infiltration delay.
+        response_rise_days: 10
+        displacement_scale_mm: -18
+        decay_days: 45                    # Pore-pressure response relaxation.
+        center_px: [70, 42]
+        sigma_px: [15, 12]                # 150 m by 120 m footprint.
+
+      - id: earthquake_01
+        type: earthquake
+        day: 900                         # 180 days after the rainfall event.
+        pga_g: 0.32                       # Strong shaking, units of g.
+        instantaneous_offset_mm: -12
+        center_px: [70, 42]
+        sigma_px: [20, 15]                # Broader shaking footprint.
