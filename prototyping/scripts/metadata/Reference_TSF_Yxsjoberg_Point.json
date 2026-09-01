@@ -1,0 +1,38 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Reference_TSF_Yxsjoberg_Point",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      487260.80855724297,
+      6655797.448160047
+    ]
+  },
+  "bbox": [
+    487260.80855724297,
+    6655797.448160047,
+    487260.80855724297,
+    6655797.448160047
+  ],
+  "properties": {
+    "title": "Reference Points – TSF Water (Yxsjoberg)",
+    "description": "Point dataset representing validation locations placed inside TSF-affected water polygons. Used as reference samples for validation and quality control.",
+    "proj:epsg": 32633,
+    "datetime": "2026-05-19T10:39:18.646327Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Reference_TSF_Yxsjoberg_Point.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Reference Points – TSF Water (Yxsjoberg)",
+      "description": "Point dataset representing validation locations placed inside TSF-affected water polygons. Used as reference samples for validation and quality control.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}
