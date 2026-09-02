@@ -362,6 +362,16 @@ def scenario_state(t):
     """Return displacement, probability, stage and trigger fields in millimetres."""
     p, kind = SCENARIO, SCENARIO['archetype']
     zero = np.zeros_like(bowl)
+    if kind == 'no_failure':
+        center, sigma = p['fluctuation_center_px'], p['fluctuation_sigma_px']
+        stable_zone = np.exp(-0.5 * (((X-center[0])/sigma[0])**2 + ((Y-center[1])/sigma[1])**2))
+        fluctuation = (
+            p['fluctuation_amplitude_mm'] * np.sin(2*np.pi*t/p['primary_period_days'])
+            + p['secondary_amplitude_mm'] * np.sin(2*np.pi*t/p['secondary_period_days'] + np.pi/3)
+        )
+        settlement = p['local_settlement_mm_per_year'] * t / 365.0
+        # Negative control: motion may fluctuate, but all truth labels stay stable.
+        return (fluctuation + settlement) * stable_zone, zero, zero.astype('uint8'), zero
     if kind == 'gradual_acceleration':
         h = np.exp(-0.5 * (((X-p['center_px'][0])/p['sigma_px'][0])**2 + ((Y-p['center_px'][1])/p['sigma_px'][1])**2))
         if t < p['onset_day']:
@@ -535,22 +545,24 @@ with rasterio.open(STATIC_DIR / 'tsf_dem.tif', 'r+') as dem_dataset:
     dem_dataset.set_band_description(1, 'TSF elevation')
     dem_dataset.update_tags(1, units='m')
 
-pd.DataFrame(
-    {
-        'event': [
-            'failure_start',
-            'latent_phase',
-            'developing_phase',
-            'accelerating_phase',
-        ],
-        'date': [
-            (START_DATE + timedelta(days=730)).strftime('%Y-%m-%d'),
-            (START_DATE + timedelta(days=730)).strftime('%Y-%m-%d'),
-            (START_DATE + timedelta(days=850)).strftime('%Y-%m-%d'),
-            (START_DATE + timedelta(days=970)).strftime('%Y-%m-%d'),
-        ],
-    }
-).to_csv(INPUTS_DIR / 'failure_timeline.csv', index=False)
+if SCENARIO['archetype'] == 'no_failure':
+    timeline = [{'event': 'stable_period', 'date': START_DATE.strftime('%Y-%m-%d')}]
+elif SCENARIO['archetype'] == 'gradual_acceleration':
+    timeline = [
+        {'event': event, 'date': (START_DATE + timedelta(days=SCENARIO[key])).strftime('%Y-%m-%d')}
+        for event, key in [('slow_phase', 'onset_day'), ('developing_phase', 'velocity_increase_day'), ('accelerating_phase', 'acceleration_day'), ('failure', 'failure_day')]
+    ]
+elif SCENARIO['archetype'] == 'spatial_propagation':
+    timeline = [
+        {'event': 'localized_instability', 'date': (START_DATE + timedelta(days=SCENARIO['initiation_day'])).strftime('%Y-%m-%d')},
+        {'event': 'failure', 'date': (START_DATE + timedelta(days=SCENARIO['failure_day'])).strftime('%Y-%m-%d')},
+    ]
+else:
+    timeline = [
+        {'event': event['type'], 'date': (START_DATE + timedelta(days=event['day'])).strftime('%Y-%m-%d')}
+        for event in SCENARIO.get('events', [])
+    ]
+pd.DataFrame(timeline).to_csv(INPUTS_DIR / 'failure_timeline.csv', index=False)
 
 pd.DataFrame(
     {

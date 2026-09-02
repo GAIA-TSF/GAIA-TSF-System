@@ -4,8 +4,10 @@
 # away from the satellite.
 
 # Default profile; --scenario NAME overrides this value.
-# spatial_propagation, external_trigger, gradual_acceleration 
-active_scenario: gradual_acceleration
+# Available: 
+#[ no_failure, gradual_acceleration, 
+# spatial_propagation, external_trigger]
+active_scenario: no_failure
 
 simulation:
   # Parent only: the simulator appends the selected output_directory and inputs/.
@@ -49,6 +51,19 @@ classification:
   hotspot_probability_threshold: 0.20 # Sensitive truth mask; 0.3-0.5 is stricter.
 
 scenarios:
+  # Negative control: stable throughout, with small reversible fluctuations.
+  # No hotspot, anomaly label, regime transition, or failure is generated.
+  no_failure:
+    archetype: no_failure
+    output_directory: synthetic_tsf_deformation_no_failure
+    fluctuation_center_px: [58, 52]
+    fluctuation_sigma_px: [22, 18]       # Broad 220 m by 180 m response area.
+    fluctuation_amplitude_mm: 3.0        # Below typical single-date LOS noise.
+    primary_period_days: 120             # Slow hydrological fluctuation.
+    secondary_amplitude_mm: 1.0
+    secondary_period_days: 45            # Smaller short-term fluctuation.
+    local_settlement_mm_per_year: -1.5   # Stable creep below ~2 mm/year.
+
   # Stable first year -> creep -> velocity increase -> acceleration -> failure.
   gradual_acceleration:
     archetype: gradual_acceleration
