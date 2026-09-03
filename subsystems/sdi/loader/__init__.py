@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 from lib.base import GaiaBase, SubsystemId
+from lib.exceptions import GaiaSdiError
 
 
 class SdiLoader(ABC, GaiaBase):
@@ -27,7 +28,6 @@ class SdiLoader(ABC, GaiaBase):
         GaiaBase.__init__(self, SubsystemId.SDI)
 
         self.zip_path = zip_path
-        # TBD: raise GaiaSettingsError
         self.pg_config = pg_config or self.settings['sdi']['db']
         self.stac_api_url = stac_api_url or self.settings['sdi']['stac']['url']
 
@@ -65,7 +65,7 @@ class SdiLoader(ABC, GaiaBase):
                     self.json_file = os.path.join(root, file)
 
         if not self.json_file:
-            raise FileNotFoundError('ZIP must contain one JSON file.')
+            raise GaiaSdiError('ZIP must contain one JSON file.')
 
     def _load_stac_json(self):
         """
@@ -97,7 +97,7 @@ class SdiLoader(ABC, GaiaBase):
             or 'datetime' not in self.stac_json['properties']
             or 'collection' not in self.stac_json
         ):
-            raise ValueError(
+            raise GaiaSdiError(
                 'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection'
             )
 
@@ -143,10 +143,10 @@ class SdiLoader(ABC, GaiaBase):
                 f'{self.stac_api_url}/collections', json=collection_payload
             )
             if response.status_code not in (200, 201):
-                raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
+                raise GaiaSdiError(f'STAC API error: {response.text}')
         else:
             # Other problem
-            raise requests.exceptions.HTTPError(
+            raise GaiaSdiError(
                 f'STAC API Error checking collection: {check_response.status_code} {check_response.text}'
             )
 
@@ -163,7 +163,7 @@ class SdiLoader(ABC, GaiaBase):
             json=self.stac_json,
         )
         if response.status_code not in (200, 201):
-            raise requests.exceptions.HTTPError(f'STAC API error: {response.text}')
+            raise GaiaSdiError(f'STAC API error: {response.text}')
 
         self.logger.debug('STAC item successfully posted.')
 
@@ -192,7 +192,7 @@ class InSituDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise Exception('STAC JSON contains no assets')
+            raise GaiaSdiError('STAC JSON contains no assets')
 
         for asset_key, asset in assets.items():
             href = asset.get('href')
@@ -330,7 +330,7 @@ class InSituDataLoader(SdiLoader):
                         )
 
             except psycopg.Error as e:
-                raise RuntimeError(
+                raise GaiaSdiError(
                     f"""
                     PostgreSQL error while importing {asset_key}
                     Table: {self.table_name}
@@ -377,7 +377,7 @@ class EarthObservationDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise Exception('STAC JSON contains no assets')
+            raise GaiaSdiError('STAC JSON contains no assets')
 
         self.raster_files = []
 

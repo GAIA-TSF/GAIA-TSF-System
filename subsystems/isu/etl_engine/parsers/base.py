@@ -4,6 +4,8 @@ import re
 import pandas as pd
 import io
 
+from lib.exceptions import GaiaDataError
+
 
 class BaseParser(ABC):
     """
@@ -26,7 +28,7 @@ class BaseParser(ABC):
                 return df, enc
             except (UnicodeDecodeError, pd.errors.ParserError) as e:
                 last_err = e
-        raise ValueError(
+        raise GaiaDataError(
             f'Could not decode CSV with any supported encoding: {last_err}'
         )
 
@@ -176,6 +178,6 @@ class BaseParser(ABC):
 
         except (KeyError, ValueError) as e:
             self.logger.error(f'Timestamp standardization failed: {str(e)}')
-            raise ValueError(
+            raise GaiaDataError(
                 f"Failed to standardize timestamp column '{target_col}': {str(e)}"
             )

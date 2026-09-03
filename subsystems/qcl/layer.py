@@ -10,6 +10,7 @@ from lib.dispatcher import (
     NotificationDispatcher,
     VidOutputDispatcher,
 )
+from lib.exceptions import GaiaConfigError
 
 
 _DEFAULT_RULES: Dict[str, Any] = {
@@ -308,7 +309,7 @@ class QcCatalog:
             return self._controllers[data_type].validate(data, metadata, dataset_id)
 
         self._logger.error(f'No QC Controller found for {data_type}')
-        raise ValueError(f'No QC Controller found for {data_type}')
+        raise GaiaConfigError(f'No QC Controller found for {data_type}')
 
 
 class QualityControlLoggingLayer(GaiaBase):

@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 from subsystems.dag.core.executor import PipelineExecutor
 from subsystems.dag.pipelines.amd_pipeline import AMDPipeline
 from subsystems.dag.pipelines.slope_pipeline import SlopeStabilityPipeline
+from lib.exceptions import GaiaConfigError
 
 
 # Config loader
@@ -44,7 +45,7 @@ def build_inputs(config: dict, pipeline_name: str):
         }
 
     else:
-        raise ValueError(f'Unknown pipeline: {pipeline_name}')
+        raise GaiaConfigError(f'Unknown pipeline: {pipeline_name}')
 
 
 # Pipeline factory
@@ -54,7 +55,7 @@ def get_pipeline(name: str):
     elif name == 'slope':
         return SlopeStabilityPipeline()
     else:
-        raise ValueError(f'Unknown pipeline: {name}')
+        raise GaiaConfigError(f'Unknown pipeline: {name}')
 
 
 # MAIN
