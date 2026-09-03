@@ -9,7 +9,7 @@ class Scheduler:
     Supports dependency injection for logging.
     """
 
-    def __init__(self, interval_seconds: int = 60, logger: Any = None):
+    def __init__(self, interval_seconds: int = 3600, logger: Any = None):
         """
         Initialize the Scheduler.
 
@@ -34,7 +34,8 @@ class Scheduler:
         :return: None
         """
         if self._is_running:
-            self.logger.warning('Scheduler is already running.')
+            if self.logger:
+                self.logger.warning('Scheduler is already running.')
             return
 
         self._stop_event.clear()
@@ -45,7 +46,8 @@ class Scheduler:
             target=self._run_loop, args=(task_func,), daemon=True
         )
         self._thread.start()
-        self.logger.info(f'Scheduler started with interval: {self.interval}s')
+        if self.logger:
+            self.logger.info(f'Scheduler started with interval: {self.interval}s')
 
     def stop(self) -> None:
         """
@@ -56,14 +58,16 @@ class Scheduler:
         if not self._is_running:
             return
 
-        self.logger.info('Stopping scheduler...')
+        if self.logger:
+            self.logger.info('Stopping scheduler...')
         self._stop_event.set()
 
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
         self._is_running = False
-        self.logger.info('Scheduler stopped.')
+        if self.logger:
+            self.logger.info('Scheduler stopped.')
 
     def _run_loop(self, task_func: Callable[[], None]) -> None:
         """
@@ -80,7 +84,8 @@ class Scheduler:
 
             # Catch specific errors only (No bare exceptions)
             except (OSError, RuntimeError, ValueError) as e:
-                self.logger.error(f'Scheduled task failed: {str(e)}', exc_info=True)
+                if self.logger:
+                    self.logger.error(f'Scheduled task failed: {str(e)}', exc_info=True)
 
             # Responsive sleep loop
             # Check stop_event frequently (every 0.5s) to allow quick shutdown

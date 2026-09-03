@@ -4,8 +4,8 @@ from typing import Any, List, Optional, Tuple
 
 
 from lib.base import GaiaBase, SubsystemId
+from lib.scheduler import Scheduler
 
-from .scheduler import Scheduler
 from .source_fetchers import (
     fetch_from_ftp,
     fetch_from_https,

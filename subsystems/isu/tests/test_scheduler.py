@@ -3,7 +3,7 @@
 import time
 import pytest
 from unittest.mock import MagicMock
-from subsystems.isu.bulk_upload_scheduler.scheduler import Scheduler
+from lib.scheduler import Scheduler
 
 
 @pytest.fixture
