@@ -68,10 +68,7 @@ class BulkUploadScheduler(GaiaBase):
                 target_dir = current_filter.pop('target_dir')
                 backend = current_filter.pop('backend')
 
-                if backend == 'eodag':
-                    gateway = DataAcquisitionGateway()
-                else:
-                    gateway = DataAcquisitionGateway(backend='asf')
+                gateway = DataAcquisitionGateway(backend=backend)
 
                 # Query remote catalog metadata using the live dates
                 results = gateway.backend.search(geom=aoi_geom, **current_filter)
