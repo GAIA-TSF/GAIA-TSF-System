@@ -27,6 +27,8 @@ class DataAcquisitionBackend(ABC):
         self.data_dir = data_dir
         self.logger = logger
 
+        self.logger.task_started(self)
+
     def set_config(self, config: dict) -> None:
         """
         Set backend configuration.
