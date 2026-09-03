@@ -26,6 +26,7 @@ from .base import PreprocessingBasePipeline
 from lib.config import SettingsReader
 from lib.exceptions import GaiaDataError, GaiaConfigError
 
+
 class Sentinel1Pipeline(PreprocessingBasePipeline):
     metadata = {
         'title': 'Sentinel-1',
@@ -235,7 +236,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         valid = [r for r in results if r['n_comp'] == 1]
         if not valid:
-            raise GaiaConfigError('No connected network found. Try increasing thresholds.')
+            raise GaiaConfigError(
+                'No connected network found. Try increasing thresholds.'
+            )
 
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']

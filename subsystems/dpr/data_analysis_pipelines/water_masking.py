@@ -12,6 +12,7 @@ from shapely.geometry import box as sbox
 from .base import DataAnalysisBasePipeline
 from lib.exceptions import GaiaDataError
 
+
 class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
     metadata = {
         'title': 'Sentinel-2 Water Masking',
@@ -780,9 +781,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 if os.path.exists(out_path) is False:
-                    raise GaiaDataError(
-                        f'Could not create output raster {out_name}'
-                    )
+                    raise GaiaDataError(f'Could not create output raster {out_name}')
 
                 if self.driver_name == 'JP2OpenJPEG':
                     self._tiff_to_jp2(out_path)

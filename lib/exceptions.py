@@ -9,16 +9,22 @@ class GaiaError(Exception):
         :param LoggerAdapter logger: logger to be used
         """
         if logger is not None:
-            logger.critical(msg)
+            logger.error(msg)
 
 
 class GaiaConfigError(GaiaError):
-    """Configuration error."""
+    """GAIA configuration error."""
 
     pass
 
 
 class GaiaDataError(GaiaError):
-    """Read / Parse data error."""
+    """GAIA read/parse data error."""
+
+    pass
+
+
+class GaiaSdiError(GaiaError):
+    """GAIA SDI-related error."""
 
     pass

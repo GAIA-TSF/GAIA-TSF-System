@@ -11,7 +11,9 @@ from geopandas import GeoDataFrame
 from shapely.wkt import loads
 from shapely.geometry.base import BaseGeometry
 from pygmtsar import ASF
+
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
+from lib.exceptions import GaiaDataError
 
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
@@ -38,7 +40,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             try:
                 geom = loads(geom)
             except Exception as e:
-                raise ValueError(f'Failed to parse AOI WKT string: {e}')
+                raise GaiaDataError(f'Failed to parse AOI WKT string: {e}')
 
         all_results = ASF.search(
             geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
@@ -97,7 +99,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         :type target_dir: str or pathlib.Path
         :return: List of resolved SAFE directory paths
         :rtype: list[pathlib.Path]
-        :raises FileNotFoundError: If no matching SAFE directory is found
         """
         target_dir = Path(target_dir)
         safe_dirs = list(target_dir.glob('*.SAFE'))
@@ -121,6 +122,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             if match:
                 resolved.append(match)
             else:
-                raise RuntimeError(f'SAFE not found for {fid}')
+                raise GaiaDataError(f'SAFE not found for {fid}')
 
         return resolved
