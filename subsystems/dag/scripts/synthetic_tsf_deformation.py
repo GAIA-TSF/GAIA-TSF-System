@@ -12,6 +12,7 @@ Outputs:
 - Atmosphere GeoTIFFs
 - Rainfall trigger GeoTIFFs
 - Coherence mask GeoTIFF
+- AOI and deformation-ROI mask GeoTIFFs
 - Static TSF DEM GeoTIFF
 - Raw daily meteodata CSV (precipitation and temperature observations)
 - Metadata CSV
@@ -40,9 +41,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+import geopandas as gpd
 import rasterio
 from pyproj import Transformer
+from rasterio.features import geometry_mask
 from rasterio.transform import from_origin
+from rasterio.warp import transform_geom
 from scipy.ndimage import gaussian_filter
 
 ### CONFIGURATION ###
@@ -62,19 +66,60 @@ SCENARIO = CONFIG['scenarios'][SCENARIO_NAME]
 root = args.output_root or Path(CONFIG['simulation']['output_root'])
 if not root.is_absolute():
     root = (args.config.resolve().parent / root).resolve()
-OUTDIR = root / SCENARIO['output_directory']
+output_directory = SCENARIO['output_directory']
+if CONFIG['simulation'].get('append_scenario_name', True):
+    scenario_suffix = f'_{SCENARIO_NAME}'
+    if not output_directory.endswith(scenario_suffix):
+        output_directory += scenario_suffix
+OUTDIR = root / output_directory
 OUTDIR.mkdir(exist_ok=True, parents=True)
 INPUTS_DIR = OUTDIR / 'inputs'
 STATIC_DIR = OUTDIR / 'static'
 
-CRS = CONFIG['grid']['crs']
-PIXEL_SIZE = CONFIG['grid']['pixel_size_m']
+def _resolve_input_path(value):
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else (args.config.resolve().parent / path).resolve()
 
-NX = CONFIG['grid']['width_px']
-NY = CONFIG['grid']['height_px']
 
-XMIN = CONFIG['grid']['xmin']
-YMAX = CONFIG['grid']['ymax']
+def _read_geometries(path, target_crs=None):
+    if not path.exists():
+        raise FileNotFoundError(f'Polygon input not found: {path}')
+    frame = gpd.read_file(path)
+    if frame.crs is None:
+        raise ValueError(f'Polygon input has no CRS: {path}')
+    frame = frame.loc[frame.geometry.notna() & ~frame.geometry.is_empty]
+    if frame.empty:
+        raise ValueError(f'Polygon input has no geometries: {path}')
+    if not frame.geom_type.isin(['Polygon', 'MultiPolygon']).all():
+        raise ValueError(f'Polygon input contains non-polygon geometry: {path}')
+    if target_crs is not None:
+        frame = frame.to_crs(target_crs)
+    return frame.geometry.tolist(), frame.crs, tuple(frame.total_bounds)
+
+
+grid_config = CONFIG['grid']
+PIXEL_SIZE = grid_config['pixel_size_m']
+POLYGON_MODE = grid_config.get('mode', 'rectangular') == 'polygon'
+if POLYGON_MODE:
+    AOI_FILE = _resolve_input_path(grid_config['aoi_file'])
+    aoi_geometries, CRS, source_bounds = _read_geometries(AOI_FILE)
+    left, bottom, right, top = source_bounds
+    SPATIAL_BOUNDS = source_bounds
+    XMIN = np.floor(left / PIXEL_SIZE) * PIXEL_SIZE
+    YMAX = np.ceil(top / PIXEL_SIZE) * PIXEL_SIZE
+    xmax = np.ceil(right / PIXEL_SIZE) * PIXEL_SIZE
+    ymin = np.floor(bottom / PIXEL_SIZE) * PIXEL_SIZE
+    NX = int(round((xmax - XMIN) / PIXEL_SIZE))
+    NY = int(round((YMAX - ymin) / PIXEL_SIZE))
+else:
+    CRS = grid_config['crs']
+    NX, NY = grid_config['width_px'], grid_config['height_px']
+    XMIN, YMAX = grid_config['xmin'], grid_config['ymax']
+    SPATIAL_BOUNDS = (
+        XMIN, YMAX - NY * PIXEL_SIZE,
+        XMIN + NX * PIXEL_SIZE, YMAX,
+    )
+    aoi_geometries = None
 
 YEARS = CONFIG['simulation']['duration_days'] / 365
 REVISIT_DAYS = CONFIG['simulation']['revisit_days']
@@ -106,6 +151,23 @@ np.random.seed(RANDOM_SEED)
 
 transform = from_origin(XMIN, YMAX, PIXEL_SIZE, PIXEL_SIZE)
 
+if aoi_geometries is None:
+    AOI_MASK = np.ones((NY, NX), dtype=bool)
+    ROI_MASK = AOI_MASK.copy()
+else:
+    AOI_MASK = geometry_mask(
+        aoi_geometries, (NY, NX), transform,
+        invert=True, all_touched=grid_config.get('all_touched', False),
+    )
+    roi_path = _resolve_input_path(grid_config['deformation_roi_file'])
+    roi_geometries, _, _ = _read_geometries(roi_path, CRS)
+    ROI_MASK = geometry_mask(
+        roi_geometries, (NY, NX), transform,
+        invert=True, all_touched=grid_config.get('all_touched', False),
+    ) & AOI_MASK
+    if not ROI_MASK.any():
+        raise ValueError('The deformation ROI has no pixels inside the AOI grid')
+
 times = np.arange(0, CONFIG['simulation']['duration_days'], REVISIT_DAYS)
 
 for d in [
@@ -127,13 +189,21 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 Y, X = np.mgrid[0:NY, 0:NX]
 
+roi_rows, roi_cols = np.where(ROI_MASK)
+ROI_CENTER = np.array([roi_cols.mean(), roi_rows.mean()])
+ROI_WEIGHT = gaussian_filter(ROI_MASK.astype(float), sigma=2)
+ROI_WEIGHT *= ROI_MASK
+ROI_WEIGHT /= ROI_WEIGHT.max()
+
 sigma_bowl = 18
 
-bowl = np.exp(-((X - 50) ** 2 + (Y - 50) ** 2) / (2 * sigma_bowl**2))
+aoi_rows, aoi_cols = np.where(AOI_MASK)
+aoi_center = [aoi_cols.mean(), aoi_rows.mean()]
+bowl = np.exp(-((X - aoi_center[0]) ** 2 + (Y - aoi_center[1]) ** 2) / (2 * sigma_bowl**2))
 
 coh_field = gaussian_filter(np.random.rand(NY, NX), sigma=8)
 
-mask = coh_field > 0.35
+mask = (coh_field > CONFIG['observation']['coherence_threshold']) & AOI_MASK
 
 rain_events = [790, 860, 950, 1030]
 
@@ -147,6 +217,7 @@ def write_tif(
     stage=0,
     dtype='float32',
     nodata=None,
+    apply_aoi=True,
 ):
     """Write an aligned single-band synthetic GeoTIFF and optional STAC item.
 
@@ -159,6 +230,14 @@ def write_tif(
         dtype: Rasterio-compatible output data type.
         nodata: Optional output nodata value.
     """
+    output = np.array(arr, copy=True)
+    if apply_aoi and output.shape == AOI_MASK.shape:
+        if np.issubdtype(np.dtype(dtype), np.floating):
+            output[~AOI_MASK] = np.nan
+            nodata = np.nan
+        else:
+            output[~AOI_MASK] = 255
+            nodata = 255
     with rasterio.open(
         path,
         'w',
@@ -172,7 +251,7 @@ def write_tif(
         nodata=nodata,
         compress='lzw',
     ) as dst:
-        dst.write(arr.astype(dtype), 1)
+        dst.write(output.astype(dtype), 1)
 
     if acquisition_date is not None:
         write_stac_item(
@@ -199,27 +278,24 @@ def write_stac_item(
         always_xy=True,
     )
 
-    xmin = XMIN
-    xmax = XMIN + NX * PIXEL_SIZE
-
-    ymax = YMAX
-    ymin = YMAX - NY * PIXEL_SIZE
+    xmin, ymin, xmax, ymax = SPATIAL_BOUNDS
 
     lon_min, lat_min = transformer.transform(xmin, ymin)
     lon_max, lat_max = transformer.transform(xmax, ymax)
 
-    geometry = {
-        'type': 'Polygon',
-        'coordinates': [
-            [
-                [lon_min, lat_min],
-                [lon_min, lat_max],
-                [lon_max, lat_max],
-                [lon_max, lat_min],
-                [lon_min, lat_min],
-            ]
-        ],
-    }
+    if aoi_geometries:
+        wgs84_geometries = [
+            transform_geom(CRS, 'EPSG:4326', item.__geo_interface__)
+            for item in aoi_geometries
+        ]
+        geometry = wgs84_geometries[0] if len(wgs84_geometries) == 1 else {
+            'type': 'GeometryCollection', 'geometries': wgs84_geometries,
+        }
+    else:
+        geometry = {'type': 'Polygon', 'coordinates': [[
+            [lon_min, lat_min], [lon_min, lat_max], [lon_max, lat_max],
+            [lon_max, lat_min], [lon_min, lat_min],
+        ]]}
 
     stage_name = {
         0: 'stable',
@@ -246,7 +322,7 @@ def write_stac_item(
             'constellation': 'synthetic',
             'instruments': ['simulation'],
             'processing:level': 'L2',
-            'proj:epsg': 32633,
+            'proj:epsg': rasterio.crs.CRS.from_user_input(CRS).to_epsg(),
             'simulation:type': product_type,
             'simulation:failure_stage': stage_name,
             'simulation:unit': 'm',
@@ -361,10 +437,14 @@ meteo_data = generate_meteodata()
 def scenario_state(t):
     """Return displacement, probability, stage and trigger fields in millimetres."""
     p, kind = SCENARIO, SCENARIO['archetype']
+    probability_threshold = CONFIG['classification']['hotspot_probability_threshold']
     zero = np.zeros_like(bowl)
     if kind == 'no_failure':
-        center, sigma = p['fluctuation_center_px'], p['fluctuation_sigma_px']
-        stable_zone = np.exp(-0.5 * (((X-center[0])/sigma[0])**2 + ((Y-center[1])/sigma[1])**2))
+        if POLYGON_MODE:
+            stable_zone = ROI_WEIGHT
+        else:
+            center, sigma = p['fluctuation_center_px'], p['fluctuation_sigma_px']
+            stable_zone = np.exp(-0.5 * (((X-center[0])/sigma[0])**2 + ((Y-center[1])/sigma[1])**2))
         fluctuation = (
             p['fluctuation_amplitude_mm'] * np.sin(2*np.pi*t/p['primary_period_days'])
             + p['secondary_amplitude_mm'] * np.sin(2*np.pi*t/p['secondary_period_days'] + np.pi/3)
@@ -373,7 +453,10 @@ def scenario_state(t):
         # Negative control: motion may fluctuate, but all truth labels stay stable.
         return (fluctuation + settlement) * stable_zone, zero, zero.astype('uint8'), zero
     if kind == 'gradual_acceleration':
-        h = np.exp(-0.5 * (((X-p['center_px'][0])/p['sigma_px'][0])**2 + ((Y-p['center_px'][1])/p['sigma_px'][1])**2))
+        if POLYGON_MODE:
+            h = ROI_WEIGHT
+        else:
+            h = np.exp(-0.5 * (((X-p['center_px'][0])/p['sigma_px'][0])**2 + ((Y-p['center_px'][1])/p['sigma_px'][1])**2))
         if t < p['onset_day']:
             d, stage = 0, 0
         elif t < p['velocity_increase_day']:
@@ -387,27 +470,29 @@ def scenario_state(t):
             d=d0+v*(np.exp(p['exponential_growth_rate_per_day']*dt)-1)/p['exponential_growth_rate_per_day']; stage=3
         d=max(d,p['maximum_displacement_mm']); stage=4 if t>=p['failure_day'] else stage
         prob=np.clip(abs(d/p['maximum_displacement_mm']),0,1)*h
-        return d*h, prob, np.where(prob>.2,stage,0), zero
+        return d*h, prob, np.where(prob > probability_threshold, stage, 0), zero
     if kind == 'spatial_propagation':
         if t < p['initiation_day']: return zero, zero, zero.astype('uint8'), zero
-        dt=t-p['initiation_day']; c=np.array(p['initial_center_px'])+np.array(p['center_velocity_px_per_day'])*dt
+        initial_center = ROI_CENTER if POLYGON_MODE else np.array(p['initial_center_px'])
+        dt=t-p['initiation_day']; c=initial_center+np.array(p['center_velocity_px_per_day'])*dt
         s=np.minimum(np.array(p['maximum_sigma_px']),np.array(p['initial_sigma_px'])+np.array(p['propagation_rate_px_per_day'])*dt)
-        h=np.exp(-.5*(((X-c[0])/s[0])**2+((Y-c[1])/s[1])**2)); d=p['core_velocity_mm_per_day']*(dt+.5*p['velocity_growth_per_day']*dt**2)*h
-        prob=h*min(1,.15+dt/(p['failure_day']-p['initiation_day'])); frac=np.mean(prob>.2); stage=1 if frac<p['failure_area_fraction']*.25 else 2 if frac<p['failure_area_fraction']*.7 else 3
+        h=np.exp(-.5*(((X-c[0])/s[0])**2+((Y-c[1])/s[1])**2))*ROI_WEIGHT; d=p['core_velocity_mm_per_day']*(dt+.5*p['velocity_growth_per_day']*dt**2)*h
+        prob=h*min(1,.15+dt/(p['failure_day']-p['initiation_day'])); frac=np.mean(prob > probability_threshold); stage=1 if frac<p['failure_area_fraction']*.25 else 2 if frac<p['failure_area_fraction']*.7 else 3
         if t>=p['failure_day'] or frac>=p['failure_area_fraction']: stage=4
-        return d,prob,np.where(prob>.2,stage,0),zero
+        return d,prob,np.where(prob > probability_threshold, stage, 0),zero
     base=p['baseline_velocity_mm_per_day']*t*bowl; trigger=zero.copy(); active=False
     for event in p['events']:
         age=t-event['day']-event.get('response_delay_days',0)
         if age<0: continue
-        active=True; h=np.exp(-.5*(((X-event['center_px'][0])/event['sigma_px'][0])**2+((Y-event['center_px'][1])/event['sigma_px'][1])**2))
+        event_center = ROI_CENTER if POLYGON_MODE else np.array(event['center_px'])
+        active=True; h=np.exp(-.5*(((X-event_center[0])/event['sigma_px'][0])**2+((Y-event_center[1])/event['sigma_px'][1])**2))*ROI_WEIGHT
         if event['type']=='rainfall': response=event['displacement_scale_mm']*(1-np.exp(-age/event['response_rise_days']))*np.exp(-age/event['decay_days'])
         else: response=event['instantaneous_offset_mm']
         trigger += response*h
     if active:
-        age=t-min(e['day'] for e in p['events']); trigger+=(p['post_trigger_velocity_mm_per_day']*age+.5*p['post_trigger_acceleration_mm_per_day2']*age**2)*bowl
+        age=t-min(e['day'] for e in p['events']); trigger+=(p['post_trigger_velocity_mm_per_day']*age+.5*p['post_trigger_acceleration_mm_per_day2']*age**2)*ROI_WEIGHT
     prob=np.clip(abs(trigger)/50,0,1); stage=3 if active else 0
-    return base+trigger,prob,np.where(prob>.2,stage,0),trigger
+    return base+trigger,prob,np.where(prob > probability_threshold, stage, 0),trigger
 
 previous_disp = previous_velocity = None
 
@@ -535,9 +620,12 @@ write_tif(
     INPUTS_DIR / 'aux' / 'coherence_mask.tif',
     mask.astype(np.uint8),
     dtype='uint8',
+    apply_aoi=False,
 )
 
-write_tif(STATIC_DIR / 'tsf_mask.tif', (bowl > 0.1).astype(np.uint8), dtype='uint8')
+write_tif(STATIC_DIR / 'aoi_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
+write_tif(STATIC_DIR / 'roi_failure_mask.tif', ROI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
+write_tif(STATIC_DIR / 'tsf_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
 
 tsf_dem = generate_tsf_dem()
 write_tif(STATIC_DIR / 'tsf_dem.tif', tsf_dem, dtype='float32', nodata=np.nan)
