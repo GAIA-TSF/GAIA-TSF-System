@@ -1,0 +1,159 @@
+# Synthetic TSF deformation simulator configuration for Sentinel-1 SBAS-InSAR.
+# Units are millimetres unless a key states otherwise. Pixel coordinates are
+# [x, y] from the upper-left. Negative displacement denotes settlement/motion
+# away from the satellite.
+#
+# Parameter revision based on Glen's WP6 slope-failure review:
+# - coherence threshold increased from 0.35 to the 0.60 engineering nominal;
+# - common seasonal amplitude reduced from 10 mm to the 4 mm nominal;
+# - hotspot classification threshold increased from 0.20 to 0.50;
+# - stable-case periods changed to a 365-day primary and 120-day secondary term.
+# Structural recommendations such as ROI-based failure remain for later work.
+
+# Default profile; --scenario NAME overrides this value.
+# Available: 
+#[ no_failure, gradual_acceleration, 
+# spatial_propagation, external_trigger]
+active_scenario: external_trigger
+
+simulation:
+  # Parent only: the simulator appends the selected output_directory and inputs/.
+  output_root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments
+  # Append the selected profile, e.g. slope_synthetic_western_platinum_no_failure.
+  # Existing names that already end in _<scenario> are not duplicated.
+  append_scenario_name: true
+  random_seed: 42             # Reproducible terrain, weather, and noise.
+  start_date: "2018-01-01"    # UTC ISO-8601 date.
+  duration_days: 1095         # Three years; 2-5 years is typical for trend tests.
+  # Same-track repeat interval. Use 6 days only when a consistent S1A/S1B pair
+  # is available for the study period; 12 days is conservative and avoids
+  # assuming that both satellites contribute to every interferometric stack.
+  revisit_days: 12
+
+grid:
+  # Polygon mode derives CRS, bounds, width and height from the AOI GeoPackage.
+  # GeoTIFF storage remains rectangular, but pixels outside the AOI are nodata.
+  mode: polygon
+  aoi_file: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_western_platinum/static/aoi.gpkg
+  deformation_roi_file: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_western_platinum/static/roi_failure.gpkg
+  pixel_size_m: 10
+  all_touched: false          # Include pixels whose centres lie in polygons.
+
+  # Backward-compatible fallback used only when mode: rectangular.
+  crs: EPSG:32633             # UTM zone 33N.
+  width_px: 100               # 1 km east-west extent.
+  height_px: 100              # 1 km north-south extent.
+  xmin: 486768                # Western edge in CRS coordinates.
+  ymax: 6656348               # Northern edge in CRS coordinates.
+
+observation:
+  # Sentinel-1 IW is C-band SAR (wavelength about 5.55 cm). A mid-swath angle
+  # near 39 degrees is plausible; local IW incidence commonly varies by burst.
+  incidence_angle_deg: 39
+  # Per-acquisition LOS noise. Around 8-20 mm for atmosphere and 2-5 mm for
+  # residual measurement noise gives a realistic, moderately noisy SBAS stack.
+  atmospheric_sigma_mm: 12
+  measurement_sigma_mm: 3
+  # UPDATED from 0.35 to the recommended engineering-quality nominal of 0.60.
+  # Use 0.35, 0.45, 0.60 and 0.70 as sensitivity cases for difficult through
+  # high-quality surfaces. NOTE: the synthetic coherence-field generator must
+  # be recalibrated before 0.60 can retain a realistic number of observations.
+  coherence_threshold: 0.60
+
+baseline:
+  # Low-amplitude motion common to every archetype.
+  final_settlement_mm: -5      # Quiet-zone secular motion: ~1.7 mm/year.
+  # UPDATED from 10 mm: 4 mm is the recommended nominal; use 2-10 mm for
+  # sensitivity to local climate, hydrology and TSF operating conditions.
+  seasonal_amplitude_mm: 4
+  seasonal_period_days: 365
+
+classification:
+  # Probability above this threshold becomes an anomalous binary label.
+  # UPDATED from the permissive 0.20 value to the recommended 0.50 nominal.
+  # This is a benchmark classification setting, not a physical failure limit;
+  # evaluate 0.20, 0.35 and 0.65 as sensitivity cases.
+  hotspot_probability_threshold: 0.50
+
+scenarios:
+  # Negative control: stable throughout, with small reversible fluctuations.
+  # No hotspot, anomaly label, regime transition, or failure is generated.
+  no_failure:
+    archetype: no_failure
+    output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
+    fluctuation_center_px: [58, 52]
+    fluctuation_sigma_px: [22, 18]       # Broad 220 m by 180 m response area.
+    fluctuation_amplitude_mm: 3.0        # Retained: nominal within 2-5 mm range.
+    # UPDATED from 120 days: annual deformation is now the primary component.
+    primary_period_days: 365
+    secondary_amplitude_mm: 1.0
+    # UPDATED from 45 days: 120 days is within the recommended 60-180 day range.
+    secondary_period_days: 120
+    local_settlement_mm_per_year: -1.5   # Stable creep below ~2 mm/year.
+
+  # Stable first year -> creep -> velocity increase -> acceleration -> failure.
+  gradual_acceleration:
+    archetype: gradual_acceleration
+    output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
+    # Used only in rectangular mode. Polygon mode uses deformation_roi_file.
+    center_px: [75, 40]
+    sigma_px: [5, 8]
+    onset_day: 365             # One stable year establishes an SBAS baseline.
+    velocity_increase_day: 600 # About 8 months of initially slow creep.
+    acceleration_day: 800      # About 6.5 months of linear acceleration.
+    failure_day: 1030          # Leaves ~65 days of post-failure observations.
+    slow_velocity_mm_per_day: -0.01       # Approximately -3.7 mm/year.
+    linear_acceleration_mm_per_day2: -0.0002 # Velocity reaches ~-0.05 mm/day.
+    exponential_growth_rate_per_day: 0.012 # Approximately 58-day doubling.
+    maximum_displacement_mm: -250         # Caps extreme pre-failure motion.
+
+  # A local source enlarges and migrates northwest before reaching critical area.
+  spatial_propagation:
+    archetype: spatial_propagation
+    output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
+    # Used only in rectangular mode. Polygon mode starts at the ROI centroid.
+    initial_center_px: [75, 40]
+    initiation_day: 500       # ~17 stable months before localization.
+    failure_day: 1030         # ~18 months available to observe propagation.
+    initial_sigma_px: [2.5, 3.0]          # 25 m by 30 m initial radii.
+    # Equivalent expansion of 0.25 and 0.12 m/day at 10 m pixels.
+    propagation_rate_px_per_day: [0.025, 0.012]
+    maximum_sigma_px: [18, 12]            # Maximum 180 m by 120 m radii.
+    # Hotspot migration of about 0.17 m/day towards the southwest in raster
+    # coordinates; this produces an observable but gradual shift.
+    center_velocity_px_per_day: [-0.015, 0.008]
+    core_velocity_mm_per_day: -0.15       # Approximately -55 mm/year.
+    velocity_growth_per_day: 0.002        # Approximately doubles in 500 days.
+    failure_area_fraction: 0.20           # Critical share of complete grid.
+    heterogeneity:
+      enabled: true
+      correlation_length_px: 8            # Smooth material changes over ~80 m.
+      coefficient_of_variation: 0.35
+
+  # Intense rain gives a delayed transient response; later strong shaking gives
+  # an instantaneous offset. The first event starts a persistent faster regime.
+  external_trigger:
+    archetype: externally_triggered
+    output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
+    baseline_velocity_mm_per_day: -0.01   # ~-3.7 mm/year before triggering.
+    post_trigger_velocity_mm_per_day: -0.25 # ~-91 mm/year initial critical rate.
+    post_trigger_acceleration_mm_per_day2: -0.0005
+    events:
+      - id: rainfall_01
+        type: rainfall
+        day: 720                         # End of second wet-season cycle.
+        precipitation_mm: 75              # Intense daily rainfall.
+        response_delay_days: 3            # Approximate infiltration delay.
+        response_rise_days: 10
+        displacement_scale_mm: -18
+        decay_days: 45                    # Pore-pressure response relaxation.
+        center_px: [70, 42]               # Rectangular mode only.
+        sigma_px: [15, 12]                # 150 m by 120 m footprint.
+
+      - id: earthquake_01
+        type: earthquake
+        day: 900                         # 180 days after the rainfall event.
+        pga_g: 0.32                       # Strong shaking, units of g.
+        instantaneous_offset_mm: -12
+        center_px: [70, 42]               # Rectangular mode only.
+        sigma_px: [20, 15]                # Broader shaking footprint.

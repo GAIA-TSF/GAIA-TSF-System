@@ -1,5 +1,18 @@
 # GAIA-TSF DAG CONFIG
 
+# ENVIRONMENT
+# environments: 
+#   lukas-X1: 
+#     project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo'
+
+# skylake 
+# project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
+# mac 
+# project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
+# X1 
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_no_failure/'
+
+# GLOBAL SETTINGS 
 global:
   random_seed: 42
   log_level: INFO
@@ -16,33 +29,212 @@ global:
     chunk_size: [256, 256]
     n_workers: 16
 
+# SYNTHETIC IN-SITU CO-LOCATION (DA_R_02, DA_R_03)
+in_situ:
+  inputs:
+    directory: "inputs/true_los"
+    filename_pattern: "*.tif"
+  static:
+    observation_points: "static/observation_points.gpkg"
+    # Attribute currently used in the GeoPackage (spelling retained).
+    label_column: "label"
+  sampling:
+    # Nodata-aware square mean around each point; must be a positive odd value.
+    window_size: 3
+    sensor_noise_std_mm: 1.0
+  output_csv: "inputs/in_situ_deformation.csv"
+  platform: "OFFICE_REVIEW"
+  qc: 0
+  validation:
+    insar_directory: "inputs/los"
+    filename_pattern: "tsf_los_*.tif"
+    # Nodata-aware InSAR pixel window centred on each in-situ location.
+    sampling_window_size: 3
+    # Both raster series are stored in metres; validation output uses mm.
+    unit_scale: 1000.0
+    output_csv: "results/validation/insar_insitu_colocation.csv"
+    statistics_json: "results/validation/insar_insitu_statistics.json"
 
-# INPUT DEFINITIONS
-inputs:
 
-  slope_stability:
-    sentinel1:
-      data_path: "/data/sentinel1/"
-      data_product: 'LOS' 
-      # polarization: "VV"
-      # orbit: "ASCENDING"
-      # apply_orbit_correction: true
+# DAG PROCESS SETTINGS (DA_R_01)
+# Contextual DEM/slope/PI features contribute to DA_R_04.
+static_topography:
+  dem: "static/tsf_dem.tif"
+  # PI is elevation minus the mean elevation in this local pixel window.
+  pi_window_size: 3
+  results:
+    output_dir: "results/static_features"
+    raster_format: "GTiff"
+    metadata_filename: "metadata.json"
+    filenames:
+      dem: "dem.tif"
+      slope: "slope.tif"
+      pi: "pi.tif"
 
-    auxiliary:
-      aoi_path: "/data/aoi/aoi.geojson"
+# Sentinel-1 model-ready deformation features (DA_R_01).
+slope_stability: 
+  inputs:
+    los:
+      directory: "inputs/los"
+      filename_pattern: "tsf_los_*.tif"
+  static:
+    tsf_mask: "static/tsf_mask.tif"
 
-  amd:
-    sentinel2:
-      data_path: "/data/sentinel2/"
-      bands: ["B02", "B03", "B04", "B08"]
-      cloud_mask: true
+  feature_engineering:
+    cumulative_displacement: true
+    velocity: true
+    acceleration: true
+    jerk: true
+    minimum: true
+    maximum: true
+    mean: true
+    standard_deviation: true
+    variance: true
+    range: true
+    trend: false
+    temporal_variance: false
 
-    auxiliary:
-      aoi_path: "/data/aoi/aoi.geojson"
-      water_mask_path: "/data/masks/water_mask.tif"
+  results:
+    eda: # slope stability EDA 
+      output_dir: "results/eda"
+      histogram_bins: 50
+      dpi: 300
+      style: "seaborn-v0_8-whitegrid"
+      cmap: "viridis"
+      raster_format: "GTiff"
+      filenames:
+        statistics: "statistics.json"
+        temporal_mean_std: "temporal_mean_std.png"
+        histogram: "histogram.png"
+        boxplot: "boxplot.png"
+        mean_heatmap: "mean_los_heatmap.png"
+        std_heatmap: "temporal_std_heatmap.png"
+        mean_map: "mean_map.tif"
+        std_map: "std_map.tif"
+
+    features: # slope global features 
+      output_dir: "results/features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      filenames:
+        cumulative_displacement: "cumulative_displacement.tif"
+        velocity: "velocity.tif"
+        acceleration: "acceleration.tif"
+        jerk: "jerk.tif"
+        minimum: "minimum.tif"
+        maximum: "maximum.tif"
+        mean: "mean.tif"
+        standard_deviation: "std.tif"
+        variance: "variance.tif"
+        range: "range.tif"
+        trend: "trend.tif"
+        temporal_variance: "temporal_variance.tif"
+
+    temporal_features: # slope temporal features 
+      enabled: true
+      output_dir: "results/temporal_features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      input_features:
+        - velocity
+        - acceleration
+      lag:
+        enabled: true
+        orders: [1, 2, 3]
+      difference:
+        enabled: true
+        orders: [1, 2]
+      rolling_mean:
+        enabled: true
+        window: 5
+      rolling_std:
+        enabled: true
+        window: 5
+      calendar:
+        # Date-only, causal annual seasonality terms for MAP temporal models.
+        enabled: true
+        annual_period_days: 365.2425
+        features:
+          - annual_sin
+          - annual_cos
+      smoothing:
+        enabled: true
+        method: "savgol"
+        window: 7
+        polyorder: 2
+      filenames: {}
+
+# METEOROLOGICAL FEATURES (DA_R_01, DA_R_02)
+meteorology:
+  inputs:
+    insar:
+      directory: "inputs/los"
+      filename_pattern: "tsf_los_*.tif"
+    table:
+      path: "inputs/meteodata.csv"
+      date_column: "date"
+      columns:
+        precipitation: "precipitation"
+        temperature_mean: "temperature_mean"
+        temperature_min: "temperature_min"
+        temperature_max: "temperature_max"
+  static:
+    tsf_mask: "static/tsf_mask.tif"
+  feature_engineering:
+    precipitation: true
+    precip_7d: true
+    precip_14d: true
+    precip_30d: true
+    precip_60d: true
+    days_since_heavy_rain: true
+    max_precip_7d: true
+    temperature_mean: true
+    temperature_min: true
+    temperature_max: true
+    temp_7d_mean: true
+    temp_30d_mean: true
+    temperature_anomaly: true
+    heavy_rain_threshold: 20.0
+    cold_regions:
+      enabled: false
+    freezing_point: 0.0
+  results:
+    output_dir: "results/meteo_features"
+    raster_format: "GTiff"
+    metadata_filename: "metadata.json"
+    filenames: {}
+
+# PREPROCESSING (DA_R_05, DA_R_09, DA_R_10)
+preprocessing:
+
+  normalization:
+    # DA_R_05. Disabled by default; supports minmax and zscore when enabled.
+    enabled: false
+    method: "zscore"   # minmax | zscore
+    per_feature: true
+
+  missing_values:
+    # DA_R_09. Disabled by default; impute or drop incomplete samples when enabled.
+    enabled: false
+    strategy: "median"   # mean | median | drop
+    max_nan_ratio: 0.2
+
+  outliers:
+    # DA_R_10. Disabled by default. Empty feature list applies to every feature.
+    enabled: false
+    method: "log"      # log | clip
+    features: []
+    # Signed log1p supports both positive and negative deformation values.
+    signed_log: true
+    clip_range: [0.01, 0.99]
+
+  categorical:
+    enabled: false     # DA_R_08
 
 
-# HARMONIZATION
+# HARMONIZATION (DA_R_02, DA_R_06)
+# Generic harmonization remains disabled; individual pipelines enforce aligned
+# grids and meteorological/InSAR acquisition-date alignment.
 harmonization:
 
   spatial:
@@ -55,56 +247,13 @@ harmonization:
     max_gap_days: 30
 
 
-# FEATURE ENGINEERING
-feature_engineering:
-
-  slope_stability:
-    compute_velocity: true
-    compute_acceleration: true
-    compute_trend: false
-
-    window_size: 3
-    smoothing: false
-
-
-  amd:
-    compute_amd_index: true
-
-    spectral_indices:
-      ndvi: false
-      ndwi: true
-      ndsi: false
-
-    log_transform: false
-
-
-# PREPROCESSING
-preprocessing:
-
-  normalization:
-    method: "zscore"   # minmax | zscore
-    per_feature: true
-
-  missing_values:
-    strategy: "median"   # mean | median | drop
-    max_nan_ratio: 0.2
-
-  outliers:
-    method: "clip"     # clip | log
-    clip_range: [0.01, 0.99]
-
-  categorical:
-    enabled: false     # DA_R_08
-
-
-
-# MASKING
+# MASKING (DA_R_06)
 masking:
   apply_aoi: true
   apply_water_mask: true
 
 
-# VALIDATION
+# VALIDATION (DA_R_01, DA_R_06)
 validation:
 
   check_spatial_consistency: true
@@ -113,81 +262,3 @@ validation:
 
   max_nan_ratio: 0.3
   max_time_gap_days: 60
-
-
-
-# TENSORIZATION
-tensorization:
-
-  output_format: "numpy"   # numpy | torch
-
-  layout: "THWC"           # (T, H, W, C)
-
-  flatten:
-      enabled: false
-      method: "pixel"        # pixel -> (N_pixels, T, C)
-
-
-
-# PIPELINES
-pipelines:
-
-  slope_stability:
-    enabled: true
-
-    steps:
-      - ingestion
-      - masking
-      - spatial_harmonization
-      - feature_engineering
-      - preprocessing
-      - validation
-      - tensorization
-
-
-  amd:
-    enabled: true
-
-    steps:
-      - ingestion
-      - masking
-      - spatial_harmonization
-      - feature_engineering
-      - preprocessing
-      - validation
-      - tensorization
-
-
-# OUTPUT SETTINGS
-output:
-
-  save_intermediate: false
-
-  paths:
-    features: "/output/features/"
-    tensors: "/output/tensors/"
-
-  formats:
-    raster: "GTiff"
-    tensor: "npy"
-
-
-# PERFORMANCE SETTINGS
-performance:
-
-  use_gpu: true
-  mixed_precision: false
-
-  batch_processing:
-    enabled: true
-    batch_size: 8
-
-
-# DEBUG
-debug:
-
-  verbose: true
-  save_debug_tiles: false
-  debug_tile_size: [128, 128]
-
-# TODO: more?

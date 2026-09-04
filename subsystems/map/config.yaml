@@ -1,0 +1,218 @@
+# Scenario 1: slope-stability baseline behaviour modelling.
+# Paths target the configured synthetic TSF project directly.
+experiment:
+  name:  slope_trf # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
+  description: Stable-pixel TRF for synthetic TSF deformation monitoring with meteo data.
+  seed: 42
+
+variable: slope
+model: trf # constant | trf | lstm
+dataset: slope_dataset
+
+data:
+  features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/features
+  temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/temporal_features
+  meteo_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/meteo_features
+  # Select exact acquisition-date values; "previous" supports sparse causal data.
+  temporal_alignment_method: exact
+
+outputs:
+  root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results
+  # Model artifacts are stored in models/<experiment.name>/.
+
+variables:
+  slope:
+    description: Slope stability from InSAR deformation
+  amd:
+    description: Acid Mine Drainage index from Sentinel-2
+
+# Names are DAG output stems, not MAP-derived features.  The default reflects
+# slope_temporal_feature_pipeline outputs and can be changed without code edits.
+datasets:
+  slope_dataset:
+    mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/static/tsf_mask.tif
+    features:
+      - velocity_lag2
+      - velocity_lag3
+      - acceleration_lag1
+      - acceleration_lag2
+      # - acceleration_lag3
+      # - annual_cos
+      # - annual_sin
+      - temperature_mean
+      - precipitation
+      - precip_7d
+      - precip_14d
+      - precip_30d
+      - precip_60d
+      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
+    target_feature: velocity_lag1
+    # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]
+    split:
+      method: temporal
+      train_ratio: 0.5
+      validation_ratio: 0.25
+      test_ratio: 0.25
+    temporal_windows:
+      calibration:
+        start_date: '2018-01-01'
+        end_date: '2019-07-01'
+      monitoring:
+        start_date: '2019-07-01'
+        end_date: '2020-10-30'
+  amd_dataset:
+    mask_path: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/static/tsf_mask.tif
+    features: [amd_lag1]
+    target_feature: amd
+    split:
+      method: temporal
+      train_ratio: 0.90
+      validation_ratio: 0.15
+      test_ratio: 0.15
+    temporal_windows:
+      calibration:
+        start_date: '2018-01-01'
+        end_date: '2020-01-27'
+      monitoring:
+        start_date: '2020-02-08'
+        end_date: '2020-12-28'
+
+baseline_model:
+  # Native m/day standard deviation, not the display unit used by plots.
+  stable_pixel_std_threshold: 0.008
+
+models:
+  constant: # constant model 
+    statistic: mean
+  trf:      # temporal Random Forest model 
+    n_estimators: 200
+    max_depth: 20
+    random_state: 42
+    # Keep one RF prediction worker per xAI worker to prevent oversubscription.
+    n_jobs: 1
+  gbr:      # Gradient Boosting model to be implemented 
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 3
+  lstm:     # recurrent network 
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    bidirectional: false
+    look_back: 12 # it uses the prior 12 acquisitions
+    horizon: 1    # to predict the next acquisition
+    device: cpu
+    optimizer:
+      lr: 0.001
+    training:
+      batch_size: 256
+      epochs: 10
+  tcn: {}   # Temporal CNN model to be implemented 
+  ensemble: [] # Ensemble of above defined models 
+
+# Modelling results
+# results/models/
+# ├── slope_constant_baseline/
+# │   ├── model.pkl
+# │   ├── metrics.json
+# │   └── experiment.json
+# └── slope_trf/
+#     ├── model.pkl
+#     ├── metrics.json
+#     └── experiment.json
+
+
+training:
+  random_seed: 42
+
+explainability:
+  enabled: false # true # false
+  parallel:
+    # Parallel workers for independent grouped-permutation feature groups.
+    n_jobs: 4
+  shap:
+    # Stratified across validation acquisition dates; values are samples, not rows per date.
+    sample_size: 1000 # 12000
+    dependence_features:
+      - velocity_lag2
+      - acceleration_lag1
+      - precipitation
+      - precip_30d
+      - temperature_mean
+
+  grouped_permutation:
+    # Evaluated across all held-out temporal validation samples.
+    n_repeats: 5 # 10
+    groups:
+      velocity_history:
+        - velocity_lag2
+        - velocity_lag3
+      acceleration_history:
+        - acceleration_lag1
+        - acceleration_lag2
+        - acceleration_lag3
+      annual_seasonality:
+        - annual_sin
+        - annual_cos
+      meteorological_conditions:
+        - precipitation
+        - precip_7d
+        - precip_14d
+        - precip_30d
+        - precip_60d
+        - temperature_mean
+
+plotting:
+  # MAP rasters and model outputs are stored in native metres per day.  The
+  # following display conversion is applied only to figures and CSV exports.
+  native_deformation_rate_unit: m/day
+  deformation_unit: mm/day
+  value_scale: 1000.0
+  cumulative_displacement_unit: mm
+  fallback_interval_days: 30.0
+  cumulative_observation_max_points: 100000
+  observation_window_size: 3
+  latest_residual_colormap: RdBu # _r
+  latest_residual_percentile: 98.0
+  latest_residual_window: 10
+  mean_residual_colormap: RdBu # _r
+  mean_residual_percentile: 98.0
+  persistent_residual_colormap: magma
+  persistent_fraction_display_max: 0.25
+  persistent_fraction_gamma: 1.0
+  # Coordinates use the CRS of tsf_mask.tif (EPSG:32633 for this synthetic TSF).
+  observation_points:
+    stable_tsf:
+      coordinates: [487023.0, 6655843.0]
+    deformation_zone:
+      coordinates: [487523.0, 6655943.0]
+
+anomaly_detection:
+  # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
+  residual_threshold: 0.00002
+  zscore_threshold: 1.5
+  persistence: 3
+
+monitoring:
+  dashboard:
+    enabled: true
+    filename: slope_stability_dashboard.png
+    # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
+    anomaly_magnitude_threshold: 0.00002
+    cusum:
+      # Negative: increasingly negative LOS deformation is instability.
+      instability_direction: negative
+      # Use physical deformation acceleration, not fluctuating model residuals.
+      signal: observed_velocity
+      reference_value: 0.5
+      decision_threshold: 5.0
+      smoothing_span: 5
+      persistence_window: 20
+      persistence_threshold: 0.25
+    regime:
+      # Compare observed acceleration to the modelled baseline acceleration,
+      # so recurring seasonal curvature is not interpreted as a regime shift.
+      signal: unexpected_acceleration
+      smoothing_span: 5
+      medium_risk_threshold: 0.3
+      high_risk_threshold: 0.7
