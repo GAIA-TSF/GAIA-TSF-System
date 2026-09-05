@@ -117,10 +117,12 @@ class ETLEngine(GaiaBase):
         self.dpr_service = dpr_service
 
         # Step 2: Utilize self.logger automatically provided by GaiaBase
-        encodings = (
-            self.settings.get('isu', {}).get('csv_encodings') if self.settings else None
+        isu_settings = self.settings.get('isu', {}) if self.settings else {}
+        encodings = isu_settings.get('csv_encodings')
+        parser_settings = isu_settings.get('parsers')
+        self.parsing_engine = ParsingEngine(
+            logger=self.logger, encodings=encodings, parser_settings=parser_settings
         )
-        self.parsing_engine = ParsingEngine(logger=self.logger, encodings=encodings)
         self.logger.info('ETL Engine initialized with ParsingEngine.')
 
     def process_file(

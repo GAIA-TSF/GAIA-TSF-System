@@ -64,6 +64,71 @@ isu:
     - 'gbk'
     - 'gb18030'
     - 'latin-1'
+  parsers:
+    slope:
+      filename_indicators:
+        - slope
+        - gnss
+        - insar
+        - piezo
+        - ground_motion
+        - egms
+        - displacement
+        - deformation
+      strong_indicators:
+        - displacement
+        - velocity
+        - def_x
+        - def_y
+        - def_z
+        - pressure
+        - pore_water
+        - kpa
+        - kilopascal
+        - pascal
+        - piezo
+        - inclinometer
+        - tilt
+        - angle
+        - depth
+        - dataset
+        - celsius
+        - deformation
+        - insar
+        - coherence
+        - los
+      negative_indicators:
+        - ph
+        - conductivity
+        - turbidity
+        - sulfate
+    water:
+      filename_indicators:
+        - water
+        - quality
+        - sonde
+        - hydro
+        - chem
+        - lab
+        - sample
+      strong_indicators:
+        - ph
+        - conductivity
+        - ec
+        - turbidity
+        - do
+        - orp
+        - sulfate
+        - iron
+        - fe
+        - tds
+        - nitrate
+        - mg/l
+      negative_indicators:
+        - displacement
+        - velocity
+        - inclinometer
+        - gnss
 storage:
   data_dir: /data/gaia_tsf
 dask_parameters:
