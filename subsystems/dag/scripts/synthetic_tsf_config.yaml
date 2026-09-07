@@ -38,6 +38,10 @@ grid:
   deformation_roi_file: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_western_platinum/static/roi_failure.gpkg
   pixel_size_m: 10
   all_touched: false          # Include pixels whose centres lie in polygons.
+  # Gaussian transition applied to the failure ROI. At 10 m pixels, sigma=3
+  # gives a gradual boundary over roughly 30-90 m instead of a polygon cut-off.
+  # Use 0 for the original sharp boundary or 1-5 for increasingly fuzzy edges.
+  deformation_roi_edge_sigma_px: 3.0
 
   # Backward-compatible fallback used only when mode: rectangular.
   crs: EPSG:32633             # UTM zone 33N.
@@ -54,18 +58,27 @@ observation:
   # residual measurement noise gives a realistic, moderately noisy SBAS stack.
   atmospheric_sigma_mm: 12
   measurement_sigma_mm: 3
+  # Baseline coherence is a spatially correlated field standardized inside the
+  # AOI before this mean and spread are applied. This avoids smoothing all
+  # coherence values into a narrow distribution around 0.50.
+  coherence_mean: 0.72
+  coherence_spatial_std: 0.10
+  coherence_correlation_length_px: 8 # Smooth variation over approximately 80 m.
+  coherence_min: 0.20               # Poorly observable local surface patches.
+  coherence_max: 0.95               # Avoid unrealistically perfect coherence.
   # UPDATED from 0.35 to the recommended engineering-quality nominal of 0.60.
   # Use 0.35, 0.45, 0.60 and 0.70 as sensitivity cases for difficult through
-  # high-quality surfaces. NOTE: the synthetic coherence-field generator must
-  # be recalibrated before 0.60 can retain a realistic number of observations.
-  coherence_threshold: 0.60
+  # high-quality surfaces. The nominal distribution retains most coherent AOI
+  # pixels at 0.60 while rejecting its lower-quality tail.
+  coherence_threshold: 0.40
 
 baseline:
-  # Low-amplitude motion common to every archetype.
+  # Low-amplitude motion common to failure archetypes. The no_failure profile
+  # intentionally ignores this block and uses only its own parameters below.
   final_settlement_mm: -5      # Quiet-zone secular motion: ~1.7 mm/year.
   # UPDATED from 10 mm: 4 mm is the recommended nominal; use 2-10 mm for
   # sensitivity to local climate, hydrology and TSF operating conditions.
-  seasonal_amplitude_mm: 4
+  seasonal_amplitude_mm: 3
   seasonal_period_days: 365
 
 classification:
@@ -77,19 +90,19 @@ classification:
 
 scenarios:
   # Negative control: stable throughout, with small reversible fluctuations.
-  # No hotspot, anomaly label, regime transition, or failure is generated.
+  # Motion is spatially uniform throughout the AOI. The failure ROI is ignored,
+  # so it cannot leak into LOS values, anomaly labels, or model-ready features.
+  # Spatial variation is limited to synthetic observation noise and coherence.
   no_failure:
     archetype: no_failure
     output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
-    fluctuation_center_px: [58, 52]
-    fluctuation_sigma_px: [22, 18]       # Broad 220 m by 180 m response area.
-    fluctuation_amplitude_mm: 3.0        # Retained: nominal within 2-5 mm range.
+    fluctuation_amplitude_mm: 0.3        # Very-low annual stable fluctuation.
     # UPDATED from 120 days: annual deformation is now the primary component.
     primary_period_days: 365
-    secondary_amplitude_mm: 1.0
-    # UPDATED from 45 days: 120 days is within the recommended 60-180 day range.
-    secondary_period_days: 120
-    local_settlement_mm_per_year: -1.5   # Stable creep below ~2 mm/year.
+    secondary_amplitude_mm: 0.0
+    # Period is inactive while secondary_amplitude_mm is zero.
+    secondary_period_days: 365
+    local_settlement_mm_per_year: 0.0    # Zero means no secular trend.
 
   # Stable first year -> creep -> velocity increase -> acceleration -> failure.
   gradual_acceleration:
@@ -136,17 +149,17 @@ scenarios:
     archetype: externally_triggered
     output_directory: slope_synthetic_western_platinum # Base name; scenario is appended.
     baseline_velocity_mm_per_day: -0.01   # ~-3.7 mm/year before triggering.
-    post_trigger_velocity_mm_per_day: -0.25 # ~-91 mm/year initial critical rate.
-    post_trigger_acceleration_mm_per_day2: -0.0005
+    post_trigger_velocity_mm_per_day: -0.60 # 25 # ~-91 mm/year initial critical rate.
+    post_trigger_acceleration_mm_per_day2: -0.005 # -0.0005
     events:
       - id: rainfall_01
         type: rainfall
         day: 720                         # End of second wet-season cycle.
         precipitation_mm: 75              # Intense daily rainfall.
         response_delay_days: 3            # Approximate infiltration delay.
-        response_rise_days: 10
-        displacement_scale_mm: -18
-        decay_days: 45                    # Pore-pressure response relaxation.
+        response_rise_days: 7
+        displacement_scale_mm: -45 # -18
+        decay_days: 60                    # Pore-pressure response relaxation.
         center_px: [70, 42]               # Rectangular mode only.
         sigma_px: [15, 12]                # 150 m by 120 m footprint.
 

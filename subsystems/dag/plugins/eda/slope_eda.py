@@ -104,6 +104,19 @@ class SlopeEDA(Plugin):
             'dpi': int(options.get('dpi', 300)),
             'style': options.get('style'),
             'cmap': str(options.get('cmap', 'viridis')),
+            'temporal_mean_ylim': options.get('temporal_mean_ylim'),
+            'temporal_std_ylim': options.get('temporal_std_ylim'),
+            'temporal_axis_padding_fraction': float(
+                options.get('temporal_axis_padding_fraction', 0.30)
+            ),
+            'heatmap_padding_fraction': float(
+                options.get('heatmap_padding_fraction', 0.30)
+            ),
+            'mean_heatmap_limits': options.get('mean_heatmap_limits'),
+            'std_heatmap_limits': options.get('std_heatmap_limits'),
+            'temporal_los_percentile': float(
+                options.get('temporal_los_percentile', 2.0)
+            ),
         }
 
     def _output_paths(
@@ -144,6 +157,10 @@ class SlopeEDA(Plugin):
         finite = finite_values(data)
         per_acquisition_means = np.nanmean(data, axis=(1, 2))
         per_acquisition_stds = np.nanstd(data, axis=(1, 2))
+        percentile = float(plot_options['temporal_los_percentile'])
+        if not 0 <= percentile <= 100:
+            raise ValueError('temporal_los_percentile must be between 0 and 100')
+        percentile_values = np.nanpercentile(data, percentile, axis=(1, 2))
         dpi = int(plot_options['dpi'])
         style = plot_options['style']
         cmap = str(plot_options['cmap'])
@@ -155,6 +172,13 @@ class SlopeEDA(Plugin):
             output_paths.temporal_mean_std,
             dpi=dpi,
             style=style if isinstance(style, str) else None,
+            mean_ylim=plot_options['temporal_mean_ylim'],
+            std_ylim=plot_options['temporal_std_ylim'],
+            axis_padding_fraction=float(
+                plot_options['temporal_axis_padding_fraction']
+            ),
+            percentile_values=percentile_values,
+            percentile=percentile,
         )
         plotting.save_histogram(
             finite,
@@ -178,6 +202,8 @@ class SlopeEDA(Plugin):
             dpi=dpi,
             cmap=cmap,
             style=style if isinstance(style, str) else None,
+            color_limits=plot_options['mean_heatmap_limits'],
+            color_padding_fraction=float(plot_options['heatmap_padding_fraction']),
         )
         plotting.save_heatmap(
             std_map,
@@ -187,4 +213,7 @@ class SlopeEDA(Plugin):
             dpi=dpi,
             cmap=cmap,
             style=style if isinstance(style, str) else None,
+            color_limits=plot_options['std_heatmap_limits'],
+            color_padding_fraction=float(plot_options['heatmap_padding_fraction']),
+            nonnegative=True,
         )

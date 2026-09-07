@@ -9,8 +9,8 @@
 # project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
 # mac 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
-# X1 
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_no_failure/'
+# no_failure, gradual_acceleration, spatial_propagation, external_trigger
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
 
 # GLOBAL SETTINGS 
 global:
@@ -101,6 +101,18 @@ slope_stability:
       dpi: 300
       style: "seaborn-v0_8-whitegrid"
       cmap: "viridis"
+      # Derive temporal axes and heatmap color ranges from finite min/max, then
+      # add 30% of the range at each end. Standard-deviation lower limits are
+      # clamped to zero. LOS values are stored in metres.
+      temporal_mean_ylim: null # Fixed override example: [-0.05, 0.05]
+      temporal_std_ylim: null  # Fixed override example: [0.0, 0.002]
+      temporal_axis_padding_fraction: 0.30
+      # Location-agnostic lower tail; useful for localized negative deformation.
+      # It does not use the hidden failure ROI or future observation points.
+      temporal_los_percentile: 2.0
+      mean_heatmap_limits: null # Fixed override example: [-0.02, 0.01]
+      std_heatmap_limits: null  # Fixed override example: [0.0, 0.03]
+      heatmap_padding_fraction: 0.30
       raster_format: "GTiff"
       filenames:
         statistics: "statistics.json"

@@ -191,8 +191,17 @@ Y, X = np.mgrid[0:NY, 0:NX]
 
 roi_rows, roi_cols = np.where(ROI_MASK)
 ROI_CENTER = np.array([roi_cols.mean(), roi_rows.mean()])
-ROI_WEIGHT = gaussian_filter(ROI_MASK.astype(float), sigma=2)
-ROI_WEIGHT *= ROI_MASK
+roi_edge_sigma = float(grid_config.get('deformation_roi_edge_sigma_px', 0))
+if roi_edge_sigma < 0:
+    raise ValueError('grid.deformation_roi_edge_sigma_px cannot be negative')
+ROI_WEIGHT = (
+    gaussian_filter(ROI_MASK.astype(float), sigma=roi_edge_sigma)
+    if roi_edge_sigma > 0
+    else ROI_MASK.astype(float)
+)
+# Permit a low, smoothly decaying influence outside the failure polygon. Only
+# the outer AOI remains a hard boundary because no synthetic data exist there.
+ROI_WEIGHT *= AOI_MASK
 ROI_WEIGHT /= ROI_WEIGHT.max()
 
 sigma_bowl = 18
@@ -201,9 +210,25 @@ aoi_rows, aoi_cols = np.where(AOI_MASK)
 aoi_center = [aoi_cols.mean(), aoi_rows.mean()]
 bowl = np.exp(-((X - aoi_center[0]) ** 2 + (Y - aoi_center[1]) ** 2) / (2 * sigma_bowl**2))
 
-coh_field = gaussian_filter(np.random.rand(NY, NX), sigma=8)
-
-mask = (coh_field > CONFIG['observation']['coherence_threshold']) & AOI_MASK
+coherence_config = CONFIG['observation']
+coherence_texture = gaussian_filter(
+    np.random.normal(size=(NY, NX)),
+    sigma=coherence_config['coherence_correlation_length_px'],
+)
+# Standardize over valid AOI pixels before imposing the requested distribution.
+texture_values = coherence_texture[AOI_MASK]
+texture_std = texture_values.std()
+if texture_std == 0:
+    raise ValueError('Cannot generate coherence: spatial texture has zero variance')
+coherence_texture = (coherence_texture - texture_values.mean()) / texture_std
+coh_field = np.clip(
+    coherence_config['coherence_mean']
+    + coherence_config['coherence_spatial_std'] * coherence_texture,
+    coherence_config['coherence_min'],
+    coherence_config['coherence_max'],
+)
+coh_field[~AOI_MASK] = np.nan
+mask = (coh_field >= coherence_config['coherence_threshold']) & AOI_MASK
 
 rain_events = [790, 860, 950, 1030]
 
@@ -440,18 +465,15 @@ def scenario_state(t):
     probability_threshold = CONFIG['classification']['hotspot_probability_threshold']
     zero = np.zeros_like(bowl)
     if kind == 'no_failure':
-        if POLYGON_MODE:
-            stable_zone = ROI_WEIGHT
-        else:
-            center, sigma = p['fluctuation_center_px'], p['fluctuation_sigma_px']
-            stable_zone = np.exp(-0.5 * (((X-center[0])/sigma[0])**2 + ((Y-center[1])/sigma[1])**2))
         fluctuation = (
             p['fluctuation_amplitude_mm'] * np.sin(2*np.pi*t/p['primary_period_days'])
             + p['secondary_amplitude_mm'] * np.sin(2*np.pi*t/p['secondary_period_days'] + np.pi/3)
         )
         settlement = p['local_settlement_mm_per_year'] * t / 365.0
-        # Negative control: motion may fluctuate, but all truth labels stay stable.
-        return (fluctuation + settlement) * stable_zone, zero, zero.astype('uint8'), zero
+        # Negative control: apply stable motion uniformly. In particular, never
+        # expose the future failure ROI through displacement or truth labels.
+        stable_field = np.full_like(bowl, fluctuation + settlement)
+        return stable_field, zero, zero.astype('uint8'), zero
     if kind == 'gradual_acceleration':
         if POLYGON_MODE:
             h = ROI_WEIGHT
@@ -501,9 +523,20 @@ for t in times:
 
     date_str = acquisition_date.strftime('%Y%m%d')
 
-    background = CONFIG['baseline']['final_settlement_mm'] / 1000 * (t / (YEARS * 365)) * bowl
-
-    seasonal = HYDRO_AMP * np.sin(2 * np.pi * t / 365) * bowl
+    # ``no_failure`` defines its complete physical motion in scenario_state().
+    # Applying the shared settlement and seasonality as well would introduce an
+    # unintended trend and duplicate its configured periodic fluctuation.
+    if SCENARIO['archetype'] == 'no_failure':
+        background = np.zeros_like(bowl)
+        seasonal = np.zeros_like(bowl)
+    else:
+        background = (
+            CONFIG['baseline']['final_settlement_mm']
+            / 1000
+            * (t / (YEARS * 365))
+            * bowl
+        )
+        seasonal = HYDRO_AMP * np.sin(2 * np.pi * t / 365) * bowl
 
     scenario_disp_mm, hotspot, stage, trigger_mm = scenario_state(t)
     total_vertical = background + seasonal + scenario_disp_mm / 1000
@@ -617,6 +650,11 @@ meteo_data.loc[
 
 ### AUXILIARY EXPORTS ###
 write_tif(
+    INPUTS_DIR / 'aux' / 'coherence.tif',
+    coh_field,
+    dtype='float32',
+)
+write_tif(
     INPUTS_DIR / 'aux' / 'coherence_mask.tif',
     mask.astype(np.uint8),
     dtype='uint8',
@@ -625,6 +663,7 @@ write_tif(
 
 write_tif(STATIC_DIR / 'aoi_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
 write_tif(STATIC_DIR / 'roi_failure_mask.tif', ROI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
+write_tif(STATIC_DIR / 'roi_failure_weight.tif', ROI_WEIGHT, dtype='float32')
 write_tif(STATIC_DIR / 'tsf_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
 
 tsf_dem = generate_tsf_dem()
@@ -663,6 +702,10 @@ pd.DataFrame(
             'final_hotspot_amplitude_m',
             'atmosphere_sigma_m',
             'measurement_sigma_m',
+            'coherence_mean',
+            'coherence_spatial_std',
+            'coherence_threshold',
+            'coherent_aoi_fraction',
             'dem_base_elevation_m',
             'dem_basin_depth_m',
             'dem_embankment_height_m',
@@ -676,6 +719,10 @@ pd.DataFrame(
             A_MAX,
             ATM_SIGMA,
             MEAS_SIGMA,
+            coherence_config['coherence_mean'],
+            coherence_config['coherence_spatial_std'],
+            coherence_config['coherence_threshold'],
+            float(mask.sum() / AOI_MASK.sum()),
             DEM_BASE_ELEVATION,
             DEM_BASIN_DEPTH,
             DEM_EMBANKMENT_HEIGHT,

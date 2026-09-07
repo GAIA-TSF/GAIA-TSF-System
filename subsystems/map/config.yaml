@@ -10,14 +10,14 @@ model: trf # constant | trf | lstm
 dataset: slope_dataset
 
 data:
-  features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/features
-  temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/temporal_features
-  meteo_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results/meteo_features
+  features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure//results/features
+  temporal_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure/results/temporal_features
+  meteo_features_directory: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure/results/meteo_features
   # Select exact acquisition-date values; "previous" supports sparse causal data.
   temporal_alignment_method: exact
 
 outputs:
-  root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo/results
+  root: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure/results
   # Model artifacts are stored in models/<experiment.name>/.
 
 variables:
