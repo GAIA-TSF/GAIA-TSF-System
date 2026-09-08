@@ -1,0 +1,38 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Reference_Clean_water_Yxsjoberg_Point",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      487665.6350759345,
+      6656934.3951518675
+    ]
+  },
+  "bbox": [
+    487665.6350759345,
+    6656934.3951518675,
+    487665.6350759345,
+    6656934.3951518675
+  ],
+  "properties": {
+    "title": "Reference Points – Clean Water (Yxsjoberg)",
+    "description": "Point dataset representing validation locations placed inside manually digitized clean water polygons. Used as reference samples for verification of classification accuracy.",
+    "proj:epsg": 32633,
+    "datetime": "2026-05-19T10:39:18.631609Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Reference_Clean_water_Yxsjoberg_Point.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Reference Points – Clean Water (Yxsjoberg)",
+      "description": "Point dataset representing validation locations placed inside manually digitized clean water polygons. Used as reference samples for verification of classification accuracy.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

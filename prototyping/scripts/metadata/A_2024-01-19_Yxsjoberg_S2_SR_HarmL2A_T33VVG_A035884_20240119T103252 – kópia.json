@@ -1,0 +1,57 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "A_2024-01-19_Yxsjoberg_S2_SR_HarmL2A_T33VVG_A035884_20240119T103252 – kópia",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          486440.0,
+          6654430.0
+        ],
+        [
+          490310.0,
+          6654430.0
+        ],
+        [
+          490310.0,
+          6657240.0
+        ],
+        [
+          486440.0,
+          6657240.0
+        ],
+        [
+          486440.0,
+          6654430.0
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    486440.0,
+    6654430.0,
+    490310.0,
+    6657240.0
+  ],
+  "properties": {
+    "title": "Sentinel-2 Yxsjoberg",
+    "description": "Sentinel-2 raster dataset over Yxsjoberg area",
+    "proj:epsg": 32633,
+    "datetime": "2026-05-19T10:14:24.107114Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "A_2024-01-19_Yxsjoberg_S2_SR_HarmL2A_T33VVG_A035884_20240119T103252 – kópia.tif",
+      "type": "image/tiff; application=geotiff",
+      "title": "Sentinel-2 Yxsjoberg",
+      "description": "Sentinel-2 raster dataset over Yxsjoberg area",
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}
