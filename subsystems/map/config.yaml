@@ -1,0 +1,171 @@
+experiment:
+  name: "tsf_slope_baseline"
+  description: "TSF slope stability baseline workflow"
+  seed: 42
+
+active_variable: slope
+active_model: rf
+active_feature_pipeline: temporal
+
+dataset:
+  split:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+
+stable_pixel_selector:
+  stable_pixel_std_threshold: 0.008
+
+variables:
+  slope:
+    description: "TSF slope stability from engineered deformation features"
+    preprocessing:
+      detrend: false
+      normalize: true
+    allowed_models:
+      - rf
+      - lstm
+    default_feature_pipeline: temporal
+
+  amd:
+    description: "Acid mine drainage monitoring"
+    preprocessing:
+      gap_fill: true
+      smoothing: true
+    allowed_models:
+      - rf
+      - gbr
+    default_feature_pipeline: temporal
+
+features:
+  temporal:
+    description: "Velocity, acceleration, jerk, temporal statistics and standard deviation"
+    source_dir: "results/features"
+    selected:
+      - velocity
+      - acceleration
+      - jerk
+      - temporal_mean
+      - temporal_std
+    look_back: 3
+    target_feature: velocity
+
+models:
+  rf:
+    n_estimators: 200
+    max_depth: 10
+    random_state: 42
+    n_jobs: -1
+  xgb:
+    n_estimators: 300
+    learning_rate: 0.05
+    max_depth: 4
+    random_state: 42
+  gbr:
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 3
+  lstm:
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+
+training:
+  validation:
+    method: expanding_window
+    folds: 5
+  metrics:
+    - rmse
+    - mae
+
+monitoring:
+  methods:
+    - residual
+    - zscore
+    - cusum
+  anomaly_threshold: 1.0
+  residual:
+    window: 12
+    threshold: 0.02
+  zscore:
+    threshold: 3.0
+  cusum:
+    threshold: 5.0
+
+explainability:
+  methods:
+    - shap
+    - lime
+
+logging:
+  save_model: true
+  save_config: true
+  log_metrics: true
+
+pipelines:
+  learning:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs:
+            - input
+        split:
+          op: splitter
+          inputs:
+            - load
+        window:
+          op: windowing
+          inputs:
+            - split
+        features:
+          op: feature_engineering
+          inputs:
+            - window
+        stable:
+          op: stable_pixel_selection
+          inputs:
+            - features
+        train:
+          op: trainer
+          inputs:
+            - stable
+        validate:
+          op: validation
+          inputs:
+            - train
+      output: validate
+
+  inference:
+    dag:
+      nodes:
+        load:
+          op: tensor_loader
+          inputs:
+            - input
+        features:
+          op: feature_engineering
+          inputs:
+            - load
+        predict:
+          op: predictor
+          inputs:
+            - features
+        residual:
+          op: residual_analysis
+          inputs:
+            - predict
+        trend:
+          op: trend_detection
+          inputs:
+            - residual
+        anomaly:
+          op: anomaly_detection
+          inputs:
+            - residual
+        risk:
+          op: risk_scoring
+          inputs:
+            - trend
+            - anomaly
+      output: risk
