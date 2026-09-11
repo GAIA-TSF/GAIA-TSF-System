@@ -683,7 +683,7 @@ class EarthObservationDataLoader(SdiLoader):
                     '.tif', f'_epsg{target_epsg}_temp.tif'
                 )
 
-                self.logger.info(f'Reprojectování do EPSG:{target_epsg}...')
+                self.logger.info(f'Reprojecting into EPSG:{target_epsg}...')
 
                 reproject_cmd = [
                     'gdalwarp',

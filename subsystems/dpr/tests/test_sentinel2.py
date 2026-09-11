@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy
 import glob
 import pytest
-from osgeo import gdal
+from osgeo import gdal, ogr
 from shapely import wkt
 from shapely.ops import transform
 from pyproj import Transformer
@@ -14,7 +14,6 @@ from pyproj import Transformer
 gdal.UseExceptions()
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 from tests.utils import TestUtils
@@ -109,21 +108,16 @@ class TestSentinel2Workflow:
         json_path = os.path.join(output_folder, raster_path.replace(extension, '.json'))
         assert os.path.exists(json_path), 'The metadata file was not created.'
 
-        # Check if essential keys are present in the metadata file
+        # Check if essential keys are present in the stac metadata file
         with open(json_path, 'r') as f:
             metadata = json.load(f)
         essential_keys = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
-            'PRODUCT_TYPE',
-            'DATATAKE_SENSING_START',
-            'Wavelengths',
-            'Reflectance_Conversion',
-            'HORIZONTAL_CS_NAME',
-            'HORIZONTAL_CS_CODE',
-            'source_paths',
-            'Input_SAFE_path',
+            'type',
+            'stac_version',
+            'id',
+            'properties',
+            'geometry',
+            'assets',
         ]
         for key in essential_keys:
             assert key in metadata, f'Key {key} is missing from metadata file.'
@@ -155,7 +149,7 @@ class TestSentinel2Workflow:
         output_roi = numpy.array((minx, miny, maxx, maxy))
         # input ROI:
         geom = wkt.loads(roi)
-        target_epsg = metadata['HORIZONTAL_CS_CODE']
+        target_epsg = metadata['properties']['s2:horizontal_cs_code']
         transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         input_roi = numpy.array(transformed_geom.bounds)
@@ -166,7 +160,19 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi} .'
         )
 
+        # Check if stac metadata bbox is same as input ROI
+        output_bbox = numpy.array(metadata['bbox'])
+        xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
+        input_bbox = numpy.array((xmin, ymin, xmax, ymax))
+        offsets = numpy.abs(input_bbox - output_bbox)
+        res_dd = 60.0 / 111320.0  # rough conversion of 60m to dd
+        assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
+            f'The bounding box of the output raster {output_bbox} '
+            f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
+        )
+
         # Delete folder after test is complete
+        del ds
         shutil.rmtree(output_folder)
 
     def test_sentinel2_safe_processor_split_bands(self, sentinel2_data):
@@ -223,21 +229,16 @@ class TestSentinel2Workflow:
         with open(json_path, 'r') as f:
             metadata = json.load(f)
 
-        # Debug: print what keys are actually in metadata
+        # Debug: print what keys are actually in stac metadata
         print(f'Keys in metadata: {list(metadata.keys())}')
 
         essential_keys = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
-            'PRODUCT_TYPE',
-            'DATATAKE_SENSING_START',
-            'Wavelengths',
-            'Reflectance_Conversion',
-            'HORIZONTAL_CS_NAME',
-            'HORIZONTAL_CS_CODE',
-            'source_paths',
-            'Input_SAFE_path',
+            'type',
+            'stac_version',
+            'id',
+            'properties',
+            'geometry',
+            'assets',
         ]
         for key in essential_keys:
             assert key in metadata, (
@@ -271,11 +272,11 @@ class TestSentinel2Workflow:
                 f'Band file {band_filename} was not created.'
             )
 
-        # Verify that source_path contains all 13 files
-        assert 'source_paths' in metadata, 'source_paths key is missing from metadata.'
-        assert len(metadata['source_paths']) == 13, (
-            f'Expected 13 band files in source_paths, got {len(metadata["source_paths"])}'
-        )
+        # Check if stac assets were created
+        for band_name in expected_bands:
+            assert band_name in metadata['assets'], (
+                f'Key {band_name} is missing from metadata assets. Available keys: {list(metadata["assets"].keys())}'
+            )
 
         # Check properties of one of the band files (e.g., B02)
         test_band_path = os.path.join(output_folder, f'{base_filename}_B02{extension}')
@@ -305,7 +306,7 @@ class TestSentinel2Workflow:
 
         # input ROI:
         geom = wkt.loads(roi)
-        target_epsg = metadata['HORIZONTAL_CS_CODE']
+        target_epsg = metadata['properties']['s2:horizontal_cs_code']
         transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
         transformed_geom = transform(transformer.transform, geom)
         input_roi = numpy.array(transformed_geom.bounds)
@@ -317,66 +318,20 @@ class TestSentinel2Workflow:
             f'differs by more than {numpy.nanmin(res)} meters from the input parameters {input_roi}.'
         )
 
-        del ds
+        # Check if stac metadata bbox is same as input ROI
+        output_bbox = numpy.array(metadata['bbox'])
+        xmin, xmax, ymin, ymax = ogr.CreateGeometryFromWkt(roi).GetEnvelope()
+        input_bbox = numpy.array((xmin, ymin, xmax, ymax))
+        offsets = numpy.abs(input_bbox - output_bbox)
+        res_dd = 60.0 / 111320.0  # rough conversion of 60m to dd
+        assert numpy.nanmax(offsets) < numpy.nanmin(res_dd), (
+            f'The bounding box of the output raster {output_bbox} '
+            f'differs by more than {numpy.nanmin(res)} meters from the input bounding box {input_bbox} .'
+        )
 
         # Delete folder after test is complete
+        del ds
         shutil.rmtree(output_folder)
-
-    def test_sentinel2_cloudcover(self):
-        """Test the Sentinel2CloudCoverPipeline."""
-
-        # Get path for sentinel-2 sample scene and create a path for test metadata
-        raster_path = TestUtils.get_data_path('dpr/sentinel2_clouds.tif')
-        metadata_path = raster_path.with_suffix('.json')
-
-        # Check if the raster has been located
-        assert os.path.exists(raster_path), 'The Sentinel-2 geotiff was not found.'
-
-        # Check if a metadata file already exists and delete if true
-        exists = os.path.exists(metadata_path)
-        if exists:
-            os.remove(metadata_path)
-
-        # Construct a basic metadata structure
-        metadata = {
-            'raster_info': {
-                'source_paths': [os.path.abspath(raster_path)],
-                'filename': os.path.basename(raster_path),
-            }
-        }
-
-        # Write the metadata to a JSON file
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=4)
-
-        # Load the metadata to check if it was created
-        assert os.path.exists(metadata_path), 'The metadata file was not created.'
-
-        # Run the pipeline
-        pipeline = Sentinel2CloudCoverPipeline()
-        pipeline.configure(metadata_path=metadata_path, path_key='source_paths')
-        pipeline.run()
-
-        # Verification of the outputs
-        # get the processed metadata file:
-        with open(metadata_path, 'r') as f:
-            processed_metadata = json.load(f)
-
-        # Check if the 'cloud_cover_pct' key exists
-        assert 'cloud_cover_pct' in processed_metadata, (
-            "Key 'cloud_cover_pct' missing from metadata."
-        )
-
-        # Check if the value is a valid number between 0 and 1
-        cloud_pct = processed_metadata['cloud_cover_pct']
-        assert isinstance(cloud_pct, (int, float)), (
-            f'Expected number for cloud cover, got {type(cloud_pct)}'
-        )
-        assert 0 <= cloud_pct <= 1, (
-            f'Cloud cover percentage {cloud_pct} is out of bounds (0-1).'
-        )
-
-        print(f'Test Passed: Cloud cover derived from SCL band is {cloud_pct}%')
 
     def water_masking_data(self):
         # Set path to folder containing sentinel-2 sample scenes
@@ -412,7 +367,7 @@ class TestSentinel2Workflow:
         pipeline.configure(
             input_folder=input_folder,
             output_folder=output_folder,
-            max_cloud_snow_dark=0.1,
+            max_cloud_snow_dark=10,
             input_months=None,
             start_date=None,
             end_date=None,
@@ -448,11 +403,11 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'water_mask_pct' in data, (
-                    f'TEST 1: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                assert 'eo:water_mask_percentage' in data['properties'], (
+                    f'TEST 1: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['water_mask_pct'] < 0.05, (
-                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                assert data['properties']['eo:water_mask_percentage'] < 5, (
+                    f'TEST 1: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
         # Check that data files were produced with all the bands and that the mask band (14) contains the expected
@@ -481,7 +436,7 @@ class TestSentinel2Workflow:
             input_folder=input_folder,
             output_folder=output_folder,
             input_water_mask=input_water_mask,
-            max_cloud_snow_dark=0.1,
+            max_cloud_snow_dark=10,
             input_months=None,
             start_date=None,
             end_date=None,
@@ -516,11 +471,11 @@ class TestSentinel2Workflow:
         for metadata in output_json_files:
             with open(metadata, 'r') as f:
                 data = json.load(f)
-                assert 'water_mask_pct' in data, (
-                    f'TEST 2: The key "water_mask_pct" is missing from metadata file: {metadata}.'
+                assert 'eo:water_mask_percentage' in data['properties'], (
+                    f'TEST 2: The key "eo:water_masked_percentage" is missing from metadata file: {metadata}.'
                 )
-                assert data['water_mask_pct'] < 0.05, (
-                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]} exceed expected threshold (0.05).'
+                assert data['properties']['eo:water_mask_percentage'] < 5, (
+                    f'TEST 2: The "water_mask_pct" value {data["water_mask_pct"]}% exceed expected threshold (5%).'
                 )
 
         # Check that data file files were produced with all the bands and that the mask band (14) contains the expected
