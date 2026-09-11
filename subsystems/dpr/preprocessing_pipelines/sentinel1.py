@@ -139,9 +139,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'Aborting to prevent accidental data deletion.'
             )
 
+        # Reset generated files before the recursive scan: workdir may be
+        # inside datadir, and stale reframed scenes would become input scenes.
+        self.sbas = Stack(workdir, drop_if_exists=True)
         s1 = S1.scan_slc(datadir)
         self.logger.info('Stacking Sentinel-1 BURST data together.')
-        self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(s1)
+        self.sbas = self.sbas.set_scenes(s1)
 
     def _reframe_scenes(self, aoi):
         """Reframe stacked Sentinel-1 data to smaller area of interest and stitch them together.

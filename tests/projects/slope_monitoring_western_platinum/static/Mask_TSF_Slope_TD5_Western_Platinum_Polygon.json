@@ -1,0 +1,100 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Mask_TSF_Slope_TD5_Western_Platinum_Polygon",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          553422.3522192854,
+          7158301.951721913
+        ],
+        [
+          552474.1451113469,
+          7158184.974067087
+        ],
+        [
+          552324.1384716294,
+          7158136.806797453
+        ],
+        [
+          552073.6686695324,
+          7157851.931802761
+        ],
+        [
+          552109.450069832,
+          7157177.590027885
+        ],
+        [
+          553515.9343431458,
+          7157337.230121529
+        ],
+        [
+          553617.7737132292,
+          7157635.867193259
+        ],
+        [
+          553422.3522192854,
+          7158301.951721913
+        ]
+      ],
+      [
+        [
+          552409.4633492669,
+          7157967.533249882
+        ],
+        [
+          553270.9693718642,
+          7158083.134697004
+        ],
+        [
+          553416.8473884701,
+          7157649.6292702975
+        ],
+        [
+          553374.1849496514,
+          7157503.7512536915
+        ],
+        [
+          552286.980863626,
+          7157349.615990863
+        ],
+        [
+          552270.46637118,
+          7157812.02177935
+        ],
+        [
+          552409.4633492669,
+          7157967.533249882
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    552073.6686695324,
+    7157177.590027885,
+    553617.7737132292,
+    7158301.951721913
+  ],
+  "properties": {
+    "title": "TSF Water Mask – TD5_Western_Platinum",
+    "description": "Manually digitized polygon representing TSF-affected unstable slope areas within the {name} site.",
+    "proj:epsg": 32735,
+    "datetime": "2026-05-19T10:43:19.423560Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Mask_TSF_Slope_TD5_Western_Platinum_Polygon.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "TSF Water Mask – TD5_Western_Platinum",
+      "description": "Manually digitized polygon representing TSF-affected unstable slope areas within the {name} site.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

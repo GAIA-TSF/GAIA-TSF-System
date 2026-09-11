@@ -13,7 +13,8 @@ services:
       - pgstacdb
     volumes:
       - ..:/opt/gaia_tsf
-      - data:/data/gaia_tsf
+      # - data:/data/gaia_tsf
+      - ${HOST_DATA_DIR:-../tests/data}:/data/gaia_tsf 
     networks:
       - gaia_net
     command: tail -f /dev/null

@@ -1,0 +1,38 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Reference_TSF_Slope_TD5_Western_Platinum_Point",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      552988.8467925789,
+      7158146.4402513765
+    ]
+  },
+  "bbox": [
+    552988.8467925789,
+    7158146.4402513765,
+    552988.8467925789,
+    7158146.4402513765
+  ],
+  "properties": {
+    "title": "Reference Points – TSF Water (TD5_Western_Platinum)",
+    "description": "Point dataset representing validation locations placed inside TSF-affected unstable slope polygons. Used as reference samples for validation and quality control.",
+    "proj:epsg": 32735,
+    "datetime": "2026-05-19T10:43:19.450625Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Reference_TSF_Slope_TD5_Western_Platinum_Point.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Reference Points – TSF Water (TD5_Western_Platinum)",
+      "description": "Point dataset representing validation locations placed inside TSF-affected unstable slope polygons. Used as reference samples for validation and quality control.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

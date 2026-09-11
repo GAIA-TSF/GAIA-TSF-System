@@ -1,0 +1,35 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Reference_Stable_Slope_TD5_Western_Platinum_Point",
+  "geometry": {
+    "type": "GeometryCollection",
+    "geometries": []
+  },
+  "bbox": [
+    NaN,
+    NaN,
+    NaN,
+    NaN
+  ],
+  "properties": {
+    "title": "Reference Points – Clean Water (TD5_Western_Platinum)",
+    "description": "Point dataset representing validation locations placed inside manually digitized stable slope polygons. Used as reference samples for verification of classification accuracy.",
+    "proj:epsg": 32735,
+    "datetime": "2026-05-19T10:43:19.436989Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Reference_Stable_Slope_TD5_Western_Platinum_Point.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Reference Points – Clean Water (TD5_Western_Platinum)",
+      "description": "Point dataset representing validation locations placed inside manually digitized stable slope polygons. Used as reference samples for verification of classification accuracy.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

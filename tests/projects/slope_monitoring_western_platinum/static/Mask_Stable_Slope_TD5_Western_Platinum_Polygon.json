@@ -1,0 +1,86 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "Mask_Stable_Slope_TD5_Western_Platinum_Polygon",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          545691.9724332255,
+          7142569.860319192
+        ],
+        [
+          545691.9724332255,
+          7142451.798643211
+        ],
+        [
+          545967.4496771812,
+          7142303.2694379445
+        ],
+        [
+          546173.1054998577,
+          7142267.723987111
+        ],
+        [
+          546575.5307825026,
+          7142441.642800115
+        ],
+        [
+          546753.2580366675,
+          7142583.824603448
+        ],
+        [
+          546757.0664778282,
+          7142661.262907048
+        ],
+        [
+          546631.3879195258,
+          7142686.6525147855
+        ],
+        [
+          546428.2710576231,
+          7142623.178495441
+        ],
+        [
+          546178.1834214053,
+          7142511.464221395
+        ],
+        [
+          545901.4366970628,
+          7142524.159025263
+        ],
+        [
+          545691.9724332255,
+          7142569.860319192
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    545691.9724332255,
+    7142267.723987111,
+    546757.0664778282,
+    7142686.6525147855
+  ],
+  "properties": {
+    "title": "Clean Water Mask – TD5_Western_Platinum",
+    "description": "Manually digitized polygon representing areas of confirmed stable slope around the {name} site.",
+    "proj:epsg": 32735,
+    "datetime": "2026-05-19T10:43:19.407344Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "Mask_Stable_Slope_TD5_Western_Platinum_Polygon.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Clean Water Mask – TD5_Western_Platinum",
+      "description": "Manually digitized polygon representing areas of confirmed stable slope around the {name} site.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}

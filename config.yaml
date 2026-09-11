@@ -5,7 +5,7 @@ eou:
       auth:
         credentials: &cred
           username: 'gaia.tsf.project@gmail.com'
-          password: '' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
+          password: 'Gaia-Tsf;2026' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
   asf:
     auth:
       credentials:
@@ -32,8 +32,8 @@ qcl:
   logger:
     level: DEBUG
     db:
-      <<: *sdi_db
-      dbname: 'logging'
+    #  <<: *sdi_db
+    #  dbname: 'logging'
   asset_checker:
     task_required_types:
       amd:
@@ -64,9 +64,10 @@ isu:
     - 'gb18030'
     - 'latin-1'
 storage:
-  data_dir: /data/gaia_tsf
+  data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_western_platinum 
+  # data_dir:  /data/gaia_tsf/slope_monitoring_western_platinum
 dask_parameters:
-  silence_logs: 'CRITICAL'
-  n_workers: 2
+  silence_logs: 'WARNING'
+  n_workers: 1
   threads_per_worker: 2
-  memory_limit: '8GB'
+  memory_limit: 'auto' # '100GB'

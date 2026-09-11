@@ -1,0 +1,58 @@
+{
+  "type": "Feature",
+  "stac_version": "1.1.0",
+  "stac_extensions": [],
+  "id": "AOI_TD5_Western_Platinum",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          536171.588651782,
+          7171441.982878078
+        ],
+        [
+          536171.588651782,
+          7136122.988366997
+        ],
+        [
+          565545.3658823201,
+          7136122.988366997
+        ],
+        [
+          565545.3658823201,
+          7171441.982878078
+        ],
+        [
+          536171.588651782,
+          7171441.982878078
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    536171.588651782,
+    7136122.988366997,
+    565545.3658823201,
+    7171441.982878078
+  ],
+  "properties": {
+    "title": "Area of Interest – TD5_Western_Platinum",
+    "description": "Polygon defining the Area of Interest (AOI) for the Slope TD5_Western_Platinum study site, South Africa. Used as the spatial boundary for analysis and processing.",
+    "proj:epsg": 32735,
+    "datetime": "2026-05-19T10:43:19.389668Z"
+  },
+  "links": [],
+  "assets": {
+    "data": {
+      "href": "AOI_TD5_Western_Platinum.gpkg",
+      "type": "application/geopackage+sqlite3",
+      "title": "Area of Interest – TD5_Western_Platinum",
+      "description": "Polygon defining the Area of Interest (AOI) for the Slope TD5_Western_Platinum study site, South Africa. Used as the spatial boundary for analysis and processing.",
+      "table:columns": [],
+      "roles": [
+        "data"
+      ]
+    }
+  }
+}
