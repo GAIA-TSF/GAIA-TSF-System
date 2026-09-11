@@ -24,9 +24,11 @@ This subsystem implements a modular machine learning framework for monitoring ge
     * Models: LSTM, Random Forest
     * Features: engineered temporal features
 
-  * **AMD** (Sentinel-2 AMD index time series)`
-    * Models: XGBoost / LightGBM, Random Forest
-    * Features: gap filling, noise filtering, temporal features
+  * **AMD** (planned Sentinel-2 indicator time series)
+    * Registered models: constant, Gradient Boosting Regressor, Random Forest
+    * [Input data contract](AMD_INPUTS.md): shared raster format, masks, dates,
+      causal predictors, and remaining implementation decisions
+    * Sentinel-2 feature generation and AMD preprocessing remain pending
 
 * **Unified Pipelines**
 `
@@ -88,4 +90,3 @@ python3 subsystems/map/run_inference.py   \
 ```bash 
 TODO: 
 ```
-

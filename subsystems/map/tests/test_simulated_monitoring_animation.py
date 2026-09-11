@@ -7,6 +7,7 @@ import numpy as np
 from subsystems.map.scripts.simulate_monitoring_animation import (
     causal_prefix_indices,
     classify_risk,
+    configured_animation_output,
     frame_indices,
 )
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
@@ -77,3 +78,28 @@ def test_frame_count_uses_only_real_acquisition_dates() -> None:
 
     assert indices == (0, 1, 2, 3, 4)
     assert len(indices) == 2 + 3
+
+
+def test_animation_output_is_resolved_below_experiment_results(tmp_path) -> None:
+    """The configured animation directory is scenario-local by default."""
+    config = {
+        '_config_path': tmp_path / 'config.yaml',
+        'experiment_dir': str(tmp_path / 'synthetic_scenario'),
+        'monitoring': {
+            'animation': {
+                'output_directory': 'monitoring/animation',
+                'filename': 'map_monitoring.mp4',
+            },
+        },
+    }
+
+    output = configured_animation_output(config)
+
+    assert output == (
+        tmp_path
+        / 'synthetic_scenario'
+        / 'results'
+        / 'monitoring'
+        / 'animation'
+        / 'map_monitoring.mp4'
+    )

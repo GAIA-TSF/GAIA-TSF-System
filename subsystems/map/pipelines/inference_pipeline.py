@@ -24,7 +24,11 @@ from subsystems.map.utils.artifacts import (
     write_observation_point_timeseries,
     write_persistent_residual_map,
 )
-from subsystems.map.utils.experiment_paths import experiment_model_directory
+from subsystems.map.utils.experiment_paths import (
+    experiment_model_directory,
+    results_directory,
+    static_file_path,
+)
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
@@ -47,16 +51,17 @@ class InferencePipeline:
         target_feature = str(dataset_config['target_feature'])
         loaded = FeatureLoader(
             self._feature_paths(),
-            self._path(dataset_config['mask_path']),
+            self._static_file(dataset_config['mask_file']),
             self._temporal_alignment_method(),
         ).load(
             list(dict.fromkeys([*feature_names, target_feature])),
             reference_feature=target_feature,
         )
+        observation_points = self._observation_points(loaded.grid.crs)
         builder = DatasetBuilder()
         dataset = builder.build(loaded, feature_names, target_feature)
         model_name = self._name('model')
-        output_root = self._path(self.config['outputs']['root'])
+        output_root = results_directory(self.config, self.config_path)
         model_path = (
             experiment_model_directory(
                 output_root,
@@ -113,7 +118,7 @@ class InferencePipeline:
             grid_transform=dataset.grid.transform,
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
-            points=self._observation_points(),
+            points=observation_points,
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
             colormap=self._latest_residual_colormap(),
@@ -136,7 +141,7 @@ class InferencePipeline:
             grid_transform=dataset.grid.transform,
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
-            points=self._observation_points(),
+            points=observation_points,
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
             colormap=self._latest_residual_colormap(),
@@ -158,7 +163,7 @@ class InferencePipeline:
             grid_transform=dataset.grid.transform,
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
-            points=self._observation_points(),
+            points=observation_points,
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
             colormap=self._mean_residual_colormap(),
@@ -195,7 +200,7 @@ class InferencePipeline:
             grid_transform=dataset.grid.transform,
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
-            points=self._observation_points(),
+            points=observation_points,
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
             cumulative_unit=self._cumulative_plot_unit(),
@@ -345,25 +350,21 @@ class InferencePipeline:
                 )
 
     def _feature_paths(self) -> list[Path]:
-        """Return every configured DAG feature directory, including meteo data."""
-        data = self.config['data']
-        keys = (
-            'features_directory',
-            'temporal_features_directory',
-            'meteo_features_directory',
-        )
-        paths = [self._path(data[key]) for key in keys if data.get(key)]
-        return list(dict.fromkeys(paths))
+        """Return conventional DAG feature directories for this experiment."""
+        root = results_directory(self.config, self.config_path)
+        return [
+            root / 'features',
+            root / 'temporal_features',
+            root / 'meteo_features',
+        ]
 
     def _temporal_alignment_method(self) -> str:
         """Return configured causal temporal alignment for external features."""
         return str(self.config['data'].get('temporal_alignment_method', 'exact'))
 
-    def _path(self, value: object) -> Path:
-        path = Path(str(value)).expanduser()
-        return (
-            path if path.is_absolute() else (self.config_path.parent / path).resolve()
-        )
+    def _static_file(self, filename: object) -> Path:
+        """Resolve a configured file name beneath the experiment static folder."""
+        return static_file_path(self.config, self.config_path, filename)
 
     def _name(self, key: str) -> str:
         value = self.config.get(key)
@@ -410,13 +411,89 @@ class InferencePipeline:
         )
         return None if value is None else int(value)
 
-    def _observation_points(self) -> dict[str, dict[str, object]]:
-        """Return named point coordinates configured for observation diagnostics."""
-        points = self.config.get('plotting', {}).get('observation_points', {})
-        if not isinstance(points, dict):
-            raise ValueError('plotting.observation_points must be a mapping.')
-        if not all(isinstance(value, dict) for value in points.values()):
-            raise ValueError('Each configured observation point must be a mapping.')
+    def _observation_points(self, grid_crs: object) -> dict[str, dict[str, object]]:
+        """Load configured diagnostic points in the monitored raster CRS.
+
+        A GeoPackage/vector source is preferred, so points remain correct when a
+        scenario is regenerated in a different projected coordinate system.
+        The legacy inline mapping remains supported for small, self-contained
+        configurations.
+        """
+        plotting = self.config.get('plotting', {})
+        if not isinstance(plotting, dict):
+            raise ValueError('plotting must be a mapping.')
+        source_value = plotting.get('observation_points_file')
+        if source_value is None:
+            points = plotting.get('observation_points', {})
+            if not isinstance(points, dict):
+                raise ValueError('plotting.observation_points must be a mapping.')
+            if not all(isinstance(value, dict) for value in points.values()):
+                raise ValueError('Each configured observation point must be a mapping.')
+            return points
+
+        source_path = self._static_file(source_value)
+        if not source_path.is_file():
+            LOGGER.warning(
+                'Observation-point file does not exist; skipping point diagnostics: %s',
+                source_path,
+            )
+            return {}
+        try:
+            import geopandas as geopandas
+
+            layer = plotting.get('observation_points_layer')
+            point_frame = geopandas.read_file(
+                source_path,
+                **({} if layer is None else {'layer': str(layer)}),
+            )
+        except (ImportError, OSError, ValueError) as exc:
+            LOGGER.warning(
+                'Could not load observation points from %s; skipping point diagnostics: %s',
+                source_path,
+                exc,
+            )
+            return {}
+        if point_frame.empty:
+            LOGGER.warning('Observation-point file contains no features: %s', source_path)
+            return {}
+        if point_frame.crs is None:
+            LOGGER.warning(
+                'Observation-point file has no CRS; skipping point diagnostics: %s',
+                source_path,
+            )
+            return {}
+        try:
+            point_frame = point_frame.to_crs(grid_crs)
+        except (TypeError, ValueError) as exc:
+            LOGGER.warning(
+                'Could not reproject observation points to the raster CRS; '
+                'skipping point diagnostics: %s',
+                exc,
+            )
+            return {}
+        name_field = str(plotting.get('observation_points_name_field', 'label'))
+        if name_field not in point_frame.columns:
+            LOGGER.warning(
+                'Observation-point field %r is absent from %s; skipping point diagnostics.',
+                name_field,
+                source_path,
+            )
+            return {}
+        points: dict[str, dict[str, object]] = {}
+        for index, feature in point_frame.iterrows():
+            name = str(feature[name_field]).strip()
+            geometry = feature.geometry
+            if not name or geometry is None or geometry.is_empty or geometry.geom_type != 'Point':
+                LOGGER.warning('Skipping invalid observation-point feature %s.', index)
+                continue
+            if name in points:
+                LOGGER.warning('Skipping duplicate observation-point name %r.', name)
+                continue
+            points[name] = {
+                'coordinates': [float(geometry.x), float(geometry.y)],
+            }
+        if not points:
+            LOGGER.warning('No valid point features were loaded from %s.', source_path)
         return points
 
     def _observation_window_size(self) -> int:

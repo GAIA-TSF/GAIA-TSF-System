@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from datetime import date
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def regression_metrics(observed: np.ndarray, predicted: np.ndarray) -> dict[str, float]:
@@ -590,21 +594,30 @@ def write_observation_point_timeseries(
     figure, axis = plt.subplots(figsize=(16, 4.5))
     point_series: dict[str, tuple[np.ndarray, np.ndarray]] = {}
     point_records: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
-    for series_index, (name, point_config) in enumerate(points.items()):
-        pixel_indices_in_window = _point_window_pixel_indices(
-            name,
-            point_config,
-            grid_transform,
-            grid_width,
-            grid_height,
-            window_size,
-        )
+    valid_series_index = 0
+    for name, point_config in points.items():
+        try:
+            pixel_indices_in_window = _point_window_pixel_indices(
+                name,
+                point_config,
+                grid_transform,
+                grid_width,
+                grid_height,
+                window_size,
+            )
+        except (TypeError, ValueError) as exc:
+            LOGGER.warning('Skipping configured observation point %r: %s', name, exc)
+            continue
         include = np.isin(pixel_indices, pixel_indices_in_window)
         if not np.any(include):
-            raise ValueError(
-                f"Configured point '{name}' has no valid MAP observation samples "
-                f'in its {window_size}x{window_size} pixel window.',
+            LOGGER.warning(
+                "Skipping configured observation point %r: no valid MAP "
+                "samples in its %dx%d pixel window.",
+                name,
+                window_size,
+                window_size,
             )
+            continue
         record_times = time_indices[include]
         record_observed = np.asarray(observed[include], dtype=np.float64) * value_scale
         record_pixels = pixel_indices[include]
@@ -615,7 +628,11 @@ def write_observation_point_timeseries(
         )
         point_series[name] = (point_times, point_observed)
         display_name = _point_display_name(name)
-        color = 'tab:orange' if name == 'deformation_zone' else f'C{series_index}'
+        color = (
+            'tab:orange'
+            if name == 'deformation_zone'
+            else f'C{valid_series_index}'
+        )
         axis.scatter(
             record_times,
             record_observed,
@@ -638,6 +655,15 @@ def write_observation_point_timeseries(
             s=22,
             alpha=0.8,
         )
+        valid_series_index += 1
+
+    if not point_series:
+        plt.close(figure)
+        LOGGER.warning(
+            'No valid configured observation points were available; '
+            'skipping point time-series diagnostics.',
+        )
+        return
 
     tick_positions = _time_tick_positions(len(dates))
     axis.set_xticks(tick_positions, [dates[index] for index in tick_positions])
@@ -803,17 +829,22 @@ def write_latest_residual_map(
         extent=extent,
         origin='upper',
     )
+    plotted_points = 0
     for name, point_config in points.items():
-        coordinates = point_config.get('coordinates')
-        if (
-            not isinstance(coordinates, list)
-            or len(coordinates) != 2
-            or not all(isinstance(value, (int, float)) for value in coordinates)
-        ):
-            raise ValueError(
-                f"Configured point '{name}' requires coordinates: [x, y].",
+        try:
+            _point_window_pixel_indices(
+                name,
+                point_config,
+                grid_transform,
+                grid_width,
+                grid_height,
+                window_size=1,
             )
-        x_coordinate, y_coordinate = coordinates
+        except (TypeError, ValueError) as exc:
+            LOGGER.warning('Skipping map marker for observation point %r: %s', name, exc)
+            continue
+        coordinates = point_config['coordinates']
+        x_coordinate, y_coordinate = coordinates  # validated immediately above
         axis.scatter(
             x_coordinate,
             y_coordinate,
@@ -822,6 +853,7 @@ def write_latest_residual_map(
             linewidth=0.8,
             label=_point_display_name(name),
         )
+        plotted_points += 1
     colorbar = figure.colorbar(image, ax=axis, shrink=0.8)
     quantity_label = 'Cumulative residual displacement' if window > 1 else 'Residual'
     colorbar.set_label(
@@ -832,7 +864,7 @@ def write_latest_residual_map(
         ylabel='Northing',
         title=title,
     )
-    if points:
+    if plotted_points:
         axis.legend(loc='best')
     figure.savefig(
         output_dir / output_filename,

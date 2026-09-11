@@ -8,7 +8,8 @@ structures that are harmonised and ready for downstream consumption,
 adhering to the principle that "garbage in, garbage out" dictates
 model performance. The implemented workflows ingest Sentinel-1 LOS stacks,
 meteorological observations, static terrain, and synthetic in-situ locations.
-Sentinel-2 spectral-index processing remains planned work.
+Sentinel-2 AMD processing calculates a configured two-band indicator before
+regional and point-based exploratory analysis.
 
 ![Data Agregation Architecture](../../images/dag_subsystem.png)
 
@@ -35,10 +36,10 @@ Sentinel-2 spectral-index processing remains planned work.
   - Sentinel-1 LOS displacement time series
   - AOI mask
 
-- **AMD (KV2, planned)**
-  - Sentinel-2 multispectral time series
-  - AOI mask
-  - TSF, clean water mask (optionally leak water mask) 
+- **AMD (KV2)**
+  - Paired multiband Sentinel-2 JP2 images and JSON metadata
+  - AMD and clean-water masks, plus their water observation points
+  - Configurable band ratio or difference, followed by EDA
 
 ## Outputs
 
@@ -118,6 +119,69 @@ InSAR mean centred on every in-situ location.
 
 
 ## Run the pipelines 
+
+### AMD index and EDA
+
+Configure the `amd` section in `config.yaml` with the actual `first_band` and
+`second_band`.
+`method: ratio` calculates first / second; `method: difference` calculates
+first − second. This spectral indicator is not a calibrated chemistry measurement.
+
+```bash
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline amd_index \
+  --config subsystems/dag/config.yaml
+```
+
+The index stage must complete first and writes `results/features/amd_index.tif`.
+EDA then consumes that generated product:
+
+```bash
+python3 subsystems/dag/run_pipeline.py \
+  --pipeline amd_eda \
+  --config subsystems/dag/config.yaml
+```
+
+The pipeline always engineers `results/features/amd_index.tif` and dated
+`metadata.json` before EDA. It writes these outputs to `results/eda`:
+
+- `inventory.csv`: image/JSON pairing, dates, dimensions, CRS, resolution, band
+  counts, and inventory status.
+- `quality_report.json`: validation errors, unpaired metadata, mask overlap,
+  acquisition gaps, scene cloud percentages, and valid index coverage per region.
+- `statistics.json`: overall and per-acquisition index statistics for AMD and
+  clean-water masks. Empty observations have null statistics and zero counts.
+- `point_timeseries.png` and `point_timeseries.csv`: index values at every point
+  in `amd_water_point.gpkg` and `clean_water_point.gpkg`. The general
+  `observation_points.gpkg` is not required for this two-region analysis.
+
+All configured paths resolve relative to `project_dir`. The AMD mask defines the
+output grid; the clean-water mask must match. Both regions are retained. Larger
+images on the same pixel grid are cropped without interpolation. Different
+CRS/resolution or unaligned origins are rejected. Points are reprojected and must
+lie inside their associated mask. `points.window_size` selects an odd pixel
+neighbourhood restricted to that mask; missing observations remain plot gaps.
+
+`band_positions` contains one-based positions for this repository's DPR export,
+including SCL at position 13. Verify these for other exporters. Alternatively,
+omit positions when raster band descriptions identify bands unambiguously.
+JSON `eo:bands` order is not treated as raster order. Sensing dates are checked
+against JSON dates where available; duplicate dates require upstream selection.
+
+Quality filtering excludes configured SCL classes and source nodata. Setting
+`quality.scl_band: null` disables SCL filtering and records a warning. Scene cloud
+percentages do not replace pixel masks. Zero or near-zero denominators, controlled
+by `denominator_epsilon`, produce nodata. No smoothing or gap filling is applied.
+
+Both bands are converted with `stored_value * scale + offset` before calculation.
+Defaults preserve stored values; configure conversion for your input product.
+DPR already applies band offsets, so do not apply them twice. Ratios are
+dimensionless; differences retain the units of the scaled inputs. Feature
+metadata records the formula and sources. The output stem is `amd_index`; a
+later MAP dataset must select that stem. Lag generation and monitoring remain
+separate work.
+
+### Slope stability and contextual features
 
 Feature normalization is disabled by default. Enable it globally for generated
 DAG features with either Min-Max scaling or Z-score standardization:

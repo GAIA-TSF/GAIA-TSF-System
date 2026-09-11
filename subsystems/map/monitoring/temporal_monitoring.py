@@ -42,7 +42,20 @@ class TemporalResidualMonitor:
         self.cusum_decision = self._positive(cusum, 'decision_threshold')
         self.instability_direction = self._direction(cusum, 'instability_direction')
         self.cusum_signal = self._cusum_signal(cusum)
+        self.cusum_spatial_aggregation = self._cusum_spatial_aggregation(cusum)
+        self.cusum_spatial_quantile = self._unit_interval_value(
+            cusum.get('spatial_quantile', 0.10),
+            'monitoring.dashboard.cusum.spatial_quantile',
+        )
+        if not 0.0 < self.cusum_spatial_quantile < 0.5:
+            raise ValueError(
+                'monitoring.dashboard.cusum.spatial_quantile must be in (0, 0.5).',
+            )
         self.smoothing_span = self._positive_integer(cusum, 'smoothing_span')
+        self.derivative_window = self._positive_integer_value(
+            cusum.get('derivative_window', self.smoothing_span),
+            'monitoring.dashboard.cusum.derivative_window',
+        )
         self.persistence_window = self._positive_integer(cusum, 'persistence_window')
         self.persistence_threshold = self._unit_interval(
             cusum,
@@ -96,10 +109,17 @@ class TemporalResidualMonitor:
         residual_mean = observed_mean - predicted_mean
         anomaly_magnitude = np.abs(residual_mean)
         time_days = self._days_from_start(dates)
-        cusum_values = (
-            observed_mean if self.cusum_signal == 'observed_velocity' else residual_mean
+        cusum_stack = (
+            observed_stack
+            if self.cusum_signal == 'observed_velocity'
+            else observed_stack - prediction_stack
         )
-        acceleration = self._gradient(cusum_values, time_days)
+        cusum_values = self._cusum_spatial_series(cusum_stack)
+        acceleration = self._causal_gradient(
+            cusum_values,
+            time_days,
+            self.derivative_window,
+        )
         trend = self._ema(acceleration, self.smoothing_span)
 
         calibration_start, calibration_end = calibration_window
@@ -143,7 +163,11 @@ class TemporalResidualMonitor:
         # observed acceleration with the baseline model's acceleration removes
         # that expected behaviour before testing for an unexpected shift.
         if self.regime_signal == 'unexpected_acceleration':
-            expected_acceleration = self._gradient(predicted_mean, time_days)
+            expected_acceleration = self._causal_gradient(
+                predicted_mean,
+                time_days,
+                self.derivative_window,
+            )
             expected_trend = self._ema(expected_acceleration, self.smoothing_span)
             regime_signal = (trend - expected_trend) * self.instability_direction
         else:
@@ -301,27 +325,78 @@ class TemporalResidualMonitor:
             where=count > 0,
         )
 
+    def _cusum_spatial_series(self, values: np.ndarray) -> np.ndarray:
+        """Aggregate a CUSUM input spatially without hiding local instability."""
+        if self.cusum_spatial_aggregation == 'mean':
+            return self._spatial_mean(values)
+        output = np.full(values.shape[0], np.nan, dtype=np.float64)
+        for index, raster in enumerate(values):
+            finite = raster[np.isfinite(raster)]
+            if not finite.size:
+                continue
+            quantile = (
+                self.cusum_spatial_quantile
+                if self.instability_direction < 0
+                else 1.0 - self.cusum_spatial_quantile
+            )
+            boundary = float(np.quantile(finite, quantile))
+            if self.cusum_spatial_aggregation == 'directional_quantile':
+                output[index] = boundary
+                continue
+            tail = (
+                finite[finite <= boundary]
+                if self.instability_direction < 0
+                else finite[finite >= boundary]
+            )
+            output[index] = float(np.mean(tail))
+        return output
+
     @staticmethod
-    def _gradient(values: np.ndarray, time_days: np.ndarray) -> np.ndarray:
-        """Return an edge-safe temporal derivative after interpolating gaps."""
-        finite = np.isfinite(values)
-        if finite.sum() < 2:
-            return np.full(values.shape, np.nan, dtype=np.float64)
-        interpolated = np.interp(time_days, time_days[finite], values[finite])
-        return np.gradient(interpolated, time_days, edge_order=1)
+    def _causal_gradient(
+        values: np.ndarray,
+        time_days: np.ndarray,
+        window: int,
+    ) -> np.ndarray:
+        """Estimate a past-only local linear slope at every acquisition.
+
+        A centred numerical gradient changes a historical value when a future
+        acquisition arrives.  That is unsuitable for a live monitoring replay
+        and its end-point derivative is especially sensitive to noise.  This
+        estimator fits a line to the latest finite observations only, producing
+        a causal and more stable acceleration estimate.
+        """
+        output = np.full(values.shape, np.nan, dtype=np.float64)
+        for index in range(values.size):
+            start = max(0, index - window + 1)
+            x_values = time_days[start : index + 1]
+            y_values = values[start : index + 1]
+            finite = np.isfinite(x_values) & np.isfinite(y_values)
+            if np.count_nonzero(finite) < 2:
+                continue
+            x_values = x_values[finite]
+            y_values = y_values[finite]
+            centred_x = x_values - np.mean(x_values)
+            denominator = float(np.dot(centred_x, centred_x))
+            if denominator > np.finfo(np.float64).eps:
+                output[index] = float(
+                    np.dot(centred_x, y_values - np.mean(y_values)) / denominator
+                )
+        return output
 
     @staticmethod
     def _ema(values: np.ndarray, span: int) -> np.ndarray:
         """Return an exponential moving average while carrying finite history."""
-        output = np.empty(values.shape, dtype=np.float64)
+        output = np.full(values.shape, np.nan, dtype=np.float64)
         alpha = 2.0 / (span + 1.0)
-        output[0] = values[0]
-        for index in range(1, values.size):
-            output[index] = (
-                output[index - 1]
-                if not np.isfinite(values[index])
-                else alpha * values[index] + (1.0 - alpha) * output[index - 1]
+        previous = np.nan
+        for index, value in enumerate(values):
+            if not np.isfinite(value):
+                output[index] = previous
+                continue
+            previous = value if not np.isfinite(previous) else (
+                alpha * value + (1.0 - alpha) * previous
             )
+            output[index] = previous
         return output
 
     @staticmethod
@@ -358,13 +433,16 @@ class TemporalResidualMonitor:
 
     @staticmethod
     def _sign_persistence(values: np.ndarray, window: int) -> np.ndarray:
-        """Measure local sign stability, where one indicates sustained motion."""
+        """Measure past-only local sign stability for sustained motion."""
         signs = np.sign(np.nan_to_num(values, nan=0.0))
         signs[signs == 0.0] = 1.0
         changes = np.zeros(values.size, dtype=np.float64)
         changes[1:] = np.abs(np.diff(signs)) / 2.0
-        change_rate = np.convolve(changes, np.ones(window) / window, mode='same')
-        return np.clip(1.0 - change_rate, 0.0, 1.0)
+        output = np.ones(values.size, dtype=np.float64)
+        for index in range(1, values.size):
+            start = max(1, index - window + 1)
+            output[index] = 1.0 - float(np.mean(changes[start : index + 1]))
+        return np.clip(output, 0.0, 1.0)
 
     @staticmethod
     def _days_from_start(dates: tuple[str, ...]) -> np.ndarray:
@@ -447,11 +525,27 @@ class TemporalResidualMonitor:
         return value
 
     @staticmethod
+    def _positive_integer_value(value: object, name: str) -> int:
+        """Validate a standalone strictly positive integer configuration value."""
+        integer = int(value)
+        if integer < 1:
+            raise ValueError(f'{name} must be at least one.')
+        return integer
+
+    @staticmethod
     def _unit_interval(config: dict[str, Any], name: str) -> float:
         """Read a scalar in the closed unit interval."""
-        value = float(config[name])
+        return TemporalResidualMonitor._unit_interval_value(
+            config[name],
+            f'monitoring.dashboard.{name}',
+        )
+
+    @staticmethod
+    def _unit_interval_value(value: object, name: str) -> float:
+        """Validate a standalone scalar in the closed unit interval."""
+        value = float(value)
         if not 0.0 <= value <= 1.0:
-            raise ValueError(f'monitoring.dashboard.{name} must be in [0, 1].')
+            raise ValueError(f'{name} must be in [0, 1].')
         return value
 
     @staticmethod
@@ -475,6 +569,18 @@ class TemporalResidualMonitor:
             raise ValueError(
                 'monitoring.dashboard.cusum.signal must be '
                 '"observed_velocity" or "residual".',
+            )
+        return value
+
+    @staticmethod
+    def _cusum_spatial_aggregation(config: dict[str, Any]) -> str:
+        """Return the configured TSF aggregation for aggregate CUSUM input."""
+        value = str(config.get('spatial_aggregation', 'mean'))
+        if value not in {'mean', 'directional_quantile', 'directional_tail_mean'}:
+            raise ValueError(
+                'monitoring.dashboard.cusum.spatial_aggregation must be '
+                '"mean", "directional_quantile", or '
+                '"directional_tail_mean".',
             )
         return value
 

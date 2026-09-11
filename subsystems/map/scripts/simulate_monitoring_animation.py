@@ -1,4 +1,13 @@
-"""Animate causal MAP calibration and acquisition-by-acquisition monitoring."""
+"""Animate causal MAP calibration and acquisition-by-acquisition monitoring.
+
+Usage:
+python3 subsystems/map/scripts/simulate_monitoring_animation.py \
+    --config subsystems/map/config.yaml \
+    --reuse-model \
+    --fps 4 \
+    --dpi 150
+
+"""
 
 from __future__ import annotations
 
@@ -23,7 +32,11 @@ from subsystems.map.dataset import Dataset, DatasetBuilder, FeatureLoader
 from subsystems.map.monitoring import ResidualAnalyzer, TemporalResidualMonitor
 from subsystems.map.pipelines.learning_pipeline import LearningPipeline
 from subsystems.map.utils.config_loader import load_config
-from subsystems.map.utils.experiment_paths import experiment_model_directory
+from subsystems.map.utils.experiment_paths import (
+    experiment_model_directory,
+    results_directory,
+    static_file_path,
+)
 from subsystems.map.utils.temporal_windows import (
     TemporalWindow,
     resolve_temporal_window,
@@ -45,6 +58,8 @@ class MonitoringFrame:
     residual: float
     velocity: float
     acceleration: float
+    acceleration_cusum: float
+    deceleration_cusum: float
     regime_change_probability: float
     dynamics: str
     risk_level: str
@@ -62,6 +77,8 @@ class SimulationResult:
     uncertainty: np.ndarray
     velocity: np.ndarray
     acceleration: np.ndarray
+    acceleration_cusum: np.ndarray
+    deceleration_cusum: np.ndarray
     regime_probability: np.ndarray
     dynamics: np.ndarray
     frames: tuple[MonitoringFrame, ...]
@@ -136,6 +153,8 @@ def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationR
     uncertainty = np.full(len(dataset.dates), np.nan)
     velocity = np.full(len(dataset.dates), np.nan)
     acceleration = np.full(len(dataset.dates), np.nan)
+    acceleration_cusum = np.full(len(dataset.dates), np.nan)
+    deceleration_cusum = np.full(len(dataset.dates), np.nan)
     probabilities = np.full(len(dataset.dates), np.nan)
     dynamics = np.full(len(dataset.dates), 'stable', dtype='<U12')
     monitor = TemporalResidualMonitor(config['monitoring']['dashboard'])
@@ -159,6 +178,8 @@ def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationR
         )
         velocity[current] = result.velocity[current]
         acceleration[current] = result.acceleration[current]
+        acceleration_cusum[current] = result.acceleration_cusum[current]
+        deceleration_cusum[current] = result.deceleration_cusum[current]
         probabilities[current] = result.regime_risk[current]
         dynamics[current] = result.dynamics[current]
         probability = float(probabilities[current])
@@ -172,6 +193,8 @@ def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationR
                 residual=float(result.residual_mean[current]),
                 velocity=float(velocity[current]),
                 acceleration=float(acceleration[current]),
+                acceleration_cusum=float(acceleration_cusum[current]),
+                deceleration_cusum=float(deceleration_cusum[current]),
                 regime_change_probability=probability,
                 dynamics=str(dynamics[current]),
                 risk_level=classify_risk(
@@ -191,6 +214,8 @@ def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationR
         uncertainty=uncertainty,
         velocity=velocity,
         acceleration=acceleration,
+        acceleration_cusum=acceleration_cusum,
+        deceleration_cusum=deceleration_cusum,
         regime_probability=probabilities,
         dynamics=dynamics,
         frames=tuple(frames),
@@ -219,6 +244,8 @@ def export_csv(result: SimulationResult, output: Path) -> Path:
                 f'residual_rate_[{result.unit}]',
                 f'velocity_[{result.unit}]',
                 f'acceleration_[{_acceleration_unit(result.unit)}]',
+                'acceleration_cusum_statistic',
+                'deceleration_cusum_statistic',
                 'regime_change_probability',
                 'dynamics',
                 'risk_level',
@@ -234,6 +261,8 @@ def export_csv(result: SimulationResult, output: Path) -> Path:
                     frame.residual * result.value_scale,
                     frame.velocity * result.value_scale,
                     frame.acceleration * result.value_scale,
+                    frame.acceleration_cusum,
+                    frame.deceleration_cusum,
                     frame.regime_change_probability,
                     frame.dynamics,
                     frame.risk_level,
@@ -289,13 +318,11 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     dates = np.array([datetime.fromisoformat(value) for value in result.dates])
     scale = result.value_scale
     rate_unit = result.unit or 'native rate'
-    acceleration_unit = _acceleration_unit(rate_unit)
     figure, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
-    acceleration_axis = axes[1].twinx()
     figure.subplots_adjust(top=0.88, hspace=0.12)
     boundary = datetime.fromisoformat(result.monitoring.start_date)
     calibration_start = datetime.fromisoformat(result.calibration.start_date)
-    monitoring_end = datetime.fromisoformat(result.monitoring.end_date)
+    monitoring_end = dates[result.monitoring.end_index - 1]
     for axis in axes:
         axis.axvspan(calibration_start, boundary, color='#4c78a8', alpha=0.08)
         axis.axvspan(boundary, monitoring_end, color='#f58518', alpha=0.06)
@@ -308,16 +335,26 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         )
         axis.grid(alpha=0.22)
     axes[0].set_title('A. LOS deformation rate / baseline behaviour', loc='left')
-    axes[1].set_title('B. Velocity / acceleration', loc='left')
+    axes[1].set_title('B. CUSUM early warning', loc='left')
     axes[2].set_title('C. Regime-change probability / risk', loc='left')
     axes[0].set_ylabel(f'LOS deformation rate [{rate_unit}]')
-    axes[1].set_ylabel(f'Velocity [{rate_unit}]', color='#4c78a8')
-    acceleration_axis.set_ylabel(
-        f'Acceleration [{acceleration_unit}]',
-        color='#e45756',
-    )
+    axes[1].set_ylabel('CUSUM statistic')
     axes[2].set_ylabel('Probability')
     axes[2].set_ylim(-0.03, 1.03)
+    # A monitoring replay must use one coordinate frame for every acquisition.
+    # Otherwise Matplotlib rescales early frames to a handful of observations,
+    # making ordinary variation look like a pronounced trend or deceleration.
+    for axis in axes:
+        axis.set_xlim(dates[0], monitoring_end)
+    axes[0].set_ylim(
+        *_padded_limits(result.observed * scale, result.predicted * scale),
+    )
+    cusum_upper = max(
+        1.0,
+        _finite_max(result.acceleration_cusum),
+        _finite_max(result.deceleration_cusum),
+    )
+    axes[1].set_ylim(-0.05 * cusum_upper, 1.05 * cusum_upper)
     axes[2].axhline(
         result.medium_threshold,
         color='#e6a700',
@@ -352,9 +389,11 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     (predicted_line,) = axes[0].plot(
         [], [], color='#4c78a8', label='Predicted baseline rate'
     )
-    (velocity_line,) = axes[1].plot([], [], color='#4c78a8', label='Velocity')
-    (acceleration_line,) = acceleration_axis.plot(
-        [], [], color='#e45756', label='Acceleration'
+    (acceleration_cusum_line,) = axes[1].plot(
+        [], [], color='#e45756', label='Acceleration CUSUM'
+    )
+    (deceleration_cusum_line,) = axes[1].plot(
+        [], [], color='#54a24b', label='Deceleration CUSUM'
     )
     (probability_line,) = axes[2].plot(
         [], [], color='#7b2cbf', linewidth=2, label='P(regime change)'
@@ -373,17 +412,8 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     figure.text(0.25, 0.905, 'CALIBRATION', ha='center', color='#345b83')
     figure.text(0.73, 0.905, 'MONITORING', ha='center', color='#a85500')
     axes[0].legend(loc='upper left', fontsize=8)
+    axes[1].legend(loc='upper left', fontsize=8)
     axes[2].legend(loc='upper left', fontsize=8)
-    velocity_handles, velocity_labels = axes[1].get_legend_handles_labels()
-    acceleration_handles, acceleration_labels = (
-        acceleration_axis.get_legend_handles_labels()
-    )
-    axes[1].legend(
-        velocity_handles + acceleration_handles,
-        velocity_labels + acceleration_labels,
-        loc='upper left',
-        fontsize=8,
-    )
 
     def update(current: int) -> tuple[Any, ...]:
         visible = np.arange(len(dates)) <= current
@@ -398,20 +428,19 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         predicted_line.set_data(
             dates[monitoring_visible], result.predicted[monitoring_visible] * scale
         )
-        velocity_line.set_data(
-            dates[monitoring_visible], result.velocity[monitoring_visible] * scale
+        acceleration_cusum_line.set_data(
+            dates[monitoring_visible],
+            result.acceleration_cusum[monitoring_visible],
         )
-        acceleration_line.set_data(
-            dates[monitoring_visible], result.acceleration[monitoring_visible] * scale
+        deceleration_cusum_line.set_data(
+            dates[monitoring_visible],
+            result.deceleration_cusum[monitoring_visible],
         )
         probability_line.set_data(
             dates[monitoring_visible], result.regime_probability[monitoring_visible]
         )
         for cursor in cursors:
             cursor.set_xdata([dates[current], dates[current]])
-        for axis in (axes[0], axes[1], acceleration_axis):
-            axis.relim()
-            axis.autoscale_view()
         if current < result.monitoring.start_index:
             status.set_text(
                 f'Current date: {result.dates[current]}  |  Phase: Calibration'
@@ -430,14 +459,35 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
             observed_line,
             current_observation,
             predicted_line,
-            velocity_line,
-            acceleration_line,
+            acceleration_cusum_line,
+            deceleration_cusum_line,
             probability_line,
             *cursors,
             status,
         )
 
     return figure, update
+
+
+def _padded_limits(*values: np.ndarray) -> tuple[float, float]:
+    """Return finite global vertical limits with a small visual margin."""
+    finite = np.concatenate(
+        [np.asarray(value, dtype=float)[np.isfinite(value)] for value in values]
+    )
+    if finite.size == 0:
+        return (-1.0, 1.0)
+    lower = float(np.min(finite))
+    upper = float(np.max(finite))
+    spread = upper - lower
+    padding = max(0.001, spread * 0.08)
+    return lower - padding, upper + padding
+
+
+def _finite_max(values: np.ndarray) -> float:
+    """Return a safe non-negative maximum for a plotted monitoring series."""
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    return 0.0 if finite.size == 0 else max(0.0, float(np.max(finite)))
 
 
 def _acceleration_unit(rate_unit: str) -> str:
@@ -455,31 +505,22 @@ def _load_dataset_and_model(config: dict[str, Any]) -> tuple[Dataset, Any]:
     names = [str(value) for value in dataset_config['features']]
     target = str(dataset_config['target_feature'])
     config_path = Path(str(config['_config_path']))
-
-    def resolve(value: object) -> Path:
-        path = Path(str(value)).expanduser()
-        return path if path.is_absolute() else (config_path.parent / path).resolve()
-
-    data_config = config['data']
+    results_root = results_directory(config, config_path)
     feature_paths = [
-        resolve(data_config[key])
-        for key in (
-            'features_directory',
-            'temporal_features_directory',
-            'meteo_features_directory',
-        )
-        if data_config.get(key)
+        results_root / 'features',
+        results_root / 'temporal_features',
+        results_root / 'meteo_features',
     ]
     loaded = FeatureLoader(
-        list(dict.fromkeys(feature_paths)),
-        resolve(dataset_config['mask_path']),
-        str(data_config.get('temporal_alignment_method', 'exact')),
+        feature_paths,
+        static_file_path(config, config_path, dataset_config['mask_file']),
+        str(config['data'].get('temporal_alignment_method', 'exact')),
     ).load(list(dict.fromkeys([*names, target])), reference_feature=target)
     builder = DatasetBuilder()
     dataset = builder.build(loaded, names, target)
     model_name = str(config['model'])
     model_path = (
-        experiment_model_directory(resolve(config['outputs']['root']), config)
+        experiment_model_directory(results_root, config)
         / 'model.pkl'
     )
     if not model_path.is_file():
@@ -509,11 +550,38 @@ def _spatial_mean(stack: np.ndarray) -> np.ndarray:
     )
 
 
+def configured_animation_output(config: dict[str, Any]) -> Path:
+    """Resolve the configured animation file below the experiment results.
+
+    ``--output`` remains an explicit command-line override, while normal
+    monitoring runs share a scenario-local output directory configured in MAP.
+    """
+    monitoring = config.get('monitoring')
+    animation = monitoring.get('animation') if isinstance(monitoring, dict) else None
+    if not isinstance(animation, dict):
+        raise KeyError('monitoring.animation must be a mapping.')
+    directory_value = animation.get('output_directory')
+    filename_value = animation.get('filename')
+    if not isinstance(directory_value, str) or not directory_value.strip():
+        raise ValueError('monitoring.animation.output_directory must be a path.')
+    if not isinstance(filename_value, str) or not filename_value.strip():
+        raise ValueError('monitoring.animation.filename must be a filename.')
+    directory = Path(directory_value).expanduser()
+    if directory.is_absolute():
+        return directory / filename_value
+    config_path = Path(str(config['_config_path']))
+    return results_directory(config, config_path) / directory / filename_value
+
+
 def main() -> None:
     """Run the configured operational replay and export its products."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
-    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument(
+        '--output',
+        type=Path,
+        help='Optional animation path overriding monitoring.animation settings.',
+    )
     parser.add_argument('--fps', type=int, default=4)
     parser.add_argument('--dpi', type=int, default=120)
     parser.add_argument('--show', action='store_true')
@@ -531,8 +599,9 @@ def main() -> None:
         parser.error('--fps and --dpi must be positive.')
     config = load_config(args.config)
     result = run_simulation(config, train=not args.reuse_model)
+    output_path = args.output or configured_animation_output(config)
     visual_path = save_visualization(
-        result, args.output, fps=args.fps, dpi=args.dpi, show=args.show
+        result, output_path, fps=args.fps, dpi=args.dpi, show=args.show
     )
     csv_path = export_csv(result, visual_path)
     LOGGER.info('Wrote monitoring visualization: %s', visual_path)

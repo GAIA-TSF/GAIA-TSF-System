@@ -1,16 +1,12 @@
 # GAIA-TSF DAG CONFIG
 
-# ENVIRONMENT
-# environments: 
-#   lukas-X1: 
-#     project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation_meteo'
-
-# skylake 
-# project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
-# mac 
+# Slope stability 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+
+# AMD 
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
 
 # GLOBAL SETTINGS 
 global:
@@ -215,6 +211,52 @@ meteorology:
     raster_format: "GTiff"
     metadata_filename: "metadata.json"
     filenames: {}
+
+# AMD INDEX (DA_R_01)
+amd:
+  inputs:
+    sentinel2:
+      directory: "inputs/sentinel2"
+      filename_pattern: "*.jp2"
+      start_date: "2018-01-01"
+      end_date: "2022-12-31"
+      band_positions:
+        B01: 1
+        B02: 2
+        B03: 3
+        B04: 4
+        B05: 5
+        B06: 6
+        B07: 7
+        B08: 8
+        B8A: 9
+        B09: 10
+        B11: 11
+        B12: 12
+        SCL: 13
+  static:
+    amd_mask: "static/amd_mask.tif"
+    clean_water_mask: "static/clean_water_mask.tif"
+    amd_point: "static/amd_water_point.gpkg"
+    clean_water_point: "static/clean_water_point.gpkg"
+  feature_engineering:
+    method: ratio
+    first_band: B04
+    second_band: B03
+    scale: 1.0
+    offset: 0.0
+    denominator_epsilon: 0.0
+  quality:
+    scl_band: SCL
+    excluded_scl_classes: [0, 1, 3, 8, 9, 10, 11]
+  points:
+    window_size: 1
+    label_column: label
+  results:
+    features:
+      output_dir: "results/features"
+    eda:
+      output_dir: "results/eda"
 
 # PREPROCESSING (DA_R_05, DA_R_09, DA_R_10)
 preprocessing:

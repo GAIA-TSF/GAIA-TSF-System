@@ -10,6 +10,40 @@ from typing import Any
 _EXPERIMENT_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
 
 
+def experiment_directory(config: dict[str, Any], config_path: Path) -> Path:
+    """Resolve the one configured TSF experiment directory.
+
+    MAP follows the DAG scenario layout: engineered products live below
+    ``<experiment_dir>/results`` and static spatial inputs below
+    ``<experiment_dir>/static``. Keeping this root in one configuration key
+    prevents feature, mask, output, and point-layer paths from drifting apart.
+    """
+    value = config.get('experiment_dir')
+    if not isinstance(value, str) or not value.strip():
+        raise KeyError('MAP configuration requires a non-empty experiment_dir.')
+    path = Path(value).expanduser()
+    return path if path.is_absolute() else (config_path.parent / path).resolve()
+
+
+def results_directory(config: dict[str, Any], config_path: Path) -> Path:
+    """Return the standard DAG/MAP results directory for the experiment."""
+    return experiment_directory(config, config_path) / 'results'
+
+
+def static_file_path(
+    config: dict[str, Any],
+    config_path: Path,
+    filename: object,
+) -> Path:
+    """Return a static experiment file from a filename relative to ``static``."""
+    path = Path(str(filename)).expanduser()
+    return (
+        path
+        if path.is_absolute()
+        else experiment_directory(config, config_path) / 'static' / path
+    )
+
+
 def experiment_model_directory(output_root: Path, config: dict[str, Any]) -> Path:
     """Return the isolated model-artifact directory for one MAP experiment.
 

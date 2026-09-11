@@ -114,3 +114,94 @@ def test_regime_risk_detects_acceleration_not_predicted_by_baseline() -> None:
     )
 
     assert result.regime_risk[-1] > 0.7
+
+
+def test_monitoring_signals_do_not_change_when_future_data_arrives() -> None:
+    """Causal CUSUM and regime values match a replay frame at the same date."""
+    monitor = TemporalResidualMonitor(
+        {
+            'anomaly_magnitude_threshold': 0.02,
+            'cusum': {
+                'instability_direction': 'negative',
+                'signal': 'observed_velocity',
+                'reference_value': 0.5,
+                'decision_threshold': 2.0,
+                'derivative_window': 3,
+                'smoothing_span': 3,
+                'persistence_window': 3,
+                'persistence_threshold': 0.25,
+            },
+            'regime': {
+                'smoothing_span': 3,
+                'medium_risk_threshold': 0.3,
+                'high_risk_threshold': 0.7,
+            },
+        },
+    )
+    observed = np.array([0.0, 0.0, -0.1, -0.2, -0.5, -1.0, -1.8, -3.0, -4.5, -6.5])
+    predicted = np.zeros(observed.size)
+    dates = tuple(f'2020-01-{day:02d}' for day in range(1, observed.size + 1))
+
+    full = monitor.analyze(
+        observed[:, np.newaxis, np.newaxis],
+        predicted[:, np.newaxis, np.newaxis],
+        dates,
+        calibration_window=(0, 4),
+        monitoring_window=(4, observed.size),
+    )
+    current_index = 8
+    replay = monitor.analyze(
+        observed[: current_index + 1, np.newaxis, np.newaxis],
+        predicted[: current_index + 1, np.newaxis, np.newaxis],
+        dates[: current_index + 1],
+        calibration_window=(0, 4),
+        monitoring_window=(4, current_index + 1),
+    )
+
+    assert replay.acceleration_cusum[current_index] == full.acceleration_cusum[current_index]
+    assert replay.deceleration_cusum[current_index] == full.deceleration_cusum[current_index]
+    assert replay.regime_risk[current_index] == full.regime_risk[current_index]
+
+
+def test_directional_tail_cusum_detects_local_negative_acceleration() -> None:
+    """A local negative failure signal is not diluted by stable TSF pixels."""
+    monitor = TemporalResidualMonitor(
+        {
+            'anomaly_magnitude_threshold': 0.02,
+            'cusum': {
+                'instability_direction': 'negative',
+                'signal': 'observed_velocity',
+                'spatial_aggregation': 'directional_tail_mean',
+                'spatial_quantile': 0.10,
+                'reference_value': 0.5,
+                'decision_threshold': 2.0,
+                'derivative_window': 3,
+                'smoothing_span': 2,
+                'persistence_window': 2,
+                'persistence_threshold': 0.25,
+            },
+            'regime': {
+                'smoothing_span': 2,
+                'medium_risk_threshold': 0.3,
+                'high_risk_threshold': 0.7,
+            },
+        },
+    )
+    stable = np.tile(
+        np.array([0.0, 0.1, -0.1, 0.0, 0.2, 0.3, 0.4, 0.5]),
+        (9, 1),
+    ).T
+    local_failure = np.array([0.0, 0.1, -0.1, 0.0, -1.0, -3.0, -6.0, -10.0])
+    stack = np.column_stack((stable, local_failure))[:, np.newaxis, :]
+    dates = tuple(f'2020-01-{day:02d}' for day in range(1, 9))
+
+    result = monitor.analyze(
+        stack,
+        stack.copy(),
+        dates,
+        calibration_window=(0, 4),
+        monitoring_window=(4, 8),
+    )
+
+    assert result.acceleration_cusum[-1] > result.deceleration_cusum[-1]
+    assert result.acceleration_cusum[-1] > 2.0

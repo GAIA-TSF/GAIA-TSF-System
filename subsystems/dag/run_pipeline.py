@@ -18,6 +18,8 @@ def build_parser() -> argparse.ArgumentParser:
         '--pipeline',
         required=True,
         choices=[
+            'amd_index',
+            'amd_eda',
             'slope_eda',
             'slope_features',
             'slope_temporal_features',
@@ -40,7 +42,17 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.pipeline == 'slope_eda':
+    if args.pipeline == 'amd_eda':
+        from subsystems.dag.pipelines.amd_eda_pipeline import AMDEDAPipeline
+
+        print(AMDEDAPipeline(args.config).run())
+
+    elif args.pipeline == 'amd_index':
+        from subsystems.dag.pipelines.amd_index_pipeline import AMDIndexPipeline
+
+        print(AMDIndexPipeline(args.config).run())
+
+    elif args.pipeline == 'slope_eda':
         from subsystems.dag.pipelines.slope_eda_pipeline import SlopeEDAPipeline
 
         result = SlopeEDAPipeline(args.config).run()
