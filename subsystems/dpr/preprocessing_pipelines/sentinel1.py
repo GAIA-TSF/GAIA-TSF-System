@@ -31,6 +31,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
+            'excluded_dates': {
+                'dtype': list,
+                'default': [],
+                'description': 'Acquisition dates to exclude from processing (YYYY-MM-DD)',
+            },
             'datadir': {
                 'dtype': PosixPath,
                 'description': 'Path to the directory with Sentinel-1 SLC BURST data',
@@ -143,9 +148,25 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Reset generated files before the recursive scan: workdir may be
         # inside datadir, and stale reframed scenes would become input scenes.
         self.sbas = Stack(workdir, drop_if_exists=True)
-        s1 = S1.scan_slc(datadir)
+        s1 = self._filter_excluded_dates(S1.scan_slc(datadir))
         self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = self.sbas.set_scenes(s1)
+
+    def _filter_excluded_dates(self, scenes):
+        """Exclude all scenes on configured calendar dates, preserving source files."""
+        excluded = pd.to_datetime(
+            self._config.get('excluded_dates', []), errors='raise'
+        ).normalize()
+        if excluded.isna().any():
+            raise ValueError('excluded_dates contains an empty or invalid date')
+        mask = pd.to_datetime(scenes.index).normalize().isin(excluded)
+        if mask.any():
+            removed = sorted(set(pd.to_datetime(scenes.index[mask]).strftime('%Y-%m-%d')))
+            self.logger.info(f'Excluding {int(mask.sum())} scenes on dates: {removed}')
+        filtered = scenes.loc[~mask].copy()
+        if filtered.empty:
+            raise ValueError('No Sentinel-1 scenes remain after applying excluded_dates')
+        return filtered
 
     def _reframe_scenes(self, aoi):
         """Reframe stacked Sentinel-1 data to smaller area of interest and stitch them together.

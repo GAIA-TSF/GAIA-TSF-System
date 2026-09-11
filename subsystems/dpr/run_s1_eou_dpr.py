@@ -30,8 +30,8 @@ if __name__ == '__main__':
     dag_module = DataAcquisitionGateway(backend='asf')
     results = dag_module.backend.search(
         geom=project_config.aoi(),
-        start='2022-01-01',
-        end='2022-12-31',
+        start='2020-01-01',
+        end='2025-12-31',
         direction='A',
     )
     dag_module.backend.download_all(results, target_dir=data_dir) 
@@ -45,7 +45,8 @@ if __name__ == '__main__':
         dem_path= data_dir / 'dem.nc',
         landmask_path= data_dir / 'landmask.nc',
         workdir= data_dir / 'workdir',
-        result_dir= data_dir / 'results'
+        result_dir= data_dir / 'results',
+        excluded_dates=project_config.get('sentinel1', {}).get('excluded_dates', []),
     )
 
     pipeline.run() 
