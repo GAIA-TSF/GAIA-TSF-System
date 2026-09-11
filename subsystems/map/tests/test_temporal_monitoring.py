@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from subsystems.map.monitoring.temporal_monitoring import TemporalResidualMonitor
+from subsystems.map.monitoring.dashboard import _cusum_status
 
 
 def test_observed_velocity_cusum_detects_negative_acceleration() -> None:
@@ -205,3 +206,4 @@ def test_directional_tail_cusum_detects_local_negative_acceleration() -> None:
 
     assert result.acceleration_cusum[-1] > result.deceleration_cusum[-1]
     assert result.acceleration_cusum[-1] > 2.0
+    assert _cusum_status(result, -1) == 'Acceleration alarm'

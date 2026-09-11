@@ -186,7 +186,7 @@ def _plot_cusum(
     positions: np.ndarray,
     result: TemporalMonitoringResult,
 ) -> None:
-    """Plot directional CUSUM signals, oscillation and persistent warnings."""
+    """Plot directional CUSUM signals and the operational decision level."""
     axis.plot(
         positions,
         result.acceleration_cusum[positions],
@@ -200,6 +200,16 @@ def _plot_cusum(
         color='green',
         linewidth=1.5,
         label='Deceleration CUSUM',
+    )
+    axis.axhline(
+        result.cusum_decision_threshold,
+        color='black',
+        linestyle='--',
+        linewidth=1.2,
+        label=(
+            'Decision threshold '
+            f'({result.cusum_decision_threshold:g})'
+        ),
     )
     oscillation = positions[result.oscillation[positions]]
     if oscillation.size:
@@ -218,6 +228,42 @@ def _plot_cusum(
         title='Observed-velocity acceleration CUSUM',
         ylabel='CUSUM statistic',
     )
+    status = _cusum_status(result, int(positions[-1]))
+    axis.text(
+        0.99,
+        0.95,
+        status,
+        transform=axis.transAxes,
+        ha='right',
+        va='top',
+        fontsize=9,
+        fontweight='bold',
+        bbox={
+            'boxstyle': 'round,pad=0.3',
+            'facecolor': _cusum_status_color(status),
+            'alpha': 0.16,
+            'edgecolor': 'none',
+        },
+    )
+
+
+def _cusum_status(result: TemporalMonitoringResult, index: int) -> str:
+    """Return the current persistent CUSUM status for a dashboard date."""
+    dynamics = str(result.dynamics[index])
+    if dynamics == 'accelerating':
+        return 'Acceleration alarm'
+    if dynamics == 'decelerating':
+        return 'Deceleration/recovery signal'
+    return 'No CUSUM alarm'
+
+
+def _cusum_status_color(status: str) -> str:
+    """Return a muted status colour without changing the signal line colours."""
+    if status == 'Acceleration alarm':
+        return 'red'
+    if status == 'Deceleration/recovery signal':
+        return 'green'
+    return '0.6'
 
 
 def _plot_regime_risk(

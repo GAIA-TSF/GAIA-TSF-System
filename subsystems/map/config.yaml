@@ -7,7 +7,8 @@ experiment:
 
 # Single root for this DAG/MAP scenario. MAP derives static inputs from
 # <experiment_dir>/static and all DAG/MAP products from <experiment_dir>/results.
-experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/
+# no_failure, gradual_acceleration, spatial_propagation, external_trigger 
+experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure/
 variable: slope
 model: lstm # constant | trf | lstm
 dataset: slope_dataset
@@ -222,5 +223,5 @@ monitoring:
       # so recurring seasonal curvature is not interpreted as a regime shift.
       signal: unexpected_acceleration
       smoothing_span: 5
-      medium_risk_threshold: 0.3
-      high_risk_threshold: 0.7
+      medium_risk_threshold: 0.5
+      high_risk_threshold: 0.8

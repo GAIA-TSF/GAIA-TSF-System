@@ -21,6 +21,7 @@ class TemporalMonitoringResult:
     acceleration: np.ndarray
     anomaly_magnitude: np.ndarray
     anomaly_threshold: float
+    cusum_decision_threshold: float
     acceleration_cusum: np.ndarray
     deceleration_cusum: np.ndarray
     oscillation: np.ndarray
@@ -197,6 +198,7 @@ class TemporalResidualMonitor:
             acceleration=acceleration,
             anomaly_magnitude=anomaly_magnitude,
             anomaly_threshold=self.anomaly_threshold,
+            cusum_decision_threshold=self.cusum_decision,
             acceleration_cusum=acceleration_cusum,
             deceleration_cusum=deceleration_cusum,
             oscillation=oscillation,
