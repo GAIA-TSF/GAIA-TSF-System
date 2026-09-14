@@ -198,6 +198,19 @@ monitoring:
   dashboard:
     enabled: true
     filename: slope_stability_dashboard.png
+    spatial_support:
+      # One physical observation population, independent of model sequences.
+      population: fixed_calibration_valid
+      # Lagged targets may miss isolated acquisitions; retain pixels observed
+      # on at least 95% of usable calibration dates.
+      minimum_observation_coverage: 0.95
+    spatial_coherence:
+      # Coherence-qualified products supplement raw anomaly products.
+      enabled: true
+      minimum_area_pixels: 25
+      persistence: 3
+      minimum_overlap: 0.30
+      connectivity: 8
     # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
     anomaly_magnitude_threshold: 0.00002
     cusum:

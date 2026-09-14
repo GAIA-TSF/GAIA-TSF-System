@@ -12,6 +12,7 @@ from subsystems.map.core.registry import MODEL_REGISTRY
 from subsystems.map.dataset import DatasetBuilder, FeatureLoader
 from subsystems.map.monitoring import (
     ResidualAnalyzer,
+    SpatialCoherenceDetector,
     StatisticalAnomalyDetector,
     TemporalResidualMonitor,
 )
@@ -59,6 +60,30 @@ class InferencePipeline:
         )
         observation_points = self._observation_points(loaded.grid.crs)
         builder = DatasetBuilder()
+        calibration_window = resolve_temporal_window(
+            loaded.dates,
+            dataset_config,
+            'calibration',
+            end_inclusive=False,
+        )
+        monitoring_window = resolve_temporal_window(
+            loaded.dates,
+            dataset_config,
+            'monitoring',
+        )
+        fixed_support = self._fixed_support_mask(
+            builder,
+            loaded.features[target_feature],
+            loaded.mask,
+            calibration_window,
+        )
+        # This physical observation stack is deliberately created before any
+        # LSTM sequence construction. It remains model-independent.
+        observed_stack = np.where(
+            fixed_support[np.newaxis, :, :],
+            loaded.features[target_feature],
+            np.nan,
+        )
         dataset = builder.build(loaded, feature_names, target_feature)
         model_name = self._name('model')
         output_root = results_directory(self.config, self.config_path)
@@ -78,21 +103,9 @@ class InferencePipeline:
         specification = model.sequence_spec()
         if specification is not None:
             dataset = builder.build_sequences(dataset, *specification)
-        calibration_window = resolve_temporal_window(
-            dataset.dates,
-            dataset_config,
-            'calibration',
-            end_inclusive=False,
-        )
-        monitoring_window = resolve_temporal_window(
-            dataset.dates,
-            dataset_config,
-            'monitoring',
-        )
         prediction = model.predict(dataset.features)
         analyzer = ResidualAnalyzer()
         prediction_stack = analyzer.restore_stack(dataset, prediction.y_pred)
-        observed_stack = analyzer.restore_stack(dataset, dataset.targets)
         residuals = analyzer.analyze(dataset, prediction.y_pred)
         prediction_dir = output_root / 'predictions'
         self._write_predictions(
@@ -228,6 +241,16 @@ class InferencePipeline:
             output_root / 'anomalies',
             residual_rate_unit=self._native_plot_unit(),
         )
+        coherence = SpatialCoherenceDetector(
+            self._spatial_coherence_config()
+        ).detect(anomalies.binary_stack, dataset.mask)
+        self._write_coherent_anomalies(
+            output_root / 'anomalies', coherence.binary_stack, dataset, analyzer
+        )
+        write_json(
+            output_root / 'anomalies' / 'spatial_coherence_summary.json',
+            coherence.summary,
+        )
         write_persistent_residual_map(
             output_dir=output_root / 'residuals',
             persistent_anomalies=anomalies.binary_stack,
@@ -266,6 +289,7 @@ class InferencePipeline:
                     monitoring_window.end_index,
                 ),
                 uncertainty_stack=uncertainty_stack,
+                fixed_support_mask=fixed_support,
             )
             dashboard_path = (
                 output_root
@@ -303,12 +327,69 @@ class InferencePipeline:
             'display_deformation_rate_unit': self._plot_unit(),
             'value_scale_to_display_unit': self._plot_value_scale(),
             'anomaly_summary': anomalies.summary,
+            'spatial_coherence_summary': coherence.summary,
+            'fixed_support_pixel_count': int(np.count_nonzero(fixed_support)),
+            'fixed_support_fraction_of_tsf': float(
+                np.count_nonzero(fixed_support) / np.count_nonzero(loaded.mask)
+            ),
             'output_root': str(output_root),
             'dashboard_path': None if dashboard_path is None else str(dashboard_path),
         }
         write_json(output_root / 'inference_metadata.json', result)
         LOGGER.info('MAP inference completed in %s', output_root)
         return result
+
+    def _write_coherent_anomalies(
+        self,
+        output_dir: Path,
+        coherent_stack: np.ndarray,
+        dataset: Any,
+        analyzer: ResidualAnalyzer,
+    ) -> None:
+        """Write coherence-qualified binary anomaly rasters independently."""
+        for index, date in enumerate(dataset.dates):
+            analyzer._write_raster(
+                output_dir / f'anomaly_coherent_{analyzer._safe_date(date)}.tif',
+                coherent_stack[index].astype(float),
+                dataset,
+                'spatially_coherent_anomaly_binary',
+            )
+
+    def _fixed_support_mask(
+        self,
+        builder: DatasetBuilder,
+        target_stack: np.ndarray,
+        tsf_mask: np.ndarray,
+        calibration_window: Any,
+    ) -> np.ndarray:
+        """Return configured model-independent support for physical monitoring."""
+        dashboard = self._dashboard_config()
+        spatial_support = dashboard.get('spatial_support', {})
+        if not isinstance(spatial_support, dict):
+            raise ValueError('monitoring.dashboard.spatial_support must be a mapping.')
+        population = str(spatial_support.get('population', 'fixed_calibration_valid'))
+        if population == 'fixed_calibration_valid':
+            return builder.fixed_valid_mask(
+                target_stack,
+                tsf_mask,
+                calibration_window.start_index,
+                calibration_window.end_index,
+                float(spatial_support.get('minimum_observation_coverage', 0.95)),
+            )
+        if population == 'tsf_mask':
+            return tsf_mask.copy()
+        raise ValueError(
+            'monitoring.dashboard.spatial_support.population must be '
+            '"fixed_calibration_valid" or "tsf_mask".',
+        )
+
+    def _spatial_coherence_config(self) -> dict[str, Any]:
+        """Return the optional spatial coherence settings for anomaly gating."""
+        dashboard = self._dashboard_config()
+        value = dashboard.get('spatial_coherence', {})
+        if not isinstance(value, dict):
+            raise ValueError('monitoring.dashboard.spatial_coherence must be a mapping.')
+        return value
 
     def _write_predictions(
         self,

@@ -80,6 +80,7 @@ class TemporalResidualMonitor:
         calibration_window: tuple[int, int],
         monitoring_window: tuple[int, int],
         uncertainty_stack: np.ndarray | None = None,
+        fixed_support_mask: np.ndarray | None = None,
     ) -> TemporalMonitoringResult:
         """Analyze mean TSF residuals and calibrated acceleration behaviour.
 
@@ -90,6 +91,7 @@ class TemporalResidualMonitor:
             calibration_window: Inclusive/exclusive calibration index bounds.
             monitoring_window: Inclusive/exclusive monitoring index bounds.
             uncertainty_stack: Optional prediction uncertainty stack.
+            fixed_support_mask: Optional model-independent TSF support mask.
 
         Returns:
             Aggregate residual and early-warning signals for all acquisitions.
@@ -102,19 +104,25 @@ class TemporalResidualMonitor:
             monitoring_window,
             uncertainty_stack,
         )
-        observed_mean = self._spatial_mean(observed_stack)
-        predicted_mean = self._spatial_mean(prediction_stack)
+        observed_stack, prediction_stack, uncertainty_stack = self._apply_support(
+            observed_stack,
+            prediction_stack,
+            uncertainty_stack,
+            fixed_support_mask,
+        )
+        observed_mean, predicted_mean, shared_masks = self._shared_spatial_series(
+            observed_stack,
+            prediction_stack,
+        )
         uncertainty_mean = (
-            None if uncertainty_stack is None else self._spatial_mean(uncertainty_stack)
+            None
+            if uncertainty_stack is None
+            else self._aggregate_masks(uncertainty_stack, shared_masks)
         )
         residual_mean = observed_mean - predicted_mean
         anomaly_magnitude = np.abs(residual_mean)
         time_days = self._days_from_start(dates)
-        cusum_stack = (
-            observed_stack
-            if self.cusum_signal == 'observed_velocity'
-            else observed_stack - prediction_stack
-        )
+        cusum_stack = observed_stack if self.cusum_signal == 'observed_velocity' else observed_stack - prediction_stack
         cusum_values = self._cusum_spatial_series(cusum_stack)
         acceleration = self._causal_gradient(
             cusum_values,
@@ -164,13 +172,21 @@ class TemporalResidualMonitor:
         # observed acceleration with the baseline model's acceleration removes
         # that expected behaviour before testing for an unexpected shift.
         if self.regime_signal == 'unexpected_acceleration':
+            observed_acceleration = self._causal_gradient(
+                observed_mean,
+                time_days,
+                self.derivative_window,
+            )
+            observed_trend = self._ema(observed_acceleration, self.smoothing_span)
             expected_acceleration = self._causal_gradient(
                 predicted_mean,
                 time_days,
                 self.derivative_window,
             )
             expected_trend = self._ema(expected_acceleration, self.smoothing_span)
-            regime_signal = (trend - expected_trend) * self.instability_direction
+            regime_signal = (
+                observed_trend - expected_trend
+            ) * self.instability_direction
         else:
             regime_signal = directional_trend
         regime_baseline = regime_signal[calibration_start:calibration_end]
@@ -352,6 +368,72 @@ class TemporalResidualMonitor:
             )
             output[index] = float(np.mean(tail))
         return output
+
+    def _shared_spatial_series(
+        self,
+        observed: np.ndarray,
+        predicted: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Aggregate observations and predictions over identical pixels per date."""
+        masks = np.isfinite(observed) & np.isfinite(predicted)
+        selected = np.zeros_like(masks, dtype=bool)
+        for index in range(observed.shape[0]):
+            valid = masks[index]
+            values = observed[index][valid]
+            if values.size == 0:
+                continue
+            if self.cusum_spatial_aggregation == 'mean':
+                selected[index] = valid
+                continue
+            quantile = (
+                self.cusum_spatial_quantile
+                if self.instability_direction < 0
+                else 1.0 - self.cusum_spatial_quantile
+            )
+            boundary = float(np.quantile(values, quantile))
+            directional = (
+                observed[index] <= boundary
+                if self.instability_direction < 0
+                else observed[index] >= boundary
+            )
+            selected[index] = valid & directional
+        return (
+            self._aggregate_masks(observed, selected),
+            self._aggregate_masks(predicted, selected),
+            selected,
+        )
+
+    @staticmethod
+    def _aggregate_masks(values: np.ndarray, masks: np.ndarray) -> np.ndarray:
+        """Return a finite mean for each acquisition over an explicit support."""
+        valid = masks & np.isfinite(values)
+        count = np.sum(valid, axis=(1, 2))
+        return np.divide(
+            np.sum(np.where(valid, values, 0.0), axis=(1, 2)),
+            count,
+            out=np.full(values.shape[0], np.nan, dtype=np.float64),
+            where=count > 0,
+        )
+
+    @staticmethod
+    def _apply_support(
+        observed: np.ndarray,
+        predicted: np.ndarray,
+        uncertainty: np.ndarray | None,
+        support: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+        """Restrict stacks to a fixed monitoring support without mutating inputs."""
+        if support is None:
+            return observed, predicted, uncertainty
+        if support.shape != observed.shape[1:]:
+            raise ValueError('Fixed monitoring support mask has an invalid shape.')
+        return (
+            np.where(support[np.newaxis, :, :], observed, np.nan),
+            np.where(support[np.newaxis, :, :], predicted, np.nan),
+            None
+            if uncertainty is None
+            else np.where(support[np.newaxis, :, :], uncertainty, np.nan),
+        )
 
     @staticmethod
     def _causal_gradient(

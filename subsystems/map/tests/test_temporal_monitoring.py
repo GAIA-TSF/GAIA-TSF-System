@@ -6,6 +6,7 @@ import numpy as np
 
 from subsystems.map.monitoring.temporal_monitoring import TemporalResidualMonitor
 from subsystems.map.monitoring.dashboard import _cusum_status
+from subsystems.map.dataset.dataset_builder import DatasetBuilder
 
 
 def test_observed_velocity_cusum_detects_negative_acceleration() -> None:
@@ -207,3 +208,89 @@ def test_directional_tail_cusum_detects_local_negative_acceleration() -> None:
     assert result.acceleration_cusum[-1] > result.deceleration_cusum[-1]
     assert result.acceleration_cusum[-1] > 2.0
     assert _cusum_status(result, -1) == 'Acceleration alarm'
+
+
+def test_fixed_valid_support_is_based_on_observations_not_model_features() -> None:
+    """A missing model feature must not alter the physical support mask."""
+    target = np.ones((3, 2, 2), dtype=float)
+    target[1, 0, 1] = np.nan
+    mask = np.ones((2, 2), dtype=bool)
+
+    support = DatasetBuilder.fixed_valid_mask(target, mask, 0, 3)
+
+    assert np.array_equal(support, np.array([[True, False], [True, True]]))
+
+
+def test_shared_support_aligns_observed_and_predicted_spatial_means() -> None:
+    """Observed and predicted aggregates exclude unmatched pixels together."""
+    monitor = TemporalResidualMonitor(
+        {
+            'anomaly_magnitude_threshold': 0.02,
+            'cusum': {
+                'signal': 'observed_velocity',
+                'spatial_aggregation': 'mean',
+                'instability_direction': 'negative',
+                'reference_value': 0.1,
+                'decision_threshold': 2.0,
+                'smoothing_span': 2,
+                'persistence_window': 2,
+                'persistence_threshold': 0.25,
+            },
+            'regime': {'smoothing_span': 2, 'medium_risk_threshold': 0.3, 'high_risk_threshold': 0.7},
+        },
+    )
+    observed = np.array(
+        [[[1.0, 9.0]], [[2.0, 10.0]], [[3.0, 11.0]], [[4.0, 12.0]], [[5.0, 13.0]]]
+    )
+    predicted = np.array(
+        [[[1.0, np.nan]], [[2.0, np.nan]], [[3.0, np.nan]], [[4.0, np.nan]], [[5.0, np.nan]]]
+    )
+
+    result = monitor.analyze(
+        observed,
+        predicted,
+        dates=tuple(f'2020-01-0{index}' for index in range(1, 6)),
+        calibration_window=(0, 4),
+        monitoring_window=(4, 5),
+    )
+
+    assert np.allclose(result.observed_mean, [1.0, 2.0, 3.0, 4.0, 5.0])
+    assert np.allclose(result.predicted_mean, [1.0, 2.0, 3.0, 4.0, 5.0])
+
+
+def test_observed_velocity_cusum_is_independent_of_prediction_stack() -> None:
+    """Physical CUSUM must not change when a model's predictions change."""
+    monitor = TemporalResidualMonitor(
+        {
+            'anomaly_magnitude_threshold': 0.02,
+            'cusum': {
+                'signal': 'observed_velocity',
+                'instability_direction': 'negative',
+                'reference_value': 0.1,
+                'decision_threshold': 2.0,
+                'derivative_window': 2,
+                'smoothing_span': 2,
+                'persistence_window': 2,
+                'persistence_threshold': 0.25,
+            },
+            'regime': {'smoothing_span': 2, 'medium_risk_threshold': 0.3, 'high_risk_threshold': 0.7},
+        },
+    )
+    observed = np.array([0.0, -0.1, -0.4, -0.9, -1.6, -2.5, -3.6])[:, np.newaxis, np.newaxis]
+    first = monitor.analyze(
+        observed,
+        np.zeros_like(observed),
+        tuple(f'2020-01-0{index}' for index in range(1, 8)),
+        calibration_window=(0, 4),
+        monitoring_window=(4, 7),
+    )
+    second = monitor.analyze(
+        observed,
+        np.full_like(observed, 100.0),
+        tuple(f'2020-01-0{index}' for index in range(1, 8)),
+        calibration_window=(0, 4),
+        monitoring_window=(4, 7),
+    )
+
+    assert np.allclose(first.acceleration_cusum, second.acceleration_cusum)
+    assert np.allclose(first.deceleration_cusum, second.deceleration_cusum)

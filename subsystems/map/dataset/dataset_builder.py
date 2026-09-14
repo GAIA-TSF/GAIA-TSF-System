@@ -72,6 +72,42 @@ class DatasetBuilder:
             selected_mask,
         )
 
+    @staticmethod
+    def fixed_valid_mask(
+        target_stack: np.ndarray,
+        tsf_mask: np.ndarray,
+        start_index: int,
+        end_index: int,
+        minimum_coverage: float = 1.0,
+    ) -> np.ndarray:
+        """Return TSF pixels observed at every acquisition in a reference window.
+
+        The mask is intentionally based on observations only, never model
+        features or sequence availability. It therefore remains identical for
+        tabular and sequence-model physical monitoring.
+        """
+        if target_stack.ndim != 3 or target_stack.shape[1:] != tsf_mask.shape:
+            raise ValueError('Target stack and TSF mask are incompatible.')
+        if not 0 <= start_index < end_index <= target_stack.shape[0]:
+            raise ValueError('Fixed-support reference window is outside target stack.')
+        if not 0.0 < minimum_coverage <= 1.0:
+            raise ValueError('Fixed-support minimum coverage must be in (0, 1].')
+        reference = target_stack[start_index:end_index]
+        # Lagged targets may have an entirely unavailable warm-up acquisition.
+        # It contains no evidence about per-pixel validity and must not exclude
+        # every TSF pixel from a fixed operational support.
+        available_dates = np.any(
+            np.isfinite(reference) & tsf_mask[np.newaxis, :, :], axis=(1, 2)
+        )
+        reference = reference[available_dates]
+        if reference.size == 0:
+            raise ValueError('No target observations are available in calibration.')
+        coverage = np.mean(np.isfinite(reference), axis=0)
+        fixed = tsf_mask & (coverage >= minimum_coverage)
+        if not np.any(fixed):
+            raise ValueError('No calibration-valid pixels remain for fixed support.')
+        return fixed
+
     def split_temporal(
         self,
         dataset: Dataset,
