@@ -133,7 +133,8 @@ python3 subsystems/dag/run_pipeline.py \
   --config subsystems/dag/config.yaml
 ```
 
-The index stage must complete first and writes `results/features/amd_index.tif`.
+The index stage writes `amd_index.tif` to `amd.results.index.output_dir`
+(`results/eda/source_index` in the supplied configuration).
 EDA then consumes that generated product:
 
 ```bash
@@ -142,7 +143,7 @@ python3 subsystems/dag/run_pipeline.py \
   --config subsystems/dag/config.yaml
 ```
 
-The pipeline always engineers `results/features/amd_index.tif` and dated
+The pipeline always engineers the intermediate `amd_index.tif` and dated
 `metadata.json` before EDA. It writes these outputs to `results/eda`:
 
 - `inventory.csv`: image/JSON pairing, dates, dimensions, CRS, resolution, band
@@ -160,7 +161,9 @@ output grid; the clean-water mask must match. Both regions are retained. Larger
 images on the same pixel grid are cropped without interpolation. Different
 CRS/resolution or unaligned origins are rejected. Points are reprojected and must
 lie inside their associated mask. `points.window_size` selects an odd pixel
-neighbourhood restricted to that mask; missing observations remain plot gaps.
+neighbourhood restricted to that mask. Plot lines connect valid observations
+across missing acquisitions within each calendar year, with breaks between
+years. Missing values remain missing in the CSV and statistics.
 
 `band_positions` contains one-based positions for this repository's DPR export,
 including SCL at position 13. Verify these for other exporters. Alternatively,
@@ -180,6 +183,52 @@ dimensionless; differences retain the units of the scaled inputs. Feature
 metadata records the formula and sources. The output stem is `amd_index`; a
 later MAP dataset must select that stem. Lag generation and monitoring remain
 separate work.
+
+### AMD model features
+
+Run these stages in order with the same configuration:
+
+```bash
+python3 subsystems/dag/run_pipeline.py --pipeline amd_features --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline amd_temporal_features --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline amd_meteo_features --config subsystems/dag/config.yaml
+```
+
+`amd_features` writes `amd_index.tif` for ratio or `amd_difference.tif` for
+difference. It excludes fully invalid dates and dates below
+`amd.acquisitions.min_valid_fraction`, evaluated over the union of both water
+masks after SCL, source nodata, and denominator filtering. Partially cloudy
+pixels remain nodata. Intermediate unfiltered products live in `source_index/`.
+The optional `amd.results.index` directory keeps standalone index/EDA products
+separate from model features; legacy configurations fall back to `results.features`.
+
+Temporal outputs are `lag1`, `lag2`, `lag3`, `roll_mean`, `roll_std`,
+`amd_diff1`, `amd_diff2`, `amd_diff3`, `annual_sin`, and `annual_cos`.
+Lags count prior valid observations separately at each pixel; differences are
+current value minus the corresponding lag, rather than repeated derivatives.
+Rolling windows include the current valid observation, use population standard
+deviation, and require the configured `min_periods` (default: full window).
+History continues across years. All outputs are nodata at cloudy current pixels.
+Seasonal phase uses day of year and a 365.2425-day annual period.
+
+AMD meteorology reads `amd.meteorology.inputs.table`, a consecutive daily CSV,
+and reuses the slope meteorological feature extractor. Calendar-day weather
+windows include cloudy days; results are sampled on accepted AMD acquisition
+dates and masked by the base feature's pixel validity. Blank weather values
+remain missing input values under the existing extractor's rules. Enable
+`temperature_anomaly` only with an explicit `temperature_baseline` in
+`amd.meteorology.feature_engineering`, configured or fitted using training data.
+It is disabled by default. The weather table must cover every accepted AMD date
+and should include the preceding 60 days for complete longest-window history.
+
+Each stage writes dated multiband GeoTIFFs and `metadata.json` in its configured
+output directory: `results/features`, `results/temporal_features`, and
+`results/meteo_features` in the supplied configuration. Temporal and weather stages consume the existing base product
+and reject changed formula, quality, or acquisition-selection settings. Rerun
+`amd_features` after changing its inputs or masks. Select the exact generated
+stems and all three output directories when configuring MAP feature loading.
+These stages preserve missing observations and do not fit normalization or
+imputation parameters; fitted preprocessing belongs to the training workflow.
 
 ### Slope stability and contextual features
 

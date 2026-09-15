@@ -313,7 +313,8 @@ class AMDEDAPipeline(Pipeline):
             int((b[0] - a[0]).days) for a, b in pairwise(dated)
         ]
         formula = dict(engineering)
-        output_dir = self._path(self.options['results']['features']['output_dir'])
+        output_options = self.options['results'].get('index', self.options['results']['features'])
+        output_dir = self._path(output_options['output_dir'])
         output_dir.mkdir(parents=True, exist_ok=True)
         profile = RasterProfile(
             reference['crs'],
@@ -415,13 +416,24 @@ class AMDEDAPipeline(Pipeline):
                     quality['warnings'].append(
                         f'No valid observations at {region} point {label}.'
                     )
-                ax.plot(
-                    [datetime.fromisoformat(day) for day in dates],
-                    means,
-                    marker='.',
-                    color=color,
-                    label=f'{region}: {label}',
-                )
+                plot_dates = [datetime.fromisoformat(day) for day in dates]
+                years = sorted({day.year for day in plot_dates})
+                labelled = False
+                for year in years:
+                    valid = [
+                        i for i, day in enumerate(plot_dates)
+                        if day.year == year and np.isfinite(means[i])
+                    ]
+                    if not valid:
+                        continue
+                    ax.plot(
+                        [plot_dates[i] for i in valid],
+                        means[valid],
+                        marker='.',
+                        color=color,
+                        label=f'{region}: {label}' if not labelled else '_nolegend_',
+                    )
+                    labelled = True
                 records.extend(
                     {
                         'region': region,
@@ -434,10 +446,11 @@ class AMDEDAPipeline(Pipeline):
                 )
         formula = self.options['feature_engineering']
         operator = '/' if formula['method'] == 'ratio' else '−'
+        plot_name = 'AMD_difference' if formula['method'] == 'difference' else 'AMD_index'
         ax.set(
-            title='AMD index at water observation points',
+            title=f'{plot_name} at water observation points',
             xlabel='Acquisition date',
-            ylabel=f'amd_index ({formula["first_band"]} {operator} {formula["second_band"]})',
+            ylabel=f'{plot_name} ({formula["first_band"]} {operator} {formula["second_band"]})',
         )
         ax.legend()
         ax.grid(alpha=0.25)

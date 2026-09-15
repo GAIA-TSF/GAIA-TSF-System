@@ -6,7 +6,8 @@
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
 
 # AMD 
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022/'
 
 # GLOBAL SETTINGS 
 global:
@@ -235,12 +236,13 @@ amd:
         B12: 12
         SCL: 13
   static:
-    amd_mask: "static/amd_mask.tif"
-    clean_water_mask: "static/clean_water_mask.tif"
+    # aligned mask with not rounded corners to avoid artifacts in the AMD index 
+    amd_mask: "static/amd_mask_aligned.tif"
+    clean_water_mask: "static/clean_water_mask_aligned.tif"
     amd_point: "static/amd_water_point.gpkg"
     clean_water_point: "static/clean_water_point.gpkg"
   feature_engineering:
-    method: ratio
+    method: difference
     first_band: B04
     second_band: B03
     scale: 1.0
@@ -252,9 +254,51 @@ amd:
   points:
     window_size: 1
     label_column: label
+  acquisitions:
+    min_valid_fraction: 0.0
+  temporal_features:
+    lag_orders: [1, 2, 3]
+    difference_orders: [1, 2, 3]
+    rolling_window: 5
+    min_periods: 5
+    calendar_features: [annual_sin, annual_cos]
+  meteorology:
+    inputs:
+      table:
+        path: inputs/meteodata.csv
+        date_column: date
+        columns:
+          precipitation: precipitation
+          temperature_mean: temperature_mean
+          temperature_min: temperature_min
+          temperature_max: temperature_max
+    feature_engineering:
+      precipitation: true
+      precip_7d: true
+      precip_14d: true
+      precip_30d: true
+      precip_60d: true
+      days_since_heavy_rain: true
+      max_precip_7d: true
+      temperature_mean: true
+      temperature_min: true
+      temperature_max: true
+      temp_7d_mean: true
+      temp_30d_mean: true
+      # Enable with a configured or training-fitted temperature_baseline.
+      temperature_anomaly: false
+      heavy_rain_threshold: 20.0
+      cold_regions:
+        enabled: false
   results:
+    index:
+      output_dir: "results/eda/source_index"
     features:
       output_dir: "results/features"
+    temporal_features:
+      output_dir: "results/temporal_features"
+    meteorology:
+      output_dir: "results/meteo_features"
     eda:
       output_dir: "results/eda"
 
