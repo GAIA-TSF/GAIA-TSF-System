@@ -1,0 +1,5432 @@
+[
+  {
+    "ref":"2015-03-01",
+    "rep":"2015-04-30",
+    "ref_baseline":0.0,
+    "rep_baseline":55.79,
+    "pair":"2015-03-01 2015-04-30",
+    "baseline":55.79,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-04-30",
+    "rep":"2015-05-24",
+    "ref_baseline":55.79,
+    "rep_baseline":82.38,
+    "pair":"2015-04-30 2015-05-24",
+    "baseline":26.59,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-04-30",
+    "rep":"2015-06-05",
+    "ref_baseline":55.79,
+    "rep_baseline":49.58,
+    "pair":"2015-04-30 2015-06-05",
+    "baseline":-6.21,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-04-30",
+    "rep":"2015-06-17",
+    "ref_baseline":55.79,
+    "rep_baseline":-81.33,
+    "pair":"2015-04-30 2015-06-17",
+    "baseline":-137.12,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-04-30",
+    "rep":"2015-06-29",
+    "ref_baseline":55.79,
+    "rep_baseline":80.94,
+    "pair":"2015-04-30 2015-06-29",
+    "baseline":25.15,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-05-24",
+    "rep":"2015-06-05",
+    "ref_baseline":82.38,
+    "rep_baseline":49.58,
+    "pair":"2015-05-24 2015-06-05",
+    "baseline":-32.8,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-05-24",
+    "rep":"2015-06-29",
+    "ref_baseline":82.38,
+    "rep_baseline":80.94,
+    "pair":"2015-05-24 2015-06-29",
+    "baseline":-1.44,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-06-05",
+    "rep":"2015-06-17",
+    "ref_baseline":49.58,
+    "rep_baseline":-81.33,
+    "pair":"2015-06-05 2015-06-17",
+    "baseline":-130.91,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-06-05",
+    "rep":"2015-06-29",
+    "ref_baseline":49.58,
+    "rep_baseline":80.94,
+    "pair":"2015-06-05 2015-06-29",
+    "baseline":31.36,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-06-29",
+    "rep":"2015-09-09",
+    "ref_baseline":80.94,
+    "rep_baseline":19.1,
+    "pair":"2015-06-29 2015-09-09",
+    "baseline":-61.84,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-09",
+    "rep":"2015-09-21",
+    "ref_baseline":19.1,
+    "rep_baseline":67.48,
+    "pair":"2015-09-09 2015-09-21",
+    "baseline":48.38,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-09",
+    "rep":"2015-10-03",
+    "ref_baseline":19.1,
+    "rep_baseline":68.53,
+    "pair":"2015-09-09 2015-10-03",
+    "baseline":49.43,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-09",
+    "rep":"2015-10-15",
+    "ref_baseline":19.1,
+    "rep_baseline":-11.38,
+    "pair":"2015-09-09 2015-10-15",
+    "baseline":-30.48,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-09",
+    "rep":"2015-10-27",
+    "ref_baseline":19.1,
+    "rep_baseline":-109.27,
+    "pair":"2015-09-09 2015-10-27",
+    "baseline":-128.37,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-21",
+    "rep":"2015-10-03",
+    "ref_baseline":67.48,
+    "rep_baseline":68.53,
+    "pair":"2015-09-21 2015-10-03",
+    "baseline":1.05,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-21",
+    "rep":"2015-10-15",
+    "ref_baseline":67.48,
+    "rep_baseline":-11.38,
+    "pair":"2015-09-21 2015-10-15",
+    "baseline":-78.86,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-09-21",
+    "rep":"2015-12-02",
+    "ref_baseline":67.48,
+    "rep_baseline":21.64,
+    "pair":"2015-09-21 2015-12-02",
+    "baseline":-45.84,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-03",
+    "rep":"2015-10-15",
+    "ref_baseline":68.53,
+    "rep_baseline":-11.38,
+    "pair":"2015-10-03 2015-10-15",
+    "baseline":-79.91,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-03",
+    "rep":"2015-12-02",
+    "ref_baseline":68.53,
+    "rep_baseline":21.64,
+    "pair":"2015-10-03 2015-12-02",
+    "baseline":-46.89,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-03",
+    "rep":"2015-12-14",
+    "ref_baseline":68.53,
+    "rep_baseline":2.9,
+    "pair":"2015-10-03 2015-12-14",
+    "baseline":-65.63,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-15",
+    "rep":"2015-10-27",
+    "ref_baseline":-11.38,
+    "rep_baseline":-109.27,
+    "pair":"2015-10-15 2015-10-27",
+    "baseline":-97.89,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-15",
+    "rep":"2015-12-02",
+    "ref_baseline":-11.38,
+    "rep_baseline":21.64,
+    "pair":"2015-10-15 2015-12-02",
+    "baseline":33.02,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-15",
+    "rep":"2015-12-14",
+    "ref_baseline":-11.38,
+    "rep_baseline":2.9,
+    "pair":"2015-10-15 2015-12-14",
+    "baseline":14.28,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-15",
+    "rep":"2015-12-26",
+    "ref_baseline":-11.38,
+    "rep_baseline":-45.19,
+    "pair":"2015-10-15 2015-12-26",
+    "baseline":-33.81,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-27",
+    "rep":"2015-12-02",
+    "ref_baseline":-109.27,
+    "rep_baseline":21.64,
+    "pair":"2015-10-27 2015-12-02",
+    "baseline":130.91,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-27",
+    "rep":"2015-12-14",
+    "ref_baseline":-109.27,
+    "rep_baseline":2.9,
+    "pair":"2015-10-27 2015-12-14",
+    "baseline":112.17,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-27",
+    "rep":"2015-12-26",
+    "ref_baseline":-109.27,
+    "rep_baseline":-45.19,
+    "pair":"2015-10-27 2015-12-26",
+    "baseline":64.08,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-10-27",
+    "rep":"2016-01-07",
+    "ref_baseline":-109.27,
+    "rep_baseline":-83.32,
+    "pair":"2015-10-27 2016-01-07",
+    "baseline":25.95,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2015-12-14",
+    "ref_baseline":21.64,
+    "rep_baseline":2.9,
+    "pair":"2015-12-02 2015-12-14",
+    "baseline":-18.74,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2015-12-26",
+    "ref_baseline":21.64,
+    "rep_baseline":-45.19,
+    "pair":"2015-12-02 2015-12-26",
+    "baseline":-66.83,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2016-01-07",
+    "ref_baseline":21.64,
+    "rep_baseline":-83.32,
+    "pair":"2015-12-02 2016-01-07",
+    "baseline":-104.96,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2016-01-19",
+    "ref_baseline":21.64,
+    "rep_baseline":-16.99,
+    "pair":"2015-12-02 2016-01-19",
+    "baseline":-38.63,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2016-01-31",
+    "ref_baseline":21.64,
+    "rep_baseline":-19.54,
+    "pair":"2015-12-02 2016-01-31",
+    "baseline":-41.18,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-02",
+    "rep":"2016-02-12",
+    "ref_baseline":21.64,
+    "rep_baseline":-14.74,
+    "pair":"2015-12-02 2016-02-12",
+    "baseline":-36.38,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2015-12-26",
+    "ref_baseline":2.9,
+    "rep_baseline":-45.19,
+    "pair":"2015-12-14 2015-12-26",
+    "baseline":-48.09,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2016-01-07",
+    "ref_baseline":2.9,
+    "rep_baseline":-83.32,
+    "pair":"2015-12-14 2016-01-07",
+    "baseline":-86.22,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2016-01-19",
+    "ref_baseline":2.9,
+    "rep_baseline":-16.99,
+    "pair":"2015-12-14 2016-01-19",
+    "baseline":-19.89,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2016-01-31",
+    "ref_baseline":2.9,
+    "rep_baseline":-19.54,
+    "pair":"2015-12-14 2016-01-31",
+    "baseline":-22.44,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2016-02-12",
+    "ref_baseline":2.9,
+    "rep_baseline":-14.74,
+    "pair":"2015-12-14 2016-02-12",
+    "baseline":-17.64,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-14",
+    "rep":"2016-02-24",
+    "ref_baseline":2.9,
+    "rep_baseline":-27.69,
+    "pair":"2015-12-14 2016-02-24",
+    "baseline":-30.59,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-01-07",
+    "ref_baseline":-45.19,
+    "rep_baseline":-83.32,
+    "pair":"2015-12-26 2016-01-07",
+    "baseline":-38.13,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-01-19",
+    "ref_baseline":-45.19,
+    "rep_baseline":-16.99,
+    "pair":"2015-12-26 2016-01-19",
+    "baseline":28.2,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-01-31",
+    "ref_baseline":-45.19,
+    "rep_baseline":-19.54,
+    "pair":"2015-12-26 2016-01-31",
+    "baseline":25.65,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-02-12",
+    "ref_baseline":-45.19,
+    "rep_baseline":-14.74,
+    "pair":"2015-12-26 2016-02-12",
+    "baseline":30.45,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-02-24",
+    "ref_baseline":-45.19,
+    "rep_baseline":-27.69,
+    "pair":"2015-12-26 2016-02-24",
+    "baseline":17.5,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2015-12-26",
+    "rep":"2016-03-07",
+    "ref_baseline":-45.19,
+    "rep_baseline":-20.38,
+    "pair":"2015-12-26 2016-03-07",
+    "baseline":24.81,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-01-19",
+    "ref_baseline":-83.32,
+    "rep_baseline":-16.99,
+    "pair":"2016-01-07 2016-01-19",
+    "baseline":66.33,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-01-31",
+    "ref_baseline":-83.32,
+    "rep_baseline":-19.54,
+    "pair":"2016-01-07 2016-01-31",
+    "baseline":63.78,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-02-12",
+    "ref_baseline":-83.32,
+    "rep_baseline":-14.74,
+    "pair":"2016-01-07 2016-02-12",
+    "baseline":68.58,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-02-24",
+    "ref_baseline":-83.32,
+    "rep_baseline":-27.69,
+    "pair":"2016-01-07 2016-02-24",
+    "baseline":55.63,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-03-07",
+    "ref_baseline":-83.32,
+    "rep_baseline":-20.38,
+    "pair":"2016-01-07 2016-03-07",
+    "baseline":62.94,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-07",
+    "rep":"2016-03-19",
+    "ref_baseline":-83.32,
+    "rep_baseline":17.74,
+    "pair":"2016-01-07 2016-03-19",
+    "baseline":101.06,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-01-31",
+    "ref_baseline":-16.99,
+    "rep_baseline":-19.54,
+    "pair":"2016-01-19 2016-01-31",
+    "baseline":-2.55,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-02-12",
+    "ref_baseline":-16.99,
+    "rep_baseline":-14.74,
+    "pair":"2016-01-19 2016-02-12",
+    "baseline":2.25,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-02-24",
+    "ref_baseline":-16.99,
+    "rep_baseline":-27.69,
+    "pair":"2016-01-19 2016-02-24",
+    "baseline":-10.7,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-03-07",
+    "ref_baseline":-16.99,
+    "rep_baseline":-20.38,
+    "pair":"2016-01-19 2016-03-07",
+    "baseline":-3.39,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-03-19",
+    "ref_baseline":-16.99,
+    "rep_baseline":17.74,
+    "pair":"2016-01-19 2016-03-19",
+    "baseline":34.73,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-19",
+    "rep":"2016-03-31",
+    "ref_baseline":-16.99,
+    "rep_baseline":58.25,
+    "pair":"2016-01-19 2016-03-31",
+    "baseline":75.24,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-02-12",
+    "ref_baseline":-19.54,
+    "rep_baseline":-14.74,
+    "pair":"2016-01-31 2016-02-12",
+    "baseline":4.8,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-02-24",
+    "ref_baseline":-19.54,
+    "rep_baseline":-27.69,
+    "pair":"2016-01-31 2016-02-24",
+    "baseline":-8.15,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-03-07",
+    "ref_baseline":-19.54,
+    "rep_baseline":-20.38,
+    "pair":"2016-01-31 2016-03-07",
+    "baseline":-0.84,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-03-19",
+    "ref_baseline":-19.54,
+    "rep_baseline":17.74,
+    "pair":"2016-01-31 2016-03-19",
+    "baseline":37.28,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-03-31",
+    "ref_baseline":-19.54,
+    "rep_baseline":58.25,
+    "pair":"2016-01-31 2016-03-31",
+    "baseline":77.79,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-01-31",
+    "rep":"2016-04-12",
+    "ref_baseline":-19.54,
+    "rep_baseline":81.92,
+    "pair":"2016-01-31 2016-04-12",
+    "baseline":101.46,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-02-24",
+    "ref_baseline":-14.74,
+    "rep_baseline":-27.69,
+    "pair":"2016-02-12 2016-02-24",
+    "baseline":-12.95,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-03-07",
+    "ref_baseline":-14.74,
+    "rep_baseline":-20.38,
+    "pair":"2016-02-12 2016-03-07",
+    "baseline":-5.64,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-03-19",
+    "ref_baseline":-14.74,
+    "rep_baseline":17.74,
+    "pair":"2016-02-12 2016-03-19",
+    "baseline":32.48,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-03-31",
+    "ref_baseline":-14.74,
+    "rep_baseline":58.25,
+    "pair":"2016-02-12 2016-03-31",
+    "baseline":72.99,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-04-12",
+    "ref_baseline":-14.74,
+    "rep_baseline":81.92,
+    "pair":"2016-02-12 2016-04-12",
+    "baseline":96.66,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-12",
+    "rep":"2016-04-24",
+    "ref_baseline":-14.74,
+    "rep_baseline":-10.02,
+    "pair":"2016-02-12 2016-04-24",
+    "baseline":4.72,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-03-07",
+    "ref_baseline":-27.69,
+    "rep_baseline":-20.38,
+    "pair":"2016-02-24 2016-03-07",
+    "baseline":7.31,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-03-19",
+    "ref_baseline":-27.69,
+    "rep_baseline":17.74,
+    "pair":"2016-02-24 2016-03-19",
+    "baseline":45.43,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-03-31",
+    "ref_baseline":-27.69,
+    "rep_baseline":58.25,
+    "pair":"2016-02-24 2016-03-31",
+    "baseline":85.94,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-04-12",
+    "ref_baseline":-27.69,
+    "rep_baseline":81.92,
+    "pair":"2016-02-24 2016-04-12",
+    "baseline":109.61,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-04-24",
+    "ref_baseline":-27.69,
+    "rep_baseline":-10.02,
+    "pair":"2016-02-24 2016-04-24",
+    "baseline":17.67,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-02-24",
+    "rep":"2016-05-06",
+    "ref_baseline":-27.69,
+    "rep_baseline":9.63,
+    "pair":"2016-02-24 2016-05-06",
+    "baseline":37.32,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-03-19",
+    "ref_baseline":-20.38,
+    "rep_baseline":17.74,
+    "pair":"2016-03-07 2016-03-19",
+    "baseline":38.12,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-03-31",
+    "ref_baseline":-20.38,
+    "rep_baseline":58.25,
+    "pair":"2016-03-07 2016-03-31",
+    "baseline":78.63,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-04-12",
+    "ref_baseline":-20.38,
+    "rep_baseline":81.92,
+    "pair":"2016-03-07 2016-04-12",
+    "baseline":102.3,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-04-24",
+    "ref_baseline":-20.38,
+    "rep_baseline":-10.02,
+    "pair":"2016-03-07 2016-04-24",
+    "baseline":10.36,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-05-06",
+    "ref_baseline":-20.38,
+    "rep_baseline":9.63,
+    "pair":"2016-03-07 2016-05-06",
+    "baseline":30.01,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-07",
+    "rep":"2016-05-18",
+    "ref_baseline":-20.38,
+    "rep_baseline":-68.88,
+    "pair":"2016-03-07 2016-05-18",
+    "baseline":-48.5,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-03-31",
+    "ref_baseline":17.74,
+    "rep_baseline":58.25,
+    "pair":"2016-03-19 2016-03-31",
+    "baseline":40.51,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-04-12",
+    "ref_baseline":17.74,
+    "rep_baseline":81.92,
+    "pair":"2016-03-19 2016-04-12",
+    "baseline":64.18,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-04-24",
+    "ref_baseline":17.74,
+    "rep_baseline":-10.02,
+    "pair":"2016-03-19 2016-04-24",
+    "baseline":-27.76,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-05-06",
+    "ref_baseline":17.74,
+    "rep_baseline":9.63,
+    "pair":"2016-03-19 2016-05-06",
+    "baseline":-8.11,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-05-18",
+    "ref_baseline":17.74,
+    "rep_baseline":-68.88,
+    "pair":"2016-03-19 2016-05-18",
+    "baseline":-86.62,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-19",
+    "rep":"2016-05-30",
+    "ref_baseline":17.74,
+    "rep_baseline":26.9,
+    "pair":"2016-03-19 2016-05-30",
+    "baseline":9.16,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-04-12",
+    "ref_baseline":58.25,
+    "rep_baseline":81.92,
+    "pair":"2016-03-31 2016-04-12",
+    "baseline":23.67,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-04-24",
+    "ref_baseline":58.25,
+    "rep_baseline":-10.02,
+    "pair":"2016-03-31 2016-04-24",
+    "baseline":-68.27,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-05-06",
+    "ref_baseline":58.25,
+    "rep_baseline":9.63,
+    "pair":"2016-03-31 2016-05-06",
+    "baseline":-48.62,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-05-18",
+    "ref_baseline":58.25,
+    "rep_baseline":-68.88,
+    "pair":"2016-03-31 2016-05-18",
+    "baseline":-127.13,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-05-30",
+    "ref_baseline":58.25,
+    "rep_baseline":26.9,
+    "pair":"2016-03-31 2016-05-30",
+    "baseline":-31.35,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-03-31",
+    "rep":"2016-06-11",
+    "ref_baseline":58.25,
+    "rep_baseline":47.73,
+    "pair":"2016-03-31 2016-06-11",
+    "baseline":-10.52,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-12",
+    "rep":"2016-04-24",
+    "ref_baseline":81.92,
+    "rep_baseline":-10.02,
+    "pair":"2016-04-12 2016-04-24",
+    "baseline":-91.94,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-12",
+    "rep":"2016-05-06",
+    "ref_baseline":81.92,
+    "rep_baseline":9.63,
+    "pair":"2016-04-12 2016-05-06",
+    "baseline":-72.29,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-12",
+    "rep":"2016-05-18",
+    "ref_baseline":81.92,
+    "rep_baseline":-68.88,
+    "pair":"2016-04-12 2016-05-18",
+    "baseline":-150.8,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-12",
+    "rep":"2016-05-30",
+    "ref_baseline":81.92,
+    "rep_baseline":26.9,
+    "pair":"2016-04-12 2016-05-30",
+    "baseline":-55.02,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-12",
+    "rep":"2016-06-11",
+    "ref_baseline":81.92,
+    "rep_baseline":47.73,
+    "pair":"2016-04-12 2016-06-11",
+    "baseline":-34.19,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-24",
+    "rep":"2016-05-06",
+    "ref_baseline":-10.02,
+    "rep_baseline":9.63,
+    "pair":"2016-04-24 2016-05-06",
+    "baseline":19.65,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-24",
+    "rep":"2016-05-18",
+    "ref_baseline":-10.02,
+    "rep_baseline":-68.88,
+    "pair":"2016-04-24 2016-05-18",
+    "baseline":-58.86,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-24",
+    "rep":"2016-05-30",
+    "ref_baseline":-10.02,
+    "rep_baseline":26.9,
+    "pair":"2016-04-24 2016-05-30",
+    "baseline":36.92,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-24",
+    "rep":"2016-06-11",
+    "ref_baseline":-10.02,
+    "rep_baseline":47.73,
+    "pair":"2016-04-24 2016-06-11",
+    "baseline":57.75,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-04-24",
+    "rep":"2016-07-05",
+    "ref_baseline":-10.02,
+    "rep_baseline":-8.67,
+    "pair":"2016-04-24 2016-07-05",
+    "baseline":1.35,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-06",
+    "rep":"2016-05-18",
+    "ref_baseline":9.63,
+    "rep_baseline":-68.88,
+    "pair":"2016-05-06 2016-05-18",
+    "baseline":-78.51,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-06",
+    "rep":"2016-05-30",
+    "ref_baseline":9.63,
+    "rep_baseline":26.9,
+    "pair":"2016-05-06 2016-05-30",
+    "baseline":17.27,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-06",
+    "rep":"2016-06-11",
+    "ref_baseline":9.63,
+    "rep_baseline":47.73,
+    "pair":"2016-05-06 2016-06-11",
+    "baseline":38.1,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-06",
+    "rep":"2016-07-05",
+    "ref_baseline":9.63,
+    "rep_baseline":-8.67,
+    "pair":"2016-05-06 2016-07-05",
+    "baseline":-18.3,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-06",
+    "rep":"2016-07-17",
+    "ref_baseline":9.63,
+    "rep_baseline":-23.22,
+    "pair":"2016-05-06 2016-07-17",
+    "baseline":-32.85,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-18",
+    "rep":"2016-05-30",
+    "ref_baseline":-68.88,
+    "rep_baseline":26.9,
+    "pair":"2016-05-18 2016-05-30",
+    "baseline":95.78,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-18",
+    "rep":"2016-06-11",
+    "ref_baseline":-68.88,
+    "rep_baseline":47.73,
+    "pair":"2016-05-18 2016-06-11",
+    "baseline":116.61,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-18",
+    "rep":"2016-07-05",
+    "ref_baseline":-68.88,
+    "rep_baseline":-8.67,
+    "pair":"2016-05-18 2016-07-05",
+    "baseline":60.21,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-18",
+    "rep":"2016-07-17",
+    "ref_baseline":-68.88,
+    "rep_baseline":-23.22,
+    "pair":"2016-05-18 2016-07-17",
+    "baseline":45.66,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-18",
+    "rep":"2016-07-29",
+    "ref_baseline":-68.88,
+    "rep_baseline":3.2,
+    "pair":"2016-05-18 2016-07-29",
+    "baseline":72.08,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-30",
+    "rep":"2016-06-11",
+    "ref_baseline":26.9,
+    "rep_baseline":47.73,
+    "pair":"2016-05-30 2016-06-11",
+    "baseline":20.83,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-30",
+    "rep":"2016-07-05",
+    "ref_baseline":26.9,
+    "rep_baseline":-8.67,
+    "pair":"2016-05-30 2016-07-05",
+    "baseline":-35.57,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-30",
+    "rep":"2016-07-17",
+    "ref_baseline":26.9,
+    "rep_baseline":-23.22,
+    "pair":"2016-05-30 2016-07-17",
+    "baseline":-50.12,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-30",
+    "rep":"2016-07-29",
+    "ref_baseline":26.9,
+    "rep_baseline":3.2,
+    "pair":"2016-05-30 2016-07-29",
+    "baseline":-23.7,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-05-30",
+    "rep":"2016-08-10",
+    "ref_baseline":26.9,
+    "rep_baseline":-9.92,
+    "pair":"2016-05-30 2016-08-10",
+    "baseline":-36.82,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-06-11",
+    "rep":"2016-07-05",
+    "ref_baseline":47.73,
+    "rep_baseline":-8.67,
+    "pair":"2016-06-11 2016-07-05",
+    "baseline":-56.4,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-06-11",
+    "rep":"2016-07-17",
+    "ref_baseline":47.73,
+    "rep_baseline":-23.22,
+    "pair":"2016-06-11 2016-07-17",
+    "baseline":-70.95,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-06-11",
+    "rep":"2016-07-29",
+    "ref_baseline":47.73,
+    "rep_baseline":3.2,
+    "pair":"2016-06-11 2016-07-29",
+    "baseline":-44.53,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-06-11",
+    "rep":"2016-08-10",
+    "ref_baseline":47.73,
+    "rep_baseline":-9.92,
+    "pair":"2016-06-11 2016-08-10",
+    "baseline":-57.65,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-06-11",
+    "rep":"2016-08-22",
+    "ref_baseline":47.73,
+    "rep_baseline":54.34,
+    "pair":"2016-06-11 2016-08-22",
+    "baseline":6.61,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-07-17",
+    "ref_baseline":-8.67,
+    "rep_baseline":-23.22,
+    "pair":"2016-07-05 2016-07-17",
+    "baseline":-14.55,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-07-29",
+    "ref_baseline":-8.67,
+    "rep_baseline":3.2,
+    "pair":"2016-07-05 2016-07-29",
+    "baseline":11.87,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-08-10",
+    "ref_baseline":-8.67,
+    "rep_baseline":-9.92,
+    "pair":"2016-07-05 2016-08-10",
+    "baseline":-1.25,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-08-22",
+    "ref_baseline":-8.67,
+    "rep_baseline":54.34,
+    "pair":"2016-07-05 2016-08-22",
+    "baseline":63.01,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-09-03",
+    "ref_baseline":-8.67,
+    "rep_baseline":-96.68,
+    "pair":"2016-07-05 2016-09-03",
+    "baseline":-88.01,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-05",
+    "rep":"2016-09-15",
+    "ref_baseline":-8.67,
+    "rep_baseline":-58.93,
+    "pair":"2016-07-05 2016-09-15",
+    "baseline":-50.26,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-07-29",
+    "ref_baseline":-23.22,
+    "rep_baseline":3.2,
+    "pair":"2016-07-17 2016-07-29",
+    "baseline":26.42,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-08-10",
+    "ref_baseline":-23.22,
+    "rep_baseline":-9.92,
+    "pair":"2016-07-17 2016-08-10",
+    "baseline":13.3,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-08-22",
+    "ref_baseline":-23.22,
+    "rep_baseline":54.34,
+    "pair":"2016-07-17 2016-08-22",
+    "baseline":77.56,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-09-03",
+    "ref_baseline":-23.22,
+    "rep_baseline":-96.68,
+    "pair":"2016-07-17 2016-09-03",
+    "baseline":-73.46,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-09-15",
+    "ref_baseline":-23.22,
+    "rep_baseline":-58.93,
+    "pair":"2016-07-17 2016-09-15",
+    "baseline":-35.71,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-17",
+    "rep":"2016-09-27",
+    "ref_baseline":-23.22,
+    "rep_baseline":2.07,
+    "pair":"2016-07-17 2016-09-27",
+    "baseline":25.29,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-08-10",
+    "ref_baseline":3.2,
+    "rep_baseline":-9.92,
+    "pair":"2016-07-29 2016-08-10",
+    "baseline":-13.12,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-08-22",
+    "ref_baseline":3.2,
+    "rep_baseline":54.34,
+    "pair":"2016-07-29 2016-08-22",
+    "baseline":51.14,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-09-03",
+    "ref_baseline":3.2,
+    "rep_baseline":-96.68,
+    "pair":"2016-07-29 2016-09-03",
+    "baseline":-99.88,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-09-15",
+    "ref_baseline":3.2,
+    "rep_baseline":-58.93,
+    "pair":"2016-07-29 2016-09-15",
+    "baseline":-62.13,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-09-27",
+    "ref_baseline":3.2,
+    "rep_baseline":2.07,
+    "pair":"2016-07-29 2016-09-27",
+    "baseline":-1.13,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-10-09",
+    "ref_baseline":3.2,
+    "rep_baseline":55.97,
+    "pair":"2016-07-29 2016-10-09",
+    "baseline":52.77,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-07-29",
+    "rep":"2016-10-15",
+    "ref_baseline":3.2,
+    "rep_baseline":-75.23,
+    "pair":"2016-07-29 2016-10-15",
+    "baseline":-78.43,
+    "duration":78,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-08-22",
+    "ref_baseline":-9.92,
+    "rep_baseline":54.34,
+    "pair":"2016-08-10 2016-08-22",
+    "baseline":64.26,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-09-03",
+    "ref_baseline":-9.92,
+    "rep_baseline":-96.68,
+    "pair":"2016-08-10 2016-09-03",
+    "baseline":-86.76,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-09-15",
+    "ref_baseline":-9.92,
+    "rep_baseline":-58.93,
+    "pair":"2016-08-10 2016-09-15",
+    "baseline":-49.01,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-09-27",
+    "ref_baseline":-9.92,
+    "rep_baseline":2.07,
+    "pair":"2016-08-10 2016-09-27",
+    "baseline":11.99,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-10-09",
+    "ref_baseline":-9.92,
+    "rep_baseline":55.97,
+    "pair":"2016-08-10 2016-10-09",
+    "baseline":65.89,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-10-15",
+    "ref_baseline":-9.92,
+    "rep_baseline":-75.23,
+    "pair":"2016-08-10 2016-10-15",
+    "baseline":-65.31,
+    "duration":66,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-10",
+    "rep":"2016-10-21",
+    "ref_baseline":-9.92,
+    "rep_baseline":38.03,
+    "pair":"2016-08-10 2016-10-21",
+    "baseline":47.95,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-09-15",
+    "ref_baseline":54.34,
+    "rep_baseline":-58.93,
+    "pair":"2016-08-22 2016-09-15",
+    "baseline":-113.27,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-09-27",
+    "ref_baseline":54.34,
+    "rep_baseline":2.07,
+    "pair":"2016-08-22 2016-09-27",
+    "baseline":-52.27,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-10-09",
+    "ref_baseline":54.34,
+    "rep_baseline":55.97,
+    "pair":"2016-08-22 2016-10-09",
+    "baseline":1.63,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-10-15",
+    "ref_baseline":54.34,
+    "rep_baseline":-75.23,
+    "pair":"2016-08-22 2016-10-15",
+    "baseline":-129.57,
+    "duration":54,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-10-21",
+    "ref_baseline":54.34,
+    "rep_baseline":38.03,
+    "pair":"2016-08-22 2016-10-21",
+    "baseline":-16.31,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-08-22",
+    "rep":"2016-11-02",
+    "ref_baseline":54.34,
+    "rep_baseline":-40.14,
+    "pair":"2016-08-22 2016-11-02",
+    "baseline":-94.48,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-09-15",
+    "ref_baseline":-96.68,
+    "rep_baseline":-58.93,
+    "pair":"2016-09-03 2016-09-15",
+    "baseline":37.75,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-09-27",
+    "ref_baseline":-96.68,
+    "rep_baseline":2.07,
+    "pair":"2016-09-03 2016-09-27",
+    "baseline":98.75,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-10-15",
+    "ref_baseline":-96.68,
+    "rep_baseline":-75.23,
+    "pair":"2016-09-03 2016-10-15",
+    "baseline":21.45,
+    "duration":42,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-10-21",
+    "ref_baseline":-96.68,
+    "rep_baseline":38.03,
+    "pair":"2016-09-03 2016-10-21",
+    "baseline":134.71,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-11-02",
+    "ref_baseline":-96.68,
+    "rep_baseline":-40.14,
+    "pair":"2016-09-03 2016-11-02",
+    "baseline":56.54,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-03",
+    "rep":"2016-11-14",
+    "ref_baseline":-96.68,
+    "rep_baseline":-63.68,
+    "pair":"2016-09-03 2016-11-14",
+    "baseline":33.0,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-09-27",
+    "ref_baseline":-58.93,
+    "rep_baseline":2.07,
+    "pair":"2016-09-15 2016-09-27",
+    "baseline":61.0,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-10-09",
+    "ref_baseline":-58.93,
+    "rep_baseline":55.97,
+    "pair":"2016-09-15 2016-10-09",
+    "baseline":114.9,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-10-15",
+    "ref_baseline":-58.93,
+    "rep_baseline":-75.23,
+    "pair":"2016-09-15 2016-10-15",
+    "baseline":-16.3,
+    "duration":30,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-10-21",
+    "ref_baseline":-58.93,
+    "rep_baseline":38.03,
+    "pair":"2016-09-15 2016-10-21",
+    "baseline":96.96,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-11-02",
+    "ref_baseline":-58.93,
+    "rep_baseline":-40.14,
+    "pair":"2016-09-15 2016-11-02",
+    "baseline":18.79,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-11-14",
+    "ref_baseline":-58.93,
+    "rep_baseline":-63.68,
+    "pair":"2016-09-15 2016-11-14",
+    "baseline":-4.75,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-15",
+    "rep":"2016-11-26",
+    "ref_baseline":-58.93,
+    "rep_baseline":-42.91,
+    "pair":"2016-09-15 2016-11-26",
+    "baseline":16.02,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-10-09",
+    "ref_baseline":2.07,
+    "rep_baseline":55.97,
+    "pair":"2016-09-27 2016-10-09",
+    "baseline":53.9,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-10-15",
+    "ref_baseline":2.07,
+    "rep_baseline":-75.23,
+    "pair":"2016-09-27 2016-10-15",
+    "baseline":-77.3,
+    "duration":18,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-10-21",
+    "ref_baseline":2.07,
+    "rep_baseline":38.03,
+    "pair":"2016-09-27 2016-10-21",
+    "baseline":35.96,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-11-02",
+    "ref_baseline":2.07,
+    "rep_baseline":-40.14,
+    "pair":"2016-09-27 2016-11-02",
+    "baseline":-42.21,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-11-14",
+    "ref_baseline":2.07,
+    "rep_baseline":-63.68,
+    "pair":"2016-09-27 2016-11-14",
+    "baseline":-65.75,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-11-26",
+    "ref_baseline":2.07,
+    "rep_baseline":-42.91,
+    "pair":"2016-09-27 2016-11-26",
+    "baseline":-44.98,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-09-27",
+    "rep":"2016-12-08",
+    "ref_baseline":2.07,
+    "rep_baseline":25.92,
+    "pair":"2016-09-27 2016-12-08",
+    "baseline":23.85,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-10-15",
+    "ref_baseline":55.97,
+    "rep_baseline":-75.23,
+    "pair":"2016-10-09 2016-10-15",
+    "baseline":-131.2,
+    "duration":6,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-10-21",
+    "ref_baseline":55.97,
+    "rep_baseline":38.03,
+    "pair":"2016-10-09 2016-10-21",
+    "baseline":-17.94,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-11-02",
+    "ref_baseline":55.97,
+    "rep_baseline":-40.14,
+    "pair":"2016-10-09 2016-11-02",
+    "baseline":-96.11,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-11-14",
+    "ref_baseline":55.97,
+    "rep_baseline":-63.68,
+    "pair":"2016-10-09 2016-11-14",
+    "baseline":-119.65,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-11-26",
+    "ref_baseline":55.97,
+    "rep_baseline":-42.91,
+    "pair":"2016-10-09 2016-11-26",
+    "baseline":-98.88,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-12-08",
+    "ref_baseline":55.97,
+    "rep_baseline":25.92,
+    "pair":"2016-10-09 2016-12-08",
+    "baseline":-30.05,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-09",
+    "rep":"2016-12-20",
+    "ref_baseline":55.97,
+    "rep_baseline":39.89,
+    "pair":"2016-10-09 2016-12-20",
+    "baseline":-16.08,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-10-21",
+    "ref_baseline":-75.23,
+    "rep_baseline":38.03,
+    "pair":"2016-10-15 2016-10-21",
+    "baseline":113.26,
+    "duration":6,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-11-02",
+    "ref_baseline":-75.23,
+    "rep_baseline":-40.14,
+    "pair":"2016-10-15 2016-11-02",
+    "baseline":35.09,
+    "duration":18,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-11-14",
+    "ref_baseline":-75.23,
+    "rep_baseline":-63.68,
+    "pair":"2016-10-15 2016-11-14",
+    "baseline":11.55,
+    "duration":30,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-11-26",
+    "ref_baseline":-75.23,
+    "rep_baseline":-42.91,
+    "pair":"2016-10-15 2016-11-26",
+    "baseline":32.32,
+    "duration":42,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-12-08",
+    "ref_baseline":-75.23,
+    "rep_baseline":25.92,
+    "pair":"2016-10-15 2016-12-08",
+    "baseline":101.15,
+    "duration":54,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2016-12-20",
+    "ref_baseline":-75.23,
+    "rep_baseline":39.89,
+    "pair":"2016-10-15 2016-12-20",
+    "baseline":115.12,
+    "duration":66,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-15",
+    "rep":"2017-01-01",
+    "ref_baseline":-75.23,
+    "rep_baseline":8.65,
+    "pair":"2016-10-15 2017-01-01",
+    "baseline":83.88,
+    "duration":78,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2016-11-02",
+    "ref_baseline":38.03,
+    "rep_baseline":-40.14,
+    "pair":"2016-10-21 2016-11-02",
+    "baseline":-78.17,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2016-11-14",
+    "ref_baseline":38.03,
+    "rep_baseline":-63.68,
+    "pair":"2016-10-21 2016-11-14",
+    "baseline":-101.71,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2016-11-26",
+    "ref_baseline":38.03,
+    "rep_baseline":-42.91,
+    "pair":"2016-10-21 2016-11-26",
+    "baseline":-80.94,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2016-12-08",
+    "ref_baseline":38.03,
+    "rep_baseline":25.92,
+    "pair":"2016-10-21 2016-12-08",
+    "baseline":-12.11,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2016-12-20",
+    "ref_baseline":38.03,
+    "rep_baseline":39.89,
+    "pair":"2016-10-21 2016-12-20",
+    "baseline":1.86,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-10-21",
+    "rep":"2017-01-01",
+    "ref_baseline":38.03,
+    "rep_baseline":8.65,
+    "pair":"2016-10-21 2017-01-01",
+    "baseline":-29.38,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2016-11-14",
+    "ref_baseline":-40.14,
+    "rep_baseline":-63.68,
+    "pair":"2016-11-02 2016-11-14",
+    "baseline":-23.54,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2016-11-26",
+    "ref_baseline":-40.14,
+    "rep_baseline":-42.91,
+    "pair":"2016-11-02 2016-11-26",
+    "baseline":-2.77,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2016-12-08",
+    "ref_baseline":-40.14,
+    "rep_baseline":25.92,
+    "pair":"2016-11-02 2016-12-08",
+    "baseline":66.06,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2016-12-20",
+    "ref_baseline":-40.14,
+    "rep_baseline":39.89,
+    "pair":"2016-11-02 2016-12-20",
+    "baseline":80.03,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2017-01-01",
+    "ref_baseline":-40.14,
+    "rep_baseline":8.65,
+    "pair":"2016-11-02 2017-01-01",
+    "baseline":48.79,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-02",
+    "rep":"2017-01-13",
+    "ref_baseline":-40.14,
+    "rep_baseline":-42.61,
+    "pair":"2016-11-02 2017-01-13",
+    "baseline":-2.47,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2016-11-26",
+    "ref_baseline":-63.68,
+    "rep_baseline":-42.91,
+    "pair":"2016-11-14 2016-11-26",
+    "baseline":20.77,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2016-12-08",
+    "ref_baseline":-63.68,
+    "rep_baseline":25.92,
+    "pair":"2016-11-14 2016-12-08",
+    "baseline":89.6,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2016-12-20",
+    "ref_baseline":-63.68,
+    "rep_baseline":39.89,
+    "pair":"2016-11-14 2016-12-20",
+    "baseline":103.57,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2017-01-01",
+    "ref_baseline":-63.68,
+    "rep_baseline":8.65,
+    "pair":"2016-11-14 2017-01-01",
+    "baseline":72.33,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2017-01-13",
+    "ref_baseline":-63.68,
+    "rep_baseline":-42.61,
+    "pair":"2016-11-14 2017-01-13",
+    "baseline":21.07,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-14",
+    "rep":"2017-01-25",
+    "ref_baseline":-63.68,
+    "rep_baseline":-35.79,
+    "pair":"2016-11-14 2017-01-25",
+    "baseline":27.89,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2016-12-08",
+    "ref_baseline":-42.91,
+    "rep_baseline":25.92,
+    "pair":"2016-11-26 2016-12-08",
+    "baseline":68.83,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2016-12-20",
+    "ref_baseline":-42.91,
+    "rep_baseline":39.89,
+    "pair":"2016-11-26 2016-12-20",
+    "baseline":82.8,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2017-01-01",
+    "ref_baseline":-42.91,
+    "rep_baseline":8.65,
+    "pair":"2016-11-26 2017-01-01",
+    "baseline":51.56,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2017-01-13",
+    "ref_baseline":-42.91,
+    "rep_baseline":-42.61,
+    "pair":"2016-11-26 2017-01-13",
+    "baseline":0.3,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2017-01-25",
+    "ref_baseline":-42.91,
+    "rep_baseline":-35.79,
+    "pair":"2016-11-26 2017-01-25",
+    "baseline":7.12,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-11-26",
+    "rep":"2017-02-06",
+    "ref_baseline":-42.91,
+    "rep_baseline":-23.52,
+    "pair":"2016-11-26 2017-02-06",
+    "baseline":19.39,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2016-12-20",
+    "ref_baseline":25.92,
+    "rep_baseline":39.89,
+    "pair":"2016-12-08 2016-12-20",
+    "baseline":13.97,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2017-01-01",
+    "ref_baseline":25.92,
+    "rep_baseline":8.65,
+    "pair":"2016-12-08 2017-01-01",
+    "baseline":-17.27,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2017-01-13",
+    "ref_baseline":25.92,
+    "rep_baseline":-42.61,
+    "pair":"2016-12-08 2017-01-13",
+    "baseline":-68.53,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2017-01-25",
+    "ref_baseline":25.92,
+    "rep_baseline":-35.79,
+    "pair":"2016-12-08 2017-01-25",
+    "baseline":-61.71,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2017-02-06",
+    "ref_baseline":25.92,
+    "rep_baseline":-23.52,
+    "pair":"2016-12-08 2017-02-06",
+    "baseline":-49.44,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-08",
+    "rep":"2017-02-18",
+    "ref_baseline":25.92,
+    "rep_baseline":1.15,
+    "pair":"2016-12-08 2017-02-18",
+    "baseline":-24.77,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-20",
+    "rep":"2017-01-01",
+    "ref_baseline":39.89,
+    "rep_baseline":8.65,
+    "pair":"2016-12-20 2017-01-01",
+    "baseline":-31.24,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-20",
+    "rep":"2017-01-13",
+    "ref_baseline":39.89,
+    "rep_baseline":-42.61,
+    "pair":"2016-12-20 2017-01-13",
+    "baseline":-82.5,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-20",
+    "rep":"2017-01-25",
+    "ref_baseline":39.89,
+    "rep_baseline":-35.79,
+    "pair":"2016-12-20 2017-01-25",
+    "baseline":-75.68,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-20",
+    "rep":"2017-02-06",
+    "ref_baseline":39.89,
+    "rep_baseline":-23.52,
+    "pair":"2016-12-20 2017-02-06",
+    "baseline":-63.41,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2016-12-20",
+    "rep":"2017-02-18",
+    "ref_baseline":39.89,
+    "rep_baseline":1.15,
+    "pair":"2016-12-20 2017-02-18",
+    "baseline":-38.74,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-01",
+    "rep":"2017-01-13",
+    "ref_baseline":8.65,
+    "rep_baseline":-42.61,
+    "pair":"2017-01-01 2017-01-13",
+    "baseline":-51.26,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-01",
+    "rep":"2017-01-25",
+    "ref_baseline":8.65,
+    "rep_baseline":-35.79,
+    "pair":"2017-01-01 2017-01-25",
+    "baseline":-44.44,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-01",
+    "rep":"2017-02-06",
+    "ref_baseline":8.65,
+    "rep_baseline":-23.52,
+    "pair":"2017-01-01 2017-02-06",
+    "baseline":-32.17,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-01",
+    "rep":"2017-02-18",
+    "ref_baseline":8.65,
+    "rep_baseline":1.15,
+    "pair":"2017-01-01 2017-02-18",
+    "baseline":-7.5,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-01",
+    "rep":"2017-03-14",
+    "ref_baseline":8.65,
+    "rep_baseline":2.35,
+    "pair":"2017-01-01 2017-03-14",
+    "baseline":-6.3,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-13",
+    "rep":"2017-01-25",
+    "ref_baseline":-42.61,
+    "rep_baseline":-35.79,
+    "pair":"2017-01-13 2017-01-25",
+    "baseline":6.82,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-13",
+    "rep":"2017-02-06",
+    "ref_baseline":-42.61,
+    "rep_baseline":-23.52,
+    "pair":"2017-01-13 2017-02-06",
+    "baseline":19.09,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-13",
+    "rep":"2017-02-18",
+    "ref_baseline":-42.61,
+    "rep_baseline":1.15,
+    "pair":"2017-01-13 2017-02-18",
+    "baseline":43.76,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-13",
+    "rep":"2017-03-14",
+    "ref_baseline":-42.61,
+    "rep_baseline":2.35,
+    "pair":"2017-01-13 2017-03-14",
+    "baseline":44.96,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-13",
+    "rep":"2017-03-26",
+    "ref_baseline":-42.61,
+    "rep_baseline":-42.54,
+    "pair":"2017-01-13 2017-03-26",
+    "baseline":0.07,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-25",
+    "rep":"2017-02-06",
+    "ref_baseline":-35.79,
+    "rep_baseline":-23.52,
+    "pair":"2017-01-25 2017-02-06",
+    "baseline":12.27,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-25",
+    "rep":"2017-02-18",
+    "ref_baseline":-35.79,
+    "rep_baseline":1.15,
+    "pair":"2017-01-25 2017-02-18",
+    "baseline":36.94,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-25",
+    "rep":"2017-03-14",
+    "ref_baseline":-35.79,
+    "rep_baseline":2.35,
+    "pair":"2017-01-25 2017-03-14",
+    "baseline":38.14,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-25",
+    "rep":"2017-03-26",
+    "ref_baseline":-35.79,
+    "rep_baseline":-42.54,
+    "pair":"2017-01-25 2017-03-26",
+    "baseline":-6.75,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-01-25",
+    "rep":"2017-04-07",
+    "ref_baseline":-35.79,
+    "rep_baseline":57.8,
+    "pair":"2017-01-25 2017-04-07",
+    "baseline":93.59,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-06",
+    "rep":"2017-02-18",
+    "ref_baseline":-23.52,
+    "rep_baseline":1.15,
+    "pair":"2017-02-06 2017-02-18",
+    "baseline":24.67,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-06",
+    "rep":"2017-03-14",
+    "ref_baseline":-23.52,
+    "rep_baseline":2.35,
+    "pair":"2017-02-06 2017-03-14",
+    "baseline":25.87,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-06",
+    "rep":"2017-03-26",
+    "ref_baseline":-23.52,
+    "rep_baseline":-42.54,
+    "pair":"2017-02-06 2017-03-26",
+    "baseline":-19.02,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-06",
+    "rep":"2017-04-07",
+    "ref_baseline":-23.52,
+    "rep_baseline":57.8,
+    "pair":"2017-02-06 2017-04-07",
+    "baseline":81.32,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-06",
+    "rep":"2017-04-19",
+    "ref_baseline":-23.52,
+    "rep_baseline":92.35,
+    "pair":"2017-02-06 2017-04-19",
+    "baseline":115.87,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-18",
+    "rep":"2017-03-14",
+    "ref_baseline":1.15,
+    "rep_baseline":2.35,
+    "pair":"2017-02-18 2017-03-14",
+    "baseline":1.2,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-18",
+    "rep":"2017-03-26",
+    "ref_baseline":1.15,
+    "rep_baseline":-42.54,
+    "pair":"2017-02-18 2017-03-26",
+    "baseline":-43.69,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-18",
+    "rep":"2017-04-07",
+    "ref_baseline":1.15,
+    "rep_baseline":57.8,
+    "pair":"2017-02-18 2017-04-07",
+    "baseline":56.65,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-18",
+    "rep":"2017-04-19",
+    "ref_baseline":1.15,
+    "rep_baseline":92.35,
+    "pair":"2017-02-18 2017-04-19",
+    "baseline":91.2,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-02-18",
+    "rep":"2017-05-01",
+    "ref_baseline":1.15,
+    "rep_baseline":46.06,
+    "pair":"2017-02-18 2017-05-01",
+    "baseline":44.91,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-03-26",
+    "ref_baseline":2.35,
+    "rep_baseline":-42.54,
+    "pair":"2017-03-14 2017-03-26",
+    "baseline":-44.89,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-04-07",
+    "ref_baseline":2.35,
+    "rep_baseline":57.8,
+    "pair":"2017-03-14 2017-04-07",
+    "baseline":55.45,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-04-19",
+    "ref_baseline":2.35,
+    "rep_baseline":92.35,
+    "pair":"2017-03-14 2017-04-19",
+    "baseline":90.0,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-05-01",
+    "ref_baseline":2.35,
+    "rep_baseline":46.06,
+    "pair":"2017-03-14 2017-05-01",
+    "baseline":43.71,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-05-13",
+    "ref_baseline":2.35,
+    "rep_baseline":45.81,
+    "pair":"2017-03-14 2017-05-13",
+    "baseline":43.46,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-14",
+    "rep":"2017-05-25",
+    "ref_baseline":2.35,
+    "rep_baseline":-46.69,
+    "pair":"2017-03-14 2017-05-25",
+    "baseline":-49.04,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-04-07",
+    "ref_baseline":-42.54,
+    "rep_baseline":57.8,
+    "pair":"2017-03-26 2017-04-07",
+    "baseline":100.34,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-04-19",
+    "ref_baseline":-42.54,
+    "rep_baseline":92.35,
+    "pair":"2017-03-26 2017-04-19",
+    "baseline":134.89,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-05-01",
+    "ref_baseline":-42.54,
+    "rep_baseline":46.06,
+    "pair":"2017-03-26 2017-05-01",
+    "baseline":88.6,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-05-13",
+    "ref_baseline":-42.54,
+    "rep_baseline":45.81,
+    "pair":"2017-03-26 2017-05-13",
+    "baseline":88.35,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-05-25",
+    "ref_baseline":-42.54,
+    "rep_baseline":-46.69,
+    "pair":"2017-03-26 2017-05-25",
+    "baseline":-4.15,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-03-26",
+    "rep":"2017-06-06",
+    "ref_baseline":-42.54,
+    "rep_baseline":21.82,
+    "pair":"2017-03-26 2017-06-06",
+    "baseline":64.36,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-04-19",
+    "ref_baseline":57.8,
+    "rep_baseline":92.35,
+    "pair":"2017-04-07 2017-04-19",
+    "baseline":34.55,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-05-01",
+    "ref_baseline":57.8,
+    "rep_baseline":46.06,
+    "pair":"2017-04-07 2017-05-01",
+    "baseline":-11.74,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-05-13",
+    "ref_baseline":57.8,
+    "rep_baseline":45.81,
+    "pair":"2017-04-07 2017-05-13",
+    "baseline":-11.99,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-05-25",
+    "ref_baseline":57.8,
+    "rep_baseline":-46.69,
+    "pair":"2017-04-07 2017-05-25",
+    "baseline":-104.49,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-06-06",
+    "ref_baseline":57.8,
+    "rep_baseline":21.82,
+    "pair":"2017-04-07 2017-06-06",
+    "baseline":-35.98,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-07",
+    "rep":"2017-06-18",
+    "ref_baseline":57.8,
+    "rep_baseline":39.56,
+    "pair":"2017-04-07 2017-06-18",
+    "baseline":-18.24,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-05-01",
+    "ref_baseline":92.35,
+    "rep_baseline":46.06,
+    "pair":"2017-04-19 2017-05-01",
+    "baseline":-46.29,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-05-13",
+    "ref_baseline":92.35,
+    "rep_baseline":45.81,
+    "pair":"2017-04-19 2017-05-13",
+    "baseline":-46.54,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-05-25",
+    "ref_baseline":92.35,
+    "rep_baseline":-46.69,
+    "pair":"2017-04-19 2017-05-25",
+    "baseline":-139.04,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-06-06",
+    "ref_baseline":92.35,
+    "rep_baseline":21.82,
+    "pair":"2017-04-19 2017-06-06",
+    "baseline":-70.53,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-06-18",
+    "ref_baseline":92.35,
+    "rep_baseline":39.56,
+    "pair":"2017-04-19 2017-06-18",
+    "baseline":-52.79,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-04-19",
+    "rep":"2017-06-30",
+    "ref_baseline":92.35,
+    "rep_baseline":18.68,
+    "pair":"2017-04-19 2017-06-30",
+    "baseline":-73.67,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-05-13",
+    "ref_baseline":46.06,
+    "rep_baseline":45.81,
+    "pair":"2017-05-01 2017-05-13",
+    "baseline":-0.25,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-05-25",
+    "ref_baseline":46.06,
+    "rep_baseline":-46.69,
+    "pair":"2017-05-01 2017-05-25",
+    "baseline":-92.75,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-06-06",
+    "ref_baseline":46.06,
+    "rep_baseline":21.82,
+    "pair":"2017-05-01 2017-06-06",
+    "baseline":-24.24,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-06-18",
+    "ref_baseline":46.06,
+    "rep_baseline":39.56,
+    "pair":"2017-05-01 2017-06-18",
+    "baseline":-6.5,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-06-30",
+    "ref_baseline":46.06,
+    "rep_baseline":18.68,
+    "pair":"2017-05-01 2017-06-30",
+    "baseline":-27.38,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-01",
+    "rep":"2017-07-12",
+    "ref_baseline":46.06,
+    "rep_baseline":-28.79,
+    "pair":"2017-05-01 2017-07-12",
+    "baseline":-74.85,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-05-25",
+    "ref_baseline":45.81,
+    "rep_baseline":-46.69,
+    "pair":"2017-05-13 2017-05-25",
+    "baseline":-92.5,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-06-06",
+    "ref_baseline":45.81,
+    "rep_baseline":21.82,
+    "pair":"2017-05-13 2017-06-06",
+    "baseline":-23.99,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-06-18",
+    "ref_baseline":45.81,
+    "rep_baseline":39.56,
+    "pair":"2017-05-13 2017-06-18",
+    "baseline":-6.25,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-06-30",
+    "ref_baseline":45.81,
+    "rep_baseline":18.68,
+    "pair":"2017-05-13 2017-06-30",
+    "baseline":-27.13,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-07-12",
+    "ref_baseline":45.81,
+    "rep_baseline":-28.79,
+    "pair":"2017-05-13 2017-07-12",
+    "baseline":-74.6,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-13",
+    "rep":"2017-07-24",
+    "ref_baseline":45.81,
+    "rep_baseline":-48.07,
+    "pair":"2017-05-13 2017-07-24",
+    "baseline":-93.88,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-06-06",
+    "ref_baseline":-46.69,
+    "rep_baseline":21.82,
+    "pair":"2017-05-25 2017-06-06",
+    "baseline":68.51,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-06-18",
+    "ref_baseline":-46.69,
+    "rep_baseline":39.56,
+    "pair":"2017-05-25 2017-06-18",
+    "baseline":86.25,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-06-30",
+    "ref_baseline":-46.69,
+    "rep_baseline":18.68,
+    "pair":"2017-05-25 2017-06-30",
+    "baseline":65.37,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-07-12",
+    "ref_baseline":-46.69,
+    "rep_baseline":-28.79,
+    "pair":"2017-05-25 2017-07-12",
+    "baseline":17.9,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-07-24",
+    "ref_baseline":-46.69,
+    "rep_baseline":-48.07,
+    "pair":"2017-05-25 2017-07-24",
+    "baseline":-1.38,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-05-25",
+    "rep":"2017-08-05",
+    "ref_baseline":-46.69,
+    "rep_baseline":-19.87,
+    "pair":"2017-05-25 2017-08-05",
+    "baseline":26.82,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-06-18",
+    "ref_baseline":21.82,
+    "rep_baseline":39.56,
+    "pair":"2017-06-06 2017-06-18",
+    "baseline":17.74,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-06-30",
+    "ref_baseline":21.82,
+    "rep_baseline":18.68,
+    "pair":"2017-06-06 2017-06-30",
+    "baseline":-3.14,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-07-12",
+    "ref_baseline":21.82,
+    "rep_baseline":-28.79,
+    "pair":"2017-06-06 2017-07-12",
+    "baseline":-50.61,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-07-24",
+    "ref_baseline":21.82,
+    "rep_baseline":-48.07,
+    "pair":"2017-06-06 2017-07-24",
+    "baseline":-69.89,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-08-05",
+    "ref_baseline":21.82,
+    "rep_baseline":-19.87,
+    "pair":"2017-06-06 2017-08-05",
+    "baseline":-41.69,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-06",
+    "rep":"2017-08-17",
+    "ref_baseline":21.82,
+    "rep_baseline":48.58,
+    "pair":"2017-06-06 2017-08-17",
+    "baseline":26.76,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-06-30",
+    "ref_baseline":39.56,
+    "rep_baseline":18.68,
+    "pair":"2017-06-18 2017-06-30",
+    "baseline":-20.88,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-07-12",
+    "ref_baseline":39.56,
+    "rep_baseline":-28.79,
+    "pair":"2017-06-18 2017-07-12",
+    "baseline":-68.35,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-07-24",
+    "ref_baseline":39.56,
+    "rep_baseline":-48.07,
+    "pair":"2017-06-18 2017-07-24",
+    "baseline":-87.63,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-08-05",
+    "ref_baseline":39.56,
+    "rep_baseline":-19.87,
+    "pair":"2017-06-18 2017-08-05",
+    "baseline":-59.43,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-08-17",
+    "ref_baseline":39.56,
+    "rep_baseline":48.58,
+    "pair":"2017-06-18 2017-08-17",
+    "baseline":9.02,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-18",
+    "rep":"2017-08-29",
+    "ref_baseline":39.56,
+    "rep_baseline":46.53,
+    "pair":"2017-06-18 2017-08-29",
+    "baseline":6.97,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-07-12",
+    "ref_baseline":18.68,
+    "rep_baseline":-28.79,
+    "pair":"2017-06-30 2017-07-12",
+    "baseline":-47.47,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-07-24",
+    "ref_baseline":18.68,
+    "rep_baseline":-48.07,
+    "pair":"2017-06-30 2017-07-24",
+    "baseline":-66.75,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-08-05",
+    "ref_baseline":18.68,
+    "rep_baseline":-19.87,
+    "pair":"2017-06-30 2017-08-05",
+    "baseline":-38.55,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-08-17",
+    "ref_baseline":18.68,
+    "rep_baseline":48.58,
+    "pair":"2017-06-30 2017-08-17",
+    "baseline":29.9,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-08-29",
+    "ref_baseline":18.68,
+    "rep_baseline":46.53,
+    "pair":"2017-06-30 2017-08-29",
+    "baseline":27.85,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-06-30",
+    "rep":"2017-09-10",
+    "ref_baseline":18.68,
+    "rep_baseline":17.35,
+    "pair":"2017-06-30 2017-09-10",
+    "baseline":-1.33,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-07-24",
+    "ref_baseline":-28.79,
+    "rep_baseline":-48.07,
+    "pair":"2017-07-12 2017-07-24",
+    "baseline":-19.28,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-08-05",
+    "ref_baseline":-28.79,
+    "rep_baseline":-19.87,
+    "pair":"2017-07-12 2017-08-05",
+    "baseline":8.92,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-08-17",
+    "ref_baseline":-28.79,
+    "rep_baseline":48.58,
+    "pair":"2017-07-12 2017-08-17",
+    "baseline":77.37,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-08-29",
+    "ref_baseline":-28.79,
+    "rep_baseline":46.53,
+    "pair":"2017-07-12 2017-08-29",
+    "baseline":75.32,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-09-10",
+    "ref_baseline":-28.79,
+    "rep_baseline":17.35,
+    "pair":"2017-07-12 2017-09-10",
+    "baseline":46.14,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-12",
+    "rep":"2017-09-22",
+    "ref_baseline":-28.79,
+    "rep_baseline":-50.5,
+    "pair":"2017-07-12 2017-09-22",
+    "baseline":-21.71,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-24",
+    "rep":"2017-08-05",
+    "ref_baseline":-48.07,
+    "rep_baseline":-19.87,
+    "pair":"2017-07-24 2017-08-05",
+    "baseline":28.2,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-24",
+    "rep":"2017-08-17",
+    "ref_baseline":-48.07,
+    "rep_baseline":48.58,
+    "pair":"2017-07-24 2017-08-17",
+    "baseline":96.65,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-24",
+    "rep":"2017-08-29",
+    "ref_baseline":-48.07,
+    "rep_baseline":46.53,
+    "pair":"2017-07-24 2017-08-29",
+    "baseline":94.6,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-24",
+    "rep":"2017-09-10",
+    "ref_baseline":-48.07,
+    "rep_baseline":17.35,
+    "pair":"2017-07-24 2017-09-10",
+    "baseline":65.42,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-07-24",
+    "rep":"2017-09-22",
+    "ref_baseline":-48.07,
+    "rep_baseline":-50.5,
+    "pair":"2017-07-24 2017-09-22",
+    "baseline":-2.43,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-05",
+    "rep":"2017-08-17",
+    "ref_baseline":-19.87,
+    "rep_baseline":48.58,
+    "pair":"2017-08-05 2017-08-17",
+    "baseline":68.45,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-05",
+    "rep":"2017-08-29",
+    "ref_baseline":-19.87,
+    "rep_baseline":46.53,
+    "pair":"2017-08-05 2017-08-29",
+    "baseline":66.4,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-05",
+    "rep":"2017-09-10",
+    "ref_baseline":-19.87,
+    "rep_baseline":17.35,
+    "pair":"2017-08-05 2017-09-10",
+    "baseline":37.22,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-05",
+    "rep":"2017-09-22",
+    "ref_baseline":-19.87,
+    "rep_baseline":-50.5,
+    "pair":"2017-08-05 2017-09-22",
+    "baseline":-30.63,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-05",
+    "rep":"2017-10-16",
+    "ref_baseline":-19.87,
+    "rep_baseline":-18.09,
+    "pair":"2017-08-05 2017-10-16",
+    "baseline":1.78,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-17",
+    "rep":"2017-08-29",
+    "ref_baseline":48.58,
+    "rep_baseline":46.53,
+    "pair":"2017-08-17 2017-08-29",
+    "baseline":-2.05,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-17",
+    "rep":"2017-09-10",
+    "ref_baseline":48.58,
+    "rep_baseline":17.35,
+    "pair":"2017-08-17 2017-09-10",
+    "baseline":-31.23,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-17",
+    "rep":"2017-09-22",
+    "ref_baseline":48.58,
+    "rep_baseline":-50.5,
+    "pair":"2017-08-17 2017-09-22",
+    "baseline":-99.08,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-17",
+    "rep":"2017-10-16",
+    "ref_baseline":48.58,
+    "rep_baseline":-18.09,
+    "pair":"2017-08-17 2017-10-16",
+    "baseline":-66.67,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-17",
+    "rep":"2017-10-28",
+    "ref_baseline":48.58,
+    "rep_baseline":78.67,
+    "pair":"2017-08-17 2017-10-28",
+    "baseline":30.09,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-29",
+    "rep":"2017-09-10",
+    "ref_baseline":46.53,
+    "rep_baseline":17.35,
+    "pair":"2017-08-29 2017-09-10",
+    "baseline":-29.18,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-29",
+    "rep":"2017-09-22",
+    "ref_baseline":46.53,
+    "rep_baseline":-50.5,
+    "pair":"2017-08-29 2017-09-22",
+    "baseline":-97.03,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-29",
+    "rep":"2017-10-16",
+    "ref_baseline":46.53,
+    "rep_baseline":-18.09,
+    "pair":"2017-08-29 2017-10-16",
+    "baseline":-64.62,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-29",
+    "rep":"2017-10-28",
+    "ref_baseline":46.53,
+    "rep_baseline":78.67,
+    "pair":"2017-08-29 2017-10-28",
+    "baseline":32.14,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-08-29",
+    "rep":"2017-11-09",
+    "ref_baseline":46.53,
+    "rep_baseline":-3.53,
+    "pair":"2017-08-29 2017-11-09",
+    "baseline":-50.06,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-10",
+    "rep":"2017-09-22",
+    "ref_baseline":17.35,
+    "rep_baseline":-50.5,
+    "pair":"2017-09-10 2017-09-22",
+    "baseline":-67.85,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-10",
+    "rep":"2017-10-16",
+    "ref_baseline":17.35,
+    "rep_baseline":-18.09,
+    "pair":"2017-09-10 2017-10-16",
+    "baseline":-35.44,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-10",
+    "rep":"2017-10-28",
+    "ref_baseline":17.35,
+    "rep_baseline":78.67,
+    "pair":"2017-09-10 2017-10-28",
+    "baseline":61.32,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-10",
+    "rep":"2017-11-09",
+    "ref_baseline":17.35,
+    "rep_baseline":-3.53,
+    "pair":"2017-09-10 2017-11-09",
+    "baseline":-20.88,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-10",
+    "rep":"2017-11-21",
+    "ref_baseline":17.35,
+    "rep_baseline":2.36,
+    "pair":"2017-09-10 2017-11-21",
+    "baseline":-14.99,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-22",
+    "rep":"2017-10-16",
+    "ref_baseline":-50.5,
+    "rep_baseline":-18.09,
+    "pair":"2017-09-22 2017-10-16",
+    "baseline":32.41,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-22",
+    "rep":"2017-10-28",
+    "ref_baseline":-50.5,
+    "rep_baseline":78.67,
+    "pair":"2017-09-22 2017-10-28",
+    "baseline":129.17,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-22",
+    "rep":"2017-11-09",
+    "ref_baseline":-50.5,
+    "rep_baseline":-3.53,
+    "pair":"2017-09-22 2017-11-09",
+    "baseline":46.97,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-22",
+    "rep":"2017-11-21",
+    "ref_baseline":-50.5,
+    "rep_baseline":2.36,
+    "pair":"2017-09-22 2017-11-21",
+    "baseline":52.86,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-09-22",
+    "rep":"2017-12-03",
+    "ref_baseline":-50.5,
+    "rep_baseline":-136.94,
+    "pair":"2017-09-22 2017-12-03",
+    "baseline":-86.44,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-10-28",
+    "ref_baseline":-18.09,
+    "rep_baseline":78.67,
+    "pair":"2017-10-16 2017-10-28",
+    "baseline":96.76,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-11-09",
+    "ref_baseline":-18.09,
+    "rep_baseline":-3.53,
+    "pair":"2017-10-16 2017-11-09",
+    "baseline":14.56,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-11-21",
+    "ref_baseline":-18.09,
+    "rep_baseline":2.36,
+    "pair":"2017-10-16 2017-11-21",
+    "baseline":20.45,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-12-03",
+    "ref_baseline":-18.09,
+    "rep_baseline":-136.94,
+    "pair":"2017-10-16 2017-12-03",
+    "baseline":-118.85,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-12-15",
+    "ref_baseline":-18.09,
+    "rep_baseline":-100.77,
+    "pair":"2017-10-16 2017-12-15",
+    "baseline":-82.68,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-16",
+    "rep":"2017-12-27",
+    "ref_baseline":-18.09,
+    "rep_baseline":-72.89,
+    "pair":"2017-10-16 2017-12-27",
+    "baseline":-54.8,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-28",
+    "rep":"2017-11-09",
+    "ref_baseline":78.67,
+    "rep_baseline":-3.53,
+    "pair":"2017-10-28 2017-11-09",
+    "baseline":-82.2,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-28",
+    "rep":"2017-11-21",
+    "ref_baseline":78.67,
+    "rep_baseline":2.36,
+    "pair":"2017-10-28 2017-11-21",
+    "baseline":-76.31,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-10-28",
+    "rep":"2018-01-08",
+    "ref_baseline":78.67,
+    "rep_baseline":2.75,
+    "pair":"2017-10-28 2018-01-08",
+    "baseline":-75.92,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2017-11-21",
+    "ref_baseline":-3.53,
+    "rep_baseline":2.36,
+    "pair":"2017-11-09 2017-11-21",
+    "baseline":5.89,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2017-12-03",
+    "ref_baseline":-3.53,
+    "rep_baseline":-136.94,
+    "pair":"2017-11-09 2017-12-03",
+    "baseline":-133.41,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2017-12-15",
+    "ref_baseline":-3.53,
+    "rep_baseline":-100.77,
+    "pair":"2017-11-09 2017-12-15",
+    "baseline":-97.24,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2017-12-27",
+    "ref_baseline":-3.53,
+    "rep_baseline":-72.89,
+    "pair":"2017-11-09 2017-12-27",
+    "baseline":-69.36,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2018-01-08",
+    "ref_baseline":-3.53,
+    "rep_baseline":2.75,
+    "pair":"2017-11-09 2018-01-08",
+    "baseline":6.28,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-09",
+    "rep":"2018-01-20",
+    "ref_baseline":-3.53,
+    "rep_baseline":5.03,
+    "pair":"2017-11-09 2018-01-20",
+    "baseline":8.56,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2017-12-03",
+    "ref_baseline":2.36,
+    "rep_baseline":-136.94,
+    "pair":"2017-11-21 2017-12-03",
+    "baseline":-139.3,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2017-12-15",
+    "ref_baseline":2.36,
+    "rep_baseline":-100.77,
+    "pair":"2017-11-21 2017-12-15",
+    "baseline":-103.13,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2017-12-27",
+    "ref_baseline":2.36,
+    "rep_baseline":-72.89,
+    "pair":"2017-11-21 2017-12-27",
+    "baseline":-75.25,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2018-01-08",
+    "ref_baseline":2.36,
+    "rep_baseline":2.75,
+    "pair":"2017-11-21 2018-01-08",
+    "baseline":0.39,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2018-01-20",
+    "ref_baseline":2.36,
+    "rep_baseline":5.03,
+    "pair":"2017-11-21 2018-01-20",
+    "baseline":2.67,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-11-21",
+    "rep":"2018-02-01",
+    "ref_baseline":2.36,
+    "rep_baseline":-82.28,
+    "pair":"2017-11-21 2018-02-01",
+    "baseline":-84.64,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2017-12-15",
+    "ref_baseline":-136.94,
+    "rep_baseline":-100.77,
+    "pair":"2017-12-03 2017-12-15",
+    "baseline":36.17,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2017-12-27",
+    "ref_baseline":-136.94,
+    "rep_baseline":-72.89,
+    "pair":"2017-12-03 2017-12-27",
+    "baseline":64.05,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2018-01-08",
+    "ref_baseline":-136.94,
+    "rep_baseline":2.75,
+    "pair":"2017-12-03 2018-01-08",
+    "baseline":139.69,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2018-01-20",
+    "ref_baseline":-136.94,
+    "rep_baseline":5.03,
+    "pair":"2017-12-03 2018-01-20",
+    "baseline":141.97,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2018-02-01",
+    "ref_baseline":-136.94,
+    "rep_baseline":-82.28,
+    "pair":"2017-12-03 2018-02-01",
+    "baseline":54.66,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-03",
+    "rep":"2018-02-13",
+    "ref_baseline":-136.94,
+    "rep_baseline":-38.75,
+    "pair":"2017-12-03 2018-02-13",
+    "baseline":98.19,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2017-12-27",
+    "ref_baseline":-100.77,
+    "rep_baseline":-72.89,
+    "pair":"2017-12-15 2017-12-27",
+    "baseline":27.88,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2018-01-08",
+    "ref_baseline":-100.77,
+    "rep_baseline":2.75,
+    "pair":"2017-12-15 2018-01-08",
+    "baseline":103.52,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2018-01-20",
+    "ref_baseline":-100.77,
+    "rep_baseline":5.03,
+    "pair":"2017-12-15 2018-01-20",
+    "baseline":105.8,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2018-02-01",
+    "ref_baseline":-100.77,
+    "rep_baseline":-82.28,
+    "pair":"2017-12-15 2018-02-01",
+    "baseline":18.49,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2018-02-13",
+    "ref_baseline":-100.77,
+    "rep_baseline":-38.75,
+    "pair":"2017-12-15 2018-02-13",
+    "baseline":62.02,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-15",
+    "rep":"2018-02-25",
+    "ref_baseline":-100.77,
+    "rep_baseline":-4.72,
+    "pair":"2017-12-15 2018-02-25",
+    "baseline":96.05,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-01-08",
+    "ref_baseline":-72.89,
+    "rep_baseline":2.75,
+    "pair":"2017-12-27 2018-01-08",
+    "baseline":75.64,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-01-20",
+    "ref_baseline":-72.89,
+    "rep_baseline":5.03,
+    "pair":"2017-12-27 2018-01-20",
+    "baseline":77.92,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-02-01",
+    "ref_baseline":-72.89,
+    "rep_baseline":-82.28,
+    "pair":"2017-12-27 2018-02-01",
+    "baseline":-9.39,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-02-13",
+    "ref_baseline":-72.89,
+    "rep_baseline":-38.75,
+    "pair":"2017-12-27 2018-02-13",
+    "baseline":34.14,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-02-25",
+    "ref_baseline":-72.89,
+    "rep_baseline":-4.72,
+    "pair":"2017-12-27 2018-02-25",
+    "baseline":68.17,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2017-12-27",
+    "rep":"2018-03-09",
+    "ref_baseline":-72.89,
+    "rep_baseline":-25.34,
+    "pair":"2017-12-27 2018-03-09",
+    "baseline":47.55,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-01-20",
+    "ref_baseline":2.75,
+    "rep_baseline":5.03,
+    "pair":"2018-01-08 2018-01-20",
+    "baseline":2.28,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-02-01",
+    "ref_baseline":2.75,
+    "rep_baseline":-82.28,
+    "pair":"2018-01-08 2018-02-01",
+    "baseline":-85.03,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-02-13",
+    "ref_baseline":2.75,
+    "rep_baseline":-38.75,
+    "pair":"2018-01-08 2018-02-13",
+    "baseline":-41.5,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-02-25",
+    "ref_baseline":2.75,
+    "rep_baseline":-4.72,
+    "pair":"2018-01-08 2018-02-25",
+    "baseline":-7.47,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-03-09",
+    "ref_baseline":2.75,
+    "rep_baseline":-25.34,
+    "pair":"2018-01-08 2018-03-09",
+    "baseline":-28.09,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-08",
+    "rep":"2018-03-21",
+    "ref_baseline":2.75,
+    "rep_baseline":-65.73,
+    "pair":"2018-01-08 2018-03-21",
+    "baseline":-68.48,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-02-01",
+    "ref_baseline":5.03,
+    "rep_baseline":-82.28,
+    "pair":"2018-01-20 2018-02-01",
+    "baseline":-87.31,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-02-13",
+    "ref_baseline":5.03,
+    "rep_baseline":-38.75,
+    "pair":"2018-01-20 2018-02-13",
+    "baseline":-43.78,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-02-25",
+    "ref_baseline":5.03,
+    "rep_baseline":-4.72,
+    "pair":"2018-01-20 2018-02-25",
+    "baseline":-9.75,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-03-09",
+    "ref_baseline":5.03,
+    "rep_baseline":-25.34,
+    "pair":"2018-01-20 2018-03-09",
+    "baseline":-30.37,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-03-21",
+    "ref_baseline":5.03,
+    "rep_baseline":-65.73,
+    "pair":"2018-01-20 2018-03-21",
+    "baseline":-70.76,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-01-20",
+    "rep":"2018-04-02",
+    "ref_baseline":5.03,
+    "rep_baseline":-58.55,
+    "pair":"2018-01-20 2018-04-02",
+    "baseline":-63.58,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-02-13",
+    "ref_baseline":-82.28,
+    "rep_baseline":-38.75,
+    "pair":"2018-02-01 2018-02-13",
+    "baseline":43.53,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-02-25",
+    "ref_baseline":-82.28,
+    "rep_baseline":-4.72,
+    "pair":"2018-02-01 2018-02-25",
+    "baseline":77.56,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-03-09",
+    "ref_baseline":-82.28,
+    "rep_baseline":-25.34,
+    "pair":"2018-02-01 2018-03-09",
+    "baseline":56.94,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-03-21",
+    "ref_baseline":-82.28,
+    "rep_baseline":-65.73,
+    "pair":"2018-02-01 2018-03-21",
+    "baseline":16.55,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-04-02",
+    "ref_baseline":-82.28,
+    "rep_baseline":-58.55,
+    "pair":"2018-02-01 2018-04-02",
+    "baseline":23.73,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-01",
+    "rep":"2018-04-14",
+    "ref_baseline":-82.28,
+    "rep_baseline":0.29,
+    "pair":"2018-02-01 2018-04-14",
+    "baseline":82.57,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-02-25",
+    "ref_baseline":-38.75,
+    "rep_baseline":-4.72,
+    "pair":"2018-02-13 2018-02-25",
+    "baseline":34.03,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-03-09",
+    "ref_baseline":-38.75,
+    "rep_baseline":-25.34,
+    "pair":"2018-02-13 2018-03-09",
+    "baseline":13.41,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-03-21",
+    "ref_baseline":-38.75,
+    "rep_baseline":-65.73,
+    "pair":"2018-02-13 2018-03-21",
+    "baseline":-26.98,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-04-02",
+    "ref_baseline":-38.75,
+    "rep_baseline":-58.55,
+    "pair":"2018-02-13 2018-04-02",
+    "baseline":-19.8,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-04-14",
+    "ref_baseline":-38.75,
+    "rep_baseline":0.29,
+    "pair":"2018-02-13 2018-04-14",
+    "baseline":39.04,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-13",
+    "rep":"2018-04-26",
+    "ref_baseline":-38.75,
+    "rep_baseline":-19.81,
+    "pair":"2018-02-13 2018-04-26",
+    "baseline":18.94,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-03-09",
+    "ref_baseline":-4.72,
+    "rep_baseline":-25.34,
+    "pair":"2018-02-25 2018-03-09",
+    "baseline":-20.62,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-03-21",
+    "ref_baseline":-4.72,
+    "rep_baseline":-65.73,
+    "pair":"2018-02-25 2018-03-21",
+    "baseline":-61.01,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-04-02",
+    "ref_baseline":-4.72,
+    "rep_baseline":-58.55,
+    "pair":"2018-02-25 2018-04-02",
+    "baseline":-53.83,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-04-14",
+    "ref_baseline":-4.72,
+    "rep_baseline":0.29,
+    "pair":"2018-02-25 2018-04-14",
+    "baseline":5.01,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-04-26",
+    "ref_baseline":-4.72,
+    "rep_baseline":-19.81,
+    "pair":"2018-02-25 2018-04-26",
+    "baseline":-15.09,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-02-25",
+    "rep":"2018-05-08",
+    "ref_baseline":-4.72,
+    "rep_baseline":4.86,
+    "pair":"2018-02-25 2018-05-08",
+    "baseline":9.58,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-03-21",
+    "ref_baseline":-25.34,
+    "rep_baseline":-65.73,
+    "pair":"2018-03-09 2018-03-21",
+    "baseline":-40.39,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-04-02",
+    "ref_baseline":-25.34,
+    "rep_baseline":-58.55,
+    "pair":"2018-03-09 2018-04-02",
+    "baseline":-33.21,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-04-14",
+    "ref_baseline":-25.34,
+    "rep_baseline":0.29,
+    "pair":"2018-03-09 2018-04-14",
+    "baseline":25.63,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-04-26",
+    "ref_baseline":-25.34,
+    "rep_baseline":-19.81,
+    "pair":"2018-03-09 2018-04-26",
+    "baseline":5.53,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-05-08",
+    "ref_baseline":-25.34,
+    "rep_baseline":4.86,
+    "pair":"2018-03-09 2018-05-08",
+    "baseline":30.2,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-09",
+    "rep":"2018-05-20",
+    "ref_baseline":-25.34,
+    "rep_baseline":27.67,
+    "pair":"2018-03-09 2018-05-20",
+    "baseline":53.01,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-04-02",
+    "ref_baseline":-65.73,
+    "rep_baseline":-58.55,
+    "pair":"2018-03-21 2018-04-02",
+    "baseline":7.18,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-04-14",
+    "ref_baseline":-65.73,
+    "rep_baseline":0.29,
+    "pair":"2018-03-21 2018-04-14",
+    "baseline":66.02,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-04-26",
+    "ref_baseline":-65.73,
+    "rep_baseline":-19.81,
+    "pair":"2018-03-21 2018-04-26",
+    "baseline":45.92,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-05-08",
+    "ref_baseline":-65.73,
+    "rep_baseline":4.86,
+    "pair":"2018-03-21 2018-05-08",
+    "baseline":70.59,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-05-20",
+    "ref_baseline":-65.73,
+    "rep_baseline":27.67,
+    "pair":"2018-03-21 2018-05-20",
+    "baseline":93.4,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-03-21",
+    "rep":"2018-06-01",
+    "ref_baseline":-65.73,
+    "rep_baseline":-35.91,
+    "pair":"2018-03-21 2018-06-01",
+    "baseline":29.82,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-04-14",
+    "ref_baseline":-58.55,
+    "rep_baseline":0.29,
+    "pair":"2018-04-02 2018-04-14",
+    "baseline":58.84,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-04-26",
+    "ref_baseline":-58.55,
+    "rep_baseline":-19.81,
+    "pair":"2018-04-02 2018-04-26",
+    "baseline":38.74,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-05-08",
+    "ref_baseline":-58.55,
+    "rep_baseline":4.86,
+    "pair":"2018-04-02 2018-05-08",
+    "baseline":63.41,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-05-20",
+    "ref_baseline":-58.55,
+    "rep_baseline":27.67,
+    "pair":"2018-04-02 2018-05-20",
+    "baseline":86.22,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-06-01",
+    "ref_baseline":-58.55,
+    "rep_baseline":-35.91,
+    "pair":"2018-04-02 2018-06-01",
+    "baseline":22.64,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-02",
+    "rep":"2018-06-13",
+    "ref_baseline":-58.55,
+    "rep_baseline":-36.88,
+    "pair":"2018-04-02 2018-06-13",
+    "baseline":21.67,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-04-26",
+    "ref_baseline":0.29,
+    "rep_baseline":-19.81,
+    "pair":"2018-04-14 2018-04-26",
+    "baseline":-20.1,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-05-08",
+    "ref_baseline":0.29,
+    "rep_baseline":4.86,
+    "pair":"2018-04-14 2018-05-08",
+    "baseline":4.57,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-05-20",
+    "ref_baseline":0.29,
+    "rep_baseline":27.67,
+    "pair":"2018-04-14 2018-05-20",
+    "baseline":27.38,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-06-01",
+    "ref_baseline":0.29,
+    "rep_baseline":-35.91,
+    "pair":"2018-04-14 2018-06-01",
+    "baseline":-36.2,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-06-13",
+    "ref_baseline":0.29,
+    "rep_baseline":-36.88,
+    "pair":"2018-04-14 2018-06-13",
+    "baseline":-37.17,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-14",
+    "rep":"2018-06-25",
+    "ref_baseline":0.29,
+    "rep_baseline":-28.92,
+    "pair":"2018-04-14 2018-06-25",
+    "baseline":-29.21,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-05-08",
+    "ref_baseline":-19.81,
+    "rep_baseline":4.86,
+    "pair":"2018-04-26 2018-05-08",
+    "baseline":24.67,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-05-20",
+    "ref_baseline":-19.81,
+    "rep_baseline":27.67,
+    "pair":"2018-04-26 2018-05-20",
+    "baseline":47.48,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-06-01",
+    "ref_baseline":-19.81,
+    "rep_baseline":-35.91,
+    "pair":"2018-04-26 2018-06-01",
+    "baseline":-16.1,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-06-13",
+    "ref_baseline":-19.81,
+    "rep_baseline":-36.88,
+    "pair":"2018-04-26 2018-06-13",
+    "baseline":-17.07,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-06-25",
+    "ref_baseline":-19.81,
+    "rep_baseline":-28.92,
+    "pair":"2018-04-26 2018-06-25",
+    "baseline":-9.11,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-04-26",
+    "rep":"2018-07-07",
+    "ref_baseline":-19.81,
+    "rep_baseline":-21.82,
+    "pair":"2018-04-26 2018-07-07",
+    "baseline":-2.01,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-05-20",
+    "ref_baseline":4.86,
+    "rep_baseline":27.67,
+    "pair":"2018-05-08 2018-05-20",
+    "baseline":22.81,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-06-01",
+    "ref_baseline":4.86,
+    "rep_baseline":-35.91,
+    "pair":"2018-05-08 2018-06-01",
+    "baseline":-40.77,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-06-13",
+    "ref_baseline":4.86,
+    "rep_baseline":-36.88,
+    "pair":"2018-05-08 2018-06-13",
+    "baseline":-41.74,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-06-25",
+    "ref_baseline":4.86,
+    "rep_baseline":-28.92,
+    "pair":"2018-05-08 2018-06-25",
+    "baseline":-33.78,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-07-07",
+    "ref_baseline":4.86,
+    "rep_baseline":-21.82,
+    "pair":"2018-05-08 2018-07-07",
+    "baseline":-26.68,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-08",
+    "rep":"2018-07-19",
+    "ref_baseline":4.86,
+    "rep_baseline":50.51,
+    "pair":"2018-05-08 2018-07-19",
+    "baseline":45.65,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-06-01",
+    "ref_baseline":27.67,
+    "rep_baseline":-35.91,
+    "pair":"2018-05-20 2018-06-01",
+    "baseline":-63.58,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-06-13",
+    "ref_baseline":27.67,
+    "rep_baseline":-36.88,
+    "pair":"2018-05-20 2018-06-13",
+    "baseline":-64.55,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-06-25",
+    "ref_baseline":27.67,
+    "rep_baseline":-28.92,
+    "pair":"2018-05-20 2018-06-25",
+    "baseline":-56.59,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-07-07",
+    "ref_baseline":27.67,
+    "rep_baseline":-21.82,
+    "pair":"2018-05-20 2018-07-07",
+    "baseline":-49.49,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-07-19",
+    "ref_baseline":27.67,
+    "rep_baseline":50.51,
+    "pair":"2018-05-20 2018-07-19",
+    "baseline":22.84,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-05-20",
+    "rep":"2018-07-31",
+    "ref_baseline":27.67,
+    "rep_baseline":-43.32,
+    "pair":"2018-05-20 2018-07-31",
+    "baseline":-70.99,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-06-13",
+    "ref_baseline":-35.91,
+    "rep_baseline":-36.88,
+    "pair":"2018-06-01 2018-06-13",
+    "baseline":-0.97,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-06-25",
+    "ref_baseline":-35.91,
+    "rep_baseline":-28.92,
+    "pair":"2018-06-01 2018-06-25",
+    "baseline":6.99,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-07-07",
+    "ref_baseline":-35.91,
+    "rep_baseline":-21.82,
+    "pair":"2018-06-01 2018-07-07",
+    "baseline":14.09,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-07-19",
+    "ref_baseline":-35.91,
+    "rep_baseline":50.51,
+    "pair":"2018-06-01 2018-07-19",
+    "baseline":86.42,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-07-31",
+    "ref_baseline":-35.91,
+    "rep_baseline":-43.32,
+    "pair":"2018-06-01 2018-07-31",
+    "baseline":-7.41,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-01",
+    "rep":"2018-08-12",
+    "ref_baseline":-35.91,
+    "rep_baseline":-66.1,
+    "pair":"2018-06-01 2018-08-12",
+    "baseline":-30.19,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-06-25",
+    "ref_baseline":-36.88,
+    "rep_baseline":-28.92,
+    "pair":"2018-06-13 2018-06-25",
+    "baseline":7.96,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-07-07",
+    "ref_baseline":-36.88,
+    "rep_baseline":-21.82,
+    "pair":"2018-06-13 2018-07-07",
+    "baseline":15.06,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-07-19",
+    "ref_baseline":-36.88,
+    "rep_baseline":50.51,
+    "pair":"2018-06-13 2018-07-19",
+    "baseline":87.39,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-07-31",
+    "ref_baseline":-36.88,
+    "rep_baseline":-43.32,
+    "pair":"2018-06-13 2018-07-31",
+    "baseline":-6.44,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-08-12",
+    "ref_baseline":-36.88,
+    "rep_baseline":-66.1,
+    "pair":"2018-06-13 2018-08-12",
+    "baseline":-29.22,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-13",
+    "rep":"2018-08-24",
+    "ref_baseline":-36.88,
+    "rep_baseline":-26.31,
+    "pair":"2018-06-13 2018-08-24",
+    "baseline":10.57,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-07-07",
+    "ref_baseline":-28.92,
+    "rep_baseline":-21.82,
+    "pair":"2018-06-25 2018-07-07",
+    "baseline":7.1,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-07-19",
+    "ref_baseline":-28.92,
+    "rep_baseline":50.51,
+    "pair":"2018-06-25 2018-07-19",
+    "baseline":79.43,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-07-31",
+    "ref_baseline":-28.92,
+    "rep_baseline":-43.32,
+    "pair":"2018-06-25 2018-07-31",
+    "baseline":-14.4,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-08-12",
+    "ref_baseline":-28.92,
+    "rep_baseline":-66.1,
+    "pair":"2018-06-25 2018-08-12",
+    "baseline":-37.18,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-08-24",
+    "ref_baseline":-28.92,
+    "rep_baseline":-26.31,
+    "pair":"2018-06-25 2018-08-24",
+    "baseline":2.61,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-06-25",
+    "rep":"2018-09-05",
+    "ref_baseline":-28.92,
+    "rep_baseline":73.07,
+    "pair":"2018-06-25 2018-09-05",
+    "baseline":101.99,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-07-19",
+    "ref_baseline":-21.82,
+    "rep_baseline":50.51,
+    "pair":"2018-07-07 2018-07-19",
+    "baseline":72.33,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-07-31",
+    "ref_baseline":-21.82,
+    "rep_baseline":-43.32,
+    "pair":"2018-07-07 2018-07-31",
+    "baseline":-21.5,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-08-12",
+    "ref_baseline":-21.82,
+    "rep_baseline":-66.1,
+    "pair":"2018-07-07 2018-08-12",
+    "baseline":-44.28,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-08-24",
+    "ref_baseline":-21.82,
+    "rep_baseline":-26.31,
+    "pair":"2018-07-07 2018-08-24",
+    "baseline":-4.49,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-09-05",
+    "ref_baseline":-21.82,
+    "rep_baseline":73.07,
+    "pair":"2018-07-07 2018-09-05",
+    "baseline":94.89,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-07",
+    "rep":"2018-09-17",
+    "ref_baseline":-21.82,
+    "rep_baseline":55.67,
+    "pair":"2018-07-07 2018-09-17",
+    "baseline":77.49,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-07-31",
+    "ref_baseline":50.51,
+    "rep_baseline":-43.32,
+    "pair":"2018-07-19 2018-07-31",
+    "baseline":-93.83,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-08-12",
+    "ref_baseline":50.51,
+    "rep_baseline":-66.1,
+    "pair":"2018-07-19 2018-08-12",
+    "baseline":-116.61,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-08-24",
+    "ref_baseline":50.51,
+    "rep_baseline":-26.31,
+    "pair":"2018-07-19 2018-08-24",
+    "baseline":-76.82,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-09-05",
+    "ref_baseline":50.51,
+    "rep_baseline":73.07,
+    "pair":"2018-07-19 2018-09-05",
+    "baseline":22.56,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-09-17",
+    "ref_baseline":50.51,
+    "rep_baseline":55.67,
+    "pair":"2018-07-19 2018-09-17",
+    "baseline":5.16,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-19",
+    "rep":"2018-09-29",
+    "ref_baseline":50.51,
+    "rep_baseline":10.82,
+    "pair":"2018-07-19 2018-09-29",
+    "baseline":-39.69,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-08-12",
+    "ref_baseline":-43.32,
+    "rep_baseline":-66.1,
+    "pair":"2018-07-31 2018-08-12",
+    "baseline":-22.78,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-08-24",
+    "ref_baseline":-43.32,
+    "rep_baseline":-26.31,
+    "pair":"2018-07-31 2018-08-24",
+    "baseline":17.01,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-09-05",
+    "ref_baseline":-43.32,
+    "rep_baseline":73.07,
+    "pair":"2018-07-31 2018-09-05",
+    "baseline":116.39,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-09-17",
+    "ref_baseline":-43.32,
+    "rep_baseline":55.67,
+    "pair":"2018-07-31 2018-09-17",
+    "baseline":98.99,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-09-29",
+    "ref_baseline":-43.32,
+    "rep_baseline":10.82,
+    "pair":"2018-07-31 2018-09-29",
+    "baseline":54.14,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-07-31",
+    "rep":"2018-10-11",
+    "ref_baseline":-43.32,
+    "rep_baseline":-5.59,
+    "pair":"2018-07-31 2018-10-11",
+    "baseline":37.73,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-08-24",
+    "ref_baseline":-66.1,
+    "rep_baseline":-26.31,
+    "pair":"2018-08-12 2018-08-24",
+    "baseline":39.79,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-09-05",
+    "ref_baseline":-66.1,
+    "rep_baseline":73.07,
+    "pair":"2018-08-12 2018-09-05",
+    "baseline":139.17,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-09-17",
+    "ref_baseline":-66.1,
+    "rep_baseline":55.67,
+    "pair":"2018-08-12 2018-09-17",
+    "baseline":121.77,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-09-29",
+    "ref_baseline":-66.1,
+    "rep_baseline":10.82,
+    "pair":"2018-08-12 2018-09-29",
+    "baseline":76.92,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-10-11",
+    "ref_baseline":-66.1,
+    "rep_baseline":-5.59,
+    "pair":"2018-08-12 2018-10-11",
+    "baseline":60.51,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-12",
+    "rep":"2018-10-23",
+    "ref_baseline":-66.1,
+    "rep_baseline":-80.9,
+    "pair":"2018-08-12 2018-10-23",
+    "baseline":-14.8,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-09-05",
+    "ref_baseline":-26.31,
+    "rep_baseline":73.07,
+    "pair":"2018-08-24 2018-09-05",
+    "baseline":99.38,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-09-17",
+    "ref_baseline":-26.31,
+    "rep_baseline":55.67,
+    "pair":"2018-08-24 2018-09-17",
+    "baseline":81.98,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-09-29",
+    "ref_baseline":-26.31,
+    "rep_baseline":10.82,
+    "pair":"2018-08-24 2018-09-29",
+    "baseline":37.13,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-10-11",
+    "ref_baseline":-26.31,
+    "rep_baseline":-5.59,
+    "pair":"2018-08-24 2018-10-11",
+    "baseline":20.72,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-10-23",
+    "ref_baseline":-26.31,
+    "rep_baseline":-80.9,
+    "pair":"2018-08-24 2018-10-23",
+    "baseline":-54.59,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-08-24",
+    "rep":"2018-11-04",
+    "ref_baseline":-26.31,
+    "rep_baseline":-57.84,
+    "pair":"2018-08-24 2018-11-04",
+    "baseline":-31.53,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-05",
+    "rep":"2018-09-17",
+    "ref_baseline":73.07,
+    "rep_baseline":55.67,
+    "pair":"2018-09-05 2018-09-17",
+    "baseline":-17.4,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-05",
+    "rep":"2018-09-29",
+    "ref_baseline":73.07,
+    "rep_baseline":10.82,
+    "pair":"2018-09-05 2018-09-29",
+    "baseline":-62.25,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-05",
+    "rep":"2018-10-11",
+    "ref_baseline":73.07,
+    "rep_baseline":-5.59,
+    "pair":"2018-09-05 2018-10-11",
+    "baseline":-78.66,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-05",
+    "rep":"2018-11-04",
+    "ref_baseline":73.07,
+    "rep_baseline":-57.84,
+    "pair":"2018-09-05 2018-11-04",
+    "baseline":-130.91,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-05",
+    "rep":"2018-11-16",
+    "ref_baseline":73.07,
+    "rep_baseline":46.07,
+    "pair":"2018-09-05 2018-11-16",
+    "baseline":-27.0,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-09-29",
+    "ref_baseline":55.67,
+    "rep_baseline":10.82,
+    "pair":"2018-09-17 2018-09-29",
+    "baseline":-44.85,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-10-11",
+    "ref_baseline":55.67,
+    "rep_baseline":-5.59,
+    "pair":"2018-09-17 2018-10-11",
+    "baseline":-61.26,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-10-23",
+    "ref_baseline":55.67,
+    "rep_baseline":-80.9,
+    "pair":"2018-09-17 2018-10-23",
+    "baseline":-136.57,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-11-04",
+    "ref_baseline":55.67,
+    "rep_baseline":-57.84,
+    "pair":"2018-09-17 2018-11-04",
+    "baseline":-113.51,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-11-16",
+    "ref_baseline":55.67,
+    "rep_baseline":46.07,
+    "pair":"2018-09-17 2018-11-16",
+    "baseline":-9.6,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-17",
+    "rep":"2018-11-28",
+    "ref_baseline":55.67,
+    "rep_baseline":-39.7,
+    "pair":"2018-09-17 2018-11-28",
+    "baseline":-95.37,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-10-11",
+    "ref_baseline":10.82,
+    "rep_baseline":-5.59,
+    "pair":"2018-09-29 2018-10-11",
+    "baseline":-16.41,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-10-23",
+    "ref_baseline":10.82,
+    "rep_baseline":-80.9,
+    "pair":"2018-09-29 2018-10-23",
+    "baseline":-91.72,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-11-04",
+    "ref_baseline":10.82,
+    "rep_baseline":-57.84,
+    "pair":"2018-09-29 2018-11-04",
+    "baseline":-68.66,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-11-16",
+    "ref_baseline":10.82,
+    "rep_baseline":46.07,
+    "pair":"2018-09-29 2018-11-16",
+    "baseline":35.25,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-11-28",
+    "ref_baseline":10.82,
+    "rep_baseline":-39.7,
+    "pair":"2018-09-29 2018-11-28",
+    "baseline":-50.52,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-09-29",
+    "rep":"2018-12-10",
+    "ref_baseline":10.82,
+    "rep_baseline":-50.97,
+    "pair":"2018-09-29 2018-12-10",
+    "baseline":-61.79,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-10-23",
+    "ref_baseline":-5.59,
+    "rep_baseline":-80.9,
+    "pair":"2018-10-11 2018-10-23",
+    "baseline":-75.31,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-11-04",
+    "ref_baseline":-5.59,
+    "rep_baseline":-57.84,
+    "pair":"2018-10-11 2018-11-04",
+    "baseline":-52.25,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-11-16",
+    "ref_baseline":-5.59,
+    "rep_baseline":46.07,
+    "pair":"2018-10-11 2018-11-16",
+    "baseline":51.66,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-11-28",
+    "ref_baseline":-5.59,
+    "rep_baseline":-39.7,
+    "pair":"2018-10-11 2018-11-28",
+    "baseline":-34.11,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-12-10",
+    "ref_baseline":-5.59,
+    "rep_baseline":-50.97,
+    "pair":"2018-10-11 2018-12-10",
+    "baseline":-45.38,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-11",
+    "rep":"2018-12-22",
+    "ref_baseline":-5.59,
+    "rep_baseline":-89.25,
+    "pair":"2018-10-11 2018-12-22",
+    "baseline":-83.66,
+    "duration":72,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-23",
+    "rep":"2018-11-04",
+    "ref_baseline":-80.9,
+    "rep_baseline":-57.84,
+    "pair":"2018-10-23 2018-11-04",
+    "baseline":23.06,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-23",
+    "rep":"2018-11-16",
+    "ref_baseline":-80.9,
+    "rep_baseline":46.07,
+    "pair":"2018-10-23 2018-11-16",
+    "baseline":126.97,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-23",
+    "rep":"2018-11-28",
+    "ref_baseline":-80.9,
+    "rep_baseline":-39.7,
+    "pair":"2018-10-23 2018-11-28",
+    "baseline":41.2,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-23",
+    "rep":"2018-12-10",
+    "ref_baseline":-80.9,
+    "rep_baseline":-50.97,
+    "pair":"2018-10-23 2018-12-10",
+    "baseline":29.93,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-10-23",
+    "rep":"2018-12-22",
+    "ref_baseline":-80.9,
+    "rep_baseline":-89.25,
+    "pair":"2018-10-23 2018-12-22",
+    "baseline":-8.35,
+    "duration":60,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-04",
+    "rep":"2018-11-16",
+    "ref_baseline":-57.84,
+    "rep_baseline":46.07,
+    "pair":"2018-11-04 2018-11-16",
+    "baseline":103.91,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-04",
+    "rep":"2018-11-28",
+    "ref_baseline":-57.84,
+    "rep_baseline":-39.7,
+    "pair":"2018-11-04 2018-11-28",
+    "baseline":18.14,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-04",
+    "rep":"2018-12-10",
+    "ref_baseline":-57.84,
+    "rep_baseline":-50.97,
+    "pair":"2018-11-04 2018-12-10",
+    "baseline":6.87,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-04",
+    "rep":"2018-12-22",
+    "ref_baseline":-57.84,
+    "rep_baseline":-89.25,
+    "pair":"2018-11-04 2018-12-22",
+    "baseline":-31.41,
+    "duration":48,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-16",
+    "rep":"2018-11-28",
+    "ref_baseline":46.07,
+    "rep_baseline":-39.7,
+    "pair":"2018-11-16 2018-11-28",
+    "baseline":-85.77,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-16",
+    "rep":"2018-12-10",
+    "ref_baseline":46.07,
+    "rep_baseline":-50.97,
+    "pair":"2018-11-16 2018-12-10",
+    "baseline":-97.04,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-16",
+    "rep":"2018-12-22",
+    "ref_baseline":46.07,
+    "rep_baseline":-89.25,
+    "pair":"2018-11-16 2018-12-22",
+    "baseline":-135.32,
+    "duration":36,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-28",
+    "rep":"2018-12-10",
+    "ref_baseline":-39.7,
+    "rep_baseline":-50.97,
+    "pair":"2018-11-28 2018-12-10",
+    "baseline":-11.27,
+    "duration":12,
+    "rel":null
+  },
+  {
+    "ref":"2018-11-28",
+    "rep":"2018-12-22",
+    "ref_baseline":-39.7,
+    "rep_baseline":-89.25,
+    "pair":"2018-11-28 2018-12-22",
+    "baseline":-49.55,
+    "duration":24,
+    "rel":null
+  },
+  {
+    "ref":"2018-12-10",
+    "rep":"2018-12-22",
+    "ref_baseline":-50.97,
+    "rep_baseline":-89.25,
+    "pair":"2018-12-10 2018-12-22",
+    "baseline":-38.28,
+    "duration":12,
+    "rel":null
+  }
+]

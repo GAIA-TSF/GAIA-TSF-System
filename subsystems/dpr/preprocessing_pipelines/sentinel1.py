@@ -14,6 +14,7 @@ import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
 from shapely.geometry.polygon import Polygon
+from shapely.geometry import MultiPolygon
 import pandas as pd
 import requests_cache
 import openmeteo_requests
@@ -23,6 +24,7 @@ from shapely.wkt import loads
 from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
+from .insar_diagnostics import InSARDiagnostics
 from lib.config import SettingsReader
 
 
@@ -31,6 +33,21 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
+            'diagnostics_root': {
+                'dtype': str,
+                'default': '',
+                'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
+            },
+            'diagnostics': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Save per-run JSON/CSV statistics, SBAS graph and intermediate PNG diagnostics',
+            },
+            'reference_area_wkt': {
+                'dtype': str,
+                'default': '',
+                'description': 'Optional stable-ground Polygon/MultiPolygon WKT in EPSG:4326, inside processing AOI',
+            },
             'excluded_dates': {
                 'dtype': list,
                 'default': [],
@@ -64,16 +81,19 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     }
 
     def _configure(self):
+        self._diagnostics = None
         self.client = None
         self.sbas = None
         self.baseline_pairs = None
         self.corr = None
+        self.corr_unwrap = None
         self.intf = None
         self.unwrap = None
         self.detrend = None
         self.disp_ll = None
         self.vel_ll = None
         self.rmse = None
+        self.quality_ll = {}
         self.risk_map = None
         self.failure_flag = None
 
@@ -259,28 +279,36 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         valid = [r for r in results if r['n_comp'] == 1]
         if not valid:
+            if self._diagnostics is not None:
+                self._diagnostics.network(None, [{k: v for k, v in r.items() if k != 'df'} for r in results])
             raise RuntimeError('No connected network found. Try increasing thresholds.')
 
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
+        if self._diagnostics is not None:
+            self._diagnostics.network(self.baseline_pairs,
+                                      [{k: v for k, v in r.items() if k != 'df'} for r in results])
 
     def _compute_interferograms(
         self,
-        intensity_wavelength=20,
+        intensity_wavelength=30,
         phase_wavelength=30,
         coarsen=(1, 4),
         goldstein_patch=8,
     ):
         """Compute interferograms from baseline pairs.
 
-        :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity. Defaults to 20.
+        :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity. Defaults to 30; must match phase_wavelength.
         :param int phase_wavelength: Gaussian smoothing cut-off wavelength (metres) for wrapped phase. Defaults to 30.
         :param tuple coarsen: Radar coordinate downsampling (range_factor, azimuth_factor). Defaults to (1, 4).
         :param int goldstein_patch: Window size (pixels) for Goldstein filtering. Defaults to 8.
         :return: None
         """
+        if intensity_wavelength != phase_wavelength:
+            raise ValueError('Intensity and phase must use the same averaging kernel for coherence.')
         topo = self.sbas.get_topo()
         data = self.sbas.open_data()
+        self._check_slc_coverage(data)
 
         # Process Intensity (for correlation weights)
         intensity = self.sbas.multilooking(
@@ -300,6 +328,26 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Computing interferograms.')
         self.intf = self.sbas.interferogram(phase_goldstein)
 
+    def _check_slc_coverage(self, data):
+        """Reject empty aligned acquisitions before generating their interferograms."""
+        counts = (np.isfinite(data) & (np.abs(data) > 0)).sum(('y', 'x')).compute()
+        report = counts.to_dataframe(name='valid_slc_pixels')
+        if self._diagnostics is not None:
+            self._diagnostics.table('slc_coverage', report.reset_index())
+        result_dir = (self._config or {}).get('result_dir')
+        if result_dir is not None:
+            quality_dir = Path(result_dir) / 'quality'
+            quality_dir.mkdir(parents=True, exist_ok=True)
+            report.to_csv(quality_dir / 'slc_coverage.csv')
+        empty = report.index[report.valid_slc_pixels == 0]
+        if len(empty):
+            dates = ', '.join(pd.to_datetime(empty).strftime('%Y-%m-%d'))
+            raise ValueError(
+                f'Aligned SLC has no valid samples in the processing AOI on: {dates}. '
+                'Check burst completeness and alignment, or explicitly exclude the affected dates. '
+                'See quality/slc_coverage.csv when result_dir is configured.'
+            )
+
     def _unwrap_phase(self, corr_limit=0.20, unwrap_m=10.0):
         """Unwrap phases using SNAPHU.
 
@@ -314,10 +362,21 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Decimate to target unwrap spacing
         dec_u = self.sbas.decimator(unwrap_m)
-        corr_u, intf_u = dask.persist(dec_u(self.corr), dec_u(self.intf))
+        # Wrapped angles must be averaged on the unit circle, not arithmetically.
+        corr_u, phasor_u = dask.persist(
+            dec_u(self.corr), dec_u(np.exp(1j * self.intf))
+        )
+        intf_u = xr.apply_ufunc(np.angle, phasor_u, dask='allowed')
 
         # Build Correlation Mask
-        corr_mask = corr_u.where(corr_u >= corr_limit)
+        valid = np.isfinite(corr_u) & (corr_u >= corr_limit) & np.isfinite(intf_u)
+        corr_mask = corr_u.where(valid)
+        self.corr_unwrap = corr_mask
+        if self._diagnostics is not None:
+            self._diagnostics.summary['unwrapping'] = {'coherence_threshold': corr_limit,
+                                                       'target_spacing_m': unwrap_m}
+            self._diagnostics.save()
+            self._diagnostics.pairs(intf_u.where(valid), corr_mask, 'wrapped_phase')
 
         # Verify we have valid pixels to unwrap
         n_valid = int(np.isfinite(corr_mask).sum().compute())
@@ -328,25 +387,26 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         self.logger.info('Unwrapping phases.')
         self.unwrap = self.sbas.unwrap_snaphu(
-            intf_u.where(corr_mask), corr_mask
+            intf_u.where(valid), corr_mask
         ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
         self.unwrap = self.unwrap.compute()
+        self.unwrap['phase'] = self.unwrap.phase.where(valid)
+        if self._diagnostics is not None:
+            self._diagnostics.pairs(self.unwrap.phase, corr_mask, 'unwrapped_phase')
+        if not bool(np.isfinite(self.unwrap.phase).any()):
+            raise RuntimeError('SNAPHU returned no valid unwrapped phase.')
 
-    def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
-        """Remove long-wavelength ramps from the unwrapped phase in radar geometry.
+    def _detrend_phase(self, chunksize=256):
+        """Preserve deformation and optionally subtract a stable-area pair offset.
 
-        :param float ramp_factor: Multiplier applied to base_wavelength to define the ramp scale. Defaults to 3.0.
-        :param int base_wavelength: Reference smoothing wavelength (m). Defaults to 30.
-        :param int chunksize: Size of spatial blocks for Dask processing to optimize memory usage. Defaults to 256.
-        :return: None
+        A local Gaussian high-pass removes embankment-scale deformation along
+        with atmosphere. No spatial trend is fitted without stable-ground data.
+        The historical method name is retained for pipeline callers.
         """
         if self.unwrap is None:
             raise RuntimeError('Phase must be unwrapped before detrending.')
-
-        # Determine spatial scales
-        ramp_wavelength = ramp_factor * base_wavelength
 
         # Ensure Dask chunking
         phase_data = self.unwrap.phase
@@ -354,12 +414,56 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
-        # Build and subtract the ramp
-        ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
+        reference = (self._config or {}).get('reference_area_wkt', '')
+        if reference:
+            from shapely import contains_xy
 
-        # Subtracting the ramp leaves only the localized displacement signal
-        self.logger.info('Detrending phases.')
-        self.detrend = (phase_data - ramp).persist()
+            polygon = loads(reference)
+            if not isinstance(polygon, (Polygon, MultiPolygon)) or polygon.is_empty or not polygon.is_valid:
+                raise ValueError('reference_area_wkt must be a valid nonempty Polygon or MultiPolygon.')
+            aoi = (self._config or {}).get('aoi')
+            if aoi is not None and not aoi.covers(polygon):
+                raise ValueError('Stable reference polygon must be inside the processing AOI.')
+            # PyGMTSAR.geocode supports Polygon, but not MultiPolygon.
+            polygons = list(polygon.geoms) if isinstance(polygon, MultiPolygon) else [polygon]
+            xx, yy = np.meshgrid(phase_data.x.values, phase_data.y.values)
+            reference_pixels = np.zeros(xx.shape, dtype=bool)
+            for part in polygons:
+                reference_pixels |= contains_xy(self.sbas.geocode(part), xx, yy)
+            mask = xr.DataArray(reference_pixels,
+                                dims=('y', 'x'), coords={'y': phase_data.y, 'x': phase_data.x})
+            reference_phase = phase_data.where(mask)
+            diagnostics = xr.Dataset({
+                'reference_valid_phase_pixels': reference_phase.count(('y', 'x')),
+                'all_valid_phase_pixels': phase_data.count(('y', 'x')),
+                'reference_mean_phase_rad': reference_phase.mean(('y', 'x')),
+            })
+            if self.corr_unwrap is not None:
+                _, reference_corr = xr.align(phase_data, self.corr_unwrap, join='exact')
+                diagnostics['reference_coherent_pixels'] = reference_corr.where(mask).count(('y', 'x'))
+            report = diagnostics.compute().to_dataframe()
+            report['reference_mask_pixels'] = int(reference_pixels.sum())
+            if self._diagnostics is not None:
+                self._diagnostics.reference(report)
+            result_dir = (self._config or {}).get('result_dir')
+            if result_dir is not None:
+                quality_dir = Path(result_dir) / 'quality'
+                quality_dir.mkdir(parents=True, exist_ok=True)
+                report.to_csv(quality_dir / 'reference_phase_diagnostics.csv')
+            missing = report['reference_valid_phase_pixels'] == 0
+            if missing.any():
+                failed_pairs = report.index[missing].astype(str).tolist()
+                raise ValueError(
+                    f'Stable reference area has no valid phase for {int(missing.sum())} '
+                    f'of {len(report)} pairs; reference mask has {int(reference_pixels.sum())} pixels. '
+                    f'Affected pairs: {", ".join(failed_pairs)}. '
+                    'See quality/reference_phase_diagnostics.csv when result_dir is configured.'
+                )
+            offset = reference_phase.mean(('y', 'x'), skipna=True)
+            phase_data = phase_data - offset
+        else:
+            self.logger.warning('No stable-ground reference configured; preserving unwrapped phase without spatial detrending.')
+        self.detrend = phase_data.persist()
 
         # Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
@@ -374,33 +478,89 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             raise RuntimeError('Missing detrended phase or correlation data.')
 
         # Grid Alignment & SBAS Solve
-        corr_ra = self.corr
-        if self.detrend.sizes != self.corr.sizes:
+        corr_ra = self.corr_unwrap
+        if corr_ra is None:
             corr_ra = self.sbas.decimator(float(target_m))(self.corr).persist()
+        # Matching shapes alone does not establish matching pixel coordinates.
+        phase_ra, corr_ra = xr.align(self.detrend, corr_ra, join='exact')
+        corr_ra = corr_ra.where(np.isfinite(phase_ra))
 
         with ProgressBar():
-            sol = self.sbas.lstsq(self.detrend, corr_ra)
+            sol = self.sbas.lstsq(phase_ra, corr_ra)
+            # PyGMTSAR's least-squares solver returns minimum-norm values even
+            # when masking disconnects a pixel's temporal network. Those dates
+            # have no displacement relative to the first epoch and are nodata.
+            pairs, dates = self.sbas.get_pairs(phase_ra, dates=True)
+            dates = pd.to_datetime(dates)
+            refs = dates.get_indexer(pd.to_datetime(pairs.ref))
+            reps = dates.get_indexer(pd.to_datetime(pairs.rep))
+            connected = xr.apply_ufunc(
+                self._reference_connected,
+                (np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)).chunk({'pair': -1}),
+                input_core_dims=[['pair']], output_core_dims=[['date']],
+                kwargs={'refs': refs, 'reps': reps, 'n_dates': len(dates)},
+                vectorize=True, dask='parallelized', output_dtypes=[bool],
+                dask_gufunc_kwargs={'output_sizes': {'date': len(dates)}},
+            ).assign_coords(date=dates)
+            sol = sol.where(connected)
             disp_ra = self.sbas.los_displacement_mm(sol).persist()
-            vel_ra = self.sbas.velocity(sol).persist()
 
         # Reference to Zero (Inline Time-Dim Selection)
         t_dim = next(
             (d for d in disp_ra.dims if d in ('date', 'time', 'epoch', 'pair')), None
         )
         if t_dim:
-            disp_ra = disp_ra.where(
-                disp_ra[t_dim] != disp_ra[t_dim].values[0], other=np.nan
-            )
+            disp_ra = disp_ra - disp_ra.isel({t_dim: 0})
+        vel_ra = self.sbas.velocity(disp_ra).persist()
 
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
         self.logger.info('Computing displacements.')
         self.disp_ll = self.sbas.cropna(self.sbas.ra2ll(disp_ra)).persist()
         self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
+        self.disp_ll.attrs.update(units='mm', spatial_reference='stable_area' if
+                                 (self._config or {}).get('reference_area_wkt') else 'unreferenced')
+        self.vel_ll.attrs['units'] = 'mm/year'
 
         # RMSE Calculation
         disp_pairs_ra = self.sbas.los_displacement_mm(self.detrend).persist()
-        self.rmse = self.sbas.rmse(disp_pairs_ra, disp_ra, corr_ra).persist()
+        # PyGMTSAR.rmse wraps residuals to [-pi, pi]; that is unsuitable for mm.
+        rep_disp = disp_ra.sel(date=phase_ra.rep).drop_vars('date')
+        ref_disp = disp_ra.sel(date=phase_ra.ref).drop_vars('date')
+        residual = disp_pairs_ra - (rep_disp - ref_disp)
+        weights = corr_ra.where(np.isfinite(residual))
+        weight_sum = weights.sum('pair')
+        self.rmse = np.sqrt(
+            (weights * residual**2).sum('pair', min_count=1)
+            / weight_sum.where(weight_sum > 0)
+        ).persist()
+        self.quality_ll = {
+            'pair_rmse_mm': self.sbas.ra2ll(self.rmse),
+            'mean_coherence': self.sbas.ra2ll(self.corr.mean('pair')),
+            'valid_pair_fraction': self.sbas.ra2ll(np.isfinite(phase_ra).mean('pair')),
+        }
+        if self._diagnostics is not None:
+            self._diagnostics.displacement(self.disp_ll)
+
+    @staticmethod
+    def _reference_connected(valid, refs, reps, n_dates):
+        """Find acquisition dates connected to the first epoch at one pixel."""
+        parents = list(range(n_dates))
+
+        def root(i):
+            while parents[i] != i:
+                parents[i] = parents[parents[i]]
+                i = parents[i]
+            return i
+
+        for a, b in zip(refs[valid], reps[valid]):
+            parents[root(b)] = root(a)
+        first = root(0)
+        connected = np.array([root(i) == first for i in range(n_dates)])
+        # An isolated reference epoch is not an observed zero-displacement pixel.
+        if connected.sum() == 1:
+            connected[:] = False
+        return connected
 
     def _compute_risk(self):
         """Compute risk map based on displacements, velocity and slope.
@@ -891,6 +1051,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         disp_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
 
+        quality_path = base_path / 'quality'
+        quality_path.mkdir(parents=True, exist_ok=True)
+        for name, data in getattr(self, 'quality_ll', {}).items():
+            grid = data.rename({'lat': 'y', 'lon': 'x'})
+            grid.rio.write_crs('EPSG:4326', inplace=True)
+            grid.rio.write_nodata(np.nan, inplace=True)
+            grid.rio.to_raster(quality_path / f'{name}.tif')
+
         self.logger.info('Exporting displacements and velocity.')
         if hasattr(self, 'vel_ll') and self.vel_ll is not None:
             vel_to_export = self.vel_ll.rename({'lat': 'y', 'lon': 'x'})
@@ -899,6 +1067,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 vel_to_export.rio.write_crs('EPSG:4326', inplace=True)
 
             vel_filename = vel_path / 'velocity.tif'
+            vel_to_export.rio.write_nodata(np.nan, inplace=True)
             vel_to_export.rio.to_raster(vel_filename)
 
         if self.disp_ll is not None:
@@ -919,7 +1088,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
             num_dates = len(data_to_export[t_dim])
 
-            for i in range(1, num_dates):
+            for i in range(num_dates):
                 slice_data = data_to_export.isel({t_dim: i})
 
                 date_val = pd.to_datetime(slice_data[t_dim].values)
@@ -929,6 +1098,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 if slice_data.rio.crs is None:
                     slice_data.rio.write_crs('EPSG:4326', inplace=True)
 
+                slice_data.rio.write_nodata(np.nan, inplace=True)
                 slice_data.rio.to_raster(filename)
 
     def _cleanup(self, workdir):
@@ -940,7 +1110,47 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if os.path.exists(workdir) and os.path.isdir(workdir):
             shutil.rmtree(workdir)
 
+    def _run_stage(self, method, *args, **kwargs):
+        if self._diagnostics is None:
+            return method(*args, **kwargs)
+        record = {'name': method.__name__, 'status': 'running',
+                  'started_utc': datetime.now(timezone.utc).isoformat()}
+        self._diagnostics.summary['stages'].append(record)
+        self._diagnostics.save()
+        start = time.monotonic()
+        try:
+            result = method(*args, **kwargs)
+            record['status'] = 'complete'
+            return result
+        except Exception as exc:
+            record.update(status='failed', error_type=type(exc).__name__, error=str(exc))
+            raise
+        finally:
+            record['elapsed_seconds'] = round(time.monotonic() - start, 3)
+            self._diagnostics.save()
+
     def _run(self):
+        if self._config.get('diagnostics', True):
+            root = self._config.get('diagnostics_root') or self._config['result_dir']
+            self._diagnostics = InSARDiagnostics(root, self._config)
+            self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
+        try:
+            result = self._run_processing()
+        except Exception as exc:
+            if self._diagnostics is not None:
+                self._diagnostics.summary.update(status='failed', error_type=type(exc).__name__, error=str(exc))
+            raise
+        else:
+            if self._diagnostics is not None:
+                self._diagnostics.summary['status'] = 'complete'
+            return result
+        finally:
+            if self._diagnostics is not None:
+                self._diagnostics.summary['finished_utc'] = datetime.now(timezone.utc).isoformat()
+                self._diagnostics.save()
+            self.close()
+
+    def _run_processing(self):
         glob_config = SettingsReader()
         dask_kwargs = {
             'silence_logs': glob_config['dask_parameters']['silence_logs'],
@@ -952,27 +1162,29 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         start = time.time()
 
-        self._download_orbits(self._config['datadir'])
-        self._download_dem(self._config['aoi'], self._config['dem_path'])
-        self._download_landmask(self._config['aoi'], self._config['landmask_path'])
-        self._run_dask_cluster(**dask_kwargs)
-        self._stack_scenes(self._config['datadir'], self._config['workdir'])
-        self._reframe_scenes(self._config['aoi'])
-        self._load_dem_and_landmask(
+        step = self._run_stage
+        step(self._download_orbits, self._config['datadir'])
+        step(self._download_dem, self._config['aoi'], self._config['dem_path'])
+        step(self._download_landmask, self._config['aoi'], self._config['landmask_path'])
+        step(self._run_dask_cluster, **dask_kwargs)
+        step(self._stack_scenes, self._config['datadir'], self._config['workdir'])
+        step(self._reframe_scenes, self._config['aoi'])
+        step(self._load_dem_and_landmask,
             self._config['aoi'], self._config['dem_path'], self._config['landmask_path']
         )
-        self._align_images()
-        self._geocoding_transform()
-        self._find_optimal_network()
-        self._compute_interferograms()
-        self._unwrap_phase()
-        self._detrend_phase()
-        self._compute_displacement()
-        self._compute_risk()
-        self._environmental_database(self._config['aoi'], self._config['result_dir'])
-        self._compute_risk_database(self._config['result_dir'])
-        self._export_displacements(self._config['result_dir'])
-        self._cleanup(self._config['workdir'])
+        step(self._align_images)
+        step(self._geocoding_transform)
+        step(self._find_optimal_network)
+        step(self._compute_interferograms)
+        step(self._unwrap_phase)
+        step(self._detrend_phase)
+        step(self._compute_displacement)
+        # Save InSAR products before optional external environmental requests.
+        step(self._export_displacements, self._config['result_dir'])
+        step(self._compute_risk)
+        step(self._environmental_database, self._config['aoi'], self._config['result_dir'])
+        step(self._compute_risk_database, self._config['result_dir'])
+        step(self._cleanup, self._config['workdir'])
 
         elapsed_minutes = (time.time() - start) / 60
         self.logger.info(f'Computation completed in {elapsed_minutes:.2f} minutes.')

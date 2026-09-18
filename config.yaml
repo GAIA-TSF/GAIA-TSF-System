@@ -31,7 +31,7 @@ sdi:
 qcl:
   logger:
     level: DEBUG
-    db:
+    # db:
     #  <<: *sdi_db
     #  dbname: 'logging'
   asset_checker:
@@ -65,7 +65,9 @@ isu:
     - 'gb18030'
     - 'latin-1'
 storage:
-  data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_western_platinum 
+  # data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_western_platinum 
+  data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_cadia 
+  # data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein 
   # data_dir:  /data/gaia_tsf/slope_monitoring_western_platinum
 dask_parameters:
   silence_logs: 'WARNING'

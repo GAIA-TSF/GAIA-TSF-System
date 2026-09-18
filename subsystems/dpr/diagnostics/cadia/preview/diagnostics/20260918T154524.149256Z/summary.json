@@ -1,0 +1,24 @@
+{
+  "started_utc": "20260918T154524.149256Z",
+  "status": "diagnostic_preview_only",
+  "stages": [],
+  "configuration": {
+    "source": "Retained diagnostic network; excluded 2017-10-04. No new InSAR processing."
+  },
+  "notes": [
+    "Quality statistics are not displacement accuracy estimates.",
+    "Dates are UTC; plots in radar coordinates are not geographic maps."
+  ],
+  "versions": {
+    "pygmtsar": "2025.4.8.post1",
+    "numpy": "2.4.6",
+    "xarray": "2026.4.0",
+    "dask": "2026.6.0",
+    "matplotlib": "3.11.0"
+  },
+  "network": {
+    "dates": 103,
+    "pairs": 543,
+    "single_edge_dates": 1
+  }
+}
