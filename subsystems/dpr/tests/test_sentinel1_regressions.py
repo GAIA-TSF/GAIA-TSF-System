@@ -103,7 +103,8 @@ def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
     pipeline.intf = phase_grid([[[1, 2], [3, 1]]])
     pipeline.corr = phase_grid([[[.8, .1], [np.nan, .7]]])
     pipeline.sbas.decimator.return_value = lambda a: a
-    def unwrap(phase, weight):
+    def unwrap(phase, weight, conncomp=False):
+        assert conncomp
         assert np.isnan(phase.values[0, 0, 1])
         assert np.isnan(phase.values[0, 1, 0])
         return phase.fillna(123).to_dataset(name='phase')
@@ -117,9 +118,30 @@ def test_wrapped_phase_decimation_handles_branch_cut(pipeline):
     pipeline.intf = phase_grid([[[np.pi-.1, -np.pi+.1]]])
     pipeline.corr = xr.ones_like(pipeline.intf) * .8
     pipeline.sbas.decimator.return_value = lambda a: a.coarsen(x=2).mean()
-    pipeline.sbas.unwrap_snaphu.side_effect = lambda phase, weight: phase.to_dataset(name='phase')
+    pipeline.sbas.unwrap_snaphu.side_effect = lambda phase, weight, conncomp=False: phase.to_dataset(name='phase')
     pipeline._unwrap_phase()
     assert abs(float(pipeline.unwrap.phase.item())) == pytest.approx(np.pi)
+
+
+def test_unwrap_checkpoints_preserve_inputs_and_component_labels(pipeline, tmp_path):
+    from subsystems.dpr.preprocessing_pipelines.insar_checkpoints import PairCheckpoints
+    pipeline._checkpoints = PairCheckpoints(tmp_path, {})
+    pipeline.intf = phase_grid([[[1, 2], [3, 1]]])
+    pipeline.corr = phase_grid([[[.8, .1], [np.nan, .7]]])
+    pipeline.sbas.decimator.return_value = lambda a: a
+    pipeline.sbas.snaphu_config.return_value = 'DEFOMAX_CYCLE 0'
+    labels = phase_grid([[[1, 0], [0, 2]]])
+    def unwrap(phase, weight, conncomp=False):
+        assert conncomp
+        return xr.Dataset({'phase': phase.fillna(123), 'conncomp': labels})
+    pipeline.sbas.unwrap_snaphu.side_effect = unwrap
+    pipeline._unwrap_phase()
+    with PairCheckpoints.open_stage(pipeline._checkpoints.path, 'wrapped') as saved:
+        xr.testing.assert_allclose(saved.coherence, pipeline.corr)
+        assert saved.valid_mask.values.tolist() == [[[1, 0], [0, 1]]]
+    with PairCheckpoints.open_stage(pipeline._checkpoints.path, 'unwrapped') as saved:
+        xr.testing.assert_allclose(saved.unwrapped_phase, pipeline.unwrap.phase)
+        xr.testing.assert_allclose(saved.snaphu_component, labels)
 
 
 def test_coherence_requires_matching_kernels(pipeline):
@@ -175,6 +197,9 @@ def test_solver_units_reference_epoch_quality_and_export(pipeline, tmp_path, mis
     np.testing.assert_allclose(pipeline.rmse, 0, atol=1e-5)
     pipeline._export_displacements(tmp_path)
     assert len(list((tmp_path / 'displacements').glob('*.tif'))) == 3
+    for source in (tmp_path / 'displacements').glob('disp_*.tif'):
+        target = tmp_path / 'los' / source.name.replace('disp_', 'los_', 1)
+        assert target.read_bytes() == source.read_bytes()
     with rasterio.open(tmp_path / 'velocity/velocity.tif') as src:
         assert src.tags()['units'] == 'mm/year'
         assert np.isnan(src.nodata)

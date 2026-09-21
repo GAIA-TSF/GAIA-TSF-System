@@ -1,23 +1,13 @@
-"""
-Task: run EOU-DPR subsystems to download Sentinel-1 images for slope stability monitoring
-and prepo-cessing the images for given test site.
+"""Run Sentinel-1 acquisition and processing for a configured project.
 
-Prep:
-1. set start & end dates
-2. create project /home/lukas/GAIA-TSF/src/GAIA-TSF-System/tests/projects/slope_monitoring_cadia
-3. update project config.yaml
-4. set config.yaml data_dir:  /home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_cadia
+From docker/, process the configured Cadia epochs independently:
+    docker compose exec -T -u "$(id -u):$(id -g)" gaiatesting bash -c \
+      'ulimit -Sn 65536 && exec python3 -u -m subsystems.dpr.run_s1_eou_dpr \
+       --project slope_monitoring_cadia --epoch all --skip-download --insar-only'
 
-Cadia site:
-Direction	Orbit path	Burst products
-Ascending   (A)	  82	3—all in 2016
-Descending  (D)	  45	207
-
-Usage:
-cd docker/
-docker compose exec -u $(id -u):$(id -g) gaiatesting python3 run_s1_eou_dpr.py
-new way:
-docker compose exec -T -u "$(id -u):$(id -g)" gaiatesting bash -c 'ulimit -Sn 65536 && exec python3 -u -m subsystems.dpr.run_s1_eou_dpr' 2>&1 | tee s1_run.log
+Use --dry-run to inspect dates and paths. --epoch pre_failure/post_failure runs
+one period; --epoch full explicitly requests the unsplit monitoring period.
+With epochs, --result-dir specifies a base containing one subdirectory per epoch.
 """
 
 import argparse
@@ -46,17 +36,60 @@ def load_reference_area(path, aoi):
     return geometry.wkt
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process a configured Sentinel-1 project.')
+def processing_runs(project_config, epoch=None, result_dir=None):
+    """Resolve non-overlapping epochs and isolated paths before any processing."""
+    import pandas as pd
+
+    site_dir = Path(project_config['project']['data_dir'])
+    period = project_config['project']['monitoring_period']
+    epochs = project_config.get('sentinel1', {}).get('epochs', {})
+    epoch = epoch or ('all' if epochs else 'full')
+    if epoch == 'full':
+        selections = {'full': period}
+    else:
+        if not epochs or any(name not in ('pre_failure', 'post_failure') for name in epochs):
+            raise ValueError('Configure sentinel1.epochs with pre_failure and/or post_failure bounds.')
+        ordered = sorted(epochs.items(), key=lambda item: pd.Timestamp(item[1]['start']))
+        previous_end = None
+        for name, bounds in ordered:
+            start, end = pd.Timestamp(bounds['start']), pd.Timestamp(bounds['end'])
+            if start > end or start < pd.Timestamp(period['start']) or end > pd.Timestamp(period['end']):
+                raise ValueError(f'Invalid or out-of-monitoring-period bounds for {name}')
+            if previous_end is not None and start <= previous_end:
+                raise ValueError('Processing epochs must not overlap.')
+            previous_end = end
+        if epoch != 'all' and epoch not in epochs:
+            raise ValueError(f'No configured epoch: {epoch}')
+        selections = dict(ordered) if epoch == 'all' else {epoch: epochs[epoch]}
+    runs = []
+    for name, bounds in selections.items():
+        base = Path(result_dir) if result_dir else site_dir / 'sentinel1' / ('results' if name == 'full' else 'results_epochs')
+        runs.append({'name': name, 'start': str(bounds['start']), 'end': str(bounds['end']),
+                     'workdir': site_dir / 'processing' / 'sentinel1' / name,
+                     'result_dir': base if name == 'full' else base / name})
+    return runs
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Process independent configured Sentinel-1 epochs.')
     parser.add_argument('--project', default='slope_monitoring_jagersfontein')
-    parser.add_argument('--skip-download', action='store_true', help='Reuse local SLC inputs')
-    parser.add_argument('--result-dir', type=Path, help='Separate output directory for comparison runs')
+    parser.add_argument('--skip-download', action='store_true', help='Reuse local SLCs; date filtering still applies')
+    parser.add_argument('--result-dir', type=Path, help='Output base; independent epochs get named subdirectories')
     parser.add_argument('--reference-area', type=Path, help='Stable-ground polygon file with a declared CRS')
+    parser.add_argument('--epoch', choices=['all', 'pre_failure', 'post_failure', 'full'],
+                        help='Default: all configured epochs, or full when no epochs are configured')
+    parser.add_argument('--insar-only', action='store_true', help='Skip environmental and risk processing')
+    parser.add_argument('--dry-run', action='store_true', help='Print periods and paths without processing or downloads')
     args = parser.parse_args()
     config_path = Path(TestUtils.get_project_config_path(args.project))
     project_config = ProjectConfigReader(config_path)
     sentinel1 = project_config.get('sentinel1', {})
-    period = project_config['project']['monitoring_period']
+    runs = processing_runs(project_config, args.epoch, args.result_dir)
+    for run in runs:
+        print(f"{run['name']}: {run['start']} through {run['end']} UTC; "
+              f"workdir={run['workdir']}; results={run['result_dir']}", flush=True)
+    if args.dry_run:
+        return
     reference_wkt = sentinel1.get('reference_area_wkt', '')
     reference_path = args.reference_area
     if reference_path is None and sentinel1.get('reference_area'):
@@ -65,36 +98,29 @@ if __name__ == '__main__':
             reference_path = config_path.parent / reference_path
     if reference_path is not None:
         reference_wkt = load_reference_area(reference_path, project_config.aoi())
-
-    # download input data
     data_dir = Path(project_config['project']['data_dir'], 'sentinel1')
-    print(data_dir)
+    for run in runs:
+        if not args.skip_download:
+            dag_module = DataAcquisitionGateway(backend='asf')
+            results = dag_module.backend.search(
+                geom=project_config.aoi(), start=run['start'], end=run['end'],
+                direction=sentinel1.get('direction', 'A'), path_number=sentinel1.get('path_number'))
+            dag_module.backend.download_all(results, target_dir=data_dir)
+        # A new instance and work directory give each epoch its own alignment,
+        # reference acquisition, network, unwrapping and inversion.
+        pipeline = PreprocessingPipelines().pipelines['sentinel1']
+        pipeline.configure(
+            datadir=data_dir, aoi=project_config.aoi(),
+            dem_path=data_dir / 'dem.nc', landmask_path=data_dir / 'landmask.nc',
+            workdir=run['workdir'], result_dir=run['result_dir'],
+            processing_start=run['start'], processing_end=run['end'],
+            source_safe_only=True, insar_only=args.insar_only,
+            excluded_dates=sentinel1.get('excluded_dates') or [],
+            reference_area_wkt=reference_wkt, diagnostics=sentinel1.get('diagnostics', True),
+            retain_pair_checkpoints=sentinel1.get('retain_pair_checkpoints', True),
+            diagnostics_root=str(Path(project_config['project']['data_dir'])))
+        pipeline.run()
 
-    if not args.skip_download:
-        dag_module = DataAcquisitionGateway(backend='asf')
-        results = dag_module.backend.search(
-            geom=project_config.aoi(),
-            start=period['start'],
-            end=period['end'],
-            direction=sentinel1.get('direction', 'A'),
-            path_number=sentinel1.get('path_number'),
-        )
-        dag_module.backend.download_all(results, target_dir=data_dir)
 
-    # configure & run the pipeline
-    pipeline = PreprocessingPipelines().pipelines['sentinel1']
-
-    pipeline.configure(
-        datadir=data_dir,
-        aoi=project_config.aoi(),
-        dem_path= data_dir / 'dem.nc',
-        landmask_path= data_dir / 'landmask.nc',
-        workdir= data_dir / 'workdir',
-        result_dir=args.result_dir or data_dir / 'results',
-        excluded_dates=sentinel1.get('excluded_dates') or [],
-        reference_area_wkt=reference_wkt,
-        diagnostics=sentinel1.get('diagnostics', True),
-        diagnostics_root=str(Path(project_config['project']['data_dir'])),
-    )
-
-    pipeline.run()
+if __name__ == '__main__':
+    main()

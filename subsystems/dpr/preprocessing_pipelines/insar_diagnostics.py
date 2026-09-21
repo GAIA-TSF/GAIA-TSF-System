@@ -44,6 +44,7 @@ class InSARDiagnostics:
             'Means can change with valid pixel support. Phase sample colour scales are independent.\n'
             'These are diagnostics, not uncertainty estimates, component/closure validation,\n'
             'or complete intermediate phase checkpoints. A partial run has only completed reports.\n'
+            'When retention is enabled, summary.json links to separate per-pair NetCDF checkpoints.\n'
         )
         self.save()
 

@@ -25,6 +25,7 @@ from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
 from .insar_diagnostics import InSARDiagnostics
+from .insar_checkpoints import PairCheckpoints
 from lib.config import SettingsReader
 
 
@@ -33,6 +34,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
+            'retain_pair_checkpoints': {'dtype': bool, 'default': True, 'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels'},
+            'processing_start': {'dtype': str, 'default': '', 'description': 'Inclusive acquisition date in UTC'},
+            'processing_end': {'dtype': str, 'default': '', 'description': 'Inclusive acquisition date in UTC'},
+            'source_safe_only': {'dtype': bool, 'default': False, 'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs'},
+            'insar_only': {'dtype': bool, 'default': False, 'description': 'Export InSAR results without environmental and risk processing'},
             'diagnostics_root': {
                 'dtype': str,
                 'default': '',
@@ -81,6 +87,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     }
 
     def _configure(self):
+        self._checkpoints = None
         self._diagnostics = None
         self.client = None
         self.sbas = None
@@ -168,9 +175,40 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Reset generated files before the recursive scan: workdir may be
         # inside datadir, and stale reframed scenes would become input scenes.
         self.sbas = Stack(workdir, drop_if_exists=True)
-        s1 = self._filter_excluded_dates(S1.scan_slc(datadir))
+        s1 = S1.scan_slc(datadir)
+        if self._config.get('source_safe_only', False):
+            def original_source(value):
+                paths = value if isinstance(value, (list, tuple)) else [value]
+                return all(any(part.endswith('.SAFE') for part in Path(path).parts) for path in paths)
+            s1 = s1.loc[s1.datapath.map(original_source)].copy()
+        s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = self.sbas.set_scenes(s1)
+
+    def _filter_processing_dates(self, scenes):
+        """Filter original acquisitions before selecting a reference or constructing pairs."""
+        start = self._config.get('processing_start', '')
+        end = self._config.get('processing_end', '')
+        start = pd.to_datetime(start, utc=True).normalize() if start else None
+        end = pd.to_datetime(end, utc=True).normalize() if end else None
+        if (start is not None and pd.isna(start)) or (end is not None and pd.isna(end)):
+            raise ValueError('Processing bounds must be valid UTC dates.')
+        if start is not None and end is not None and start > end:
+            raise ValueError('processing_start must not be after processing_end')
+        dates = pd.to_datetime(scenes.index, utc=True).normalize()
+        keep = np.ones(len(scenes), dtype=bool)
+        if start is not None:
+            keep &= dates >= start
+        if end is not None:
+            keep &= dates <= end
+        filtered = scenes.loc[keep].sort_index().copy()
+        selected = pd.to_datetime(filtered.index, utc=True).normalize().unique().sort_values()
+        if len(selected) < 2:
+            raise ValueError('At least two acquisition dates are required within the processing period.')
+        self.logger.info(f'Processing {len(selected)} acquisition dates: {selected[0]} to {selected[-1]}')
+        if self._diagnostics is not None:
+            self._diagnostics.table('selected_acquisitions', pd.DataFrame({'date': selected}))
+        return filtered
 
     def _filter_excluded_dates(self, scenes):
         """Exclude all scenes on configured calendar dates, preserving source files."""
@@ -285,6 +323,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
         self.baseline_pairs = best_config['df']
+        if self._checkpoints is not None:
+            self._checkpoints.network(self.baseline_pairs,
+                                      [{k: v for k, v in r.items() if k != 'df'} for r in results])
         if self._diagnostics is not None:
             self._diagnostics.network(self.baseline_pairs,
                                       [{k: v for k, v in r.items() if k != 'df'} for r in results])
@@ -306,6 +347,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         if intensity_wavelength != phase_wavelength:
             raise ValueError('Intensity and phase must use the same averaging kernel for coherence.')
+        if self._checkpoints is not None:
+            self._checkpoints.manifest['interferograms'] = {
+                'intensity_wavelength_m': intensity_wavelength,
+                'phase_wavelength_m': phase_wavelength,
+                'coarsen': list(coarsen), 'goldstein_patch': goldstein_patch,
+            }
+            self._checkpoints.save()
         topo = self.sbas.get_topo()
         data = self.sbas.open_data()
         self._check_slc_coverage(data)
@@ -372,6 +420,23 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         valid = np.isfinite(corr_u) & (corr_u >= corr_limit) & np.isfinite(intf_u)
         corr_mask = corr_u.where(valid)
         self.corr_unwrap = corr_mask
+        if self._checkpoints is not None:
+            wrapped = xr.Dataset({
+                'wrapped_phase': intf_u,
+                'coherence': corr_u,
+                'snaphu_phase': intf_u.where(valid),
+                'snaphu_coherence': corr_mask,
+                'valid_mask': valid.astype('uint8'),
+            })
+            for name in ('wrapped_phase', 'snaphu_phase'):
+                wrapped[name].attrs['units'] = 'rad'
+            for name in ('coherence', 'snaphu_coherence'):
+                wrapped[name].attrs['units'] = '1'
+            self._checkpoints.manifest['unwrapping'] = {
+                'coherence_threshold': corr_limit, 'target_spacing_m': unwrap_m,
+                'snaphu_configuration': self.sbas.snaphu_config(),
+            }
+            self._checkpoints.write('wrapped', wrapped)
         if self._diagnostics is not None:
             self._diagnostics.summary['unwrapping'] = {'coherence_threshold': corr_limit,
                                                        'target_spacing_m': unwrap_m}
@@ -387,12 +452,18 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         self.logger.info('Unwrapping phases.')
         self.unwrap = self.sbas.unwrap_snaphu(
-            intf_u.where(valid), corr_mask
+            intf_u.where(valid), corr_mask, conncomp=True
         ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
         self.unwrap = self.unwrap.compute()
         self.unwrap['phase'] = self.unwrap.phase.where(valid)
+        if self._checkpoints is not None:
+            unwrapped = self.unwrap.rename({'phase': 'unwrapped_phase', 'conncomp': 'snaphu_component'})
+            unwrapped['unwrapped_phase'].attrs['units'] = 'rad'
+            # Preserve raw SNAPHU labels (including NaNs for failed pairs).
+            unwrapped['snaphu_component'].attrs['description'] = 'Pair-local SNAPHU label; 0 unassigned; inspect valid_mask in wrapped checkpoint'
+            self._checkpoints.write('unwrapped', unwrapped)
         if self._diagnostics is not None:
             self._diagnostics.pairs(self.unwrap.phase, corr_mask, 'unwrapped_phase')
         if not bool(np.isfinite(self.unwrap.phase).any()):
@@ -520,6 +591,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
         self.disp_ll.attrs.update(units='mm', spatial_reference='stable_area' if
                                  (self._config or {}).get('reference_area_wkt') else 'unreferenced')
+        self.disp_ll.attrs['temporal_reference_utc'] = str(pd.to_datetime(self.disp_ll.date.values[0]))
         self.vel_ll.attrs['units'] = 'mm/year'
 
         # RMSE Calculation
@@ -1046,9 +1118,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         base_path = Path(output_dir)
         disp_path = base_path / 'displacements'
+        los_path = base_path / 'los'
         vel_path = base_path / 'velocity'
 
         disp_path.mkdir(parents=True, exist_ok=True)
+        los_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
 
         quality_path = base_path / 'quality'
@@ -1100,6 +1174,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
                 slice_data.rio.write_nodata(np.nan, inplace=True)
                 slice_data.rio.to_raster(filename)
+                # Displacement is already LOS in mm. Copy the exported raster
+                # to the explicit LOS product directory without recomputation.
+                shutil.copy2(filename, los_path / f'los_{date_str}.tif')
 
     def _cleanup(self, workdir):
         """Remove unnecessary directory with files after computation is done.
@@ -1130,21 +1207,34 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._diagnostics.save()
 
     def _run(self):
+        if self._config.get('retain_pair_checkpoints', True):
+            root = self._config['result_dir']
+            self._checkpoints = PairCheckpoints(root, self._config)
+            self.logger.info(f'Per-pair checkpoints: {self._checkpoints.path}')
         if self._config.get('diagnostics', True):
             root = self._config.get('diagnostics_root') or self._config['result_dir']
             self._diagnostics = InSARDiagnostics(root, self._config)
             self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
+            if self._checkpoints is not None:
+                self._diagnostics.summary['pair_checkpoints'] = str(self._checkpoints.path)
+                self._diagnostics.save()
         try:
             result = self._run_processing()
         except Exception as exc:
+            if self._checkpoints is not None:
+                self._checkpoints.manifest.update(status='failed', error_type=type(exc).__name__, error=str(exc))
             if self._diagnostics is not None:
                 self._diagnostics.summary.update(status='failed', error_type=type(exc).__name__, error=str(exc))
             raise
         else:
+            if self._checkpoints is not None:
+                self._checkpoints.manifest['status'] = 'complete'
             if self._diagnostics is not None:
                 self._diagnostics.summary['status'] = 'complete'
             return result
         finally:
+            if self._checkpoints is not None:
+                self._checkpoints.save()
             if self._diagnostics is not None:
                 self._diagnostics.summary['finished_utc'] = datetime.now(timezone.utc).isoformat()
                 self._diagnostics.save()
@@ -1181,9 +1271,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         step(self._compute_displacement)
         # Save InSAR products before optional external environmental requests.
         step(self._export_displacements, self._config['result_dir'])
-        step(self._compute_risk)
-        step(self._environmental_database, self._config['aoi'], self._config['result_dir'])
-        step(self._compute_risk_database, self._config['result_dir'])
+        if not self._config.get('insar_only', False):
+            step(self._compute_risk)
+            step(self._environmental_database, self._config['aoi'], self._config['result_dir'])
+            step(self._compute_risk_database, self._config['result_dir'])
         step(self._cleanup, self._config['workdir'])
 
         elapsed_minutes = (time.time() - start) / 60
