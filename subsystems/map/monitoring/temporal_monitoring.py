@@ -1,0 +1,968 @@
+"""Aggregate residual monitoring algorithms for the MAP dashboard."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+import logging
+from typing import Any
+
+import numpy as np
+
+from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
+
+
+LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TemporalMonitoringResult:
+    """Time-series monitoring signals derived from spatial residual products."""
+
+    observed_mean: np.ndarray
+    predicted_mean: np.ndarray
+    uncertainty_mean: np.ndarray | None
+    residual_mean: np.ndarray
+    velocity: np.ndarray
+    acceleration: np.ndarray
+    anomaly_magnitude: np.ndarray
+    anomaly_threshold: float
+    cusum_decision_threshold: float
+    acceleration_cusum: np.ndarray
+    deceleration_cusum: np.ndarray
+    regional_acceleration_cusum: np.ndarray
+    regional_deceleration_cusum: np.ndarray
+    regional_cusum_available: np.ndarray
+    regional_dynamics: np.ndarray
+    regional_regime_risk: np.ndarray
+    oscillation: np.ndarray
+    persistent_acceleration: np.ndarray
+    dynamics: np.ndarray
+    regime_risk: np.ndarray
+    medium_risk_threshold: float
+    high_risk_threshold: float
+
+
+class TemporalResidualMonitor:
+    """Derive residual anomalies and physical acceleration warnings for a TSF."""
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        """Configure monitoring thresholds and smoothing from a mapping."""
+        self.anomaly_threshold = self._positive(config, 'anomaly_magnitude_threshold')
+        cusum = self._section(config, 'cusum')
+        self.cusum_reference = self._non_negative(cusum, 'reference_value')
+        self.cusum_decision = self._positive(cusum, 'decision_threshold')
+        self.instability_direction = self._direction(cusum, 'instability_direction')
+        self.cusum_signal = self._cusum_signal(cusum)
+        self.cusum_spatial_aggregation = self._cusum_spatial_aggregation(cusum)
+        self.cusum_spatial_quantile = self._unit_interval_value(
+            cusum.get('spatial_quantile', 0.10),
+            'monitoring.dashboard.cusum.spatial_quantile',
+        )
+        if not 0.0 < self.cusum_spatial_quantile < 0.5:
+            raise ValueError(
+                'monitoring.dashboard.cusum.spatial_quantile must be in (0, 0.5).',
+            )
+        self.smoothing_span = self._positive_integer(cusum, 'smoothing_span')
+        self.derivative_window = self._positive_integer_value(
+            cusum.get('derivative_window', self.smoothing_span),
+            'monitoring.dashboard.cusum.derivative_window',
+        )
+        self.persistence_window = self._positive_integer(cusum, 'persistence_window')
+        self.persistence_threshold = self._unit_interval(
+            cusum,
+            'persistence_threshold',
+        )
+        regime = self._section(config, 'regime')
+        self.regime_signal = self._regime_signal(regime)
+        self.risk_smoothing_span = self._positive_integer(regime, 'smoothing_span')
+        self.medium_risk_threshold = self._unit_interval(
+            regime, 'medium_risk_threshold'
+        )
+        self.high_risk_threshold = self._unit_interval(regime, 'high_risk_threshold')
+        if self.medium_risk_threshold >= self.high_risk_threshold:
+            raise ValueError('monitoring.dashboard.regime thresholds must increase.')
+
+    def analyze(
+        self,
+        observed_stack: np.ndarray,
+        prediction_stack: np.ndarray,
+        dates: tuple[str, ...],
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+        uncertainty_stack: np.ndarray | None = None,
+        fixed_support_mask: np.ndarray | None = None,
+        coherent_regions: tuple[SpatialCoherenceRegion, ...] = (),
+    ) -> TemporalMonitoringResult:
+        """Analyze mean TSF residuals and calibrated acceleration behaviour.
+
+        Args:
+            observed_stack: Observations shaped ``(time, rows, columns)``.
+            prediction_stack: Model predictions with the same shape.
+            dates: ISO acquisition dates corresponding to stack time indices.
+            calibration_window: Inclusive/exclusive calibration index bounds.
+            monitoring_window: Inclusive/exclusive monitoring index bounds.
+            uncertainty_stack: Optional prediction uncertainty stack.
+            fixed_support_mask: Optional model-independent TSF support mask.
+            coherent_regions: Causally qualified regions for local CUSUM.
+
+        Returns:
+            Aggregate residual and early-warning signals for all acquisitions.
+        """
+        self._validate_inputs(
+            observed_stack,
+            prediction_stack,
+            dates,
+            calibration_window,
+            monitoring_window,
+            uncertainty_stack,
+        )
+        observed_stack, prediction_stack, uncertainty_stack = self._apply_support(
+            observed_stack,
+            prediction_stack,
+            uncertainty_stack,
+            fixed_support_mask,
+        )
+        observed_mean, predicted_mean, shared_masks = self._shared_spatial_series(
+            observed_stack,
+            prediction_stack,
+        )
+        uncertainty_mean = (
+            None
+            if uncertainty_stack is None
+            else self._aggregate_masks(uncertainty_stack, shared_masks)
+        )
+        residual_mean = observed_mean - predicted_mean
+        anomaly_magnitude = np.abs(residual_mean)
+        time_days = self._days_from_start(dates)
+        cusum_stack = observed_stack if self.cusum_signal == 'observed_velocity' else observed_stack - prediction_stack
+        cusum_values = self._cusum_spatial_series(cusum_stack)
+        (
+            acceleration,
+            acceleration_cusum,
+            deceleration_cusum,
+            oscillation,
+            persistent_acceleration,
+            dynamics,
+        ) = self._calculate_cusum_signal(
+            cusum_values,
+            time_days,
+            calibration_window,
+            monitoring_window,
+        )
+        directional_trend = (
+            self._ema(acceleration, self.smoothing_span) * self.instability_direction
+        )
+        # Regime evidence is deliberately model-relative.  Raw physical
+        # acceleration contains the expected annual cycle, so standardising it
+        # directly against a single calibration mean incorrectly flags the same
+        # seasonal curvature when it recurs in later years.  Comparing the
+        # observed acceleration with the baseline model's acceleration removes
+        # that expected behaviour before testing for an unexpected shift.
+        regime_risk = self._calculate_regime_risk(
+            observed_mean,
+            predicted_mean,
+            directional_trend,
+            time_days,
+            calibration_window,
+            monitoring_window,
+        )
+        (
+            regional_acceleration_cusum,
+            regional_deceleration_cusum,
+            regional_cusum_available,
+            regional_dynamics,
+            regional_regime_risk,
+        ) = self._regional_cusum(
+            observed_stack,
+            prediction_stack,
+            time_days,
+            calibration_window,
+            monitoring_window,
+            coherent_regions,
+        )
+        return TemporalMonitoringResult(
+            observed_mean=observed_mean,
+            predicted_mean=predicted_mean,
+            uncertainty_mean=uncertainty_mean,
+            residual_mean=residual_mean,
+            velocity=observed_mean,
+            acceleration=acceleration,
+            anomaly_magnitude=anomaly_magnitude,
+            anomaly_threshold=self.anomaly_threshold,
+            cusum_decision_threshold=self.cusum_decision,
+            acceleration_cusum=acceleration_cusum,
+            deceleration_cusum=deceleration_cusum,
+            regional_acceleration_cusum=regional_acceleration_cusum,
+            regional_deceleration_cusum=regional_deceleration_cusum,
+            regional_cusum_available=regional_cusum_available,
+            regional_dynamics=regional_dynamics,
+            regional_regime_risk=regional_regime_risk,
+            oscillation=oscillation,
+            persistent_acceleration=persistent_acceleration,
+            dynamics=dynamics,
+            regime_risk=regime_risk,
+            medium_risk_threshold=self.medium_risk_threshold,
+            high_risk_threshold=self.high_risk_threshold,
+        )
+
+    def spatial_persistent_acceleration(
+        self,
+        residual_stack: np.ndarray,
+        dates: tuple[str, ...],
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+        persistence: int,
+    ) -> np.ndarray:
+        """Return per-pixel persistent directional CUSUM acceleration flags.
+
+        This is a residual-based spatial diagnostic. The aggregate dashboard
+        normally uses observed-velocity acceleration, because residual changes
+        describe model error rather than physical deformation acceleration.
+
+        Args:
+            residual_stack: Observation-minus-prediction residual stack.
+            dates: ISO acquisition dates.
+            calibration_window: Inclusive/exclusive calibration index bounds.
+            monitoring_window: Inclusive/exclusive monitoring index bounds.
+            persistence: Consecutive CUSUM acceleration acquisitions required.
+
+        Returns:
+            Boolean stack shaped like ``residual_stack``. Only persistent
+            acceleration during the monitoring window is true.
+        """
+        if persistence < 1:
+            raise ValueError('Spatial CUSUM persistence must be at least one.')
+        if residual_stack.ndim != 3 or residual_stack.shape[0] != len(dates):
+            raise ValueError('Residual stack and acquisition dates are incompatible.')
+        self._validate_window_bounds(
+            residual_stack.shape[0],
+            calibration_window,
+            monitoring_window,
+        )
+        time_days = self._days_from_start(dates)
+        filled = self._fill_temporal_gaps(residual_stack)
+        rate = np.gradient(filled, time_days, axis=0, edge_order=1)
+        directional_rate = self._ema_stack(
+            rate * self.instability_direction,
+            self.smoothing_span,
+        )
+        calibration = directional_rate[calibration_window[0] : calibration_window[1]]
+        finite_calibration = np.isfinite(calibration)
+        calibration_count = np.sum(finite_calibration, axis=0)
+        baseline_mean = np.divide(
+            np.nansum(calibration, axis=0),
+            calibration_count,
+            out=np.full(calibration.shape[1:], np.nan, dtype=np.float64),
+            where=calibration_count > 0,
+        )
+        squared_deviation = np.where(
+            finite_calibration,
+            np.square(calibration - baseline_mean[np.newaxis, :, :]),
+            0.0,
+        )
+        baseline_std = np.sqrt(
+            np.divide(
+                np.sum(squared_deviation, axis=0),
+                calibration_count,
+                out=np.full(calibration.shape[1:], np.nan, dtype=np.float64),
+                where=calibration_count > 0,
+            ),
+        )
+        valid_baseline = np.isfinite(baseline_mean) & (
+            baseline_std > np.finfo(float).eps
+        )
+        zscore = np.divide(
+            directional_rate - baseline_mean[np.newaxis, :, :],
+            baseline_std[np.newaxis, :, :],
+            out=np.full_like(directional_rate, np.nan),
+            where=valid_baseline[np.newaxis, :, :],
+        )
+        output = np.zeros(residual_stack.shape, dtype=bool)
+        cusum = np.zeros(residual_stack.shape[1:], dtype=np.float64)
+        run = np.zeros(residual_stack.shape[1:], dtype=np.int16)
+        for index in range(monitoring_window[0], monitoring_window[1]):
+            values = zscore[index]
+            valid = np.isfinite(values)
+            cusum = np.where(
+                valid,
+                np.maximum(0.0, cusum + values - self.cusum_reference),
+                cusum,
+            )
+            accelerating = valid & (cusum > self.cusum_decision)
+            run = np.where(accelerating, run + 1, 0)
+            output[index] = run >= persistence
+        return output
+
+    def spatial_coherent_acceleration_cusum(
+        self,
+        observed_stack: np.ndarray,
+        dates: tuple[str, ...],
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+        coherence_stack: np.ndarray,
+    ) -> np.ndarray:
+        """Return maximum physical acceleration CUSUM for coherent pixels.
+
+        The result is a monitoring-period spatial summary. A pixel is retained
+        only when the residual anomaly workflow has placed it in a connected,
+        temporally persistent region; its CUSUM itself is derived from observed
+        velocity, rather than model residuals.
+        """
+        if coherence_stack.shape != observed_stack.shape:
+            raise ValueError('Coherence stack must match the observed stack.')
+        if observed_stack.ndim != 3 or observed_stack.shape[0] != len(dates):
+            raise ValueError('Observed stack and acquisition dates are incompatible.')
+        self._validate_window_bounds(
+            observed_stack.shape[0], calibration_window, monitoring_window
+        )
+        time_days = self._days_from_start(dates)
+        acceleration = self._causal_gradient_stack(
+            self._fill_temporal_gaps(observed_stack),
+            time_days,
+            self.derivative_window,
+        )
+        directional = self._ema_stack(
+            acceleration * self.instability_direction,
+            self.smoothing_span,
+        )
+        calibration = directional[calibration_window[0] : calibration_window[1]]
+        finite = np.isfinite(calibration)
+        count = np.sum(finite, axis=0)
+        baseline_mean = np.divide(
+            np.nansum(calibration, axis=0),
+            count,
+            out=np.full(observed_stack.shape[1:], np.nan, dtype=np.float64),
+            where=count > 0,
+        )
+        squared = np.where(
+            finite,
+            np.square(calibration - baseline_mean[np.newaxis, :, :]),
+            0.0,
+        )
+        baseline_std = np.sqrt(
+            np.divide(
+                np.sum(squared, axis=0),
+                count,
+                out=np.full(observed_stack.shape[1:], np.nan, dtype=np.float64),
+                where=count > 0,
+            )
+        )
+        valid = np.isfinite(baseline_mean) & (baseline_std > np.finfo(float).eps)
+        zscore = np.divide(
+            directional - baseline_mean[np.newaxis, :, :],
+            baseline_std[np.newaxis, :, :],
+            out=np.full_like(directional, np.nan),
+            where=valid[np.newaxis, :, :],
+        )
+        cusum = np.zeros(observed_stack.shape[1:], dtype=np.float64)
+        maximum = np.zeros(observed_stack.shape[1:], dtype=np.float64)
+        for index in range(monitoring_window[0], monitoring_window[1]):
+            values = zscore[index]
+            finite_values = np.isfinite(values)
+            cusum = np.where(
+                finite_values,
+                np.maximum(0.0, cusum + values - self.cusum_reference),
+                cusum,
+            )
+            maximum = np.maximum(maximum, cusum)
+        coherent = np.any(
+            coherence_stack[monitoring_window[0] : monitoring_window[1]], axis=0
+        )
+        return np.where(coherent & valid, maximum, np.nan)
+
+    def _calculate_cusum_signal(
+        self,
+        velocity: np.ndarray,
+        time_days: np.ndarray,
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Calculate a calibrated two-sided CUSUM for one velocity series."""
+        acceleration = self._causal_gradient(
+            velocity,
+            time_days,
+            self.derivative_window,
+        )
+        trend = self._ema(acceleration, self.smoothing_span)
+        calibration_start, calibration_end = calibration_window
+        baseline = trend[calibration_start:calibration_end]
+        baseline = baseline[np.isfinite(baseline)]
+        if baseline.size < 3:
+            raise ValueError('Calibration period contains too few valid CUSUM samples.')
+        baseline_std = max(float(np.std(baseline)), np.finfo(np.float64).eps)
+        directional_trend = trend * self.instability_direction
+        directional_baseline = directional_trend[calibration_start:calibration_end]
+        directional_baseline = directional_baseline[np.isfinite(directional_baseline)]
+        zscore = (directional_trend - float(np.mean(directional_baseline))) / baseline_std
+        persistence = self._sign_persistence(zscore, self.persistence_window)
+        acceleration_cusum, deceleration_cusum = self._cusum(
+            zscore,
+            monitoring_window[0],
+        )
+        monitoring_mask = self._window_mask(zscore.size, monitoring_window)
+        oscillation = monitoring_mask & (persistence < self.persistence_threshold)
+        accelerating = (
+            monitoring_mask
+            & (acceleration_cusum > self.cusum_decision)
+            & (persistence >= self.persistence_threshold)
+        )
+        decelerating = (
+            monitoring_mask
+            & (deceleration_cusum > self.cusum_decision)
+            & (persistence >= self.persistence_threshold)
+        )
+        dynamics = np.full(zscore.size, 'stable', dtype='<U12')
+        dynamics[decelerating] = 'decelerating'
+        dynamics[accelerating] = 'accelerating'
+        return (
+            acceleration,
+            acceleration_cusum,
+            deceleration_cusum,
+            oscillation,
+            accelerating,
+            dynamics,
+        )
+
+    def _regional_cusum(
+        self,
+        observed_stack: np.ndarray,
+        prediction_stack: np.ndarray,
+        time_days: np.ndarray,
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+        regions: tuple[SpatialCoherenceRegion, ...],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Return local CUSUM and regime evidence from qualified regions.
+
+        Each region keeps the support it had when it first passed spatial
+        coherence checks.  The observation and prediction means are then
+        calculated over their common finite pixels on that frozen support.
+        This prevents both changing regional composition and mismatched model
+        support from affecting the local regime score.
+        """
+        time_count = observed_stack.shape[0]
+        acceleration = np.full(time_count, np.nan, dtype=np.float64)
+        deceleration = np.full(time_count, np.nan, dtype=np.float64)
+        available = np.zeros(time_count, dtype=bool)
+        dynamics = np.full(time_count, 'stable', dtype='<U12')
+        regime_risk = np.full(time_count, np.nan, dtype=np.float64)
+        for region in regions:
+            support = np.broadcast_to(region.support, observed_stack.shape)
+            series = self._aggregate_masks(observed_stack, support)
+            try:
+                _, positive, negative, _, _, regional_dynamics = self._calculate_cusum_signal(
+                    series,
+                    time_days,
+                    calibration_window,
+                    monitoring_window,
+                )
+                regional_observed, regional_predicted, _ = self._shared_spatial_series(
+                    np.where(support, observed_stack, np.nan),
+                    np.where(support, prediction_stack, np.nan),
+                )
+                regional_acceleration = self._causal_gradient(
+                    regional_observed,
+                    time_days,
+                    self.derivative_window,
+                )
+                regional_directional_trend = (
+                    self._ema(regional_acceleration, self.smoothing_span)
+                    * self.instability_direction
+                )
+                regional_risk = self._calculate_regime_risk(
+                    regional_observed,
+                    regional_predicted,
+                    regional_directional_trend,
+                    time_days,
+                    calibration_window,
+                    monitoring_window,
+                )
+            except ValueError:
+                LOGGER.warning(
+                    'Skipping coherence-qualified regional signals at index %d: '
+                    'its fixed support has insufficient calibration data.',
+                    region.activation_index,
+                )
+                continue
+            active = np.arange(time_count) >= region.activation_index
+            active &= self._window_mask(time_count, monitoring_window)
+            available |= active
+            acceleration = np.where(
+                active,
+                np.fmax(acceleration, positive),
+                acceleration,
+            )
+            deceleration = np.where(
+                active,
+                np.fmax(deceleration, negative),
+                deceleration,
+            )
+            regime_risk = np.where(
+                active,
+                np.fmax(regime_risk, regional_risk),
+                regime_risk,
+            )
+            dynamics[active & (regional_dynamics == 'decelerating')] = 'decelerating'
+            dynamics[active & (regional_dynamics == 'accelerating')] = 'accelerating'
+        return acceleration, deceleration, available, dynamics, regime_risk
+
+    def _calculate_regime_risk(
+        self,
+        observed_mean: np.ndarray,
+        predicted_mean: np.ndarray,
+        directional_trend: np.ndarray,
+        time_days: np.ndarray,
+        calibration_window: tuple[int, int],
+        monitoring_window: tuple[int, int],
+    ) -> np.ndarray:
+        """Return causal model-relative regime evidence on a common support."""
+        calibration_start, calibration_end = calibration_window
+        monitoring_mask = self._window_mask(observed_mean.size, monitoring_window)
+        if self.regime_signal == 'unexpected_acceleration':
+            observed_acceleration = self._causal_gradient(
+                observed_mean,
+                time_days,
+                self.derivative_window,
+            )
+            observed_trend = self._ema(observed_acceleration, self.smoothing_span)
+            expected_acceleration = self._causal_gradient(
+                predicted_mean,
+                time_days,
+                self.derivative_window,
+            )
+            expected_trend = self._ema(expected_acceleration, self.smoothing_span)
+            regime_signal = (
+                observed_trend - expected_trend
+            ) * self.instability_direction
+        else:
+            regime_signal = directional_trend
+        regime_baseline = regime_signal[calibration_start:calibration_end]
+        regime_baseline = regime_baseline[np.isfinite(regime_baseline)]
+        if regime_baseline.size < 3:
+            raise ValueError(
+                'Calibration period contains too few valid baseline samples.'
+            )
+        regime_std = max(float(np.std(regime_baseline)), np.finfo(np.float64).eps)
+        regime_zscore = (regime_signal - float(np.mean(regime_baseline))) / regime_std
+        regime_persistence = self._sign_persistence(
+            regime_zscore,
+            self.persistence_window,
+        )
+        positive_shift = np.maximum(0.0, regime_zscore)
+        instantaneous_risk = (1.0 - np.exp(-positive_shift)) * regime_persistence
+        regime_risk = self._ema(instantaneous_risk, self.risk_smoothing_span)
+        return np.where(monitoring_mask, regime_risk, 0.0)
+
+    def _cusum(
+        self, zscore: np.ndarray, monitoring_start: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Return one-sided positive and negative CUSUM signals."""
+        positive = np.zeros(zscore.size, dtype=np.float64)
+        negative = np.zeros(zscore.size, dtype=np.float64)
+        for index in range(monitoring_start, zscore.size):
+            value = zscore[index]
+            if not np.isfinite(value):
+                positive[index] = positive[index - 1] if index else 0.0
+                negative[index] = negative[index - 1] if index else 0.0
+                continue
+            previous_positive = positive[index - 1] if index else 0.0
+            previous_negative = negative[index - 1] if index else 0.0
+            positive[index] = max(0.0, previous_positive + value - self.cusum_reference)
+            negative[index] = max(0.0, previous_negative - value - self.cusum_reference)
+        return positive, negative
+
+    @staticmethod
+    def _spatial_mean(values: np.ndarray) -> np.ndarray:
+        """Return a finite-only mean for every acquisition."""
+        finite = np.isfinite(values)
+        count = np.sum(finite, axis=(1, 2))
+        return np.divide(
+            np.nansum(values, axis=(1, 2)),
+            count,
+            out=np.full(values.shape[0], np.nan, dtype=np.float64),
+            where=count > 0,
+        )
+
+    def _cusum_spatial_series(self, values: np.ndarray) -> np.ndarray:
+        """Aggregate a CUSUM input spatially without hiding local instability."""
+        if self.cusum_spatial_aggregation == 'mean':
+            return self._spatial_mean(values)
+        output = np.full(values.shape[0], np.nan, dtype=np.float64)
+        for index, raster in enumerate(values):
+            finite = raster[np.isfinite(raster)]
+            if not finite.size:
+                continue
+            quantile = (
+                self.cusum_spatial_quantile
+                if self.instability_direction < 0
+                else 1.0 - self.cusum_spatial_quantile
+            )
+            boundary = float(np.quantile(finite, quantile))
+            if self.cusum_spatial_aggregation == 'directional_quantile':
+                output[index] = boundary
+                continue
+            tail = (
+                finite[finite <= boundary]
+                if self.instability_direction < 0
+                else finite[finite >= boundary]
+            )
+            output[index] = float(np.mean(tail))
+        return output
+
+    def _shared_spatial_series(
+        self,
+        observed: np.ndarray,
+        predicted: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Aggregate observations and predictions over identical pixels per date."""
+        masks = np.isfinite(observed) & np.isfinite(predicted)
+        selected = np.zeros_like(masks, dtype=bool)
+        for index in range(observed.shape[0]):
+            valid = masks[index]
+            values = observed[index][valid]
+            if values.size == 0:
+                continue
+            if self.cusum_spatial_aggregation == 'mean':
+                selected[index] = valid
+                continue
+            quantile = (
+                self.cusum_spatial_quantile
+                if self.instability_direction < 0
+                else 1.0 - self.cusum_spatial_quantile
+            )
+            boundary = float(np.quantile(values, quantile))
+            directional = (
+                observed[index] <= boundary
+                if self.instability_direction < 0
+                else observed[index] >= boundary
+            )
+            selected[index] = valid & directional
+        return (
+            self._aggregate_masks(observed, selected),
+            self._aggregate_masks(predicted, selected),
+            selected,
+        )
+
+    @staticmethod
+    def _aggregate_masks(values: np.ndarray, masks: np.ndarray) -> np.ndarray:
+        """Return a finite mean for each acquisition over an explicit support."""
+        valid = masks & np.isfinite(values)
+        count = np.sum(valid, axis=(1, 2))
+        return np.divide(
+            np.sum(np.where(valid, values, 0.0), axis=(1, 2)),
+            count,
+            out=np.full(values.shape[0], np.nan, dtype=np.float64),
+            where=count > 0,
+        )
+
+    @staticmethod
+    def _apply_support(
+        observed: np.ndarray,
+        predicted: np.ndarray,
+        uncertainty: np.ndarray | None,
+        support: np.ndarray | None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+        """Restrict stacks to a fixed monitoring support without mutating inputs."""
+        if support is None:
+            return observed, predicted, uncertainty
+        if support.shape != observed.shape[1:]:
+            raise ValueError('Fixed monitoring support mask has an invalid shape.')
+        return (
+            np.where(support[np.newaxis, :, :], observed, np.nan),
+            np.where(support[np.newaxis, :, :], predicted, np.nan),
+            None
+            if uncertainty is None
+            else np.where(support[np.newaxis, :, :], uncertainty, np.nan),
+        )
+
+    @staticmethod
+    def _causal_gradient(
+        values: np.ndarray,
+        time_days: np.ndarray,
+        window: int,
+    ) -> np.ndarray:
+        """Estimate a past-only local linear slope at every acquisition.
+
+        A centred numerical gradient changes a historical value when a future
+        acquisition arrives.  That is unsuitable for a live monitoring replay
+        and its end-point derivative is especially sensitive to noise.  This
+        estimator fits a line to the latest finite observations only, producing
+        a causal and more stable acceleration estimate.
+        """
+        output = np.full(values.shape, np.nan, dtype=np.float64)
+        for index in range(values.size):
+            start = max(0, index - window + 1)
+            x_values = time_days[start : index + 1]
+            y_values = values[start : index + 1]
+            finite = np.isfinite(x_values) & np.isfinite(y_values)
+            if np.count_nonzero(finite) < 2:
+                continue
+            x_values = x_values[finite]
+            y_values = y_values[finite]
+            centred_x = x_values - np.mean(x_values)
+            denominator = float(np.dot(centred_x, centred_x))
+            if denominator > np.finfo(np.float64).eps:
+                output[index] = float(
+                    np.dot(centred_x, y_values - np.mean(y_values)) / denominator
+                )
+        return output
+
+    @staticmethod
+    def _causal_gradient_stack(
+        values: np.ndarray,
+        time_days: np.ndarray,
+        window: int,
+    ) -> np.ndarray:
+        """Estimate causal local-linear slopes for every pixel in a stack."""
+        output = np.full(values.shape, np.nan, dtype=np.float64)
+        for index in range(values.shape[0]):
+            start = max(0, index - window + 1)
+            x_values = time_days[start : index + 1]
+            y_values = values[start : index + 1]
+            finite = np.isfinite(y_values)
+            count = np.sum(finite, axis=0)
+            valid = count >= 2
+            mean_x = np.divide(
+                np.sum(finite * x_values[:, np.newaxis, np.newaxis], axis=0),
+                count,
+                out=np.zeros(values.shape[1:], dtype=np.float64),
+                where=valid,
+            )
+            mean_y = np.divide(
+                np.nansum(y_values, axis=0),
+                count,
+                out=np.zeros(values.shape[1:], dtype=np.float64),
+                where=valid,
+            )
+            centred_x = x_values[:, np.newaxis, np.newaxis] - mean_x
+            denominator = np.sum(
+                np.where(finite, np.square(centred_x), 0.0), axis=0
+            )
+            numerator = np.sum(
+                np.where(finite, centred_x * (y_values - mean_y), 0.0), axis=0
+            )
+            output[index] = np.divide(
+                numerator,
+                denominator,
+                out=np.full(values.shape[1:], np.nan, dtype=np.float64),
+                where=denominator > np.finfo(np.float64).eps,
+            )
+        return output
+
+    @staticmethod
+    def _ema(values: np.ndarray, span: int) -> np.ndarray:
+        """Return an exponential moving average while carrying finite history."""
+        output = np.full(values.shape, np.nan, dtype=np.float64)
+        alpha = 2.0 / (span + 1.0)
+        previous = np.nan
+        for index, value in enumerate(values):
+            if not np.isfinite(value):
+                output[index] = previous
+                continue
+            previous = value if not np.isfinite(previous) else (
+                alpha * value + (1.0 - alpha) * previous
+            )
+            output[index] = previous
+        return output
+
+    @staticmethod
+    def _ema_stack(values: np.ndarray, span: int) -> np.ndarray:
+        """Return an exponential moving average for every raster pixel."""
+        output = np.empty_like(values, dtype=np.float64)
+        alpha = 2.0 / (span + 1.0)
+        output[0] = values[0]
+        for index in range(1, values.shape[0]):
+            previous = output[index - 1]
+            output[index] = np.where(
+                np.isfinite(values[index]),
+                np.where(
+                    np.isfinite(previous),
+                    alpha * values[index] + (1.0 - alpha) * previous,
+                    values[index],
+                ),
+                previous,
+            )
+        return output
+
+    @staticmethod
+    def _fill_temporal_gaps(values: np.ndarray) -> np.ndarray:
+        """Linearly interpolate each pixel's gaps before temporal gradients."""
+        time_count = values.shape[0]
+        flattened = np.asarray(values, dtype=np.float64).reshape(time_count, -1)
+        output = flattened.copy()
+        positions = np.arange(time_count)
+        for column in range(flattened.shape[1]):
+            series = flattened[:, column]
+            finite = np.isfinite(series)
+            if finite.sum() >= 2:
+                output[:, column] = np.interp(
+                    positions,
+                    positions[finite],
+                    series[finite],
+                )
+        return output.reshape(values.shape)
+
+    @staticmethod
+    def _sign_persistence(values: np.ndarray, window: int) -> np.ndarray:
+        """Measure past-only local sign stability for sustained motion."""
+        signs = np.sign(np.nan_to_num(values, nan=0.0))
+        signs[signs == 0.0] = 1.0
+        changes = np.zeros(values.size, dtype=np.float64)
+        changes[1:] = np.abs(np.diff(signs)) / 2.0
+        output = np.ones(values.size, dtype=np.float64)
+        for index in range(1, values.size):
+            start = max(1, index - window + 1)
+            output[index] = 1.0 - float(np.mean(changes[start : index + 1]))
+        return np.clip(output, 0.0, 1.0)
+
+    @staticmethod
+    def _days_from_start(dates: tuple[str, ...]) -> np.ndarray:
+        """Convert chronological ISO dates to floating day offsets."""
+        parsed = [date.fromisoformat(value) for value in dates]
+        return np.array([(value - parsed[0]).days for value in parsed], dtype=float)
+
+    @staticmethod
+    def _window_mask(length: int, window: tuple[int, int]) -> np.ndarray:
+        """Return a Boolean mask for an exclusive index window."""
+        mask = np.zeros(length, dtype=bool)
+        mask[window[0] : window[1]] = True
+        return mask
+
+    @staticmethod
+    def _validate_inputs(
+        observed: np.ndarray,
+        predicted: np.ndarray,
+        dates: tuple[str, ...],
+        calibration: tuple[int, int],
+        monitoring: tuple[int, int],
+        uncertainty: np.ndarray | None,
+    ) -> None:
+        """Validate common temporal monitoring input invariants."""
+        if observed.ndim != 3 or observed.shape != predicted.shape:
+            raise ValueError(
+                'Observed and prediction stacks must be matching 3D arrays.'
+            )
+        if observed.shape[0] != len(dates):
+            raise ValueError('Acquisition dates and temporal stacks are incompatible.')
+        if uncertainty is not None and uncertainty.shape != observed.shape:
+            raise ValueError('Uncertainty stack must match the observation stack.')
+        TemporalResidualMonitor._validate_window_bounds(
+            observed.shape[0],
+            calibration,
+            monitoring,
+        )
+
+    @staticmethod
+    def _validate_window_bounds(
+        time_count: int,
+        calibration: tuple[int, int],
+        monitoring: tuple[int, int],
+    ) -> None:
+        """Validate two exclusive temporal windows against a time dimension."""
+        for name, window in (('calibration', calibration), ('monitoring', monitoring)):
+            if not 0 <= window[0] < window[1] <= time_count:
+                raise ValueError(f'{name} window is outside the acquisition range.')
+
+    @staticmethod
+    def _section(config: dict[str, Any], name: str) -> dict[str, Any]:
+        """Return a required monitoring configuration subsection."""
+        value = config.get(name)
+        if not isinstance(value, dict):
+            raise ValueError(f'monitoring.dashboard.{name} must be a mapping.')
+        return value
+
+    @staticmethod
+    def _positive(config: dict[str, Any], name: str) -> float:
+        """Read a strictly positive scalar configuration value."""
+        value = float(config[name])
+        if value <= 0:
+            raise ValueError(f'monitoring.dashboard.{name} must be positive.')
+        return value
+
+    @staticmethod
+    def _non_negative(config: dict[str, Any], name: str) -> float:
+        """Read a non-negative scalar configuration value."""
+        value = float(config[name])
+        if value < 0:
+            raise ValueError(f'monitoring.dashboard.{name} must be non-negative.')
+        return value
+
+    @staticmethod
+    def _positive_integer(config: dict[str, Any], name: str) -> int:
+        """Read a strictly positive integer configuration value."""
+        value = int(config[name])
+        if value < 1:
+            raise ValueError(f'monitoring.dashboard.{name} must be at least one.')
+        return value
+
+    @staticmethod
+    def _positive_integer_value(value: object, name: str) -> int:
+        """Validate a standalone strictly positive integer configuration value."""
+        integer = int(value)
+        if integer < 1:
+            raise ValueError(f'{name} must be at least one.')
+        return integer
+
+    @staticmethod
+    def _unit_interval(config: dict[str, Any], name: str) -> float:
+        """Read a scalar in the closed unit interval."""
+        return TemporalResidualMonitor._unit_interval_value(
+            config[name],
+            f'monitoring.dashboard.{name}',
+        )
+
+    @staticmethod
+    def _unit_interval_value(value: object, name: str) -> float:
+        """Validate a standalone scalar in the closed unit interval."""
+        value = float(value)
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f'{name} must be in [0, 1].')
+        return value
+
+    @staticmethod
+    def _direction(config: dict[str, Any], name: str) -> float:
+        """Map a configured physical instability direction to a sign multiplier."""
+        value = config[name]
+        if value == 'positive':
+            return 1.0
+        if value == 'negative':
+            return -1.0
+        raise ValueError(
+            'monitoring.dashboard.cusum.instability_direction must be '
+            "'positive' or 'negative'.",
+        )
+
+    @staticmethod
+    def _cusum_signal(config: dict[str, Any]) -> str:
+        """Return the configured physical or residual CUSUM input series."""
+        value = str(config.get('signal', 'observed_velocity'))
+        if value not in {'observed_velocity', 'residual'}:
+            raise ValueError(
+                'monitoring.dashboard.cusum.signal must be '
+                '"observed_velocity" or "residual".',
+            )
+        return value
+
+    @staticmethod
+    def _cusum_spatial_aggregation(config: dict[str, Any]) -> str:
+        """Return the configured TSF aggregation for aggregate CUSUM input."""
+        value = str(config.get('spatial_aggregation', 'mean'))
+        if value not in {'mean', 'directional_quantile', 'directional_tail_mean'}:
+            raise ValueError(
+                'monitoring.dashboard.cusum.spatial_aggregation must be '
+                '"mean", "directional_quantile", or '
+                '"directional_tail_mean".',
+            )
+        return value
+
+    @staticmethod
+    def _regime_signal(config: dict[str, Any]) -> str:
+        """Return the configured model-relative or raw regime input series."""
+        value = str(config.get('signal', 'unexpected_acceleration'))
+        if value not in {'unexpected_acceleration', 'observed_acceleration'}:
+            raise ValueError(
+                'monitoring.dashboard.regime.signal must be '
+                '"unexpected_acceleration" or "observed_acceleration".',
+            )
+        return value
