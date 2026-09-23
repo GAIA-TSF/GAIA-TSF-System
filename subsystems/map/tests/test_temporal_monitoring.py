@@ -6,6 +6,7 @@ import numpy as np
 
 from subsystems.map.monitoring.temporal_monitoring import TemporalResidualMonitor
 from subsystems.map.monitoring.dashboard import _cusum_status
+from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
 from subsystems.map.dataset.dataset_builder import DatasetBuilder
 
 
@@ -116,6 +117,52 @@ def test_regime_risk_detects_acceleration_not_predicted_by_baseline() -> None:
     )
 
     assert result.regime_risk[-1] > 0.7
+
+
+def test_coherent_region_regime_score_uses_frozen_common_support() -> None:
+    """Regional evidence is hidden before qualification and uses one support."""
+    monitor = TemporalResidualMonitor(
+        {
+            'anomaly_magnitude_threshold': 0.02,
+            'cusum': {
+                'instability_direction': 'negative',
+                'signal': 'observed_velocity',
+                'reference_value': 0.5,
+                'decision_threshold': 2.0,
+                'derivative_window': 2,
+                'smoothing_span': 2,
+                'persistence_window': 2,
+                'persistence_threshold': 0.25,
+            },
+            'regime': {
+                'smoothing_span': 2,
+                'medium_risk_threshold': 0.3,
+                'high_risk_threshold': 0.7,
+            },
+        },
+    )
+    observed = np.zeros((12, 1, 2), dtype=float)
+    observed[:, 0, 1] = np.array(
+        [0.0, 0.1, -0.1, 0.0, 0.1, -0.1, 0.0, 0.1, -1.0, -4.0, -9.0, -16.0]
+    )
+    predicted = np.zeros_like(observed)
+    region = SpatialCoherenceRegion(
+        support=np.array([[False, True]]),
+        activation_index=9,
+    )
+
+    result = monitor.analyze(
+        observed,
+        predicted,
+        dates=tuple(f'2020-01-{day:02d}' for day in range(1, 13)),
+        calibration_window=(0, 8),
+        monitoring_window=(8, 12),
+        coherent_regions=(region,),
+    )
+
+    assert np.all(np.isnan(result.regional_regime_risk[:9]))
+    assert result.regional_cusum_available[9]
+    assert result.regional_regime_risk[-1] > 0.7
 
 
 def test_monitoring_signals_do_not_change_when_future_data_arrives() -> None:

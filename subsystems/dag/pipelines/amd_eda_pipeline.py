@@ -13,11 +13,17 @@ import geopandas as gpd
 import numpy as np
 import rasterio
 import yaml
+from scipy.ndimage import binary_dilation
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.plugins.features.amd_features import calculate_amd_index
+from subsystems.dag.plugins.eda.amd_gaps import analyse_amd_gaps
+from subsystems.dag.plugins.eda.amd_noise import clean_water_variability, spatial_inconsistency
+from subsystems.dag.plugins.eda.amd_trends import (
+    fill_short_gaps, process_trend_stack, robust_lowess,
+)
 from subsystems.dag.utils.raster import RasterProfile, write_raster
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -215,6 +221,9 @@ class AMDEDAPipeline(Pipeline):
         with rasterio.open(feature_path) as source:
             data = source.read().astype(float)
             dates = tuple(date.fromisoformat(value) for value in source.descriptions)
+        filtered_path = Path(result['cloud_edge_filtered_index'])
+        with rasterio.open(filtered_path) as source:
+            filtered_data = source.read().astype(float)
         masks = {}
         for region in ('amd', 'clean_water'):
             with rasterio.open(self._path(self.options['static'][f'{region}_mask'])) as source:
@@ -228,7 +237,18 @@ class AMDEDAPipeline(Pipeline):
             }
         _json(eda_dir / 'statistics.json', statistics)
         quality = {}
-        self._points(data, tuple(value.isoformat() for value in dates), self._reference_profile(feature_path), masks, eda_dir, quality)
+        date_strings = tuple(value.isoformat() for value in dates)
+        variability_data, variability = self._clean_water_noise(
+            filtered_data, date_strings, masks['clean_water'], eda_dir
+        )
+        profile = self._reference_profile(feature_path)
+        spatial_data, spatial = self._spatial_noise(
+            variability_data, date_strings, masks['clean_water'], eda_dir, profile
+        )
+        point_records = self._points(data, date_strings, profile, masks, eda_dir,
+                                     quality, filtered_data, variability_data, spatial_data)
+        self._trends(spatial_data, dates, masks, profile, point_records, eda_dir)
+        self._gaps(data, date_strings, masks, point_records, eda_dir)
         return {**result, 'pipeline': 'amd_eda'}
 
     @staticmethod
@@ -261,11 +281,32 @@ class AMDEDAPipeline(Pipeline):
         mapping = inputs.get('band_positions', {})
         filtering = self.options.get('quality', {})
         scl_name = filtering.get('scl_band')
+        acquisition_filter = filtering.get('acquisition_cloud_filter', {})
+        if not isinstance(acquisition_filter, dict):
+            raise TypeError('quality.acquisition_cloud_filter must be a mapping.')
+        acquisition_filter_enabled = bool(acquisition_filter.get('enabled', False))
+        maximum_cloudy_pixels = acquisition_filter.get('maximum_cloudy_pixels', 0)
+        if (isinstance(maximum_cloudy_pixels, bool)
+                or not isinstance(maximum_cloudy_pixels, int)
+                or maximum_cloudy_pixels < 0):
+            raise ValueError('maximum_cloudy_pixels must be a non-negative integer.')
+        cloudy_classes = acquisition_filter.get('cloudy_scl_classes', [3, 8, 9, 10])
+        if not isinstance(cloudy_classes, list) or not all(
+            isinstance(value, int) and not isinstance(value, bool) for value in cloudy_classes
+        ):
+            raise ValueError('cloudy_scl_classes must be a list of integer SCL classes.')
+        if acquisition_filter_enabled and not scl_name:
+            raise ValueError('Acquisition cloud filtering requires quality.scl_band.')
         if not scl_name:
             quality['warnings'].append(
                 'No pixel quality filtering configured; only band nodata is excluded.'
             )
         stacks = []
+        filtered_stacks = []
+        accepted_dated = []
+        buffer_pixels = filtering.get('cloud_edge_buffer_pixels', 0)
+        if isinstance(buffer_pixels, bool) or not isinstance(buffer_pixels, int) or buffer_pixels < 0:
+            raise ValueError('quality.cloud_edge_buffer_pixels must be a non-negative integer.')
         for acquired, path, metadata in dated:
             with rasterio.open(path) as source:
                 window = self._input_window(source, reference)
@@ -279,9 +320,14 @@ class AMDEDAPipeline(Pipeline):
                 usable = np.isfinite(first) & np.isfinite(second)
                 if scl_name:
                     scl = self._band(source, scl_name, mapping, window)
-                    usable &= np.isfinite(scl) & ~np.isin(
-                        scl, filtering['excluded_scl_classes']
-                    )
+                    excluded = ~np.isfinite(scl) | np.isin(
+                        scl, filtering['excluded_scl_classes'])
+                    usable &= ~excluded
+                    cloudy_pixels = int(np.count_nonzero(
+                        domain & np.isin(scl, cloudy_classes)
+                    ))
+                else:
+                    cloudy_pixels = 0
                 index = calculate_amd_index(
                     first,
                     second,
@@ -289,10 +335,23 @@ class AMDEDAPipeline(Pipeline):
                     float(engineering.get('denominator_epsilon', 0)),
                 )
                 index[~(domain & usable)] = np.nan
-            stacks.append(index)
+                filtered_index = index.copy()
+                if scl_name and buffer_pixels:
+                    buffered = binary_dilation(excluded, iterations=buffer_pixels)
+                    filtered_index[buffered] = np.nan
+            accepted = (
+                not acquisition_filter_enabled
+                or cloudy_pixels <= maximum_cloudy_pixels
+            )
+            if accepted:
+                stacks.append(index)
+                filtered_stacks.append(filtered_index)
+                accepted_dated.append((acquired, path, metadata))
             quality['acquisitions'].append(
                 {
                     'date': acquired.isoformat(),
+                    'cloudy_pixels_in_analysis_masks': cloudy_pixels,
+                    'accepted_by_acquisition_cloud_filter': accepted,
                     'scene_cloud_cover_pct': metadata.get(
                         'cloud_cover_pct',
                         metadata.get('properties', {}).get('eo:cloud_cover'),
@@ -307,10 +366,24 @@ class AMDEDAPipeline(Pipeline):
                     },
                 }
             )
+        quality['acquisition_cloud_filter'] = {
+            'enabled': acquisition_filter_enabled,
+            'maximum_cloudy_pixels': maximum_cloudy_pixels,
+            'cloudy_scl_classes': cloudy_classes,
+            'accepted_acquisitions': len(accepted_dated),
+            'rejected_acquisitions': len(dated) - len(accepted_dated),
+            'rejected_dates': [
+                row['date'] for row in quality['acquisitions']
+                if not row['accepted_by_acquisition_cloud_filter']
+            ],
+        }
+        if not accepted_dated:
+            raise ValueError('Acquisition cloud filter rejected every Sentinel-2 image.')
         data = np.stack(stacks)
-        dates = tuple(item[0].isoformat() for item in dated)
+        filtered_data = np.stack(filtered_stacks)
+        dates = tuple(item[0].isoformat() for item in accepted_dated)
         quality['gap_days'] = [
-            int((b[0] - a[0]).days) for a, b in pairwise(dated)
+            int((b[0] - a[0]).days) for a, b in pairwise(accepted_dated)
         ]
         formula = dict(engineering)
         output_options = self.options['results'].get('index', self.options['results']['features'])
@@ -325,13 +398,23 @@ class AMDEDAPipeline(Pipeline):
             np.nan,
         )
         write_raster(output_dir / 'amd_index.tif', data, profile, 'GTiff', dates)
+        filtered_path = output_dir / 'amd_index_cloud_edge_filtered.tif'
+        write_raster(filtered_path, filtered_data, profile, 'GTiff', dates)
+        variability_data, variability = self._clean_water_noise(
+            filtered_data, dates, masks['clean_water'], eda_dir
+        )
+        spatial_data, spatial = self._spatial_noise(
+            variability_data, dates, masks['clean_water'], eda_dir, reference
+        )
         _json(
             output_dir / 'metadata.json',
             {
                 'acquisition_dates': dates,
                 'feature_names': ['amd_index'],
                 'formula': formula,
-                'source_paths': [str(item[1]) for item in dated],
+                'source_paths': [str(item[1]) for item in accepted_dated],
+                'cloud_edge_filtered_index': str(filtered_path),
+                'cloud_edge_buffer_pixels': buffer_pixels,
             },
         )
         if not write_eda:
@@ -339,6 +422,7 @@ class AMDEDAPipeline(Pipeline):
                 'pipeline': 'amd_index',
                 'acquisitions': len(dates),
                 'index': str(output_dir / 'amd_index.tif'),
+                'cloud_edge_filtered_index': str(filtered_path),
                 'output_dir': str(eda_dir),
             }
         statistics = {'feature': 'amd_index', 'formula': formula, 'regions': {}}
@@ -351,15 +435,23 @@ class AMDEDAPipeline(Pipeline):
                 },
             }
         _json(eda_dir / 'statistics.json', statistics)
-        self._points(data, dates, reference, masks, eda_dir, quality)
+        point_records = self._points(data, dates, reference, masks, eda_dir, quality,
+                                     filtered_data, variability_data, spatial_data)
+        self._trends(
+            spatial_data, tuple(date.fromisoformat(value) for value in dates),
+            masks, reference, point_records, eda_dir,
+        )
+        self._gaps(data, dates, masks, point_records, eda_dir)
         return {
             'pipeline': 'amd_eda',
             'acquisitions': len(dates),
             'index': str(output_dir / 'amd_index.tif'),
+            'cloud_edge_filtered_index': str(filtered_path),
             'output_dir': str(eda_dir),
         }
 
-    def _points(self, data, dates, reference, masks, output_dir, quality):
+    def _points(self, data, dates, reference, masks, output_dir, quality,
+                filtered_data=None, variability_data=None, spatial_data=None):
         options = self.options.get('points', {})
         window = options.get('window_size', 1)
         if (
@@ -412,6 +504,38 @@ class AMDEDAPipeline(Pipeline):
                     out=np.full(len(dates), np.nan),
                     where=counts > 0,
                 )
+                filtered_means = means.copy()
+                if filtered_data is not None:
+                    filtered_values = np.where(
+                        masks[region][rows, cols],
+                        filtered_data[:, rows, cols], np.nan
+                    )
+                    filtered_counts = np.isfinite(filtered_values).sum(axis=(1, 2))
+                    filtered_means = np.divide(
+                        np.nansum(filtered_values, axis=(1, 2)), filtered_counts,
+                        out=np.full(len(dates), np.nan), where=filtered_counts > 0,
+                    )
+                variability_means = filtered_means.copy()
+                if variability_data is not None:
+                    variability_values = np.where(
+                        masks[region][rows, cols],
+                        variability_data[:, rows, cols], np.nan
+                    )
+                    variability_counts = np.isfinite(variability_values).sum(axis=(1, 2))
+                    variability_means = np.divide(
+                        np.nansum(variability_values, axis=(1, 2)), variability_counts,
+                        out=np.full(len(dates), np.nan), where=variability_counts > 0,
+                    )
+                spatial_means = variability_means.copy()
+                if spatial_data is not None:
+                    spatial_values = np.where(
+                        masks[region][rows, cols], spatial_data[:, rows, cols], np.nan
+                    )
+                    spatial_counts = np.isfinite(spatial_values).sum(axis=(1, 2))
+                    spatial_means = np.divide(
+                        np.nansum(spatial_values, axis=(1, 2)), spatial_counts,
+                        out=np.full(len(dates), np.nan), where=spatial_counts > 0,
+                    )
                 if not np.any(counts):
                     quality['warnings'].append(
                         f'No valid observations at {region} point {label}.'
@@ -434,15 +558,88 @@ class AMDEDAPipeline(Pipeline):
                         label=f'{region}: {label}' if not labelled else '_nolegend_',
                     )
                     labelled = True
+                filtered_labelled = False
+                if filtered_data is not None:
+                    for year in years:
+                        filtered_valid = [
+                            i for i, day in enumerate(plot_dates)
+                            if day.year == year and np.isfinite(filtered_means[i])
+                        ]
+                        if not filtered_valid:
+                            continue
+                        ax.plot(
+                            [plot_dates[i] for i in filtered_valid],
+                            filtered_means[filtered_valid], marker='.', linestyle='--',
+                            color=color, alpha=0.8,
+                            label=(f'{region}: {label} (cloud-edge filtered)'
+                                   if not filtered_labelled else '_nolegend_'),
+                        )
+                        filtered_labelled = True
+                variability_labelled = False
+                if variability_data is not None:
+                    for year in years:
+                        valid_variability = [
+                            i for i, day in enumerate(plot_dates)
+                            if day.year == year and np.isfinite(variability_means[i])
+                        ]
+                        if not valid_variability:
+                            continue
+                        ax.plot(
+                            [plot_dates[i] for i in valid_variability],
+                            variability_means[valid_variability], marker='.',
+                            linestyle=':', color=color, alpha=0.9,
+                            label=(f'{region}: {label} (+ clean-water variability)'
+                                   if not variability_labelled else '_nolegend_'),
+                        )
+                        variability_labelled = True
+                spatial_labelled = False
+                if spatial_data is not None:
+                    for year in years:
+                        spatial_valid = [
+                            i for i, day in enumerate(plot_dates)
+                            if day.year == year and np.isfinite(spatial_means[i])
+                        ]
+                        if not spatial_valid:
+                            continue
+                        ax.plot(
+                            [plot_dates[i] for i in spatial_valid],
+                            spatial_means[spatial_valid], marker='.', linestyle='-.',
+                            color=color, alpha=0.9,
+                            label=(f'{region}: {label} (+ spatial consistency)'
+                                   if not spatial_labelled else '_nolegend_'),
+                        )
+                        spatial_labelled = True
                 records.extend(
                     {
                         'region': region,
                         'point': label,
                         'date': day,
                         'amd_index': float(value) if np.isfinite(value) else None,
+                        'cloud_edge_filtered': (
+                            float(filtered_value) if np.isfinite(filtered_value) else None
+                        ),
+                        'cloud_edge_removed': bool(
+                            np.isfinite(value) and not np.isfinite(filtered_value)
+                        ),
+                        'clean_water_variability_filtered': (
+                            float(variability_value)
+                            if np.isfinite(variability_value) else None
+                        ),
+                        'clean_water_variability_removed': bool(
+                            np.isfinite(filtered_value)
+                            and not np.isfinite(variability_value)
+                        ),
+                        'spatial_consistency_filtered': (
+                            float(spatial_value) if np.isfinite(spatial_value) else None
+                        ),
+                        'spatial_inconsistency_removed': bool(
+                            np.isfinite(variability_value) and not np.isfinite(spatial_value)
+                        ),
                         'valid_pixels': int(count),
                     }
-                    for day, value, count in zip(dates, means, counts)
+                    for day, value, filtered_value, variability_value, spatial_value, count in zip(
+                        dates, means, filtered_means, variability_means, spatial_means, counts
+                    )
                 )
         formula = self.options['feature_engineering']
         operator = '/' if formula['method'] == 'ratio' else '−'
@@ -456,3 +653,260 @@ class AMDEDAPipeline(Pipeline):
         ax.grid(alpha=0.25)
         figure.savefig(output_dir / 'point_timeseries.png', dpi=200)
         _csv(output_dir / 'point_timeseries.csv', records)
+        return records
+
+    def _clean_water_noise(self, data, dates, clean_mask, output_dir):
+        options = self.options.get('quality', {}).get('clean_water_variability', {})
+        if not options.get('enabled', False):
+            return data.copy(), None
+        result = clean_water_variability(
+            data, clean_mask,
+            float(options.get('threshold_sigma', 3.0)),
+            int(options.get('minimum_valid_pixels', 10)),
+        )
+        filtered = data.copy()
+        filtered[result['noisy']] = np.nan
+        rows = [{
+            'date': day,
+            'clean_water_valid_pixels': int(result['valid_pixels'][i]),
+            'clean_water_robust_sigma': (
+                float(result['robust_sigma'][i])
+                if np.isfinite(result['robust_sigma'][i]) else None
+            ),
+            'noise_threshold': result['threshold'],
+            'noisy_acquisition': bool(result['noisy'][i]),
+        } for i, day in enumerate(dates)]
+        _csv(output_dir / 'clean_water_variability.csv', rows)
+        _json(output_dir / 'clean_water_variability.json', {
+            'method': '1.4826 * spatial MAD within clean-water mask per date',
+            'threshold_sigma': float(options.get('threshold_sigma', 3.0)),
+            'minimum_valid_pixels': int(options.get('minimum_valid_pixels', 10)),
+            'baseline_median_sigma': result['baseline_median_sigma'],
+            'between_acquisition_robust_sigma': result['between_acquisition_robust_sigma'],
+            'noise_threshold': result['threshold'],
+            'noisy_acquisitions': [
+                day for day, noisy in zip(dates, result['noisy']) if noisy
+            ],
+        })
+        return filtered, result
+
+    def _spatial_noise(self, data, dates, clean_mask, output_dir, reference):
+        options = self.options.get('quality', {}).get('spatial_inconsistency', {})
+        if not options.get('enabled', False):
+            return data.copy(), None
+        result = spatial_inconsistency(
+            data, clean_mask,
+            int(options.get('window_size', 3)),
+            float(options.get('threshold_sigma', 3.0)),
+            int(options.get('minimum_valid_neighbors', 3)),
+            int(options.get('minimum_reference_pixels', 10)),
+        )
+        filtered = data.copy()
+        filtered[result['flags']] = np.nan
+        _csv(output_dir / 'spatial_inconsistency.csv', [{
+            'date': day,
+            'reference_robust_sigma': (
+                float(result['robust_sigma'][i])
+                if np.isfinite(result['robust_sigma'][i]) else None
+            ),
+            'residual_threshold': (
+                float(result['thresholds'][i])
+                if np.isfinite(result['thresholds'][i]) else None
+            ),
+            'flagged_pixels': int(result['flags'][i].sum()),
+        } for i, day in enumerate(dates)])
+        frequency = result['flags'].sum(axis=0).astype(np.float32)
+        profile = RasterProfile(reference['crs'], reference['transform'],
+                                reference['width'], reference['height'],
+                                'float32', np.nan)
+        write_raster(output_dir / 'spatial_inconsistency_frequency.tif',
+                     frequency, profile, 'GTiff')
+        _json(output_dir / 'spatial_inconsistency.json', {
+            'method': 'absolute local-median residual calibrated per date on clean water',
+            'window_size': int(options.get('window_size', 3)),
+            'threshold_sigma': float(options.get('threshold_sigma', 3.0)),
+            'minimum_valid_neighbors': int(options.get('minimum_valid_neighbors', 3)),
+            'minimum_reference_pixels': int(options.get('minimum_reference_pixels', 10)),
+            'total_flagged_pixel_observations': int(result['flags'].sum()),
+            'dates_with_flags': sum(bool(value) for value in result['flags'].any(axis=(1, 2))),
+        })
+        return filtered, result
+
+    def _trends(self, data, dates, masks, reference, point_records, eda_dir):
+        config = self.options.get('trend_analysis', {})
+        if not config.get('enabled', False):
+            return
+        if config.get('method', 'robust_lowess') != 'robust_lowess':
+            raise ValueError('AMD trend method must be robust_lowess.')
+        domain = masks['amd'] | masks['clean_water']
+        filled, smoothed, interpolation, gap_days = process_trend_stack(
+            data, dates, domain, config
+        )
+        result_config = self.options['results']['trend_features']
+        output_dir = self._path(result_config['output_dir'])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        profile = RasterProfile(reference['crs'], reference['transform'],
+                                reference['width'], reference['height'],
+                                'float32', np.nan)
+        band_names = tuple(value.isoformat() for value in dates)
+        outputs = {}
+        for name, values in (
+            ('amd_filled', filled), ('amd_smoothed', smoothed),
+            ('interpolation_mask', interpolation),
+            ('interpolation_gap_days', gap_days),
+        ):
+            path = output_dir / f'{name}.tif'
+            write_raster(path, values, profile, 'GTiff', band_names)
+            outputs[name] = str(path)
+
+        grouped = {}
+        for row in point_records:
+            grouped.setdefault((row['region'], row['point']), []).append(row)
+        plot = Figure(figsize=(12, 5), layout='constrained')
+        FigureCanvasAgg(plot)
+        ax = plot.subplots()
+        trend_rows = []
+        summary = {}
+        for (region, label), rows in grouped.items():
+            values = np.asarray([
+                row['spatial_consistency_filtered']
+                if row['spatial_consistency_filtered'] is not None else np.nan
+                for row in rows
+            ])
+            series, flags, gaps = fill_short_gaps(
+                values, dates, int(config.get('max_gap_days', 30)),
+                bool(config.get('require_same_year', True)),
+            )
+            trend = robust_lowess(
+                series, dates, flags, int(config.get('window_days', 45)),
+                int(config.get('robust_iterations', 2)),
+                float(config.get('interpolated_weight', .5)),
+                bool(config.get('process_each_year', True)),
+            )
+            color = 'tab:orange' if region == 'amd' else 'tab:blue'
+            observed = np.isfinite(values)
+            ax.scatter(np.asarray(dates)[observed], values[observed], s=13,
+                       color=color, alpha=.55, label=f'{region}: {label} observed')
+            ax.scatter(np.asarray(dates)[flags], series[flags], s=28,
+                       facecolors='none', edgecolors=color,
+                       label=f'{region}: {label} interpolated')
+            for year in sorted({value.year for value in dates}):
+                selected = np.asarray([value.year == year for value in dates])
+                ax.plot(np.asarray(dates)[selected], trend[selected], color=color,
+                        linewidth=2.2,
+                        label=f'{region}: {label} LOWESS' if year == dates[0].year else '_nolegend_')
+            summary[f'{region}:{label}'] = {
+                'observed': int(observed.sum()),
+                'interpolated': int(flags.sum()),
+                'smoothed': int(np.isfinite(trend).sum()),
+            }
+            trend_rows.extend({
+                'region': region, 'point': label, 'date': day.isoformat(),
+                'noise_filtered_value': float(raw) if np.isfinite(raw) else None,
+                'filled_value': float(value) if np.isfinite(value) else None,
+                'smoothed_value': float(smooth) if np.isfinite(smooth) else None,
+                'is_observed': bool(np.isfinite(raw)),
+                'is_interpolated': bool(flag),
+                'gap_length_days': float(gap) if np.isfinite(gap) else None,
+            } for day, raw, value, smooth, flag, gap in
+                zip(dates, values, series, trend, flags, gaps))
+        ax.set(title='Noise-filtered AMD observations and retrospective trends',
+               xlabel='Acquisition date', ylabel='AMD_difference (B04 − B02)')
+        ax.grid(alpha=.25)
+        ax.legend()
+        plot.savefig(eda_dir / 'point_trends.png', dpi=200)
+        _csv(eda_dir / 'point_trends.csv', trend_rows)
+        report = {
+            'method': 'bounded linear interpolation followed by robust date-aware LOWESS',
+            'parameters': config, 'points': summary,
+            'raster_interpolated_pixel_observations': int(interpolation.sum()),
+            'output_files': outputs,
+            'retrospective_only': True,
+        }
+        _json(eda_dir / 'gap_filling_report.json', {
+            'max_gap_days': int(config.get('max_gap_days', 30)),
+            'require_same_year': bool(config.get('require_same_year', True)),
+            'raster_interpolated_pixel_observations': int(interpolation.sum()),
+            'points': {key: {'interpolated': value['interpolated']}
+                       for key, value in summary.items()},
+        })
+        _json(eda_dir / 'smoothing_report.json', report)
+        _json(output_dir / 'metadata.json', {
+            'feature_names': list(outputs), 'acquisition_dates': list(band_names),
+            'formula': self.options['feature_engineering'], 'processing_parameters': config,
+            'input': 'AMD observations after all EDA noise filters',
+            'output_files': outputs, 'retrospective_only': True,
+        })
+
+    def _gaps(self, data, dates, masks, point_records, output_dir):
+        """Write acquisition, regional, and observation-point gap diagnostics."""
+        series = {
+            'model_domain': np.any(
+                np.isfinite(data[:, masks['amd'] | masks['clean_water']]), axis=1
+            ),
+        }
+        series.update({
+            f'region:{region}': np.any(np.isfinite(data[:, mask]), axis=1)
+            for region, mask in masks.items()
+        })
+        point_values = {}
+        for row in point_records:
+            key = f'point:{row["region"]}:{row["point"]}'
+            point_values.setdefault(key, []).append(row['amd_index'] is not None)
+            filtered_key = f'point_cloud_edge_filtered:{row["region"]}:{row["point"]}'
+            point_values.setdefault(filtered_key, []).append(
+                row['cloud_edge_filtered'] is not None
+            )
+            variability_key = (
+                f'point_clean_water_variability_filtered:'
+                f'{row["region"]}:{row["point"]}'
+            )
+            point_values.setdefault(variability_key, []).append(
+                row['clean_water_variability_filtered'] is not None
+            )
+            spatial_key = f'point_spatially_filtered:{row["region"]}:{row["point"]}'
+            point_values.setdefault(spatial_key, []).append(
+                row['spatial_consistency_filtered'] is not None
+            )
+        series.update(point_values)
+        report, intervals = analyse_amd_gaps(dates, series)
+        report['cloud_edge_contamination'] = {
+            'buffer_pixels': self.options.get('quality', {}).get(
+                'cloud_edge_buffer_pixels', 0
+            ),
+            'point_observations_removed': sum(
+                row['cloud_edge_removed'] for row in point_records
+            ),
+            'method': 'binary dilation of excluded SCL pixels',
+        }
+        report['clean_water_variability'] = {
+            'point_observations_removed': sum(
+                row['clean_water_variability_removed'] for row in point_records
+            ),
+            'method': 'dates above robust clean-water spatial-variability threshold',
+        }
+        report['spatial_inconsistency'] = {
+            'point_observations_removed': sum(
+                row['spatial_inconsistency_removed'] for row in point_records
+            ),
+            'method': 'local-median residual threshold calibrated on clean water',
+        }
+        _json(output_dir / 'gap_analysis.json', report)
+        _csv(output_dir / 'gap_intervals.csv', intervals)
+
+        figure = Figure(figsize=(12, 5), layout='constrained')
+        FigureCanvasAgg(figure)
+        ax = figure.subplots()
+        years = sorted({date.fromisoformat(value).year for value in dates})
+        labels, values = [], []
+        for scope, result in report['series'].items():
+            for year in years:
+                labels.append((scope, year))
+                values.append(result['yearly'][str(year)]['valid_fraction'])
+        matrix = np.asarray(values).reshape(len(report['series']), len(years))
+        image = ax.imshow(matrix, aspect='auto', vmin=0, vmax=1, cmap='viridis')
+        ax.set_xticks(range(len(years)), years)
+        ax.set_yticks(range(len(report['series'])), report['series'])
+        ax.set(xlabel='Year', title='AMD valid-observation fraction')
+        figure.colorbar(image, ax=ax, label='Valid fraction')
+        figure.savefig(output_dir / 'gap_coverage.png', dpi=200)

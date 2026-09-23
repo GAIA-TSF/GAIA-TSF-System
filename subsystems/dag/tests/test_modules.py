@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import json
 
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ from subsystems.dag.plugins.features.meteo_features import MeteoFeatureExtractor
 from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.features.temporal_features import TemporalFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
-from subsystems.dag.utils.raster import apply_mask
+from subsystems.dag.utils.raster import RasterProfile, apply_mask, write_single_band_raster
 from subsystems.dag.utils.statistics import time_series_statistics
 
 
@@ -57,6 +58,33 @@ def test_apply_mask_sets_pixels_outside_tsf_to_nan():
 
     assert np.isnan(masked[:, 0, 1]).all()
     assert np.all(masked[:, 1, 0] == data[:, 1, 0])
+
+
+def test_raster_writer_creates_strict_stac_sidecar(tmp_path):
+    """Every DAG GeoTIFF export has a same-stem, JSON-valid metadata item."""
+    output = tmp_path / 'velocity.tif'
+    profile = RasterProfile(
+        crs='EPSG:32633',
+        transform=from_origin(500000, 6700000, 10, 10),
+        width=2,
+        height=2,
+        dtype='float32',
+        nodata=np.nan,
+    )
+
+    write_single_band_raster(
+        output,
+        np.array([[1.0, np.nan], [3.0, 4.0]]),
+        profile,
+        'GTiff',
+        'velocity',
+    )
+
+    item = json.loads(output.with_suffix('.json').read_text())
+    assert item['stac_version'] == '1.0.0'
+    assert item['assets']['data']['href'] == './velocity.tif'
+    assert item['properties']['raster:bands'][0]['nodata'] is None
+    assert item['properties']['proj:shape'] == [2, 2]
 
 
 def test_time_series_statistics_uses_nested_schema():

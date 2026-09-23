@@ -15,6 +15,7 @@ import argparse
 import csv
 from dataclasses import dataclass
 from datetime import datetime
+import json
 import logging
 from pathlib import Path
 import sys
@@ -30,6 +31,7 @@ if str(ROOT) not in sys.path:
 from subsystems.map.core.registry import MODEL_REGISTRY
 from subsystems.map.dataset import Dataset, DatasetBuilder, FeatureLoader
 from subsystems.map.monitoring import ResidualAnalyzer, TemporalResidualMonitor
+from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
 from subsystems.map.pipelines.learning_pipeline import LearningPipeline
 from subsystems.map.utils.config_loader import load_config
 from subsystems.map.utils.experiment_paths import (
@@ -79,11 +81,16 @@ class SimulationResult:
     acceleration: np.ndarray
     acceleration_cusum: np.ndarray
     deceleration_cusum: np.ndarray
+    regional_acceleration_cusum: np.ndarray
+    regional_deceleration_cusum: np.ndarray
+    regional_cusum_available: np.ndarray
+    regional_dynamics: np.ndarray
     regime_probability: np.ndarray
     dynamics: np.ndarray
     frames: tuple[MonitoringFrame, ...]
     medium_threshold: float
     high_threshold: float
+    cusum_decision_threshold: float
     unit: str
     native_unit: str
     value_scale: float
@@ -113,6 +120,17 @@ def frame_indices(
 def causal_prefix_indices(time_indices: np.ndarray, current_index: int) -> np.ndarray:
     """Select samples known by an acquisition, never samples from its future."""
     return np.flatnonzero(time_indices <= current_index)
+
+
+def configured_animation_output(config: dict[str, Any]) -> Path:
+    """Resolve the scenario-local animation destination from MAP configuration."""
+    config_path = Path(str(config['_config_path']))
+    animation = config.get('monitoring', {}).get('animation', {})
+    if not isinstance(animation, dict):
+        raise ValueError('monitoring.animation must be a mapping.')
+    directory = str(animation.get('output_directory', 'monitoring/animation'))
+    filename = str(animation.get('filename', 'tsf_monitoring.mp4'))
+    return results_directory(config, config_path) / directory / filename
 
 
 def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationResult:
@@ -216,15 +234,130 @@ def run_simulation(config: dict[str, Any], *, train: bool = True) -> SimulationR
         acceleration=acceleration,
         acceleration_cusum=acceleration_cusum,
         deceleration_cusum=deceleration_cusum,
+        regional_acceleration_cusum=np.full(len(dataset.dates), np.nan),
+        regional_deceleration_cusum=np.full(len(dataset.dates), np.nan),
+        regional_cusum_available=np.zeros(len(dataset.dates), dtype=bool),
+        regional_dynamics=np.full(len(dataset.dates), 'stable', dtype='<U12'),
         regime_probability=probabilities,
         dynamics=dynamics,
         frames=tuple(frames),
         medium_threshold=monitor.medium_risk_threshold,
         high_threshold=monitor.high_risk_threshold,
+        cusum_decision_threshold=monitor.cusum_decision,
         unit=str(config.get('plotting', {}).get('deformation_unit', '')),
         native_unit=str(
             config.get('plotting', {}).get('native_deformation_rate_unit', '')
         ),
+        value_scale=float(config.get('plotting', {}).get('value_scale', 1.0)),
+    )
+
+
+def run_precomputed_simulation(
+    config: dict[str, Any],
+    *,
+    dates: tuple[str, ...],
+    calibration: TemporalWindow,
+    monitoring: TemporalWindow,
+    observed_stack: np.ndarray,
+    prediction_stack: np.ndarray,
+    uncertainty_stack: np.ndarray | None,
+    fixed_support_mask: np.ndarray | None,
+    coherent_regions: tuple[SpatialCoherenceRegion, ...] = (),
+) -> SimulationResult:
+    """Replay monitoring causally from persisted inference stacks.
+
+    This is the animation-side counterpart to the independent monitoring
+    pipeline. It deliberately does not reload a model or engineered features:
+    each animation frame only reveals the subset of already-persisted inference
+    products available by that acquisition date.
+    """
+    observed = _spatial_mean(observed_stack)
+    monitor = TemporalResidualMonitor(config['monitoring']['dashboard'])
+    time_count = len(dates)
+    predicted = np.full(time_count, np.nan)
+    uncertainty = np.full(time_count, np.nan)
+    velocity = np.full(time_count, np.nan)
+    acceleration = np.full(time_count, np.nan)
+    acceleration_cusum = np.full(time_count, np.nan)
+    deceleration_cusum = np.full(time_count, np.nan)
+    regional_acceleration_cusum = np.full(time_count, np.nan)
+    regional_deceleration_cusum = np.full(time_count, np.nan)
+    regional_cusum_available = np.zeros(time_count, dtype=bool)
+    regional_dynamics = np.full(time_count, 'stable', dtype='<U12')
+    probabilities = np.full(time_count, np.nan)
+    dynamics = np.full(time_count, 'stable', dtype='<U12')
+    frames: list[MonitoringFrame] = []
+
+    for current in range(monitoring.start_index, monitoring.end_index):
+        end = current + 1
+        result = monitor.analyze(
+            observed_stack[:end],
+            prediction_stack[:end],
+            dates[:end],
+            (calibration.start_index, calibration.end_index),
+            (monitoring.start_index, end),
+            None if uncertainty_stack is None else uncertainty_stack[:end],
+            fixed_support_mask=fixed_support_mask,
+            coherent_regions=coherent_regions,
+        )
+        predicted[current] = result.predicted_mean[current]
+        uncertainty[current] = (
+            np.nan if result.uncertainty_mean is None else result.uncertainty_mean[current]
+        )
+        velocity[current] = result.velocity[current]
+        acceleration[current] = result.acceleration[current]
+        acceleration_cusum[current] = result.acceleration_cusum[current]
+        deceleration_cusum[current] = result.deceleration_cusum[current]
+        regional_acceleration_cusum[current] = result.regional_acceleration_cusum[current]
+        regional_deceleration_cusum[current] = result.regional_deceleration_cusum[current]
+        regional_cusum_available[current] = result.regional_cusum_available[current]
+        regional_dynamics[current] = result.regional_dynamics[current]
+        probabilities[current] = result.regime_risk[current]
+        dynamics[current] = result.dynamics[current]
+        frames.append(
+            MonitoringFrame(
+                index=current,
+                date=dates[current],
+                observed_los=float(observed[current]),
+                predicted_los=float(predicted[current]),
+                prediction_std=float(uncertainty[current]),
+                residual=float(result.residual_mean[current]),
+                velocity=float(velocity[current]),
+                acceleration=float(acceleration[current]),
+                acceleration_cusum=float(acceleration_cusum[current]),
+                deceleration_cusum=float(deceleration_cusum[current]),
+                regime_change_probability=float(probabilities[current]),
+                dynamics=str(dynamics[current]),
+                risk_level=classify_risk(
+                    float(probabilities[current]),
+                    result.medium_risk_threshold,
+                    result.high_risk_threshold,
+                ),
+            )
+        )
+    return SimulationResult(
+        dates=dates,
+        calibration=calibration,
+        monitoring=monitoring,
+        observed=observed,
+        predicted=predicted,
+        uncertainty=uncertainty,
+        velocity=velocity,
+        acceleration=acceleration,
+        acceleration_cusum=acceleration_cusum,
+        deceleration_cusum=deceleration_cusum,
+        regional_acceleration_cusum=regional_acceleration_cusum,
+        regional_deceleration_cusum=regional_deceleration_cusum,
+        regional_cusum_available=regional_cusum_available,
+        regional_dynamics=regional_dynamics,
+        regime_probability=probabilities,
+        dynamics=dynamics,
+        frames=tuple(frames),
+        medium_threshold=monitor.medium_risk_threshold,
+        high_threshold=monitor.high_risk_threshold,
+        cusum_decision_threshold=monitor.cusum_decision,
+        unit=str(config.get('plotting', {}).get('deformation_unit', '')),
+        native_unit=str(config.get('plotting', {}).get('native_deformation_rate_unit', '')),
         value_scale=float(config.get('plotting', {}).get('value_scale', 1.0)),
     )
 
@@ -269,6 +402,107 @@ def export_csv(result: SimulationResult, output: Path) -> Path:
                 ]
             )
     return path
+
+
+def export_dashboard_json(result: SimulationResult, output: Path) -> Path:
+    """Write all animation-dashboard graph inputs as web-ready JSON.
+
+    Rate and acceleration values are converted to the displayed unit. Missing
+    values are encoded as JSON ``null`` rather than non-standard NaN values.
+    CUSUM values and regime scores are dimensionless.
+    """
+    path = output.with_suffix('.json')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    indices = range(result.calibration.start_index, result.monitoring.end_index)
+    records: list[dict[str, Any]] = []
+    for index in indices:
+        observed = _json_number(result.observed[index] * result.value_scale)
+        predicted = _json_number(result.predicted[index] * result.value_scale)
+        records.append(
+            {
+                'date': result.dates[index],
+                'phase': (
+                    'calibration'
+                    if index < result.monitoring.start_index
+                    else 'monitoring'
+                ),
+                'observed_mean_los_velocity': observed,
+                'predicted_baseline_velocity': predicted,
+                'prediction_uncertainty': _json_number(
+                    result.uncertainty[index] * result.value_scale
+                ),
+                'mean_residual_rate': (
+                    None if observed is None or predicted is None else observed - predicted
+                ),
+                'observed_acceleration': _json_number(
+                    result.acceleration[index] * result.value_scale
+                ),
+                'tsf_wide_acceleration_cusum': _json_number(
+                    result.acceleration_cusum[index]
+                ),
+                'tsf_wide_deceleration_cusum': _json_number(
+                    result.deceleration_cusum[index]
+                ),
+                'coherent_region_available': bool(
+                    result.regional_cusum_available[index]
+                ),
+                'coherent_region_acceleration_cusum': _json_number(
+                    result.regional_acceleration_cusum[index]
+                ),
+                'coherent_region_deceleration_cusum': _json_number(
+                    result.regional_deceleration_cusum[index]
+                ),
+                'coherent_region_dynamics': str(result.regional_dynamics[index]),
+                'regional_acceleration_period': bool(
+                    result.regional_cusum_available[index]
+                    and result.regional_dynamics[index] == 'accelerating'
+                ),
+                'regional_deceleration_recovery_period': bool(
+                    result.regional_cusum_available[index]
+                    and result.regional_dynamics[index] == 'decelerating'
+                ),
+                'regime_change_score': _json_number(result.regime_probability[index]),
+                'tsf_wide_dynamics': str(result.dynamics[index]),
+            }
+        )
+    payload = {
+        'schema_version': '1.0',
+        'product': 'map_tsf_monitoring_animation_graph_data',
+        'units': {
+            'deformation_rate': result.unit,
+            'acceleration': _acceleration_unit(result.unit),
+            'cusum': 'dimensionless',
+            'regime_change_score': '[0, 1]',
+        },
+        'temporal_windows': {
+            'calibration': _window_payload(result.calibration),
+            'monitoring': _window_payload(result.monitoring),
+        },
+        'thresholds': {
+            'cusum_decision_threshold': result.cusum_decision_threshold,
+            'regime_medium_threshold': result.medium_threshold,
+            'regime_high_threshold': result.high_threshold,
+        },
+        'series': records,
+    }
+    path.write_text(json.dumps(payload, indent=2), encoding='utf-8')
+    return path
+
+
+def _json_number(value: float | np.floating[Any]) -> float | None:
+    """Convert a finite numeric value to JSON, otherwise return ``null``."""
+    numeric = float(value)
+    return numeric if np.isfinite(numeric) else None
+
+
+def _window_payload(window: TemporalWindow) -> dict[str, int | str]:
+    """Return a web-friendly description of one inclusive/exclusive window."""
+    return {
+        'start_index': window.start_index,
+        'end_index_exclusive': window.end_index,
+        'configured_start_date': window.start_date,
+        'configured_end_date': window.end_date,
+    }
 
 
 def save_visualization(
@@ -351,10 +585,19 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     )
     cusum_upper = max(
         1.0,
+        result.cusum_decision_threshold,
         _finite_max(result.acceleration_cusum),
         _finite_max(result.deceleration_cusum),
     )
     axes[1].set_ylim(-0.05 * cusum_upper, 1.05 * cusum_upper)
+    regional_axis = axes[1].twinx()
+    regional_upper = max(
+        1.0,
+        _finite_max(result.regional_acceleration_cusum),
+        _finite_max(result.regional_deceleration_cusum),
+    )
+    regional_axis.set_ylim(-0.05 * regional_upper, 1.05 * regional_upper)
+    regional_axis.set_ylabel('Coherent-region CUSUM statistic')
     axes[2].axhline(
         result.medium_threshold,
         color='#e6a700',
@@ -389,11 +632,38 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     (predicted_line,) = axes[0].plot(
         [], [], color='#4c78a8', label='Predicted baseline rate'
     )
-    (acceleration_cusum_line,) = axes[1].plot(
-        [], [], color='#e45756', label='Acceleration CUSUM'
-    )
     (deceleration_cusum_line,) = axes[1].plot(
-        [], [], color='#54a24b', label='Deceleration CUSUM'
+        [], [], color='#54a24b', linewidth=0.9, linestyle='--', alpha=0.75,
+        label='TSF-wide deceleration CUSUM'
+    )
+    (acceleration_cusum_line,) = axes[1].plot(
+        [], [], color='#e45756', linewidth=0.9, linestyle='--', alpha=0.75,
+        label='TSF-wide acceleration CUSUM'
+    )
+    axes[1].axhline(
+        result.cusum_decision_threshold,
+        color='black',
+        linestyle='--',
+        linewidth=1.2,
+        label=f'Decision threshold ({result.cusum_decision_threshold:g})',
+    )
+    (regional_acceleration_line,) = regional_axis.plot(
+        [], [], color='darkorchid', linewidth=1.5,
+        label='Coherent-region acceleration CUSUM',
+    )
+    (regional_deceleration_line,) = regional_axis.plot(
+        [], [], color='teal', linewidth=1.5,
+        label='Coherent-region deceleration CUSUM',
+    )
+    (regional_acceleration_period,) = axes[1].plot(
+        [], [], color='firebrick', linewidth=4.0,
+        transform=axes[1].get_xaxis_transform(),
+        label='Regional acceleration period',
+    )
+    (regional_deceleration_period,) = axes[1].plot(
+        [], [], color='seagreen', linewidth=4.0,
+        transform=axes[1].get_xaxis_transform(),
+        label='Regional deceleration / recovery period',
     )
     (probability_line,) = axes[2].plot(
         [], [], color='#7b2cbf', linewidth=2, label='P(regime change)'
@@ -412,7 +682,13 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     figure.text(0.25, 0.905, 'CALIBRATION', ha='center', color='#345b83')
     figure.text(0.73, 0.905, 'MONITORING', ha='center', color='#a85500')
     axes[0].legend(loc='upper left', fontsize=8)
-    axes[1].legend(loc='upper left', fontsize=8)
+    left_handles, left_labels = axes[1].get_legend_handles_labels()
+    right_handles, right_labels = regional_axis.get_legend_handles_labels()
+    axes[1].legend(
+        left_handles + right_handles,
+        left_labels + right_labels,
+        loc='upper left', fontsize=8, ncols=2,
+    )
     axes[2].legend(loc='upper left', fontsize=8)
 
     def update(current: int) -> tuple[Any, ...]:
@@ -435,6 +711,33 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         deceleration_cusum_line.set_data(
             dates[monitoring_visible],
             result.deceleration_cusum[monitoring_visible],
+        )
+        regional_visible = monitoring_visible & result.regional_cusum_available
+        regional_acceleration_line.set_data(
+            dates[regional_visible],
+            result.regional_acceleration_cusum[regional_visible],
+        )
+        regional_deceleration_line.set_data(
+            dates[regional_visible],
+            result.regional_deceleration_cusum[regional_visible],
+        )
+        acceleration_period = (
+            monitoring_visible
+            & result.regional_cusum_available
+            & (result.regional_dynamics == 'accelerating')
+        )
+        deceleration_period = (
+            monitoring_visible
+            & result.regional_cusum_available
+            & (result.regional_dynamics == 'decelerating')
+        )
+        regional_acceleration_period.set_data(
+            dates[: current + 1],
+            np.where(acceleration_period[: current + 1], 0.90, np.nan),
+        )
+        regional_deceleration_period.set_data(
+            dates[: current + 1],
+            np.where(deceleration_period[: current + 1], 0.90, np.nan),
         )
         probability_line.set_data(
             dates[monitoring_visible], result.regime_probability[monitoring_visible]
@@ -461,6 +764,10 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
             predicted_line,
             acceleration_cusum_line,
             deceleration_cusum_line,
+            regional_acceleration_line,
+            regional_deceleration_line,
+            regional_acceleration_period,
+            regional_deceleration_period,
             probability_line,
             *cursors,
             status,
@@ -550,38 +857,11 @@ def _spatial_mean(stack: np.ndarray) -> np.ndarray:
     )
 
 
-def configured_animation_output(config: dict[str, Any]) -> Path:
-    """Resolve the configured animation file below the experiment results.
-
-    ``--output`` remains an explicit command-line override, while normal
-    monitoring runs share a scenario-local output directory configured in MAP.
-    """
-    monitoring = config.get('monitoring')
-    animation = monitoring.get('animation') if isinstance(monitoring, dict) else None
-    if not isinstance(animation, dict):
-        raise KeyError('monitoring.animation must be a mapping.')
-    directory_value = animation.get('output_directory')
-    filename_value = animation.get('filename')
-    if not isinstance(directory_value, str) or not directory_value.strip():
-        raise ValueError('monitoring.animation.output_directory must be a path.')
-    if not isinstance(filename_value, str) or not filename_value.strip():
-        raise ValueError('monitoring.animation.filename must be a filename.')
-    directory = Path(directory_value).expanduser()
-    if directory.is_absolute():
-        return directory / filename_value
-    config_path = Path(str(config['_config_path']))
-    return results_directory(config, config_path) / directory / filename_value
-
-
 def main() -> None:
     """Run the configured operational replay and export its products."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True)
-    parser.add_argument(
-        '--output',
-        type=Path,
-        help='Optional animation path overriding monitoring.animation settings.',
-    )
+    parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--fps', type=int, default=4)
     parser.add_argument('--dpi', type=int, default=120)
     parser.add_argument('--show', action='store_true')
@@ -599,13 +879,14 @@ def main() -> None:
         parser.error('--fps and --dpi must be positive.')
     config = load_config(args.config)
     result = run_simulation(config, train=not args.reuse_model)
-    output_path = args.output or configured_animation_output(config)
     visual_path = save_visualization(
-        result, output_path, fps=args.fps, dpi=args.dpi, show=args.show
+        result, args.output, fps=args.fps, dpi=args.dpi, show=args.show
     )
     csv_path = export_csv(result, visual_path)
+    json_path = export_dashboard_json(result, visual_path)
     LOGGER.info('Wrote monitoring visualization: %s', visual_path)
     LOGGER.info('Wrote monitoring trajectory: %s', csv_path)
+    LOGGER.info('Wrote dashboard graph data: %s', json_path)
 
 
 if __name__ == '__main__':

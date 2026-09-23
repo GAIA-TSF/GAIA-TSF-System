@@ -33,7 +33,10 @@ This subsystem implements a modular machine learning framework for monitoring ge
 * **Unified Pipelines**
 `
   * `learning_pipeline`: training and experiment registration
-  * `inference_pipeline`: prediction, residual computation, and monitoring
+  * `inference_pipeline`: prediction, residual computation, and persisted
+    hand-off products
+  * `monitoring_pipeline`: anomaly detection, spatial coherence, GIS products,
+    dashboard, and optional causal animation
 
 * **Physics-Informed Monitoring Layer**
   Predictions are transformed into risk signals using methods such as:
@@ -58,6 +61,7 @@ core/
 pipelines/
   learning_pipeline.py
   inference_pipeline.py
+  monitoring_pipeline.py
 
 dataset/         # data loading and windowing
 monitoring/      # change detection and risk analysis
@@ -82,7 +86,20 @@ python3 subsystems/map/run_learning.py  \
 
 python3 subsystems/map/run_inference.py   \
   --config subsystems/map/config.yaml
+
+# Re-run thresholds, spatial coherence, dashboard, and optional animation
+# without recalculating model predictions.
+python3 subsystems/map/run_monitoring.py  \
+  --config subsystems/map/config.yaml
 ```
+
+Inference writes its internal, versioned monitoring hand-off to
+`results/inference/monitoring_input.npz`. Monitoring consumes this artifact
+and writes operational results below `results/anomalies/` and
+`results/monitoring/`. Set `monitoring.run_after_inference: true` for a
+single-command batch run; it is `false` by default. Set
+`monitoring.animation.enabled: true` to produce the animation and its CSV
+from the persisted inference stacks during the monitoring stage.
 
 
 ### Test

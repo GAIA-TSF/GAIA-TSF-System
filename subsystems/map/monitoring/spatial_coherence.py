@@ -14,6 +14,20 @@ class SpatialCoherenceResult:
 
     binary_stack: np.ndarray
     summary: dict[str, Any]
+    regions: tuple['SpatialCoherenceRegion', ...]
+
+
+@dataclass(frozen=True)
+class SpatialCoherenceRegion:
+    """A region qualified for regional monitoring at a causal activation date.
+
+    The support is frozen when its spatial and temporal coherence is first
+    established.  This permits its pre-existing calibration history to be
+    evaluated without allowing later observations to redefine that history.
+    """
+
+    support: np.ndarray
+    activation_index: int
 
 
 class SpatialCoherenceDetector:
@@ -39,28 +53,44 @@ class SpatialCoherenceDetector:
             return SpatialCoherenceResult(
                 binary_stack & mask[np.newaxis, :, :],
                 {'enabled': False},
+                (),
             )
         output = np.zeros_like(binary_stack, dtype=bool)
-        previous: list[tuple[np.ndarray, int]] = []
+        previous: list[tuple[np.ndarray, int, int | None]] = []
+        regions: list[SpatialCoherenceRegion] = []
         retained_regions = 0
         for index in range(binary_stack.shape[0]):
             components = self._components(binary_stack[index] & mask)
-            current: list[tuple[np.ndarray, int]] = []
+            current: list[tuple[np.ndarray, int, int | None]] = []
             for component in components:
                 if int(np.count_nonzero(component)) < self.minimum_area_pixels:
                     continue
                 run = 1
+                region_id: int | None = None
                 if previous:
-                    best_overlap, prior_run = max(
-                        (self._iou(component, prior), prior_run)
-                        for prior, prior_run in previous
+                    best_overlap, prior_run, region_id = max(
+                        (
+                            (self._iou(component, prior), prior_run, prior_region_id)
+                            for prior, prior_run, prior_region_id in previous
+                        ),
+                        key=lambda candidate: (candidate[0], candidate[1]),
                     )
                     if best_overlap >= self.minimum_overlap:
                         run = prior_run + 1
-                current.append((component, run))
+                    else:
+                        region_id = None
                 if run >= self.persistence:
                     output[index] |= component
                     retained_regions += 1
+                    if region_id is None:
+                        region_id = len(regions)
+                        regions.append(
+                            SpatialCoherenceRegion(
+                                support=component.copy(),
+                                activation_index=index,
+                            )
+                        )
+                current.append((component, run, region_id))
             previous = current
         return SpatialCoherenceResult(
             output,
@@ -71,10 +101,15 @@ class SpatialCoherenceDetector:
                 'minimum_overlap': self.minimum_overlap,
                 'connectivity': self.connectivity,
                 'coherent_regions_retained': retained_regions,
+                'coherence_qualified_region_count': len(regions),
+                'region_activation_indices': [
+                    region.activation_index for region in regions
+                ],
                 'coherent_pixels_by_acquisition': [
                     int(np.count_nonzero(values)) for values in output
                 ],
             },
+            tuple(regions),
         )
 
     def _components(self, values: np.ndarray) -> list[np.ndarray]:

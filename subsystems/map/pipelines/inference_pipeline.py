@@ -10,20 +10,17 @@ import numpy as np
 
 from subsystems.map.core.registry import MODEL_REGISTRY
 from subsystems.map.dataset import DatasetBuilder, FeatureLoader
-from subsystems.map.monitoring import (
-    ResidualAnalyzer,
-    SpatialCoherenceDetector,
-    StatisticalAnomalyDetector,
-    TemporalResidualMonitor,
+from subsystems.map.monitoring import ResidualAnalyzer
+from subsystems.map.pipelines.monitoring_pipeline import (
+    MONITORING_INPUT_FILENAME,
+    MonitoringPipeline,
 )
-from subsystems.map.monitoring.dashboard import write_slope_stability_dashboard
 from subsystems.map.utils.artifacts import (
     write_diagnostics,
     write_json,
     write_latest_residual_map,
     write_mean_residual_map,
     write_observation_point_timeseries,
-    write_persistent_residual_map,
 )
 from subsystems.map.utils.experiment_paths import (
     experiment_model_directory,
@@ -228,132 +225,88 @@ class InferencePipeline:
                 monitoring_window.end_index,
             ),
         )
-        detector = StatisticalAnomalyDetector(self.config['anomaly_detection'])
-        anomalies = detector.detect(
+        monitoring_input = self._write_monitoring_input(
+            output_root,
             dataset,
+            observed_stack,
+            prediction_stack,
             residuals.stack,
-            persistence_start_time_index=monitoring_window.start_index,
-            persistence_end_time_index=monitoring_window.end_index,
-        )
-        detector.write(
-            anomalies,
-            dataset,
-            output_root / 'anomalies',
-            residual_rate_unit=self._native_plot_unit(),
-        )
-        coherence = SpatialCoherenceDetector(
-            self._spatial_coherence_config()
-        ).detect(anomalies.binary_stack, dataset.mask)
-        self._write_coherent_anomalies(
-            output_root / 'anomalies', coherence.binary_stack, dataset, analyzer
-        )
-        write_json(
-            output_root / 'anomalies' / 'spatial_coherence_summary.json',
-            coherence.summary,
-        )
-        write_persistent_residual_map(
-            output_dir=output_root / 'residuals',
-            persistent_anomalies=anomalies.binary_stack,
-            mask=dataset.mask,
-            grid_transform=dataset.grid.transform,
-            grid_width=dataset.grid.width,
-            grid_height=dataset.grid.height,
-            colormap=self._persistent_residual_colormap(),
-            persistence_start_time_index=int(
-                anomalies.summary['persistence_start_time_index'],
+            None if prediction.uncertainty is None else analyzer.restore_stack(
+                dataset, prediction.uncertainty
             ),
-            persistence_end_time_index=int(
-                anomalies.summary['persistence_end_time_index'],
-            ),
-            persistence_fraction_display_max=self._persistent_fraction_display_max(),
+            fixed_support,
+            calibration_window,
+            monitoring_window,
         )
-        dashboard_path: Path | None = None
-        dashboard_config = self._dashboard_config()
-        if bool(dashboard_config['enabled']):
-            uncertainty_stack = (
-                None
-                if prediction.uncertainty is None
-                else analyzer.restore_stack(dataset, prediction.uncertainty)
-            )
-            residual_monitor = TemporalResidualMonitor(dashboard_config)
-            temporal_monitoring = residual_monitor.analyze(
-                observed_stack=observed_stack,
-                prediction_stack=prediction_stack,
-                dates=dataset.dates,
-                calibration_window=(
-                    calibration_window.start_index,
-                    calibration_window.end_index,
-                ),
-                monitoring_window=(
-                    monitoring_window.start_index,
-                    monitoring_window.end_index,
-                ),
-                uncertainty_stack=uncertainty_stack,
-                fixed_support_mask=fixed_support,
-            )
-            dashboard_path = (
-                output_root
-                / 'monitoring'
-                / str(
-                    dashboard_config['filename'],
-                )
-            )
-            write_slope_stability_dashboard(
-                output_path=dashboard_path,
-                dates=dataset.dates,
-                monitoring=temporal_monitoring,
-                observed_stack=observed_stack,
-                residual_stack=residuals.stack,
-                mask=dataset.mask,
-                grid_transform=dataset.grid.transform,
-                grid_width=dataset.grid.width,
-                grid_height=dataset.grid.height,
-                unit=self._plot_unit(),
-                value_scale=self._plot_value_scale(),
-                calibration_window=(
-                    calibration_window.start_index,
-                    calibration_window.end_index,
-                ),
-                monitoring_window=(
-                    monitoring_window.start_index,
-                    monitoring_window.end_index,
-                ),
-                residual_percentile=self._mean_residual_percentile(),
-            )
+        run_after_inference = bool(
+            self.config.get('monitoring', {}).get('run_after_inference', False)
+        )
+        monitoring_result = MonitoringPipeline(self.config).run() if run_after_inference else None
         result = {
             'prediction_count': int(prediction.y_pred.size),
             'residual_statistics_native': residuals.statistics,
             'native_deformation_rate_unit': self._native_plot_unit(),
             'display_deformation_rate_unit': self._plot_unit(),
             'value_scale_to_display_unit': self._plot_value_scale(),
-            'anomaly_summary': anomalies.summary,
-            'spatial_coherence_summary': coherence.summary,
+            'monitoring_input_artifact': str(monitoring_input),
+            'monitoring_ran': run_after_inference,
             'fixed_support_pixel_count': int(np.count_nonzero(fixed_support)),
             'fixed_support_fraction_of_tsf': float(
                 np.count_nonzero(fixed_support) / np.count_nonzero(loaded.mask)
             ),
             'output_root': str(output_root),
-            'dashboard_path': None if dashboard_path is None else str(dashboard_path),
+            'dashboard_path': (
+                None if monitoring_result is None else monitoring_result['dashboard_path']
+            ),
         }
         write_json(output_root / 'inference_metadata.json', result)
         LOGGER.info('MAP inference completed in %s', output_root)
         return result
 
-    def _write_coherent_anomalies(
+    def _write_monitoring_input(
         self,
-        output_dir: Path,
-        coherent_stack: np.ndarray,
+        output_root: Path,
         dataset: Any,
-        analyzer: ResidualAnalyzer,
-    ) -> None:
-        """Write coherence-qualified binary anomaly rasters independently."""
-        for index, date in enumerate(dataset.dates):
-            analyzer._write_raster(
-                output_dir / f'anomaly_coherent_{analyzer._safe_date(date)}.tif',
-                coherent_stack[index].astype(float),
-                dataset,
-                'spatially_coherent_anomaly_binary',
-            )
+        observed_stack: np.ndarray,
+        prediction_stack: np.ndarray,
+        residual_stack: np.ndarray,
+        uncertainty_stack: np.ndarray | None,
+        fixed_support: np.ndarray,
+        calibration_window: Any,
+        monitoring_window: Any,
+    ) -> Path:
+        """Persist the model-independent input contract for monitoring runs."""
+        output_dir = output_root / 'inference'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        path = output_dir / MONITORING_INPUT_FILENAME
+        np.savez_compressed(
+            path,
+            observed_stack=observed_stack,
+            prediction_stack=prediction_stack,
+            residual_stack=residual_stack,
+            uncertainty_stack=(
+                np.empty((0, 0, 0), dtype=np.float64)
+                if uncertainty_stack is None
+                else uncertainty_stack
+            ),
+            has_uncertainty=np.array(uncertainty_stack is not None),
+            mask=dataset.mask,
+            fixed_support_mask=fixed_support,
+            dates=np.asarray(dataset.dates),
+            calibration_window=np.array(
+                [calibration_window.start_index, calibration_window.end_index], dtype=np.int64
+            ),
+            monitoring_window=np.array(
+                [monitoring_window.start_index, monitoring_window.end_index], dtype=np.int64
+            ),
+            transform=np.asarray(tuple(dataset.grid.transform)[:6], dtype=np.float64),
+            crs=np.asarray(str(dataset.grid.crs)),
+            nodata=np.asarray(
+                np.nan if dataset.grid.nodata is None else dataset.grid.nodata,
+                dtype=np.float64,
+            ),
+        )
+        return path
 
     def _fixed_support_mask(
         self,

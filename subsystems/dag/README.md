@@ -155,6 +155,21 @@ The pipeline always engineers the intermediate `amd_index.tif` and dated
 - `point_timeseries.png` and `point_timeseries.csv`: index values at every point
   in `amd_water_point.gpkg` and `clean_water_point.gpkg`. The general
   `observation_points.gpkg` is not required for this two-region analysis.
+- `gap_analysis.json`: acquisition cadence plus regional and point-level valid
+  counts, missing counts, coverage fractions, calendar-day gap distributions,
+  skipped-acquisition distributions, and yearly coverage.
+- `gap_intervals.csv`: every interval between consecutive valid observations,
+  including its calendar length and number of intervening acquisitions.
+- `gap_coverage.png`: yearly valid-observation fractions for each region and
+  configured observation point.
+
+Gap statistics distinguish irregular satellite acquisition timing from missing
+AMD observations. A valid regional observation requires at least one finite
+pixel in that mask; a valid point observation requires at least one finite
+pixel in its configured sampling window. Intervals are measured between valid
+observations and may cross calendar years. Edge censoring before the first and
+after the last valid observation is visible in yearly counts but is not an
+interval. These diagnostics describe availability; they do not fill gaps.
 
 All configured paths resolve relative to `project_dir`. The AMD mask defines the
 output grid; the clean-water mask must match. Both regions are retained. Larger
@@ -175,6 +190,57 @@ Quality filtering excludes configured SCL classes and source nodata. Setting
 `quality.scl_band: null` disables SCL filtering and records a warning. Scene cloud
 percentages do not replace pixel masks. Zero or near-zero denominators, controlled
 by `denominator_epsilon`, produce nodata. No smoothing or gap filling is applied.
+`quality.cloud_edge_buffer_pixels` additionally dilates the excluded SCL mask by
+the configured number of pixels. EDA preserves the original series and overlays
+the cloud-edge-filtered point series as dashed lines. The point CSV contains both
+values and a `cloud_edge_removed` flag; `gap_analysis.json` reports the number
+removed. The filtered intermediate raster is
+`amd_index_cloud_edge_filtered.tif`. This diagnostic does not silently replace
+the model-ready base feature.
+
+`quality.acquisition_cloud_filter` optionally rejects complete Sentinel-2
+acquisitions before AMD outputs are written. Cloud pixels are counted over the
+union of the AMD and clean-water masks using `cloudy_scl_classes`.
+`maximum_cloudy_pixels: 0` therefore retains only images with no configured
+cloud or shadow pixels in either analysis mask. Raising the integer allowance
+supports a less strict policy. The quality report records the pixel count and
+acceptance decision for every image, plus accepted/rejected totals and dates.
+
+`quality.clean_water_variability` detects acquisition-wide noise after the
+cloud-edge filter. For each date it calculates `1.4826 × MAD` across valid
+clean-water pixels. It flags dates above the temporal median of those scales
+plus `threshold_sigma` times their robust temporal scale. Dates with fewer than
+`minimum_valid_pixels` are left unclassified rather than called noisy. A dotted
+line in `point_timeseries.png` shows observations surviving both filters.
+`clean_water_variability.csv` provides the per-date scale, threshold, valid
+pixel count, and flag; the JSON file records the summary and flagged dates.
+This diagnostic removes a date from the plotted filtered series, but preserves
+the original EDA and model-ready values.
+
+`quality.spatial_inconsistency` runs after both filters. It compares each valid
+pixel with the nodata-aware median of its neighboring pixels in an odd local
+window (the centre pixel is excluded). For every acquisition, the residual
+threshold is calibrated from clean-water residuals as
+`threshold_sigma × 1.4826 × MAD`. Pixels without the configured minimum number
+of neighbors or reference samples remain unclassified. A dash-dot point-series
+line shows observations surviving all three filters. Per-date thresholds and
+flag counts are written to `spatial_inconsistency.csv`; the summary JSON and
+`spatial_inconsistency_frequency.tif` show when and where isolated values recur.
+This remains an EDA diagnostic and does not modify model-ready features.
+
+`amd.trend_analysis` applies after all EDA noise filters. Linear interpolation
+fills only candidate Sentinel-2 dates bracketed by observations whose total gap
+does not exceed `max_gap_days`; with `require_same_year`, winter boundaries are
+never bridged. Robust LOWESS then uses actual calendar-day distances, a tricube
+kernel, robust residual reweighting, and reduced weight for interpolated values.
+It does not extrapolate and, by default, processes years separately.
+
+`point_trends.png` shows filtered observations, hollow interpolated markers, and
+the retrospective LOWESS curve. `point_trends.csv`, `gap_filling_report.json`,
+and `smoothing_report.json` provide an audit trail. Dated rasters are written to
+`results/trend_features`: `amd_filled.tif`, `amd_smoothed.tif`,
+`interpolation_mask.tif`, and `interpolation_gap_days.tif`. These retrospective
+features use future observations and must not be used for causal MAP inference.
 
 Both bands are converted with `stored_value * scale + offset` before calculation.
 Defaults preserve stored values; configure conversion for your input product.

@@ -116,6 +116,53 @@ def test_index_is_engineered_before_regional_and_point_eda(scenario, method, exp
     assert quality['acquisitions'][1]['regions']['clean_water']['valid_fraction'] == 0
     assert (output / 'point_timeseries.png').stat().st_size > 0
     assert '2020-01-11' in (output / 'point_timeseries.csv').read_text()
+    gaps = json.loads((output / 'gap_analysis.json').read_text())
+    assert gaps['candidate_acquisitions'] == 3
+    assert gaps['series']['model_domain']['valid_observations'] == 3
+    assert gaps['series']['region:amd']['valid_fraction'] == 1
+    assert gaps['series']['region:clean_water']['valid_observations'] == 2
+    assert gaps['series']['region:clean_water']['valid_gap_days']['max'] == 20
+    assert gaps['series']['region:clean_water'][
+        'missing_acquisitions_between_valid'
+    ]['max'] == 1
+    assert (output / 'gap_intervals.csv').exists()
+    assert (output / 'gap_coverage.png').stat().st_size > 0
+
+
+def test_cloud_edge_buffer_adds_filtered_point_series(scenario):
+    path, config = scenario
+    config['amd']['quality']['cloud_edge_buffer_pixels'] = 1
+    path.write_text(yaml.safe_dump(config))
+    result = AMDEDAPipeline(path).run()
+    with rasterio.open(result['cloud_edge_filtered_index']) as source:
+        assert np.isnan(source.read(2)).all()
+        assert np.isfinite(source.read(1)).all()
+    rows = list(__import__('csv').DictReader(
+        (path.parent / 'results/eda/point_timeseries.csv').open()
+    ))
+    removed = [row for row in rows if row['cloud_edge_removed'] == 'True']
+    assert len(removed) == 1  # AMD point was valid before buffering; clean point was cloud.
+    gaps = json.loads((path.parent / 'results/eda/gap_analysis.json').read_text())
+    assert gaps['cloud_edge_contamination']['point_observations_removed'] == 1
+    assert gaps['cloud_edge_contamination']['buffer_pixels'] == 1
+
+
+def test_acquisition_cloud_filter_removes_entire_cloudy_image(scenario):
+    path, config = scenario
+    config['amd']['quality']['acquisition_cloud_filter'] = {
+        'enabled': True,
+        'maximum_cloudy_pixels': 0,
+        'cloudy_scl_classes': [9],
+    }
+    path.write_text(yaml.safe_dump(config))
+    result = AMDEDAPipeline(path).run()
+    with rasterio.open(result['index']) as source:
+        assert source.descriptions == ('2020-01-01', '2020-01-21')
+    quality = json.loads((path.parent / 'results/eda/quality_report.json').read_text())
+    selection = quality['acquisition_cloud_filter']
+    assert selection['accepted_acquisitions'] == 2
+    assert selection['rejected_acquisitions'] == 1
+    assert selection['rejected_dates'] == ['2020-01-11']
 
 
 def test_missing_metadata_still_writes_inventory_and_quality(scenario):

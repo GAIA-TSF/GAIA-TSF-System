@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import rasterio
+from rasterio.transform import array_bounds
+from rasterio.warp import transform_bounds
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,7 @@ def write_single_band_raster(
         dataset.write(output_values.astype(np.float32), 1)
         if band_name is not None:
             dataset.set_band_description(1, band_name)
+    write_raster_sidecar(path, profile, (band_name,) if band_name else None)
 
 
 def write_raster(
@@ -167,3 +172,98 @@ def write_raster(
         if band_names is not None:
             for band_index, band_name in enumerate(band_names, start=1):
                 dataset.set_band_description(band_index, band_name)
+    write_raster_sidecar(path, profile, band_names)
+
+
+def write_raster_sidecar(
+    path: Path,
+    profile: RasterProfile,
+    band_names: tuple[str | None, ...] | None = None,
+    *,
+    properties: dict[str, Any] | None = None,
+) -> Path:
+    """Write a STAC-style JSON sidecar for an exported raster.
+
+    The sidecar shares the raster stem, for example ``velocity.tif`` and
+    ``velocity.json``.  This is intentionally compatible with the supplied
+    Sentinel-2 item convention while remaining useful for generic derived
+    GeoTIFFs that do not have sensor-specific metadata.
+    """
+    west, south, east, north = array_bounds(
+        profile.height,
+        profile.width,
+        profile.transform,
+    )
+    crs = rasterio.crs.CRS.from_user_input(profile.crs)
+    if crs.is_geographic:
+        bbox = [west, south, east, north]
+    else:
+        bbox = list(transform_bounds(crs, 'EPSG:4326', west, south, east, north))
+    geometry = {
+        'type': 'Polygon',
+        'coordinates': [[
+            [bbox[0], bbox[1]], [bbox[0], bbox[3]],
+            [bbox[2], bbox[3]], [bbox[2], bbox[1]], [bbox[0], bbox[1]],
+        ]],
+    }
+    names = tuple(name for name in (band_names or ()) if name)
+    item_properties: dict[str, Any] = {
+        'proj:epsg': crs.to_epsg(),
+        'proj:shape': [profile.height, profile.width],
+        'proj:transform': list(profile.transform)[:6],
+        'raster:bands': [
+            {
+                'name': name or f'band_{index}',
+                'data_type': str(profile.dtype),
+                'nodata': _json_number(profile.nodata),
+            }
+            for index, name in enumerate(band_names or (None,), start=1)
+        ],
+        'gaia:product_type': path.stem,
+    }
+    if names and all(_is_iso_date(value) for value in names):
+        datetimes = [f'{value}T00:00:00Z' for value in names]
+        item_properties['start_datetime'] = datetimes[0]
+        item_properties['end_datetime'] = datetimes[-1]
+        if len(datetimes) == 1:
+            item_properties['datetime'] = datetimes[0]
+    if properties:
+        item_properties.update(properties)
+    payload = {
+        'type': 'Feature',
+        'stac_version': '1.0.0',
+        'id': path.stem,
+        'bbox': bbox,
+        'geometry': geometry,
+        'properties': item_properties,
+        'assets': {
+            'data': {
+                'href': f'./{path.name}',
+                'type': 'image/tiff; application=geotiff',
+                'roles': ['data'],
+            },
+        },
+        'collection': 'gaia-tsf-derived',
+    }
+    sidecar = path.with_suffix('.json')
+    sidecar.write_text(json.dumps(payload, indent=2, allow_nan=False), encoding='utf-8')
+    return sidecar
+
+
+def _is_iso_date(value: str) -> bool:
+    """Return whether a band label is an ISO calendar date."""
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _json_number(value: float | int | None) -> float | int | None:
+    """Convert raster numeric metadata to strict JSON-compatible values."""
+    if value is None:
+        return None
+    numeric = float(value)
+    if not np.isfinite(numeric):
+        return None
+    return int(value) if isinstance(value, (int, np.integer)) else numeric

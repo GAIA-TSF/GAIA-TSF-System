@@ -2,7 +2,10 @@
 
 from subsystems.map.monitoring.anomaly_detection import StatisticalAnomalyDetector
 from subsystems.map.monitoring.residual_analysis import ResidualAnalyzer, ResidualResult
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceDetector
+from subsystems.map.monitoring.spatial_coherence import (
+    SpatialCoherenceDetector,
+    SpatialCoherenceRegion,
+)
 from subsystems.map.monitoring.temporal_monitoring import (
     TemporalMonitoringResult,
     TemporalResidualMonitor,
@@ -13,6 +16,7 @@ __all__ = [
     'ResidualResult',
     'StatisticalAnomalyDetector',
     'SpatialCoherenceDetector',
+    'SpatialCoherenceRegion',
     'TemporalMonitoringResult',
     'TemporalResidualMonitor',
 ]

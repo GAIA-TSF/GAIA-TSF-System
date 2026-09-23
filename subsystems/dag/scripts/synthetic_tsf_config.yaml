@@ -23,8 +23,8 @@ simulation:
   # Existing names that already end in _<scenario> are not duplicated.
   append_scenario_name: true
   random_seed: 42             # Reproducible terrain, weather, and noise.
-  start_date: "2018-01-01"    # UTC ISO-8601 date.
-  duration_days: 1095         # Three years; 2-5 years is typical for trend tests.
+  start_date: "2017-01-01"    # UTC ISO-8601 date.
+  duration_days: 1460         # Three years 1095; 2-5 years is typical for trend tests.
   # Same-track repeat interval. Use 6 days only when a consistent S1A/S1B pair
   # is available for the study period; 12 days is conservative and avoids
   # assuming that both satellites contribute to every interferometric stack.

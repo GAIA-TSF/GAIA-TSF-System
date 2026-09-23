@@ -24,6 +24,7 @@ from subsystems.map.utils.experiment_paths import (
     results_directory,
     static_file_path,
 )
+from subsystems.map.utils.explainability import write_tree_explainability
 from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
@@ -129,6 +130,18 @@ class LearningPipeline:
             unit=self._plot_unit(),
             value_scale=self._plot_value_scale(),
         )
+        explainability_config = self.config.get('explainability', {})
+        if not isinstance(explainability_config, dict):
+            raise ValueError('explainability must be a mapping.')
+        explainability = write_tree_explainability(
+            models_dir,
+            model,
+            datasets.validation,
+            explainability_config,
+            self._random_seed(),
+            self._plot_unit(),
+            self._plot_value_scale(),
+        )
         metadata = {
             'experiment': self.config.get('experiment', {}),
             'variable': variable_name,
@@ -146,6 +159,7 @@ class LearningPipeline:
                 'test': int(datasets.test.targets.size),
             },
             'model_path': str(model_path),
+            'explainability': explainability,
             'metrics': metrics,
         }
         write_json(models_dir / 'experiment.json', metadata)

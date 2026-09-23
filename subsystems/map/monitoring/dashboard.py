@@ -15,7 +15,7 @@ def write_slope_stability_dashboard(
     dates: tuple[str, ...],
     monitoring: TemporalMonitoringResult,
     observed_stack: np.ndarray,
-    residual_stack: np.ndarray,
+    coherent_acceleration_cusum: np.ndarray,
     mask: np.ndarray,
     grid_transform: Any,
     grid_width: int,
@@ -24,7 +24,6 @@ def write_slope_stability_dashboard(
     value_scale: float,
     calibration_window: tuple[int, int],
     monitoring_window: tuple[int, int],
-    residual_percentile: float,
 ) -> None:
     """Write a compound dashboard for slope-stability monitoring.
 
@@ -33,7 +32,8 @@ def write_slope_stability_dashboard(
         dates: ISO acquisition dates.
         monitoring: Aggregate residual-monitoring signals.
         observed_stack: Observed temporal raster stack.
-        residual_stack: Observation-minus-prediction residual raster stack.
+        coherent_acceleration_cusum: Maximum CUSUM values for coherence-
+            qualified regional acceleration pixels.
         mask: TSF mask.
         grid_transform: Raster affine transform.
         grid_width: Raster column count.
@@ -42,7 +42,6 @@ def write_slope_stability_dashboard(
         value_scale: Conversion from native values to ``unit``.
         calibration_window: Inclusive/exclusive calibration acquisition bounds.
         monitoring_window: Inclusive/exclusive monitoring acquisition bounds.
-        residual_percentile: Absolute residual percentile for symmetric map limits.
     """
     import matplotlib
 
@@ -53,10 +52,9 @@ def write_slope_stability_dashboard(
     _validate(
         dates,
         observed_stack,
-        residual_stack,
+        coherent_acceleration_cusum,
         mask,
         value_scale,
-        residual_percentile,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     positions = np.arange(calibration_window[0], monitoring_window[1])
@@ -74,14 +72,25 @@ def write_slope_stability_dashboard(
         value_scale,
     )
     _plot_anomaly_magnitude(temporal_axes[1], positions, monitoring, unit, value_scale)
-    _plot_cusum(temporal_axes[2], positions, monitoring)
+    regional_cusum_axis = _plot_cusum(temporal_axes[2], positions, monitoring)
     _plot_regime_risk(temporal_axes[3], positions, monitoring)
     for axis in temporal_axes:
         _shade_windows(axis, calibration_window, monitoring_window)
         axis.set_xlim(positions[0] - 0.5, positions[-1] + 0.5)
         _format_time_axis(axis, dates, positions)
         axis.grid(alpha=0.25)
-        axis.legend(loc='upper left', fontsize=8, ncols=2)
+        if axis is temporal_axes[2] and regional_cusum_axis is not None:
+            left_handles, left_labels = axis.get_legend_handles_labels()
+            right_handles, right_labels = regional_cusum_axis.get_legend_handles_labels()
+            axis.legend(
+                left_handles + right_handles,
+                left_labels + right_labels,
+                loc='upper left',
+                fontsize=8,
+                ncols=2,
+            )
+        else:
+            axis.legend(loc='upper left', fontsize=8, ncols=2)
 
     _plot_latest_observation(
         observation_axis,
@@ -95,17 +104,13 @@ def write_slope_stability_dashboard(
         unit,
         value_scale,
     )
-    _plot_monitoring_residual_mean(
+    _plot_coherent_acceleration_cusum(
         residual_axis,
-        residual_stack,
-        monitoring_window,
+        coherent_acceleration_cusum,
         mask,
         grid_transform,
         grid_width,
         grid_height,
-        unit,
-        value_scale,
-        residual_percentile,
     )
     figure.suptitle(
         'Slope stability monitoring dashboard', fontsize=16, fontweight='bold'
@@ -171,13 +176,6 @@ def _plot_anomaly_magnitude(
         linewidth=1.5,
         label='|Mean residual|',
     )
-    axis.axhline(
-        result.anomaly_threshold * value_scale,
-        color='black',
-        linestyle='--',
-        linewidth=1.2,
-        label='Threshold',
-    )
     axis.set(title='Anomaly magnitude', ylabel=f'Residual rate [{unit}]')
 
 
@@ -185,22 +183,51 @@ def _plot_cusum(
     axis: Any,
     positions: np.ndarray,
     result: TemporalMonitoringResult,
-) -> None:
+) -> Any | None:
     """Plot directional CUSUM signals and the operational decision level."""
     axis.plot(
         positions,
         result.acceleration_cusum[positions],
         color='red',
-        linewidth=1.5,
-        label='Acceleration CUSUM',
+        linewidth=0.9,
+        linestyle='--',
+        alpha=0.75,
+        label='TSF-wide acceleration CUSUM',
     )
     axis.plot(
         positions,
         result.deceleration_cusum[positions],
         color='green',
-        linewidth=1.5,
-        label='Deceleration CUSUM',
+        linewidth=0.9,
+        linestyle='--',
+        alpha=0.75,
+        label='TSF-wide deceleration CUSUM',
     )
+    regional_axis: Any | None = None
+    if np.any(result.regional_cusum_available[positions]):
+        regional_axis = axis.twinx()
+        regional_axis.plot(
+            positions,
+            result.regional_acceleration_cusum[positions],
+            color='darkorchid',
+            linewidth=1.5,
+            label='Coherent-region acceleration CUSUM',
+        )
+        regional_axis.plot(
+            positions,
+            result.regional_deceleration_cusum[positions],
+            color='teal',
+            linewidth=1.5,
+            label='Coherent-region deceleration CUSUM',
+        )
+        regional_axis.set_ylabel('Coherent-region CUSUM statistic')
+        regional_axis.set_ylim(
+            _regional_cusum_limits(
+                result.regional_acceleration_cusum[positions],
+                result.regional_deceleration_cusum[positions],
+            )
+        )
+        _plot_regional_dynamics_timeline(axis, positions, result)
     axis.axhline(
         result.cusum_decision_threshold,
         color='black',
@@ -224,31 +251,84 @@ def _plot_cusum(
             label='Oscillation',
             zorder=3,
         )
-    axis.set(
-        title='Observed-velocity acceleration CUSUM',
-        ylabel='CUSUM statistic',
+    axis.set_ylabel('CUSUM statistic')
+    axis.set_title(
+        'Observed-velocity CUSUM: TSF-wide and coherent regions',
+        pad=12,
     )
-    status = _cusum_status(result, int(positions[-1]))
-    axis.text(
-        0.99,
-        0.95,
-        status,
-        transform=axis.transAxes,
-        ha='right',
-        va='top',
-        fontsize=9,
-        fontweight='bold',
-        bbox={
-            'boxstyle': 'round,pad=0.3',
-            'facecolor': _cusum_status_color(status),
-            'alpha': 0.16,
-            'edgecolor': 'none',
-        },
-    )
+    return regional_axis
+
+
+def _plot_regional_dynamics_timeline(
+    axis: Any,
+    positions: np.ndarray,
+    result: TemporalMonitoringResult,
+) -> None:
+    """Mark coherent-region acceleration and recovery alarm intervals above plot."""
+    styles = {
+        'accelerating': ('firebrick', 'Regional acceleration'),
+        'decelerating': ('seagreen', 'Regional deceleration / recovery'),
+    }
+    regional = result.regional_dynamics[positions]
+    available = result.regional_cusum_available[positions]
+    legend_added: set[str] = set()
+    for dynamics, (color, label) in styles.items():
+        active = available & (regional == dynamics)
+        for start, end in _contiguous_runs(positions, active):
+            axis.plot(
+                [positions[start], positions[end]],
+                [0.90, 0.90],
+                color=color,
+                linewidth=4.0,
+                solid_capstyle='butt',
+                transform=axis.get_xaxis_transform(),
+                clip_on=True,
+                zorder=5,
+            )
+            if dynamics not in legend_added:
+                axis.plot(
+                    [],
+                    [],
+                    color=color,
+                    linewidth=4.0,
+                    solid_capstyle='butt',
+                    label=f'{label} period',
+                )
+                legend_added.add(dynamics)
+
+
+def _contiguous_runs(
+    positions: np.ndarray,
+    active: np.ndarray,
+) -> tuple[tuple[int, int], ...]:
+    """Return inclusive index ranges for contiguous true values."""
+    indices = np.flatnonzero(active)
+    if indices.size == 0:
+        return ()
+    breaks = np.flatnonzero(np.diff(indices) > 1)
+    starts = np.r_[indices[0], indices[breaks + 1]]
+    ends = np.r_[indices[breaks], indices[-1]]
+    return tuple((int(start), int(end)) for start, end in zip(starts, ends))
+
+
+def _regional_cusum_limits(
+    acceleration: np.ndarray,
+    deceleration: np.ndarray,
+) -> tuple[float, float]:
+    """Return a readable min/max scale dedicated to regional CUSUM values."""
+    values = np.concatenate((acceleration, deceleration))
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return (0.0, 1.0)
+    lower = min(0.0, float(np.min(values)))
+    upper = max(0.0, float(np.max(values)))
+    span = upper - lower
+    padding = max(0.1, span * 0.08)
+    return lower - padding, upper + padding
 
 
 def _cusum_status(result: TemporalMonitoringResult, index: int) -> str:
-    """Return the current persistent CUSUM status for a dashboard date."""
+    """Return the current TSF-wide persistent CUSUM status for a date."""
     dynamics = str(result.dynamics[index])
     if dynamics == 'accelerating':
         return 'Acceleration alarm'
@@ -271,14 +351,30 @@ def _plot_regime_risk(
     positions: np.ndarray,
     result: TemporalMonitoringResult,
 ) -> None:
-    """Plot smoothed regime-change risk and configured risk levels."""
+    """Plot regional regime evidence with TSF-wide evidence for context."""
     axis.plot(
         positions,
         result.regime_risk[positions],
         color='violet',
-        linewidth=1.8,
-        label='Smoothed risk',
+        linewidth=1.1,
+        linestyle='--',
+        alpha=0.8,
+        label='TSF-wide regime score',
     )
+    regional_available = result.regional_cusum_available[positions]
+    if np.any(regional_available):
+        regional_risk = np.where(
+            regional_available,
+            result.regional_regime_risk[positions],
+            np.nan,
+        )
+        axis.plot(
+            positions,
+            regional_risk,
+            color='violet',
+            linewidth=2.0,
+            label='Coherent-region regime score',
+        )
     axis.axhline(
         result.high_risk_threshold,
         color='red',
@@ -293,7 +389,7 @@ def _plot_regime_risk(
         linewidth=1.2,
         label='Medium risk',
     )
-    axis.set(title='Regime change probability', ylabel='Probability', ylim=(0.0, 1.0))
+    axis.set(title='Regime change score', ylabel='Score [0–1]', ylim=(0.0, 1.0))
 
 
 def _plot_latest_observation(
@@ -332,45 +428,34 @@ def _plot_latest_observation(
     )
 
 
-def _plot_monitoring_residual_mean(
+def _plot_coherent_acceleration_cusum(
     axis: Any,
-    residual_stack: np.ndarray,
-    monitoring_window: tuple[int, int],
+    acceleration_cusum: np.ndarray,
     mask: np.ndarray,
     transform: Any,
     width: int,
     height: int,
-    unit: str,
-    value_scale: float,
-    percentile: float,
 ) -> None:
-    """Plot the per-pixel mean residual rate for the monitoring period only."""
+    """Plot the maximum acceleration CUSUM for coherent monitoring regions."""
     import matplotlib.pyplot as plt
 
-    monitoring_residuals = residual_stack[monitoring_window[0] : monitoring_window[1]]
-    finite_count = np.sum(np.isfinite(monitoring_residuals), axis=0)
-    values = np.divide(
-        np.nansum(monitoring_residuals, axis=0),
-        finite_count,
-        out=np.full(mask.shape, np.nan, dtype=np.float64),
-        where=finite_count > 0,
-    )
-    values = np.where(mask, values * value_scale, np.nan)
-    limit = _symmetric_limit(values, percentile)
+    values = np.where(mask, acceleration_cusum, np.nan)
+    finite = values[np.isfinite(values)]
+    limit = 1.0 if finite.size == 0 else max(1.0, float(np.max(finite)))
     extent = _extent(transform, width, height)
     image = axis.imshow(
         values,
-        cmap='RdBu_r',
-        vmin=-limit,
+        cmap='magma',
+        vmin=0.0,
         vmax=limit,
         extent=extent,
         origin='upper',
     )
     _map_outline(axis, mask, extent)
     colorbar = plt.colorbar(image, ax=axis, shrink=0.72)
-    colorbar.set_label(f'Mean residual rate [{unit}]')
+    colorbar.set_label('Acceleration CUSUM statistic')
     axis.set(
-        title='Mean residual during monitoring period',
+        title='Maximum coherence-qualified acceleration CUSUM',
         xlabel='Easting',
         ylabel='Northing',
     )
@@ -455,19 +540,18 @@ def _symmetric_limit(values: np.ndarray, percentile: float = 98.0) -> float:
 def _validate(
     dates: tuple[str, ...],
     observed: np.ndarray,
-    residual_stack: np.ndarray,
+    coherent_acceleration_cusum: np.ndarray,
     mask: np.ndarray,
     value_scale: float,
-    residual_percentile: float,
 ) -> None:
     """Validate dashboard raster dimensions and display conversion."""
-    if observed.ndim != 3 or residual_stack.shape != observed.shape:
-        raise ValueError('Dashboard observation and residual stacks must match in 3D.')
+    if observed.ndim != 3:
+        raise ValueError('Dashboard observations must be a 3D stack.')
+    if coherent_acceleration_cusum.shape != mask.shape:
+        raise ValueError('Dashboard coherent acceleration CUSUM has an invalid shape.')
     if observed.shape[0] != len(dates) or observed.shape[1:] != mask.shape:
         raise ValueError(
             'Dashboard dates or mask are incompatible with temporal stacks.'
         )
     if value_scale <= 0:
         raise ValueError('Dashboard value_scale must be positive.')
-    if not 0.0 < residual_percentile <= 100.0:
-        raise ValueError('Dashboard residual percentile must be in (0, 100].')

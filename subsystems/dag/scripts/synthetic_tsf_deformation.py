@@ -278,13 +278,12 @@ def write_tif(
     ) as dst:
         dst.write(output.astype(dtype), 1)
 
-    if acquisition_date is not None:
-        write_stac_item(
-            path,
-            acquisition_date,
-            product_type,
-            stage,
-        )
+    write_stac_item(
+        path,
+        acquisition_date,
+        product_type or path.stem,
+        stage,
+    )
 
 
 def write_stac_item(
@@ -342,7 +341,6 @@ def write_stac_item(
         ],
         'geometry': geometry,
         'properties': {
-            'datetime': acquisition_date.strftime('%Y-%m-%dT00:00:00Z'),
             'platform': 'synthetic-tsf',
             'constellation': 'synthetic',
             'instruments': ['simulation'],
@@ -361,6 +359,8 @@ def write_stac_item(
         },
         'collection': 'gaia-tsf-synthetic',
     }
+    if acquisition_date is not None:
+        item['properties']['datetime'] = acquisition_date.strftime('%Y-%m-%dT00:00:00Z')
 
     json_file = tif_path.with_suffix('.json')
 

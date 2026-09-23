@@ -28,3 +28,6 @@ def test_coherence_requires_area_and_temporal_overlap() -> None:
     assert not np.any(result.binary_stack[0])
     assert np.array_equal(result.binary_stack[1], values[1])
     assert not np.any(result.binary_stack[2])
+    assert len(result.regions) == 1
+    assert result.regions[0].activation_index == 1
+    assert np.array_equal(result.regions[0].support, values[1])

@@ -2,13 +2,13 @@
 # Paths target the configured synthetic TSF project directly.
 experiment:
   name:  slope_lstm # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
-  description: Stable-pixel baseline model (constant) for synthetic TSF deformation monitoring with meteo data.
+  description: Stable-pixel model for synthetic TSF deformation monitoring with meteo data.
   seed: 42
 
 # Single root for this DAG/MAP scenario. MAP derives static inputs from
 # <experiment_dir>/static and all DAG/MAP products from <experiment_dir>/results.
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger 
-experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_no_failure/
+experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/
 variable: slope
 model: lstm # constant | trf | lstm
 dataset: slope_dataset
@@ -52,10 +52,10 @@ datasets:
       test_ratio: 0.25
     temporal_windows:
       calibration:
-        start_date: '2018-01-01'
-        end_date: '2020-01-01'
+        start_date: '2017-01-01'
+        end_date: '2019-05-01'
       monitoring:
-        start_date: '2020-01-01'
+        start_date: '2019-05-01'
         end_date: '2020-10-30'
   amd_dataset:
     mask_file: tsf_mask.tif
@@ -118,12 +118,11 @@ models:
 #     ├── metrics.json
 #     └── experiment.json
 
-
 training:
   random_seed: 42
 
 explainability:
-  enabled: false # true # false
+  enabled: true # true # false
   parallel:
     # Parallel workers for independent grouped-permutation feature groups.
     n_jobs: 4
@@ -191,10 +190,15 @@ anomaly_detection:
   persistence: 3
 
 monitoring:
+  # Keep prediction generation and operational interpretation independently
+  # reproducible. Set true only for a single-command batch workflow.
+  run_after_inference: false
   animation:
     # Relative paths are resolved below <experiment_dir>/results.
+    # Exported by run_monitoring.py from persisted inference products.
+    enabled: true
     output_directory: monitoring/animation
-    filename: map_monitoring.mp4
+    filename: tsf_monitoring.mp4
   dashboard:
     enabled: true
     filename: slope_stability_dashboard.png
@@ -218,11 +222,9 @@ monitoring:
       instability_direction: negative
       # Use physical deformation acceleration, not fluctuating model residuals.
       signal: observed_velocity
-      # The failure zone covers about 3% of the TSF. For negative LOS
-      # instability, average the lower 3% of valid velocities rather than
-      # diluting this local signal in the whole-TSF mean.
-      spatial_aggregation: directional_tail_mean
-      spatial_quantile: 0.03
+      # Primary operational CUSUM uses the full fixed TSF support. Local
+      # deformation is evaluated separately after spatial-coherence gating.
+      spatial_aggregation: mean
       reference_value: 0.5
       decision_threshold: 5.0
       # Past-only local-linear acceleration estimate; five 12-day acquisitions
