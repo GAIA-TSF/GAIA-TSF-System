@@ -3,8 +3,9 @@
 # Slope stability 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
-
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+# Cadia
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
 
 # AMD 
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
@@ -16,7 +17,7 @@ global:
   log_level: INFO
 
   # default spatial reference, Update to actual AOI CRS!!! 
-  crs: "EPSG:32633"
+  crs:  "EPSG:32655" # "EPSG:32633"
 
   # default resolution (meters)
   target_resolution: 10
@@ -25,7 +26,7 @@ global:
   processing:
     use_dask: false
     chunk_size: [256, 256]
-    n_workers: 16
+    n_workers: 6 # 16
 
 # SYNTHETIC IN-SITU CO-LOCATION (DA_R_02, DA_R_03)
 in_situ:
