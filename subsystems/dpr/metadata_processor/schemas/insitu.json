@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gaia-tsf.github.io/stac-extensions/insitu/v1.0.0/schema.json",
+  "title": "GAIA In-Situ Extension",
+  "description": "Custom validation rules for in-situ CSV-based STAC Items in GAIA-TSF.",
+  "type": "object",
+  "properties": {
+    "properties": {
+      "type": "object",
+      "required": ["start_datetime", "end_datetime"],
+      "properties": {
+        "start_datetime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_datetime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "required": ["data"],
+      "properties": {
+        "data": {
+          "type": "object",
+          "required": ["table:columns"],
+          "properties": {
+            "table:columns": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

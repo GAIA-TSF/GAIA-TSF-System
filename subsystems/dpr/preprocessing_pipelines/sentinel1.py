@@ -308,7 +308,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
-        _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
+        self.unwrap = self.unwrap.compute()
 
     def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
         """Remove long-wavelength ramps from the unwrapped phase in radar geometry.

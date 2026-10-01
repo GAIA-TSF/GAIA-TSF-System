@@ -1,6 +1,6 @@
 import pytest
 
-from lib.config import ProjectConfigReader
+from lib.config import ProjectConfigReader, SettingsReader
 from tests.utils import TestUtils
 
 
@@ -11,7 +11,12 @@ def project_config():
     )
 
 
-class TestConfig:
+@pytest.fixture(scope='class')
+def settings():
+    return SettingsReader()
+
+
+class TestProjectConfig:
     def test_config_001(self, project_config):
         """Process sample project file by ConfigReader and check project/name option."""
         assert project_config['project']['name'] == 'amd_baseline'
@@ -39,3 +44,13 @@ class TestConfig:
     def test_config_003_aoi_geom(self, project_config):
         """Test AOI definitions provided by ProjectConfigReader."""
         assert project_config.aoi().wkt.startswith('POLYGON')
+
+    def test_config_004_data_dir(self, project_config):
+        """Check if project directory was created."""
+        data_dir = project_config.data_dir()
+        assert data_dir.exists() and data_dir.is_dir()
+
+
+class TestSettings:
+    def test_settings_001(self, settings):
+        assert settings.is_valid() is True
