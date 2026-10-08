@@ -26,6 +26,7 @@ class EDAOutputPaths:
     temporal_mean_std: Path
     histogram: Path
     boxplot: Path
+    cumulative_displacement: Path
     mean_heatmap: Path
     std_heatmap: Path
 
@@ -117,6 +118,7 @@ class SlopeEDA(Plugin):
             'temporal_los_percentile': float(
                 options.get('temporal_los_percentile', 2.0)
             ),
+            'displacement_unit': str(options.get('displacement_unit', '')).strip(),
         }
 
     def _output_paths(
@@ -132,6 +134,12 @@ class SlopeEDA(Plugin):
             temporal_mean_std=output_dir / str(filenames['temporal_mean_std']),
             histogram=output_dir / str(filenames['histogram']),
             boxplot=output_dir / str(filenames['boxplot']),
+            cumulative_displacement=output_dir / str(
+                filenames.get(
+                    'cumulative_displacement',
+                    'cumulative_displacement.png',
+                )
+            ),
             mean_heatmap=output_dir / str(filenames['mean_heatmap']),
             std_heatmap=output_dir / str(filenames['std_heatmap']),
         )
@@ -161,6 +169,17 @@ class SlopeEDA(Plugin):
         if not 0 <= percentile <= 100:
             raise ValueError('temporal_los_percentile must be between 0 and 100')
         percentile_values = np.nanpercentile(data, percentile, axis=(1, 2))
+        finite_mask = np.isfinite(data)
+        cumulative_displacement = np.cumsum(
+            np.where(finite_mask, data, 0.0),
+            axis=0,
+            dtype=np.float64,
+        )
+        cumulative_displacement = np.where(
+            np.any(finite_mask, axis=0)[np.newaxis, :, :],
+            cumulative_displacement,
+            np.nan,
+        )
         dpi = int(plot_options['dpi'])
         style = plot_options['style']
         cmap = str(plot_options['cmap'])
@@ -193,6 +212,15 @@ class SlopeEDA(Plugin):
             output_paths.boxplot,
             dpi=dpi,
             style=style if isinstance(style, str) else None,
+        )
+        plotting.save_cumulative_displacement_plot(
+            cumulative_displacement,
+            dates,
+            output_paths.cumulative_displacement,
+            dpi=dpi,
+            style=style if isinstance(style, str) else None,
+            lower_percentile=percentile,
+            displacement_unit=str(plot_options['displacement_unit']),
         )
         plotting.save_heatmap(
             mean_map,

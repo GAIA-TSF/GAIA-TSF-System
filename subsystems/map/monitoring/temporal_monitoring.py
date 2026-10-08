@@ -41,6 +41,8 @@ class TemporalMonitoringResult:
     regime_risk: np.ndarray
     medium_risk_threshold: float
     high_risk_threshold: float
+    regional_observed_mean: np.ndarray | None = None
+    regional_predicted_mean: np.ndarray | None = None
 
 
 class TemporalResidualMonitor:
@@ -173,6 +175,8 @@ class TemporalResidualMonitor:
             regional_cusum_available,
             regional_dynamics,
             regional_regime_risk,
+            regional_observed_mean,
+            regional_predicted_mean,
         ) = self._regional_cusum(
             observed_stack,
             prediction_stack,
@@ -204,6 +208,8 @@ class TemporalResidualMonitor:
             regime_risk=regime_risk,
             medium_risk_threshold=self.medium_risk_threshold,
             high_risk_threshold=self.high_risk_threshold,
+            regional_observed_mean=regional_observed_mean,
+            regional_predicted_mean=regional_predicted_mean,
         )
 
     def spatial_persistent_acceleration(
@@ -242,7 +248,11 @@ class TemporalResidualMonitor:
         )
         time_days = self._days_from_start(dates)
         filled = self._fill_temporal_gaps(residual_stack)
-        rate = np.gradient(filled, time_days, axis=0, edge_order=1)
+        rate = self._causal_gradient_stack(
+            filled,
+            time_days,
+            self.derivative_window,
+        )
         directional_rate = self._ema_stack(
             rate * self.instability_direction,
             self.smoothing_span,
@@ -432,7 +442,7 @@ class TemporalResidualMonitor:
         calibration_window: tuple[int, int],
         monitoring_window: tuple[int, int],
         regions: tuple[SpatialCoherenceRegion, ...],
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return local CUSUM and regime evidence from qualified regions.
 
         Each region keeps the support it had when it first passed spatial
@@ -447,6 +457,8 @@ class TemporalResidualMonitor:
         available = np.zeros(time_count, dtype=bool)
         dynamics = np.full(time_count, 'stable', dtype='<U12')
         regime_risk = np.full(time_count, np.nan, dtype=np.float64)
+        regional_observed_mean = np.full(time_count, np.nan, dtype=np.float64)
+        regional_predicted_mean = np.full(time_count, np.nan, dtype=np.float64)
         for region in regions:
             support = np.broadcast_to(region.support, observed_stack.shape)
             series = self._aggregate_masks(observed_stack, support)
@@ -503,9 +515,38 @@ class TemporalResidualMonitor:
                 np.fmax(regime_risk, regional_risk),
                 regime_risk,
             )
+            if self.instability_direction < 0:
+                regional_observed_mean = np.where(
+                    active,
+                    np.fmin(regional_observed_mean, regional_observed),
+                    regional_observed_mean,
+                )
+            else:
+                regional_observed_mean = np.where(
+                    active,
+                    np.fmax(regional_observed_mean, regional_observed),
+                    regional_observed_mean,
+                )
+            regional_predicted_mean = np.where(
+                active,
+                np.where(
+                    np.isnan(regional_predicted_mean),
+                    regional_predicted,
+                    regional_predicted_mean,
+                ),
+                regional_predicted_mean,
+            )
             dynamics[active & (regional_dynamics == 'decelerating')] = 'decelerating'
             dynamics[active & (regional_dynamics == 'accelerating')] = 'accelerating'
-        return acceleration, deceleration, available, dynamics, regime_risk
+        return (
+            acceleration,
+            deceleration,
+            available,
+            dynamics,
+            regime_risk,
+            regional_observed_mean,
+            regional_predicted_mean,
+        )
 
     def _calculate_regime_risk(
         self,

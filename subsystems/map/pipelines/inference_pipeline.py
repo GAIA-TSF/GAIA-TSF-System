@@ -47,12 +47,33 @@ class InferencePipeline:
         dataset_config = self._named_config('datasets', self._name('dataset'))
         feature_names = [str(value) for value in dataset_config['features']]
         target_feature = str(dataset_config['target_feature'])
+        observation_feature = dataset_config.get('observation_feature')
+        if observation_feature is None and target_feature.endswith('_lag1'):
+            base_candidate = target_feature[:-5]
+            temp_loader = FeatureLoader(
+                self._feature_paths(),
+                self._static_file(dataset_config['mask_file']),
+                self._temporal_alignment_method(),
+            )
+            try:
+                temp_loader._find_feature(base_candidate)
+                observation_feature = base_candidate
+            except FileNotFoundError:
+                observation_feature = target_feature
+        elif observation_feature is None:
+            observation_feature = target_feature
+        else:
+            observation_feature = str(observation_feature)
+
+        features_to_load = list(
+            dict.fromkeys([*feature_names, target_feature, observation_feature])
+        )
         loaded = FeatureLoader(
             self._feature_paths(),
             self._static_file(dataset_config['mask_file']),
             self._temporal_alignment_method(),
         ).load(
-            list(dict.fromkeys([*feature_names, target_feature])),
+            features_to_load,
             reference_feature=target_feature,
         )
         observation_points = self._observation_points(loaded.grid.crs)
@@ -75,10 +96,14 @@ class InferencePipeline:
             calibration_window,
         )
         # This physical observation stack is deliberately created before any
-        # LSTM sequence construction. It remains model-independent.
+        # LSTM sequence construction. It remains model-independent and represents
+        # contemporaneous physical observations rather than lagged predictors.
+        observed_data = loaded.features.get(
+            observation_feature, loaded.features[target_feature]
+        )
         observed_stack = np.where(
             fixed_support[np.newaxis, :, :],
-            loaded.features[target_feature],
+            observed_data,
             np.nan,
         )
         dataset = builder.build(loaded, feature_names, target_feature)

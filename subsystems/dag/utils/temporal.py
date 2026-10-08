@@ -59,6 +59,48 @@ def temporal_gradient(
     return gradient.astype(np.float32)
 
 
+def causal_temporal_gradient(
+    data: np.ndarray, dates: tuple[date, ...], order: int
+) -> np.ndarray:
+    """Compute a strictly causal temporal derivative using backward differences.
+
+    Unlike np.gradient, which uses central differences for interior points
+    (thereby peering into future acquisitions), this estimator uses only
+    the current and preceding acquisitions.
+
+    Args:
+        data: Raster stack with shape ``(time, rows, cols)``.
+        dates: Chronological acquisition dates.
+        order: Derivative order (e.g. 1 for velocity, 2 for acceleration).
+
+    Returns:
+        Derivative stack with the same shape as ``data``. The first ``order``
+        time slices are NaN since no prior acquisitions exist to form the
+        backward difference.
+
+    Raises:
+        ValueError: If order < 1 or insufficient acquisitions are provided.
+    """
+    validate_temporal_axis(data, dates)
+    if order < 1:
+        raise ValueError('Derivative order must be at least 1.')
+    if len(dates) < order + 1:
+        raise ValueError(
+            f'At least {order + 1} acquisitions are required for derivative order '
+            f'{order}.',
+        )
+
+    offsets = days_since_start(dates)
+    gradient = data.astype(np.float64, copy=True)
+    for _ in range(order):
+        dt = np.diff(offsets)
+        diff = np.diff(gradient, axis=0)
+        new_grad = np.full_like(gradient, np.nan)
+        new_grad[1:] = diff / dt[:, np.newaxis, np.newaxis]
+        gradient = new_grad
+    return gradient.astype(np.float32)
+
+
 def nanmean_time(data: np.ndarray) -> np.ndarray:
     """Compute a warning-free mean over time."""
     counts = np.sum(np.isfinite(data), axis=0)

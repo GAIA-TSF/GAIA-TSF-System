@@ -22,9 +22,10 @@ from subsystems.dag.utils.io import write_feature_rasters, write_json
 from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
+from subsystems.dag.utils.plotting import save_temporal_feature_summary_plot
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
-from subsystems.dag.utils.temporal import temporal_gradient
+from subsystems.dag.utils.temporal import causal_temporal_gradient, temporal_gradient
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,6 +80,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             result_config,
         )
         temporal_features.update(
+            self._build_current_features(base_stacks, result_config),
+        )
+        temporal_features.update(
             self._build_calendar_features(
                 dates=series.dates,
                 spatial_shape=masked_data.shape[1:],
@@ -109,6 +113,11 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 acquisition_date.isoformat() for acquisition_date in series.dates
             ),
         )
+        plot_paths = self._write_summary_plots(
+            temporal_features,
+            series.dates,
+            result_config,
+        )
         metadata_path = output_dir / str(result_config['metadata_filename'])
         write_json(
             metadata_path,
@@ -120,6 +129,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 input_files=series.source_paths,
                 dates=series.dates,
                 profile=series.profile,
+                plot_paths=plot_paths,
             ),
         )
 
@@ -128,7 +138,62 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             'features': sorted(temporal_features),
             'output_dir': str(output_dir),
             'metadata': str(metadata_path),
+            'plots': plot_paths,
         }
+
+    def _write_summary_plots(
+        self,
+        temporal_features: dict[str, np.ndarray],
+        dates: tuple[date, ...],
+        result_config: dict[str, object],
+    ) -> dict[str, str]:
+        """Write one temporal-behaviour graph per temporal feature."""
+        plot_config = result_config.get('summary_plots', {})
+        if not isinstance(plot_config, dict):
+            raise TypeError('temporal_features.summary_plots must be a mapping.')
+        if not bool(plot_config.get('enabled', False)):
+            return {}
+        output_dir = self._resolve_path(
+            str(plot_config.get('output_dir', 'results/temporal_features/plots'))
+        )
+        units = plot_config.get('units', {})
+        if not isinstance(units, dict):
+            raise TypeError('temporal_features.summary_plots.units must be a mapping.')
+        paths: dict[str, str] = {}
+        for feature_name, values in temporal_features.items():
+            unit = self._temporal_feature_unit(feature_name, units)
+            path = output_dir / f'{feature_name}.png'
+            save_temporal_feature_summary_plot(
+                values,
+                dates,
+                path,
+                feature_name,
+                unit=unit,
+                dpi=int(plot_config.get('dpi', 200)),
+                lower_percentile=float(plot_config.get('lower_percentile', 5.0)),
+                upper_percentile=float(plot_config.get('upper_percentile', 95.0)),
+                style=(
+                    str(plot_config['style'])
+                    if plot_config.get('style') is not None
+                    else None
+                ),
+            )
+            paths[feature_name] = str(path)
+        return paths
+
+    @staticmethod
+    def _temporal_feature_unit(
+        feature_name: str,
+        units: dict[object, object],
+    ) -> str:
+        """Resolve an exact feature unit or its configured feature-family unit."""
+        if feature_name in units:
+            return str(units[feature_name])
+        for family, unit in units.items():
+            family_name = str(family)
+            if feature_name == family_name or feature_name.startswith(f'{family_name}_'):
+                return str(unit)
+        return ''
 
     def _build_base_feature_stacks(
         self,
@@ -141,18 +206,51 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             raise ValueError('temporal_features.input_features must be a list.')
 
         stacks: dict[str, np.ndarray] = {}
+        derivative_method = str(result_config.get('derivative_method', 'causal')).lower()
+        grad_fn = causal_temporal_gradient if derivative_method == 'causal' else temporal_gradient
         for feature_name in [str(value) for value in configured_features]:
             if feature_name == 'displacement':
                 stacks[feature_name] = data
             elif feature_name == 'velocity':
-                stacks[feature_name] = temporal_gradient(data, dates, order=1)
+                stacks[feature_name] = grad_fn(data, dates, order=1)
             elif feature_name == 'acceleration':
-                stacks[feature_name] = temporal_gradient(data, dates, order=2)
+                stacks[feature_name] = grad_fn(data, dates, order=2)
             elif feature_name == 'jerk':
-                stacks[feature_name] = temporal_gradient(data, dates, order=3)
+                stacks[feature_name] = grad_fn(data, dates, order=3)
             else:
                 raise ValueError(f'Unsupported temporal input feature: {feature_name}')
         return stacks
+
+    def _build_current_features(
+        self,
+        base_stacks: dict[str, np.ndarray],
+        result_config: dict[str, object],
+    ) -> dict[str, np.ndarray]:
+        """Expose selected current base stacks as unlagged model targets."""
+        current_config = result_config.get('current', {})
+        if not isinstance(current_config, dict):
+            raise TypeError('temporal_features.current must be a mapping.')
+        if not bool(current_config.get('enabled', False)):
+            return {}
+        configured = current_config.get('features', [])
+        if not isinstance(configured, list) or not configured:
+            raise ValueError(
+                'temporal_features.current.features must be a non-empty list.'
+            )
+        suffix = str(current_config.get('suffix', 'current')).strip()
+        if not suffix:
+            raise ValueError('temporal_features.current.suffix must not be empty.')
+        names = [str(value) for value in configured]
+        missing = [name for name in names if name not in base_stacks]
+        if missing:
+            raise ValueError(
+                'Current feature requested without a configured base stack: '
+                + ', '.join(missing)
+            )
+        return {
+            f'{name}_{suffix}': base_stacks[name].copy()
+            for name in names
+        }
 
     def _build_calendar_features(
         self,
@@ -317,6 +415,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         input_files: tuple[Path, ...],
         dates: tuple[date, ...],
         profile: RasterProfile,
+        plot_paths: dict[str, str],
     ) -> dict[str, object]:
         return {
             'feature_names': sorted(temporal_features),
@@ -337,6 +436,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             ),
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
+            'plot_files': plot_paths,
             'spatial_reference': str(profile.crs),
             'statistics': {
                 feature_name: feature_statistics(values)

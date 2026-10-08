@@ -35,6 +35,16 @@ class StatisticalAnomalyDetector:
         self.persistence = int(config.get('persistence', 1))
         if self.persistence < 1:
             raise ValueError('anomaly_detection.persistence must be at least one.')
+        self.direction = str(config.get('direction', 'both')).lower()
+        if self.direction not in {'both', 'positive', 'negative'}:
+            raise ValueError(
+                "anomaly_detection.direction must be 'both', 'positive', or 'negative'."
+            )
+        self.combination_operator = str(config.get('combination_operator', 'or')).lower()
+        if self.combination_operator not in {'or', 'and'}:
+            raise ValueError(
+                "anomaly_detection.combination_operator must be 'or' or 'and'."
+            )
 
     def detect(
         self,
@@ -76,14 +86,31 @@ class StatisticalAnomalyDetector:
         criteria: list[np.ndarray] = []
         score_parts: list[np.ndarray] = []
         if self.residual_threshold is not None:
-            criteria.append(np.abs(residual_stack) >= self.residual_threshold)
-            score_parts.append(np.abs(residual_stack) / self.residual_threshold)
+            if self.direction == 'negative':
+                criteria.append(residual_stack <= -self.residual_threshold)
+                score_parts.append(np.maximum(0.0, -residual_stack / self.residual_threshold))
+            elif self.direction == 'positive':
+                criteria.append(residual_stack >= self.residual_threshold)
+                score_parts.append(np.maximum(0.0, residual_stack / self.residual_threshold))
+            else:
+                criteria.append(np.abs(residual_stack) >= self.residual_threshold)
+                score_parts.append(np.abs(residual_stack) / self.residual_threshold)
         if self.zscore_threshold is not None:
-            criteria.append(np.abs(zscores) >= self.zscore_threshold)
-            score_parts.append(np.abs(zscores) / self.zscore_threshold)
+            if self.direction == 'negative':
+                criteria.append(zscores <= -self.zscore_threshold)
+                score_parts.append(np.maximum(0.0, -zscores / self.zscore_threshold))
+            elif self.direction == 'positive':
+                criteria.append(zscores >= self.zscore_threshold)
+                score_parts.append(np.maximum(0.0, zscores / self.zscore_threshold))
+            else:
+                criteria.append(np.abs(zscores) >= self.zscore_threshold)
+                score_parts.append(np.abs(zscores) / self.zscore_threshold)
         if not criteria:
             raise ValueError('Configure residual_threshold and/or zscore_threshold.')
-        initial = np.logical_or.reduce(criteria) & dataset.mask[np.newaxis, :, :]
+        if self.combination_operator == 'and':
+            initial = np.logical_and.reduce(criteria) & dataset.mask[np.newaxis, :, :]
+        else:
+            initial = np.logical_or.reduce(criteria) & dataset.mask[np.newaxis, :, :]
         initial[:persistence_start_time_index] = False
         initial[persistence_end_time_index:] = False
         binary = self._persistent(initial)
@@ -96,6 +123,8 @@ class StatisticalAnomalyDetector:
             for index, date in enumerate(dataset.dates)
         }
         summary = {
+            'direction': self.direction,
+            'combination_operator': self.combination_operator,
             'residual_mean': mean,
             'residual_std': std,
             'residual_threshold': self.residual_threshold,

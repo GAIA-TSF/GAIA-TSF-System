@@ -68,13 +68,13 @@ def main() -> None:
         from subsystems.dag.pipelines.slope_eda_pipeline import SlopeEDAPipeline
 
         result = SlopeEDAPipeline(args.config).run()
-        print(len(result))
+        print(result)
 
     elif args.pipeline == 'slope_features':
         from subsystems.dag.pipelines.slope_feature_pipeline import SlopeFeaturePipeline
 
         result = SlopeFeaturePipeline(args.config).run()
-        print(len(result))
+        print(result)
 
     elif args.pipeline == 'slope_temporal_features':
         from subsystems.dag.pipelines.slope_temporal_feature_pipeline import (
@@ -82,7 +82,7 @@ def main() -> None:
         )
 
         result = SlopeTemporalFeaturePipeline(args.config).run()
-        print(len(result))
+        print(result)
 
     elif args.pipeline == 'meteo_features':
         from subsystems.dag.pipelines.meteo_feature_pipeline import (

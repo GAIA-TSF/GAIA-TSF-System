@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 import rasterio
+from rasterio.transform import array_bounds
 import yaml
 
 import subsystems.dag.plugins  # noqa: F401
@@ -22,6 +23,7 @@ from subsystems.dag.utils.io import write_feature_rasters, write_json
 from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
+from subsystems.dag.utils.plotting import save_feature_summary_plot
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
@@ -79,6 +81,11 @@ class SlopeFeaturePipeline(Pipeline):
             profile=series.profile,
             raster_format=str(result_config.get('raster_format', 'GTiff')),
         )
+        plot_paths = self._write_summary_plots(
+            features,
+            result_config,
+            series.profile,
+        )
         metadata_path = output_dir / str(result_config['metadata_filename'])
         write_json(
             metadata_path,
@@ -88,6 +95,7 @@ class SlopeFeaturePipeline(Pipeline):
                 output_paths=output_paths,
                 input_files=series.source_paths,
                 profile=series.profile,
+                plot_paths=plot_paths,
             ),
         )
 
@@ -96,7 +104,56 @@ class SlopeFeaturePipeline(Pipeline):
             'features': sorted(features),
             'output_dir': str(output_dir),
             'metadata': str(metadata_path),
+            'plots': plot_paths,
         }
+
+    def _write_summary_plots(
+        self,
+        features: dict[str, np.ndarray],
+        result_config: dict[str, object],
+        profile: RasterProfile,
+    ) -> dict[str, str]:
+        """Write one spatial and distribution summary figure per feature."""
+        plot_config = result_config.get('summary_plots', {})
+        if not isinstance(plot_config, dict):
+            raise TypeError('features.summary_plots must be a mapping.')
+        if not bool(plot_config.get('enabled', False)):
+            return {}
+        output_value = plot_config.get('output_dir', 'results/features/plots')
+        plot_dir = self._resolve_path(str(output_value))
+        units = plot_config.get('units', {})
+        if not isinstance(units, dict):
+            raise TypeError('features.summary_plots.units must be a mapping.')
+        bounds = array_bounds(profile.height, profile.width, profile.transform)
+        extent = (bounds[0], bounds[2], bounds[1], bounds[3])
+        paths: dict[str, str] = {}
+        for feature_name, values in features.items():
+            if values.ndim != 2:
+                raise ValueError(
+                    f'Basic slope feature {feature_name} must be two-dimensional.'
+                )
+            path = plot_dir / f'{feature_name}.png'
+            save_feature_summary_plot(
+                values,
+                path,
+                feature_name,
+                unit=str(units.get(feature_name, '')),
+                dpi=int(plot_config.get('dpi', 200)),
+                histogram_bins=int(plot_config.get('histogram_bins', 50)),
+                robust_percentile=float(
+                    plot_config.get('robust_percentile', 98.0)
+                ),
+                sequential_cmap=str(plot_config.get('sequential_cmap', 'viridis')),
+                diverging_cmap=str(plot_config.get('diverging_cmap', 'RdBu_r')),
+                extent=extent,
+                style=(
+                    str(plot_config['style'])
+                    if plot_config.get('style') is not None
+                    else None
+                ),
+            )
+            paths[feature_name] = str(path)
+        return paths
 
     def _load_config(self, config_path: Path) -> dict[str, Any]:
         if not config_path.exists():
@@ -183,6 +240,7 @@ class SlopeFeaturePipeline(Pipeline):
         output_paths: dict[str, str],
         input_files: tuple[Path, ...],
         profile: RasterProfile,
+        plot_paths: dict[str, str],
     ) -> dict[str, object]:
         return {
             'feature_names': sorted(features),
@@ -199,6 +257,7 @@ class SlopeFeaturePipeline(Pipeline):
             ),
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
+            'plot_files': plot_paths,
             'spatial_reference': str(profile.crs),
             'statistics': {
                 feature_name: feature_statistics(values)

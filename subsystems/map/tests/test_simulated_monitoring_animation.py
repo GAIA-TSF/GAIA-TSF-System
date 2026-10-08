@@ -9,8 +9,9 @@ from subsystems.map.scripts.simulate_monitoring_animation import (
     classify_risk,
     configured_animation_output,
     frame_indices,
+    run_precomputed_simulation,
 )
-from subsystems.map.utils.temporal_windows import resolve_temporal_window
+from subsystems.map.utils.temporal_windows import TemporalWindow, resolve_temporal_window
 
 
 DATES = (
@@ -103,3 +104,51 @@ def test_animation_output_is_resolved_below_experiment_results(tmp_path) -> None
         / 'animation'
         / 'map_monitoring.mp4'
     )
+
+
+def test_precomputed_replay_supports_overlapping_spatial_calibration() -> None:
+    """A full-period spatial calibration produces one frame per monitoring date."""
+    dates = tuple(f'2020-01-{day:02d}' for day in range(1, 9))
+    observed = np.arange(8, dtype=float)[:, np.newaxis, np.newaxis]
+    config = {
+        'monitoring': {
+            'dashboard': {
+                'anomaly_magnitude_threshold': 0.1,
+                'cusum': {
+                    'instability_direction': 'negative',
+                    'signal': 'observed_velocity',
+                    'spatial_aggregation': 'mean',
+                    'spatial_quantile': 0.1,
+                    'reference_value': 0.5,
+                    'decision_threshold': 2.0,
+                    'derivative_window': 2,
+                    'smoothing_span': 2,
+                    'persistence_window': 2,
+                    'persistence_threshold': 0.25,
+                },
+                'regime': {
+                    'signal': 'unexpected_acceleration',
+                    'smoothing_span': 2,
+                    'medium_risk_threshold': 0.3,
+                    'high_risk_threshold': 0.7,
+                },
+            }
+        },
+        'plotting': {},
+    }
+    shared_window = TemporalWindow(0, 8, dates[0], dates[-1])
+
+    result = run_precomputed_simulation(
+        config,
+        dates=dates,
+        calibration=shared_window,
+        monitoring=shared_window,
+        observed_stack=observed,
+        prediction_stack=np.zeros_like(observed),
+        uncertainty_stack=None,
+        fixed_support_mask=None,
+    )
+
+    assert len(result.frames) == 8
+    assert result.frames[0].date == dates[0]
+    assert result.frames[-1].date == dates[-1]

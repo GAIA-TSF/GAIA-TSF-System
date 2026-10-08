@@ -51,7 +51,7 @@ class MonitoringPipeline:
         anomalies = detector.detect(
             dataset,
             residual_stack,
-            persistence_start_time_index=calibration[1],
+            persistence_start_time_index=monitoring[0],
             persistence_end_time_index=monitoring[1],
         )
         detector.write(

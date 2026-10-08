@@ -107,3 +107,71 @@ from the persisted inference stacks during the monitoring stage.
 ```bash 
 TODO: 
 ```
+
+### Spatial calibration support
+
+Sites that lack a deformation-free historical period can calibrate the normal
+behaviour model on a surveyed stable subset while retaining the full TSF for
+inference and monitoring:
+
+```yaml
+datasets:
+  slope_dataset:
+    mask_file: tsf_mask.tif
+    stable_file: tsf_stable.tif
+    calibration_spatial_selection:
+      method: configured_mask
+```
+
+Supported methods are:
+
+- `temporal_std`: backward-compatible automatic selection below
+  `baseline_model.stable_pixel_std_threshold` across the TSF mask.
+- `configured_mask`: use the configured stable-mask population directly; the
+  temporal standard-deviation threshold is not applied. Dataset construction
+  still removes samples whose required features or target are missing.
+- `configured_mask_and_temporal_std`: apply the temporal threshold inside the
+  configured stable mask.
+
+`calibration_spatial_selection.mask_file` may override `stable_file`. The mask
+must be binary, nonempty, share the feature grid, and lie completely inside
+`mask_file`. Only learning is spatially restricted. Inference, residual maps,
+and monitoring continue over `mask_file`. The experiment metadata records the
+method, mask path, configured and selected pixel counts, and threshold.
+Temporal stability selection, when enabled, is calculated only from the
+configured calibration dates and never from monitoring observations.
+
+Spatial selection does not replace temporal windows. Learning uses the Cartesian
+intersection of the selected calibration pixels and calibration dates. The
+calibration `start_date` is inclusive and `end_date` is exclusive. Monitoring
+uses the full TSF mask and its configured window, with both dates inclusive:
+
+```yaml
+temporal_windows:
+  calibration:
+    start_date: '2015-04-30'  # included
+    end_date: '2017-01-01'    # excluded; may be monitoring start
+  monitoring:
+    start_date: '2017-01-01'  # included
+    end_date: '2018-02-20'    # included
+```
+
+Only real acquisition dates within these calendar bounds are selected; dates in
+the YAML do not need to match an acquisition exactly. The split method controls
+what model generalization is validated:
+
+```yaml
+split:
+  method: temporal  # or spatial
+  random_seed: 42   # used by spatial splitting
+  train_ratio: 0.5
+  validation_ratio: 0.25
+  test_ratio: 0.25
+```
+
+`temporal` creates chronological subdivisions of the calibration window and
+tests generalization to later acquisitions. `spatial` randomly assigns complete
+pixel histories to mutually exclusive subsets, so validation and test cover the
+whole calibration period while measuring generalization to unseen locations.
+The experiment seed is used when `random_seed` is omitted. The monitoring
+window never contributes samples to model fitting.

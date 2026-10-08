@@ -1,16 +1,16 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name:  slope_lstm # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
-  description: Stable-pixel model for synthetic TSF deformation monitoring with meteo data.
+  name:  slope_trf # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
+  description: Stable-pixel model for synthetic TSF deformation monitoring
   seed: 42
 
 # Single root for this DAG/MAP scenario. MAP derives static inputs from
 # <experiment_dir>/static and all DAG/MAP products from <experiment_dir>/results.
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger 
-experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/
+experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/
 variable: slope
-model: lstm # constant | trf | lstm
+model: trf # constant | trf | lstm
 dataset: slope_dataset
 
 data:
@@ -28,35 +28,38 @@ variables:
 datasets:
   slope_dataset:
     mask_file: tsf_mask.tif
+    stable_file: tsf_stable.tif
+    calibration_spatial_selection:
+      # temporal_std | configured_mask | configured_mask_and_temporal_std
+      method: configured_mask
+      # Supported methods are:
+      # A/ temporal_std: automatic stability selection during calibration dates.
+      # B/ configured_mask: use the defined stable area directly.
+      # C/ configured_mask_and_temporal_std: apply the temporal stability threshold
+      # within the defined stable area.
     features:
+      - velocity_lag1
       - velocity_lag2
       - velocity_lag3
       - acceleration_lag1
       - acceleration_lag2
-      # - acceleration_lag3
-      # - annual_cos
-      # - annual_sin
-      - temperature_mean
-      - precipitation
-      - precip_7d
-      - precip_14d
-      - precip_30d
-      - precip_60d
-      # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2]
-    target_feature: velocity_lag1
+      - acceleration_lag3
+    target_feature: velocity_current
     # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]
     split:
-      method: temporal
+      # temporal: chronological validation; spatial: unseen pixels over all dates.
+      method: spatial
+      random_seed: 42
       train_ratio: 0.5
       validation_ratio: 0.25
       test_ratio: 0.25
     temporal_windows:
       calibration:
-        start_date: '2017-01-01'
-        end_date: '2019-05-01'
+        start_date: '2016-04-30'
+        end_date: '2018-02-01'
       monitoring:
-        start_date: '2019-05-01'
-        end_date: '2020-10-30'
+        start_date: '2017-06-01'
+        end_date: '2018-02-27'
   amd_dataset:
     mask_file: tsf_mask.tif
     features: [amd_lag1]
@@ -122,7 +125,7 @@ training:
   random_seed: 42
 
 explainability:
-  enabled: true # true # false
+  enabled: false # true # false
   parallel:
     # Parallel workers for independent grouped-permutation feature groups.
     n_jobs: 4
@@ -132,9 +135,9 @@ explainability:
     dependence_features:
       - velocity_lag2
       - acceleration_lag1
-      - precipitation
-      - precip_30d
-      - temperature_mean
+      # - precipitation
+      # - precip_30d
+      # - temperature_mean
 
   grouped_permutation:
     # Evaluated across all held-out temporal validation samples.
@@ -159,11 +162,10 @@ explainability:
         - temperature_mean
 
 plotting:
-  # MAP rasters and model outputs are stored in native metres per day.  The
-  # following display conversion is applied only to figures and CSV exports.
-  native_deformation_rate_unit: m/day
+  # MAP rasters and model outputs are stored in native mm per day for InSAR LOS products.
+  native_deformation_rate_unit: mm/day
   deformation_unit: mm/day
-  value_scale: 1000.0
+  value_scale: 1.0
   cumulative_displacement_unit: mm
   fallback_interval_days: 30.0
   cumulative_observation_max_points: 100000
@@ -184,9 +186,10 @@ plotting:
   observation_points_name_field: label
 
 anomaly_detection:
-  # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
-  residual_threshold: 0.00002
+  # Native mm/day: threshold for persistent deformation anomalies
+  residual_threshold: 0.1
   zscore_threshold: 1.5
+  direction: negative
   persistence: 3
 
 monitoring:
@@ -215,28 +218,29 @@ monitoring:
       persistence: 3
       minimum_overlap: 0.30
       connectivity: 8
-    # Native m/day: 0.00002 m/day = 0.02 mm/day on the displayed plots.
-    anomaly_magnitude_threshold: 0.00002
+    # Native mm/day threshold for anomaly magnitude plot
+    anomaly_magnitude_threshold: 0.1
     cusum:
       # Negative: increasingly negative LOS deformation is instability.
       instability_direction: negative
       # Use physical deformation acceleration, not fluctuating model residuals.
       signal: observed_velocity
-      # Primary operational CUSUM uses the full fixed TSF support. Local
-      # deformation is evaluated separately after spatial-coherence gating.
-      spatial_aggregation: mean
+      # Primary operational CUSUM uses directional tail mean to avoid diluting
+      # localized failure sector deformation across the entire TSF.
+      spatial_aggregation: directional_tail_mean
+      spatial_quantile: 0.05
       reference_value: 0.5
-      decision_threshold: 5.0
+      decision_threshold: 3.0
       # Past-only local-linear acceleration estimate; five 12-day acquisitions
       # suppress single-acquisition noise without obscuring gradual change.
-      derivative_window: 5
-      smoothing_span: 5
-      persistence_window: 20
+      derivative_window: 3
+      smoothing_span: 3
+      persistence_window: 10
       persistence_threshold: 0.25
     regime:
       # Compare observed acceleration to the modelled baseline acceleration,
       # so recurring seasonal curvature is not interpreted as a regime shift.
       signal: unexpected_acceleration
-      smoothing_span: 5
-      medium_risk_threshold: 0.5
-      high_risk_threshold: 0.8
+      smoothing_span: 3
+      medium_risk_threshold: 0.4
+      high_risk_threshold: 0.7

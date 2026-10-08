@@ -264,12 +264,13 @@ def run_precomputed_simulation(
     fixed_support_mask: np.ndarray | None,
     coherent_regions: tuple[SpatialCoherenceRegion, ...] = (),
 ) -> SimulationResult:
-    """Replay monitoring causally from persisted inference stacks.
+    """Replay monitoring from persisted inference stacks.
 
     This is the animation-side counterpart to the independent monitoring
     pipeline. It deliberately does not reload a model or engineered features:
-    each animation frame only reveals the subset of already-persisted inference
-    products available by that acquisition date.
+    non-overlapping temporal windows reveal data acquisition by acquisition.
+    Overlapping spatial-calibration windows use the fixed full-period baseline
+    and therefore produce a retrospective replay.
     """
     observed = _spatial_mean(observed_stack)
     monitor = TemporalResidualMonitor(config['monitoring']['dashboard'])
@@ -288,18 +289,38 @@ def run_precomputed_simulation(
     dynamics = np.full(time_count, 'stable', dtype='<U12')
     frames: list[MonitoringFrame] = []
 
-    for current in range(monitoring.start_index, monitoring.end_index):
-        end = current + 1
-        result = monitor.analyze(
-            observed_stack[:end],
-            prediction_stack[:end],
-            dates[:end],
+    retrospective = calibration.end_index > monitoring.start_index
+    fixed_result = None
+    if retrospective:
+        LOGGER.info(
+            'Calibration and monitoring overlap; animation uses a fixed '
+            'full-period calibration baseline.'
+        )
+        fixed_result = monitor.analyze(
+            observed_stack,
+            prediction_stack,
+            dates,
             (calibration.start_index, calibration.end_index),
-            (monitoring.start_index, end),
-            None if uncertainty_stack is None else uncertainty_stack[:end],
+            (monitoring.start_index, monitoring.end_index),
+            uncertainty_stack,
             fixed_support_mask=fixed_support_mask,
             coherent_regions=coherent_regions,
         )
+
+    for current in range(monitoring.start_index, monitoring.end_index):
+        end = current + 1
+        result = fixed_result
+        if result is None:
+            result = monitor.analyze(
+                observed_stack[:end],
+                prediction_stack[:end],
+                dates[:end],
+                (calibration.start_index, calibration.end_index),
+                (monitoring.start_index, end),
+                None if uncertainty_stack is None else uncertainty_stack[:end],
+                fixed_support_mask=fixed_support_mask,
+                coherent_regions=coherent_regions,
+            )
         predicted[current] = result.predicted_mean[current]
         uncertainty[current] = (
             np.nan if result.uncertainty_mean is None else result.uncertainty_mean[current]

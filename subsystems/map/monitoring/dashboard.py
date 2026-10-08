@@ -155,6 +155,26 @@ def _plot_predictions(
             alpha=0.2,
             label='Prediction uncertainty',
         )
+    if (
+        result.regional_observed_mean is not None
+        and np.any(np.isfinite(result.regional_observed_mean[positions]))
+    ):
+        reg_observed = result.regional_observed_mean[positions] * value_scale
+        axis.plot(
+            positions,
+            reg_observed,
+            color='darkorchid',
+            linewidth=1.5,
+            label='Coherent-region mean LOS velocity',
+        )
+        axis.scatter(
+            positions,
+            reg_observed,
+            color='darkorchid',
+            s=16,
+            alpha=0.9,
+            zorder=4,
+        )
     axis.set(
         title='Mean LOS velocity and baseline prediction',
         ylabel=f'Mean LOS velocity [{unit}]',
@@ -175,6 +195,13 @@ def _plot_anomaly_magnitude(
         color='red',
         linewidth=1.5,
         label='|Mean residual|',
+    )
+    axis.axhline(
+        result.anomaly_threshold * value_scale,
+        color='black',
+        linestyle='--',
+        linewidth=1.2,
+        label=f'Anomaly threshold ({result.anomaly_threshold * value_scale:g})',
     )
     axis.set(title='Anomaly magnitude', ylabel=f'Residual rate [{unit}]')
 

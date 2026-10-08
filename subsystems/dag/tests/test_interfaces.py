@@ -68,6 +68,9 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
                                 'temporal_mean_std': 'temporal_mean_std.png',
                                 'histogram': 'histogram.png',
                                 'boxplot': 'boxplot.png',
+                                'cumulative_displacement': (
+                                    'cumulative_displacement.png'
+                                ),
                                 'mean_heatmap': 'mean_los_heatmap.png',
                                 'std_heatmap': 'temporal_std_heatmap.png',
                                 'mean_map': 'mean_map.tif',
@@ -89,6 +92,7 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
     assert (output_dir / 'temporal_mean_std.png').exists()
     assert (output_dir / 'histogram.png').exists()
     assert (output_dir / 'boxplot.png').exists()
+    assert (output_dir / 'cumulative_displacement.png').exists()
     assert (output_dir / 'mean_los_heatmap.png').exists()
     assert (output_dir / 'temporal_std_heatmap.png').exists()
     assert (output_dir / 'mean_map.tif').exists()
@@ -141,6 +145,12 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
                             'output_dir': 'results/features',
                             'raster_format': 'GTiff',
                             'metadata_filename': 'metadata.json',
+                            'summary_plots': {
+                                'enabled': True,
+                                'output_dir': 'results/features/plots',
+                                'dpi': 80,
+                                'histogram_bins': 4,
+                            },
                             'filenames': {
                                 'cumulative_displacement': (
                                     'cumulative_displacement.tif'
@@ -171,10 +181,12 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
     assert (output_dir / 'velocity.tif').exists()
     assert (output_dir / 'cumulative_displacement.tif').exists()
     assert (output_dir / 'metadata.json').exists()
+    assert (output_dir / 'plots' / 'velocity.png').exists()
 
     metadata = json.loads((output_dir / 'metadata.json').read_text())
     assert 'velocity' in metadata['feature_names']
     assert metadata['statistics']['velocity']['mean'] == 1.0
+    assert 'velocity' in metadata['plot_files']
 
 
 def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
@@ -213,7 +225,19 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
                             'output_dir': 'results/temporal_features',
                             'raster_format': 'GTiff',
                             'metadata_filename': 'metadata.json',
+                            'summary_plots': {
+                                'enabled': True,
+                                'output_dir': 'results/temporal_features/plots',
+                                'dpi': 80,
+                                'lower_percentile': 5.0,
+                                'upper_percentile': 95.0,
+                            },
                             'input_features': ['velocity'],
+                            'current': {
+                                'enabled': True,
+                                'features': ['velocity'],
+                                'suffix': 'current',
+                            },
                             'lag': {
                                 'enabled': True,
                                 'orders': [1, 2],
@@ -254,11 +278,14 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
 
     assert result['pipeline'] == 'slope_temporal_features'
     assert (output_dir / 'velocity_lag1.tif').exists()
+    assert (output_dir / 'velocity_current.tif').exists()
     assert (output_dir / 'velocity_diff1.tif').exists()
     assert (output_dir / 'velocity_roll_mean.tif').exists()
     assert (output_dir / 'velocity_roll_std.tif').exists()
     assert (output_dir / 'annual_sin.tif').exists()
     assert (output_dir / 'annual_cos.tif').exists()
+    assert (output_dir / 'plots' / 'velocity_lag1.png').exists()
+    assert (output_dir / 'plots' / 'velocity_current.png').exists()
     # assert (output_dir / 'velocity_smooth.tif').exists()
     with rasterio.open(output_dir / 'velocity_lag1.tif') as dataset:
         assert dataset.count == 7
@@ -272,7 +299,9 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
         f'2018-01-{day:02d}' for day in range(1, 8)
     ]
     assert 'velocity_lag1' in metadata['feature_names']
+    assert 'velocity_current' in metadata['feature_names']
     assert 'annual_sin' in metadata['feature_names']
+    assert 'velocity_lag1' in metadata['plot_files']
     with rasterio.open(output_dir / 'annual_sin.tif') as dataset:
         annual_sin = dataset.read(1, masked=True)
         assert np.isclose(annual_sin[0, 0], 0.0)

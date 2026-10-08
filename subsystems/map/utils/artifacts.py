@@ -104,6 +104,7 @@ def write_diagnostics(
     fallback_interval_days: float = 1.0,
     pixel_indices: np.ndarray | None = None,
     cumulative_observation_max_points: int | None = None,
+    dataset_label: str | None = None,
 ) -> None:
     """Write model diagnostics with optional inference uncertainty.
 
@@ -264,7 +265,11 @@ def write_diagnostics(
     axis.set(
         xlabel='Acquisition date',
         ylabel=f'LOS deformation rate{unit_label}',
-        title='Mean time-series comparison',
+        title=(
+            'Mean time-series comparison'
+            if dataset_label is None
+            else f'{dataset_label} mean time-series comparison'
+        ),
     )
     figure.savefig(
         output_dir / 'timeseries_comparison.png', dpi=150, bbox_inches='tight'

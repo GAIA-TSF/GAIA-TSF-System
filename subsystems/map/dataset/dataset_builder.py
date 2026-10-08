@@ -25,7 +25,7 @@ class Dataset:
 
 @dataclass(frozen=True)
 class DatasetSplits:
-    """Chronological train, validation and test subsets."""
+    """Train, validation and test subsets."""
 
     train: Dataset
     validation: Dataset
@@ -262,10 +262,78 @@ class DatasetBuilder:
             ),
         )
 
+    def split_spatial_window(
+        self,
+        dataset: Dataset,
+        start_index: int,
+        end_index: int,
+        train_ratio: float,
+        validation_ratio: float,
+        test_ratio: float,
+        random_seed: int,
+    ) -> DatasetSplits:
+        """Split complete pixel histories within an exclusive time range.
+
+        Each pixel is assigned to exactly one subset. Consequently, validation
+        and test measure generalization to unseen locations while retaining the
+        complete calibration-period time axis in every subset.
+        """
+        if not 0 <= start_index < end_index <= len(dataset.dates):
+            raise ValueError('Spatial window indices are outside the dataset range.')
+        if not np.isclose(train_ratio + validation_ratio + test_ratio, 1.0):
+            raise ValueError('Spatial split ratios must sum to 1.0.')
+        if min(train_ratio, validation_ratio, test_ratio) <= 0.0:
+            raise ValueError('Spatial split ratios must all be positive.')
+
+        in_window = (
+            (dataset.time_indices >= start_index)
+            & (dataset.time_indices < end_index)
+        )
+        pixels = np.unique(dataset.pixel_indices[in_window])
+        generator = np.random.default_rng(random_seed)
+        pixels = generator.permutation(pixels)
+        train_end = int(pixels.size * train_ratio)
+        validation_end = train_end + int(pixels.size * validation_ratio)
+        if train_end < 1 or validation_end <= train_end or validation_end >= pixels.size:
+            raise ValueError('Spatial split needs at least one pixel per subset.')
+
+        splits = DatasetSplits(
+            self._subset(
+                dataset,
+                in_window & np.isin(dataset.pixel_indices, pixels[:train_end]),
+            ),
+            self._subset(
+                dataset,
+                in_window
+                & np.isin(
+                    dataset.pixel_indices,
+                    pixels[train_end:validation_end],
+                ),
+            ),
+            self._subset(
+                dataset,
+                in_window & np.isin(dataset.pixel_indices, pixels[validation_end:]),
+            ),
+        )
+        expected_times = np.unique(dataset.time_indices[in_window])
+        for name, subset in (
+            ('training', splits.train),
+            ('validation', splits.validation),
+            ('test', splits.test),
+        ):
+            missing = np.setdiff1d(expected_times, np.unique(subset.time_indices))
+            if missing.size:
+                missing_dates = ', '.join(dataset.dates[int(index)] for index in missing)
+                raise ValueError(
+                    f'Spatial {name} subset has no valid pixels on: {missing_dates}. '
+                    'Increase the subset ratio or improve feature coverage.'
+                )
+        return splits
+
     @staticmethod
     def _subset(dataset: Dataset, include: np.ndarray) -> Dataset:
         if not np.any(include):
-            raise ValueError('A temporal split contains no valid samples.')
+            raise ValueError('A dataset split contains no valid samples.')
         return Dataset(
             dataset.features[include],
             dataset.targets[include],
