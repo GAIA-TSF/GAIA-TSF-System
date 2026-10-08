@@ -19,7 +19,7 @@ LOGGER = logging.getLogger(__name__)
 class Sentinel1LOSLoader(RasterLoader):
     """Load Sentinel-1 LOS deformation rasters."""
 
-    _date_pattern = re.compile(r'tsf_los_(\d{8})\.tif$')
+    _date_pattern = re.compile(r'(?:tsf_)?los_(\d{8})\.tif$')
 
     @property
     def name(self) -> str:
@@ -90,7 +90,7 @@ class Sentinel1LOSLoader(RasterLoader):
         match = self._date_pattern.match(path.name)
         if not match:
             raise ValueError(
-                f'Invalid LOS filename. Expected tsf_los_YYYYMMDD.tif, got {path.name}',
+                f'Invalid LOS filename. Expected los_YYYYMMDD.tif or tsf_los_YYYYMMDD.tif, got {path.name}',
             )
         return date.fromisoformat(match.group(1))
 

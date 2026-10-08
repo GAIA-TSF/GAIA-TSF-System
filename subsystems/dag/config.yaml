@@ -30,8 +30,6 @@ global:
     chunk_size: [256, 256]
     n_workers: 8
 
-project_dir: "/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia"
-
 # Active configuration consumed by the implemented slope DAG pipelines.
 # The generic inputs/feature_engineering/pipelines sections below describe the
 # wider architecture but are not the runtime schema of SlopeEDAPipeline.
@@ -39,7 +37,7 @@ slope_stability:
   inputs:
     los:
       directory: "inputs/los"
-      filename_pattern: "tsf_los_*.tif"
+      filename_pattern: "los_*.tif"
   static:
     tsf_mask: "static/tsf_mask.tif"
   feature_engineering:
