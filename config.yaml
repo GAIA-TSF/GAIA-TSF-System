@@ -5,7 +5,7 @@ eou:
       auth:
         credentials: &cred
           username: 'gaia.tsf.project@gmail.com'
-          password: '' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
+          password: 'Gaia-Tsf;2026' # may be defined also by GAIA_EOU_AUTH_CREDENTIALS_PASSWORD env. variable
   asf:
     auth:
       credentials:
@@ -31,9 +31,9 @@ sdi:
 qcl:
   logger:
     level: DEBUG
-    db:
-      <<: *sdi_db
-      dbname: 'logging'
+    # db:
+    #   <<: *sdi_db
+    #   dbname: 'logging'
   asset_checker:
     task_required_types:
       amd:
