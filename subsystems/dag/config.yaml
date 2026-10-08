@@ -1,11 +1,25 @@
 # GAIA-TSF DAG CONFIG
 
+# Slope stability 
+# project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
+# no_failure, gradual_acceleration, spatial_propagation, external_trigger
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+# Cadia
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
+# Jagesfontein 
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagesfontein'
+# project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein'
+# AMD 
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022/'
+
+# GLOBAL SETTINGS 
 global:
   random_seed: 42
   log_level: INFO
 
   # default spatial reference, Update to actual AOI CRS!!! 
-  crs: "EPSG:32633"
+  crs: "EPSG:32755"
 
   # default resolution (meters)
   target_resolution: 10
@@ -14,22 +28,159 @@ global:
   processing:
     use_dask: false
     chunk_size: [256, 256]
-    n_workers: 16
+    n_workers: 8
 
+# Active configuration consumed by the implemented slope DAG pipelines.
+# The generic inputs/feature_engineering/pipelines sections below describe the
+# wider architecture but are not the runtime schema of SlopeEDAPipeline.
+slope_stability:
+  inputs:
+    los:
+      directory: "inputs/los"
+      filename_pattern: "los_*.tif"
+  static:
+    tsf_mask: "static/tsf_mask.tif"
+  feature_engineering:
+    cumulative_displacement: true
+    velocity: true
+    acceleration: true
+    jerk: true
+    minimum: true
+    maximum: true
+    mean: true
+    standard_deviation: true
+    variance: true
+    range: true
+    trend: false
+    temporal_variance: false
+  results:
+    eda:
+      output_dir: "results/eda"
+      histogram_bins: 50
+      dpi: 300
+      style: "seaborn-v0_8-whitegrid"
+      cmap: "viridis"
+      temporal_mean_ylim: null
+      temporal_std_ylim: null
+      temporal_axis_padding_fraction: 0.30
+      temporal_los_percentile: 5.0
+      displacement_unit: "mm"
+      mean_heatmap_limits: null
+      std_heatmap_limits: null
+      heatmap_padding_fraction: 0.30
+      raster_format: "GTiff"
+      filenames:
+        statistics: "statistics.json"
+        temporal_mean_std: "temporal_mean_std.png"
+        histogram: "histogram.png"
+        boxplot: "temporal_boxplot.png"
+        cumulative_displacement: "cumulative_displacement.png"
+        mean_heatmap: "mean_los_heatmap.png"
+        std_heatmap: "temporal_std_heatmap.png"
+        mean_map: "mean_map.tif"
+        std_map: "std_map.tif"
+    features:
+      output_dir: "results/features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      summary_plots:
+        enabled: true
+        output_dir: "results/features/plots"
+        dpi: 200
+        histogram_bins: 50
+        robust_percentile: 98.0
+        sequential_cmap: "viridis"
+        diverging_cmap: "RdBu"
+        style: "seaborn-v0_8-whitegrid"
+        units:
+          cumulative_displacement: "mm"
+          velocity: "mm/day"
+          acceleration: "mm/day²"
+          jerk: "mm/day³"
+          minimum: "mm"
+          maximum: "mm"
+          mean: "mm"
+          standard_deviation: "mm"
+          variance: "mm²"
+          range: "mm"
+          trend: "mm/day"
+          temporal_variance: "mm²"
+      filenames:
+        cumulative_displacement: "cumulative_displacement.tif"
+        velocity: "velocity.tif"
+        acceleration: "acceleration.tif"
+        jerk: "jerk.tif"
+        minimum: "minimum.tif"
+        maximum: "maximum.tif"
+        mean: "mean.tif"
+        standard_deviation: "std.tif"
+        variance: "variance.tif"
+        range: "range.tif"
+        trend: "trend.tif"
+        temporal_variance: "temporal_variance.tif"
+    temporal_features:
+      enabled: true
+      output_dir: "results/temporal_features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      summary_plots:
+        enabled: true
+        output_dir: "results/temporal_features/plots"
+        dpi: 200
+        lower_percentile: 5.0
+        upper_percentile: 95.0
+        style: "seaborn-v0_8-whitegrid"
+        units:
+          velocity: "mm/day"
+          acceleration: "mm/day²"
+          jerk: "mm/day³"
+          displacement: "mm"
+          annual: "dimensionless"
+      input_features:
+        - velocity
+        - acceleration
+      current:
+        enabled: true
+        features:
+          - velocity
+        suffix: current
+      lag:
+        enabled: true
+        orders: [1, 2, 3]
+      difference:
+        enabled: true
+        orders: [1, 2]
+      rolling_mean:
+        enabled: true
+        window: 5
+      rolling_std:
+        enabled: true
+        window: 5
+      calendar:
+        enabled: true
+        annual_period_days: 365.2425
+        features:
+          - annual_sin
+          - annual_cos
+      smoothing:
+        enabled: false
+        method: "savgol"
+        window: 7
+        polyorder: 2
+      filenames: {}
 
 # INPUT DEFINITIONS
 inputs:
-
   slope_stability:
     sentinel1:
-      data_path: "/data/sentinel1/"
-      data_product: 'LOS' 
+      data_path: "/inputs/los/"
+      data_product: 'LOS'
       # polarization: "VV"
       # orbit: "ASCENDING"
       # apply_orbit_correction: true
 
     auxiliary:
-      aoi_path: "/data/aoi/aoi.geojson"
+      aoi_path: "/static/tsf_mask.geojson"
 
   amd:
     sentinel2:
@@ -44,7 +195,6 @@ inputs:
 
 # HARMONIZATION
 harmonization:
-
   spatial:
     method: "bilinear"     # nearest | bilinear | cubic
     target_resolution: 10
@@ -82,14 +232,17 @@ feature_engineering:
 preprocessing:
 
   normalization:
+    enabled: false
     method: "zscore"   # minmax | zscore
     per_feature: true
 
   missing_values:
+    enabled: false
     strategy: "median"   # mean | median | drop
     max_nan_ratio: 0.2
 
   outliers:
+    enabled: false
     method: "clip"     # clip | log
     clip_range: [0.01, 0.99]
 
@@ -106,7 +259,6 @@ masking:
 
 # VALIDATION
 validation:
-
   check_spatial_consistency: true
   check_nan_ratio: true
   check_time_gaps: true
@@ -115,10 +267,8 @@ validation:
   max_time_gap_days: 60
 
 
-
 # TENSORIZATION
 tensorization:
-
   output_format: "numpy"   # numpy | torch
 
   layout: "THWC"           # (T, H, W, C)
@@ -131,10 +281,8 @@ tensorization:
 
 # PIPELINES
 pipelines:
-
   slope_stability:
     enabled: true
-
     steps:
       - ingestion
       - masking
@@ -144,10 +292,8 @@ pipelines:
       - validation
       - tensorization
 
-
   amd:
     enabled: true
-
     steps:
       - ingestion
       - masking
