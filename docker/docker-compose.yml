@@ -14,6 +14,7 @@ services:
     volumes:
       - ..:/opt/gaia_tsf
       - data:/data/gaia_tsf
+      - ${HOST_VALIDATION_DIR:-../../System-Validation}:/data/validation
     networks:
       - gaia_net
     command: tail -f /dev/null
