@@ -1,5 +1,12 @@
 # GAIA-TSF DAG CONFIG
 
+# DIRS 
+# skylake 
+# project_dir: "/media/lukas/image2/GAIA_TSF/tsf_projects/synthetic_tsf_deformation"
+# mac 
+project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
+
+# GLOBAL SETTINGS 
 global:
   random_seed: 42
   log_level: INFO
@@ -17,66 +24,91 @@ global:
     n_workers: 16
 
 
-# INPUT DEFINITIONS
-inputs:
+# DAG PROCESS SETTINGS 
+slope_stability: 
+  inputs:
+    los:
+      directory: "inputs/los"
+      filename_pattern: "tsf_los_*.tif"
+  static:
+    tsf_mask: "static/tsf_mask.tif"
 
-  slope_stability:
-    sentinel1:
-      data_path: "/data/sentinel1/"
-      data_product: 'LOS' 
-      # polarization: "VV"
-      # orbit: "ASCENDING"
-      # apply_orbit_correction: true
+  feature_engineering:
+    cumulative_displacement: true
+    velocity: true
+    acceleration: true
+    jerk: true
+    minimum: true
+    maximum: true
+    mean: true
+    standard_deviation: true
+    variance: true
+    range: true
+    trend: false
+    temporal_variance: false
 
-    auxiliary:
-      aoi_path: "/data/aoi/aoi.geojson"
+  results:
+    eda: # slope stability EDA 
+      output_dir: "results/eda"
+      histogram_bins: 50
+      dpi: 300
+      style: "seaborn-v0_8-whitegrid"
+      cmap: "viridis"
+      raster_format: "GTiff"
+      filenames:
+        statistics: "statistics.json"
+        temporal_mean_std: "temporal_mean_std.png"
+        histogram: "histogram.png"
+        boxplot: "boxplot.png"
+        mean_heatmap: "mean_los_heatmap.png"
+        std_heatmap: "temporal_std_heatmap.png"
+        mean_map: "mean_map.tif"
+        std_map: "std_map.tif"
 
-  amd:
-    sentinel2:
-      data_path: "/data/sentinel2/"
-      bands: ["B02", "B03", "B04", "B08"]
-      cloud_mask: true
+    features: # slope global features 
+      output_dir: "results/features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      filenames:
+        cumulative_displacement: "cumulative_displacement.tif"
+        velocity: "velocity.tif"
+        acceleration: "acceleration.tif"
+        jerk: "jerk.tif"
+        minimum: "minimum.tif"
+        maximum: "maximum.tif"
+        mean: "mean.tif"
+        standard_deviation: "std.tif"
+        variance: "variance.tif"
+        range: "range.tif"
+        trend: "trend.tif"
+        temporal_variance: "temporal_variance.tif"
 
-    auxiliary:
-      aoi_path: "/data/aoi/aoi.geojson"
-      water_mask_path: "/data/masks/water_mask.tif"
-
-
-# HARMONIZATION
-harmonization:
-
-  spatial:
-    method: "bilinear"     # nearest | bilinear | cubic
-    target_resolution: 10
-
-  temporal:
-    enabled: false         # DA_R_02 (disabled for now)
-    method: "linear"      # nearest | linear | spline
-    max_gap_days: 30
-
-
-# FEATURE ENGINEERING
-feature_engineering:
-
-  slope_stability:
-    compute_velocity: true
-    compute_acceleration: true
-    compute_trend: false
-
-    window_size: 3
-    smoothing: false
-
-
-  amd:
-    compute_amd_index: true
-
-    spectral_indices:
-      ndvi: false
-      ndwi: true
-      ndsi: false
-
-    log_transform: false
-
+    temporal_features: # slope temporal features 
+      enabled: true
+      output_dir: "results/temporal_features"
+      raster_format: "GTiff"
+      metadata_filename: "metadata.json"
+      input_features:
+        - velocity
+        - acceleration
+      lag:
+        enabled: true
+        orders: [1, 2, 3]
+      difference:
+        enabled: true
+        orders: [1, 2]
+      rolling_mean:
+        enabled: true
+        window: 5
+      rolling_std:
+        enabled: true
+        window: 5
+      smoothing:
+        enabled: true
+        method: "savgol"
+        window: 7
+        polyorder: 2
+      filenames: {}
 
 # PREPROCESSING
 preprocessing:
@@ -97,6 +129,18 @@ preprocessing:
     enabled: false     # DA_R_08
 
 
+# HARMONIZATION
+harmonization:
+
+  spatial:
+    method: "bilinear"     # nearest | bilinear | cubic
+    target_resolution: 10
+
+  temporal:
+    enabled: false         # DA_R_02 (disabled for now)
+    method: "linear"      # nearest | linear | spline
+    max_gap_days: 30
+
 
 # MASKING
 masking:
@@ -113,81 +157,3 @@ validation:
 
   max_nan_ratio: 0.3
   max_time_gap_days: 60
-
-
-
-# TENSORIZATION
-tensorization:
-
-  output_format: "numpy"   # numpy | torch
-
-  layout: "THWC"           # (T, H, W, C)
-
-  flatten:
-      enabled: false
-      method: "pixel"        # pixel -> (N_pixels, T, C)
-
-
-
-# PIPELINES
-pipelines:
-
-  slope_stability:
-    enabled: true
-
-    steps:
-      - ingestion
-      - masking
-      - spatial_harmonization
-      - feature_engineering
-      - preprocessing
-      - validation
-      - tensorization
-
-
-  amd:
-    enabled: true
-
-    steps:
-      - ingestion
-      - masking
-      - spatial_harmonization
-      - feature_engineering
-      - preprocessing
-      - validation
-      - tensorization
-
-
-# OUTPUT SETTINGS
-output:
-
-  save_intermediate: false
-
-  paths:
-    features: "/output/features/"
-    tensors: "/output/tensors/"
-
-  formats:
-    raster: "GTiff"
-    tensor: "npy"
-
-
-# PERFORMANCE SETTINGS
-performance:
-
-  use_gpu: true
-  mixed_precision: false
-
-  batch_processing:
-    enabled: true
-    batch_size: 8
-
-
-# DEBUG
-debug:
-
-  verbose: true
-  save_debug_tiles: false
-  debug_tile_size: [128, 128]
-
-# TODO: more?
