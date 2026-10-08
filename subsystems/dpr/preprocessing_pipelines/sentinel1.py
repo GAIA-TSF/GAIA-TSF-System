@@ -612,6 +612,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             'mean_coherence': self.sbas.ra2ll(self.corr.mean('pair')),
             'valid_pair_fraction': self.sbas.ra2ll(np.isfinite(phase_ra).mean('pair')),
         }
+        # Retain pair-level evidence rather than only temporal summaries.
+        valid_pair = np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)
+        self.pair_products_ll = {
+            'coherence': self.sbas.ra2ll(corr_ra).persist(),
+            'valid_coverage': self.sbas.ra2ll(valid_pair.astype(float)).persist(),
+            'pair_residuals': self.sbas.ra2ll(residual).persist(),
+        }
         if self._diagnostics is not None:
             self._diagnostics.displacement(self.disp_ll)
 
@@ -1101,12 +1108,25 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         base_path = Path(output_dir)
+        for product, data in getattr(self, 'pair_products_ll', {}).items():
+            product_path = base_path / product
+            product_path.mkdir(parents=True, exist_ok=True)
+            for i in range(data.sizes['pair']):
+                ref = pd.to_datetime(data.ref.isel(pair=i).values)
+                rep = pd.to_datetime(data.rep.isel(pair=i).values)
+                grid = data.isel(pair=i).rename({'lat': 'y', 'lon': 'x'}).copy()
+                grid.attrs.update(
+                    units='mm' if product == 'pair_residuals' else '1',
+                    interval_start=ref.isoformat(), interval_end=rep.isoformat(),
+                    product_type=product,
+                )
+                grid.rio.write_crs('EPSG:4326', inplace=True)
+                grid.rio.write_nodata(np.nan, inplace=True)
+                grid.rio.to_raster(product_path / f'{product}_{ref:%Y%m%d}_{rep:%Y%m%d}.tif')
         disp_path = base_path / 'displacements'
-        los_path = base_path / 'los'
         vel_path = base_path / 'velocity'
 
         disp_path.mkdir(parents=True, exist_ok=True)
-        los_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
 
         quality_path = base_path / 'quality'
@@ -1145,6 +1165,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
             data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
             num_dates = len(data_to_export[t_dim])
+            dates = pd.to_datetime(data_to_export[t_dim].values)
+            if dates.isna().any() or np.any(np.diff(dates.asi8) <= 0):
+                raise ValueError('LOS acquisition dates must be valid and strictly increasing.')
+            for name in ('los_cumulative', 'los_incremental', 'velocity_interval'):
+                (base_path / name).mkdir(parents=True, exist_ok=True)
 
             for i in range(num_dates):
                 slice_data = data_to_export.isel({t_dim: i})
@@ -1160,7 +1185,28 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 slice_data.rio.to_raster(filename)
                 # Displacement is already LOS in mm. Copy the exported raster
                 # to the explicit LOS product directory without recomputation.
-                shutil.copy2(filename, los_path / f'los_{date_str}.tif')
+                shutil.copy2(filename, base_path / 'los_cumulative' / f'los_{date_str}.tif')
+                if i == 0:
+                    continue
+                previous = data_to_export.isel({t_dim: i - 1})
+                # Drop scalar date coordinates to avoid conflicting endpoints.
+                interval = slice_data.drop_vars(t_dim) - previous.drop_vars(t_dim)
+                interval = interval.where(np.isfinite(slice_data) & np.isfinite(previous))
+                days = (dates[i] - dates[i - 1]).total_seconds() / 86400.0
+                for name, values, units in (
+                    ('los_incremental', interval, 'mm'),
+                    ('velocity_interval', interval / days, 'mm/day'),
+                ):
+                    values = values.copy()
+                    values.attrs.update(
+                        units=units, interval_start=dates[i - 1].isoformat(),
+                        interval_end=dates[i].isoformat(), interval_days=days,
+                        product_type=name,
+                    )
+                    values.rio.write_crs('EPSG:4326', inplace=True)
+                    values.rio.write_nodata(np.nan, inplace=True)
+                    prefix = 'los' if name == 'los_incremental' else 'velocity'
+                    values.rio.to_raster(base_path / name / f'{prefix}_{date_str}.tif')
 
     def _cleanup(self, workdir):
         """Remove unnecessary directory with files after computation is done.

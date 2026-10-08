@@ -198,12 +198,34 @@ def test_solver_units_reference_epoch_quality_and_export(pipeline, tmp_path, mis
     pipeline._export_displacements(tmp_path)
     assert len(list((tmp_path / 'displacements').glob('*.tif'))) == 3
     for source in (tmp_path / 'displacements').glob('disp_*.tif'):
-        target = tmp_path / 'los' / source.name.replace('disp_', 'los_', 1)
+        target = tmp_path / 'los_cumulative' / source.name.replace('disp_', 'los_', 1)
         assert target.read_bytes() == source.read_bytes()
+    assert not (tmp_path / 'los').exists()
     with rasterio.open(tmp_path / 'velocity/velocity.tif') as src:
         assert src.tags()['units'] == 'mm/year'
         assert np.isnan(src.nodata)
     assert len(list((tmp_path / 'quality').glob('*.tif'))) == 3
+    assert len(list((tmp_path / 'los_cumulative').glob('*.tif'))) == 3
+    assert len(list((tmp_path / 'los_incremental').glob('*.tif'))) == 2
+    assert not (tmp_path / 'los_incremental/los_20200101.tif').exists()
+    with rasterio.open(tmp_path / 'los_incremental/los_20200125.tif') as src:
+        np.testing.assert_allclose(src.read(1)[0, 0], -8.8, atol=1e-5)
+        assert src.tags()['units'] == 'mm'
+        assert src.tags()['interval_start'].startswith('2020-01-13')
+        if missing_bridge:
+            assert np.isnan(src.read(1)[1, 1])
+    with rasterio.open(tmp_path / 'velocity_interval/velocity_20200125.tif') as src:
+        np.testing.assert_allclose(src.read(1)[0, 0], -8.8 / 12, atol=1e-5)
+        assert src.tags()['units'] == 'mm/day'
+    for product in ('coherence', 'valid_coverage', 'pair_residuals'):
+        assert len(list((tmp_path / product).glob('*.tif'))) == 2
+    with rasterio.open(tmp_path / 'coherence/coherence_20200113_20200125.tif') as src:
+        np.testing.assert_allclose(src.read(1)[0, 0], .8)
+    with rasterio.open(tmp_path / 'pair_residuals/pair_residuals_20200113_20200125.tif') as src:
+        np.testing.assert_allclose(src.read(1)[0, 0], 0, atol=1e-5)
+    if missing_bridge:
+        with rasterio.open(tmp_path / 'valid_coverage/valid_coverage_20200113_20200125.tif') as src:
+            assert src.read(1)[1, 1] == 0
 
 
 def test_no_coherent_pixels_fails(pipeline):
