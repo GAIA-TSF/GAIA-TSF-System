@@ -1,7 +1,5 @@
 # GAIA-TSF DAG CONFIG
 
-<<<<<<< HEAD
-=======
 # Slope stability 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
@@ -9,13 +7,13 @@
 # Cadia
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
 # Jagesfontein 
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagesfontein'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagesfontein'
+project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein'
 # AMD 
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022/'
 
 # GLOBAL SETTINGS 
->>>>>>> 9c56f9fc844675c7fa88b9a588f315aefe24cf3e
 global:
   random_seed: 42
   log_level: INFO
