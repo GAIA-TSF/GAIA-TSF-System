@@ -40,8 +40,23 @@ def processing_runs(project_config, epoch=None, result_dir=None):
     """Resolve non-overlapping epochs and isolated paths before any processing."""
     import pandas as pd
 
+    def validate_bounds(bounds, label):
+        if not isinstance(bounds, dict):
+            raise ValueError(f'{label} must define start and end dates.')
+        for key in ('start', 'end'):
+            value = bounds.get(key)
+            try:
+                date = pd.Timestamp(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f'{label}.{key}: invalid date {value!r}') from exc
+            if pd.isna(date):
+                raise ValueError(f'{label}.{key}: a date is required; remove unused epoch blocks.')
+        if pd.Timestamp(bounds['start']) > pd.Timestamp(bounds['end']):
+            raise ValueError(f'{label}: start must not be after end.')
+
     site_dir = Path(project_config['project']['data_dir'])
     period = project_config['project']['monitoring_period']
+    validate_bounds(period, 'project.monitoring_period')
     epochs = project_config.get('sentinel1', {}).get('epochs', {})
     epoch = epoch or ('all' if epochs else 'full')
     if epoch == 'full':
@@ -49,6 +64,8 @@ def processing_runs(project_config, epoch=None, result_dir=None):
     else:
         if not epochs or any(name not in ('pre_failure', 'post_failure') for name in epochs):
             raise ValueError('Configure sentinel1.epochs with pre_failure and/or post_failure bounds.')
+        for name, bounds in epochs.items():
+            validate_bounds(bounds, f'sentinel1.epochs.{name}')
         ordered = sorted(epochs.items(), key=lambda item: pd.Timestamp(item[1]['start']))
         previous_end = None
         for name, bounds in ordered:

@@ -75,3 +75,24 @@ def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
     p._stack_scenes(tmp_path / 'inputs', tmp_path / 'work')
     selected = stack.set_scenes.call_args.args[0]
     assert selected.datapath.tolist() == ['/data/a.SAFE/a.tiff', '/data/b.SAFE/b.tiff']
+
+
+@pytest.mark.parametrize('value', [None, '', 'None', 'NaT', 'not-a-date'])
+def test_empty_or_invalid_epoch_dates_rejected(value):
+    c = config()
+    c['sentinel1']['epochs']['post_failure']['start'] = value
+    with pytest.raises(ValueError, match='sentinel1.epochs.post_failure.start'):
+        processing_runs(c)
+
+
+def test_missing_monitoring_end_rejected_even_in_full_mode():
+    c = config()
+    del c['project']['monitoring_period']['end']
+    with pytest.raises(ValueError, match='project.monitoring_period.end'):
+        processing_runs(c, 'full')
+
+
+def test_pre_failure_only_configuration():
+    c = config()
+    del c['sentinel1']['epochs']['post_failure']
+    assert [r['name'] for r in processing_runs(c)] == ['pre_failure']

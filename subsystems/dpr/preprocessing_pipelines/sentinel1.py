@@ -26,6 +26,7 @@ from pyproj import Transformer
 from .base import PreprocessingBasePipeline
 from .insar_diagnostics import InSARDiagnostics
 from .insar_checkpoints import PairCheckpoints
+from .weather_archive import WeatherStore
 from lib.config import SettingsReader
 
 
@@ -763,8 +764,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         cache_session = requests_cache.CachedSession(
             str(output_dir / 'openmeteo_cache'), expire_after=3600
         )
-        retry_session = retry(cache_session, retries=5, backoff_factor=0.3)
+        retry_session = retry(cache_session, retries=0, backoff_factor=0.3)
         om_client = openmeteo_requests.Client(session=retry_session)
+
+        # Share data and pacing across sites/epochs using the same data mount.
+        site_root = Path(self._config.get('diagnostics_root') or output_dir)
+        weather_store = WeatherStore(site_root.parent / 'weather_cache')
 
         # Build Grid & Sample Altitudes
         lats, lons = (
@@ -807,21 +812,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'timezone': tz_name,
                 'models': model,
             }
-            res = om_client.weather_api(climate_url, params=params)[0]
-            daily = res.Daily()
-
-            num_days = len(daily.Variables(0).ValuesAsNumpy())
-            dates = pd.date_range(
-                start=pd.to_datetime(daily.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=num_days,
-                freq='D',
-            )
-
-            df = pd.DataFrame({'date': dates, 'location': name})
-            for idx, var in enumerate(climate_vars):
-                df[var] = daily.Variables(idx).ValuesAsNumpy()
+            df = weather_store.fetch(om_client, cache_session, climate_url, params,
+                                     tz_name, self.logger)
+            df['location'] = name
 
             # Rainfall indicators
             df['precip_7d_mm'] = df['precipitation_sum'].rolling(7, min_periods=1).sum()
@@ -849,6 +842,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         climate_df = pd.concat(all_climate).reset_index(drop=True)
 
+        # Preserve completed climate data even if the air-quality service fails.
+        climate_df.to_csv(output_dir / 'climate_daily_db.csv', index=False)
+
         # Fetch & Process Air Quality Data
         aq_url = 'https://air-quality-api.open-meteo.com/v1/air-quality'
         aq_vars = ['pm10', 'pm2_5']
@@ -875,20 +871,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'hourly': aq_vars,
                 'timezone': tz_name,
             }
-            res = om_client.weather_api(aq_url, params=params)[0]
-            hourly = res.Hourly()
-
-            dates = pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=len(hourly.Variables(0).ValuesAsNumpy()),
-                freq='h',
-            )
-
-            df_h = pd.DataFrame({'datetime': dates})
-            for idx, var in enumerate(aq_vars):
-                df_h[var] = hourly.Variables(idx).ValuesAsNumpy()
+            df_h = weather_store.fetch(om_client, cache_session, aq_url, params,
+                                       tz_name, self.logger)
 
             # Resample to daily max and calculate AQI
             df_aq = df_h.resample('D', on='datetime').max().reset_index()
