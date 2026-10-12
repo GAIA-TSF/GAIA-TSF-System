@@ -69,7 +69,7 @@ def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
     scenes = pd.DataFrame({'datapath': ['/data/a.SAFE/a.tiff', '/data/b.SAFE/b.tiff',
                                        '/data/workdir/a.tiff', '/data/c.SAFE/c.tiff']},
                           index=['2018-03-21', '2018-04-02', '2018-03-21', '2018-02-25'])
-    monkeypatch.setattr(sentinel1.S1, 'scan_slc', lambda path: scenes)
+    monkeypatch.setattr(p, '_scan_original_slcs', lambda path: scenes)
     stack = Mock(); stack.set_scenes.return_value = stack
     monkeypatch.setattr(sentinel1, 'Stack', lambda *a, **kw: stack)
     p._stack_scenes(tmp_path / 'inputs', tmp_path / 'work')
@@ -96,3 +96,26 @@ def test_pre_failure_only_configuration():
     c = config()
     del c['sentinel1']['epochs']['post_failure']
     assert [r['name'] for r in processing_runs(c)] == ['pre_failure']
+
+
+def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch):
+    from subsystems.dpr.preprocessing_pipelines import sentinel1
+    source = tmp_path / 'original.SAFE' / 'measurement'
+    source.mkdir(parents=True)
+    (source / 'burst.tiff').touch()
+    generated = tmp_path / 'old_workdir'
+    generated.mkdir()
+    (generated / 'burst.tiff').touch()
+    orbit = tmp_path / 'orbit.EOF'
+    orbit.touch()
+    def scan(view):
+        import glob
+        files = glob.glob(str(view / '**' / '*.tiff'), recursive=True)
+        assert len(files) == 1
+        assert Path(files[0]).resolve() == source / 'burst.tiff'
+        orbits = glob.glob(str(view / '**' / '*.EOF'), recursive=True)
+        return pd.DataFrame({'datapath': files, 'metapath': files, 'orbitpath': orbits})
+    monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
+    scenes = Sentinel1Pipeline._scan_original_slcs(tmp_path)
+    assert scenes.datapath.iloc[0] == str(source / 'burst.tiff')
+    assert Path(scenes.orbitpath.iloc[0]).exists()

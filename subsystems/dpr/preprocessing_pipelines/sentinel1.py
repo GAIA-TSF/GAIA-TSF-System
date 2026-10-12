@@ -119,7 +119,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if not any(datadir.glob('*.SAFE/')):
             raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
         self.logger.info('Downloading precise orbit files.')
-        s1 = S1.scan_slc(datadir)
+        s1 = (self._scan_original_slcs(datadir) if self._config.get('source_safe_only', False)
+              else S1.scan_slc(datadir))
         S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
@@ -176,7 +177,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Reset generated files before the recursive scan: workdir may be
         # inside datadir, and stale reframed scenes would become input scenes.
         self.sbas = Stack(workdir, drop_if_exists=True)
-        s1 = S1.scan_slc(datadir)
+        s1 = (self._scan_original_slcs(datadir) if self._config.get('source_safe_only', False)
+              else S1.scan_slc(datadir))
         if self._config.get('source_safe_only', False):
             def original_source(value):
                 paths = value if isinstance(value, (list, tuple)) else [value]
@@ -185,6 +187,36 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = self.sbas.set_scenes(s1)
+
+    @staticmethod
+    def _scan_original_slcs(datadir):
+        """Exclude generated basename collisions before PyGMTSAR builds its index."""
+        from tempfile import TemporaryDirectory
+
+        root = Path(datadir).resolve()
+        safes = sorted(path for path in root.rglob('*.SAFE') if path.is_dir())
+        if not safes:
+            raise ValueError(f'No original .SAFE directories found in {root}')
+        # scan_slc recursively indexes by basename; filtering its output is too
+        # late when generated workdir files have overwritten source entries.
+        with TemporaryDirectory(prefix='gaia-s1-scan-') as directory:
+            view = Path(directory)
+            for index, source in enumerate(safes):
+                parent = view / str(index)
+                parent.mkdir()
+                (parent / source.name).symlink_to(source, target_is_directory=True)
+            orbit_dir = view / 'orbits'
+            orbit_dir.mkdir()
+            for index, orbit in enumerate(sorted(root.rglob('*.EOF'))):
+                parent = orbit_dir / str(index)
+                parent.mkdir()
+                (parent / orbit.name).symlink_to(orbit.resolve())
+            scenes = S1.scan_slc(view)
+            for column in ('datapath', 'metapath', 'noisepath', 'calibpath', 'orbitpath'):
+                if column in scenes:
+                    scenes[column] = scenes[column].map(
+                        lambda path: str(Path(path).resolve()) if isinstance(path, (str, Path)) else path)
+            return scenes.drop_duplicates(subset=['datapath', 'metapath'])
 
     def _filter_processing_dates(self, scenes):
         """Filter original acquisitions before selecting a reference or constructing pairs."""
@@ -267,7 +299,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.sbas.compute_geocode(coarsen=coarsen)
 
     def _find_optimal_network(
-        self, basedays=(36, 48, 60, 80), basemeters=(80, 100, 120, 150)
+        self, basedays=(36, 48, 60, 80, 120), basemeters=(80, 100, 120, 150)
     ):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
 
