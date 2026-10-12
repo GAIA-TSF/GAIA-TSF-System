@@ -3,11 +3,17 @@
 From docker/, process the configured Cadia epochs independently:
     docker compose exec -T -u "$(id -u):$(id -g)" gaiatesting bash -c \
       'ulimit -Sn 65536 && exec python3 -u -m subsystems.dpr.run_s1_eou_dpr \
-       --project slope_monitoring_cadia --epoch all --skip-download --insar-only'
+       --project slope_monitoring_cadia 
+       --epoch all 
+       --skip-download 
+       --insar-only'
 
-Use --dry-run to inspect dates and paths. --epoch pre_failure/post_failure runs
-one period; --epoch full explicitly requests the unsplit monitoring period.
-With epochs, --result-dir specifies a base containing one subdirectory per epoch.
+Use: 
+--dry-run to inspect dates and paths. 
+--epoch pre_failure/post_failure runs one period; 
+--epoch full explicitly requests the unsplit monitoring period.
+With epochs, 
+--result-dir specifies a base containing one subdirectory per epoch.
 """
 
 import argparse
