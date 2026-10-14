@@ -37,7 +37,6 @@ safe_list = dag_module.backend.download_all(
 
 # Set output folder:
 s2_processed_folder = data_dir / 'sentinel2' / 'output_safe_processor'
-)
 
 # Set output resolution in meters
 res = (10, 10)
