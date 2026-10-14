@@ -1,8 +1,6 @@
-from pathlib import Path
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-from lib.config import ProjectConfigReader, SettingsReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
 
 project_config = ProjectConfigReader(
