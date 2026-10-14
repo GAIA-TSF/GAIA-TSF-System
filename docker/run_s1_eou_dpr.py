@@ -20,25 +20,25 @@ from pathlib import Path
 
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-from lib.config import ProjectConfigReader, SettingsReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
 
+project_name = 'slope_monitoring_tharsis'
 project_config = ProjectConfigReader(
-    TestUtils.get_project_config_path('slope_monitoring_western_platinum')
+    f'/data/validation/projects/{project_name}/config.yaml'
 )
-# amd_monitoring_yxsjoberg
+
 
 if __name__ == '__main__':
 
     # download input data
-    data_dir = Path(project_config['project']['data_dir'], 'sentinel1')
-    print(data_dir)
+    data_dir = project_config.data_dir() / 'sentinel1'
     
     dag_module = DataAcquisitionGateway(backend='asf')
     results = dag_module.backend.search(
         geom=project_config.aoi(),
-        start='2015-01-01',
-        end='2018-01-31',
+        start='2016-01-01',
+        end='2026-10-14',
         direction='A', 
     )
     dag_module.backend.download_all(results, target_dir=data_dir) 

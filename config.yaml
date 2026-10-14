@@ -70,5 +70,5 @@ storage:
 dask_parameters:
   silence_logs: 'WARNING'
   n_workers: 1
-  threads_per_worker: 2
+  threads_per_worker: 4
   memory_limit: 'auto'
