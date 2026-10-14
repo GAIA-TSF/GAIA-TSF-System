@@ -20,5 +20,5 @@ results = dag_module.backend.search(
     **search_filter,
 )
 data_path = dag_module.backend.download_all(
-    results, target_dir='sentinel2', quicklook=False
+    results, target_dir=project_config.data_dir() / 'sentinel2', quicklook=False
 )
