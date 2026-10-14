@@ -1,7 +1,5 @@
-from pathlib import Path
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import ProjectConfigReader, SettingsReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
