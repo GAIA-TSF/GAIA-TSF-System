@@ -65,9 +65,7 @@ for safe_path in safe_list:
 input_water_mask = TestUtils.get_data_path('dpr') / 'yxsjoberg_lakes.gpkg'
 
 # Set path to output folder (delete pre-existing folder)
-output_folder = (
-    Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
-)
+output_folder = data_dir / 'sentinel2' / 'output_water_masks'
 
 # OPTION 1: Run the pipeline in default mode (without user input file, input_water_mask=None)
 pipeline = Sentinel2WaterMaskingPipeline()
