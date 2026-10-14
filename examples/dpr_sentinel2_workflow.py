@@ -12,6 +12,7 @@ from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 project_config = ProjectConfigReader(
     TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
 )
+data_dir = project_config.data_dir()
 
 dag_module = DataAcquisitionGateway(backend='eodag')
 
@@ -27,7 +28,7 @@ results = dag_module.backend.search(
     **search_filter,
 )
 safe_list = dag_module.backend.download_all(
-    results, target_dir='sentinel2', quicklook=False
+    results, target_dir=data_dir / 'sentinel2', quicklook=False
 )
 
 #
@@ -35,10 +36,7 @@ safe_list = dag_module.backend.download_all(
 #
 
 # Set output folder:
-s2_processed_folder = (
-    Path(SettingsReader()['storage']['data_dir'])
-    / 'sentinel2'
-    / 'output_safe_processor'
+s2_processed_folder = data_dir / 'sentinel2' / 'output_safe_processor'
 )
 
 # Set output resolution in meters
