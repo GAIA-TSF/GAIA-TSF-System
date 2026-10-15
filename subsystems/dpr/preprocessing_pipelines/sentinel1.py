@@ -76,6 +76,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'dtype': PosixPath,
                 'description': 'Path where the landmask file will be downloaded and later used',
             },
+            'basedays': {
+                'dtype': list,
+                'default': [36, 48, 60, 80],
+                'description': 'Possible values for maximum temporal baseline (days)',
+            },
+            'basemeters': {
+                'dtype': list,
+                'default': [80, 100, 120, 150, 180],
+                'description': 'Possible values for maximum perpendicular baseline (m)',
+            },
             'workdir': {
                 'dtype': PosixPath,
                 'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
@@ -298,13 +308,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Geocoding Sentinel-1 data.')
         self.sbas.compute_geocode(coarsen=coarsen)
 
-    def _find_optimal_network(
-        self, basedays=(36, 48, 60, 80, 120), basemeters=(80, 100, 120, 150)
-    ):
+    def _find_optimal_network(self, basedays, basemeters):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
 
-        :param tuple basedays: Possible values for maximum temporal baseline (days). Defaults to (36, 48, 60, 80).
-        :param tuple basemeters: Possible values for maximum perpendicular baseline (m). Defaults to (80, 100, 120, 150).
+        :param tuple basedays: Possible values for maximum temporal baseline (days).
+        :param tuple basemeters: Possible values for maximum perpendicular baseline (m).
         :return: None
         """
         stack_df = self.sbas.to_dataframe()
@@ -1326,7 +1334,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         )
         step(self._align_images)
         step(self._geocoding_transform)
-        step(self._find_optimal_network)
+        step(
+            self._find_optimal_network,
+            self._config['basedays'],
+            self._config['basemeters'],
+        )
         step(self._compute_interferograms)
         step(self._unwrap_phase)
         step(self._detrend_phase)
