@@ -38,7 +38,7 @@ if __name__ == '__main__':
     results = dag_module.backend.search(
         geom=project_config.aoi(),
         start='2016-01-01',
-        end='2026-10-14',
+        end='2026-10-15',
         direction='A', 
     )
     dag_module.backend.download_all(results, target_dir=data_dir) 

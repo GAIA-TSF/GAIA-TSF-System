@@ -138,7 +138,7 @@ dask_parameters:
   n_workers: 2
   # Threads in each worker process; n_workers * threads_per_worker is the
   # potential number of tasks running concurrently (here: 2 * 2 = 4).
-  threads_per_worker: 2
+  threads_per_worker: 6
   # 'auto' splits detected system memory evenly across workers; this is a
   # per-worker limit, enforced on a best-effort basis when using processes.
   memory_limit: 'auto'

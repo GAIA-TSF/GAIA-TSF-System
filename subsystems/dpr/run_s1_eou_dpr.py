@@ -104,8 +104,9 @@ def main():
     parser.add_argument('--insar-only', action='store_true', help='Skip environmental and risk processing')
     parser.add_argument('--dry-run', action='store_true', help='Print periods and paths without processing or downloads')
     args = parser.parse_args()
-    config_path = Path(TestUtils.get_project_config_path(args.project))
-    project_config = ProjectConfigReader(config_path)
+
+    project_config = ProjectConfigReader(f'/data/validation/projects/{args.project}/config.yaml')
+
     sentinel1 = project_config.get('sentinel1', {})
     runs = processing_runs(project_config, args.epoch, args.result_dir)
     for run in runs:
