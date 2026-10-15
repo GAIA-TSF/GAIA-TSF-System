@@ -44,7 +44,15 @@ class ConfigReader(dict):
         :raises AttributeError: If the requested key does not exist.
         """
         try:
-            value = self[item] if self._root is None else self[self._root][item]
+            if self._root is None:
+                value = self[item]
+            else:
+                # if requesting the root node itself (e.g. cfg.project) return
+                # the root mapping; otherwise return the key inside the root.
+                if item == self._root:
+                    value = self[self._root]
+                else:
+                    value = self[self._root][item]
         except KeyError:
             raise AttributeError(item)
 
@@ -66,7 +74,9 @@ class ConfigReader(dict):
         :rtype: Any
         """
         if isinstance(value, dict):
-            return ConfigNode(value)
+            # pass directory of the YAML config so ConfigNode can resolve
+            # relative filesystem references (e.g. './...') when accessed.
+            return ConfigNode(value, base_path=self.config_path.parent)
         if isinstance(value, list):
             return [self._wrap(v) for v in value]
         return value
@@ -87,6 +97,10 @@ class ConfigNode(dict):
         cfg = ConfigNode({"database": {"host": "localhost"}})
         cfg.database.host  # returns "localhost"
     """
+
+    def __init__(self, *args, base_path: Path | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._base_path = base_path
 
     def __getattr__(self, item: str):
         """
@@ -109,10 +123,15 @@ class ConfigNode(dict):
         except KeyError:
             raise AttributeError(item)
 
+        # Resolve any string that explicitly looks like a relative path
+        # (starts with './') into an absolute pathlib.Path object.
+        if isinstance(value, str) and value.startswith('./') and self._base_path is not None:
+            return (self._base_path / value).resolve()
+
         if isinstance(value, dict):
-            return ConfigNode(value)
+            return ConfigNode(value, base_path=self._base_path)
         if isinstance(value, list):
-            return [ConfigNode(v) if isinstance(v, dict) else v for v in value]
+            return [ConfigNode(v, base_path=self._base_path) if isinstance(v, dict) else v for v in value]
         return value
 
 
