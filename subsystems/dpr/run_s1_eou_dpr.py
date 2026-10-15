@@ -105,7 +105,8 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Print periods and paths without processing or downloads')
     args = parser.parse_args()
 
-    project_config = ProjectConfigReader(f'/data/validation/projects/{args.project}/config.yaml')
+    config_path = Path(TestUtils.get_project_config_path(args.project))
+    project_config = ProjectConfigReader(config_path)
 
     sentinel1 = project_config.get('sentinel1', {})
     runs = processing_runs(project_config, args.epoch, args.result_dir)
