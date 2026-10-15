@@ -11,7 +11,7 @@ pyyaml~=6.0.3  # lib.config, eou
 rasterio~=1.4.4  # dag & map raster processing
 scikit-learn~=1.6.1  # map predictive model plugins
 shap~=0.46.0  # map tree-model explainability
-torch~=2.6.0  # map LSTM sequence-model plugin
+torch~=2.13.0  # map LSTM sequence-model plugin
 matplotlib~=3.10.1  # dag & map diagnostic products
 shapely~=2.1.2  # lib.config
 sqlalchemy~=2.0.48  # qcl.logger.db
@@ -28,3 +28,4 @@ retry-requests~=2.0.0  # dpr.preprocessing_pipelines.sentinel1
 pyproj~=3.7.2  # dpr.preprocessing_pipelines.sentinel1
 bottleneck~=1.6.0  # dpr.preprocessing_pipelines.sentinel1
 pystac[validation]~=1.9.0 # dpr.metadata_processor.validator
+rbeast==0.1.25  # map temporal decomposition
