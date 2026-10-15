@@ -50,6 +50,14 @@ class TestProjectConfig:
         data_dir = project_config.data_dir()
         assert data_dir.exists() and data_dir.is_dir()
 
+    def test_config_005_project_aoi_attribute_is_absolute_path(self, project_config):
+        """Ensure attribute-style project.aoi returns an absolute pathlib.Path."""
+        p = project_config.project.aoi
+        from pathlib import Path
+        assert isinstance(p, Path)
+        assert p.is_absolute()
+        assert p.exists()
+
 
 class TestSettings:
     def test_settings_001(self, settings):
