@@ -1298,10 +1298,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             files = sorted(input_dir.glob('*.tif'))
 
             if not files:
-                print(f'No TIFF files found in {input_dir}')
+                self.logger.warning(f'No TIFF files found in {input_dir}')
                 continue
 
-            print(
+            self.logger.debug(
                 f'Processing {len(files)} rasters from {input_dir} '
                 f'-> {output_subdir}'
             )
