@@ -16,6 +16,7 @@ import yaml
 import subsystems.dag.plugins  # noqa: F401
 from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
+from subsystems.dag.plugins.features.slope_features import SlopeFeatureExtractor
 from subsystems.dag.plugins.features.temporal_features import TemporalFeatureExtractor
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
 from subsystems.dag.utils.io import write_feature_rasters, write_json
@@ -69,6 +70,10 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             series.data.shape[1:],
         )
         masked_data = apply_mask(series.data, mask)
+        stable_diagnostics, masked_data = self._stable_reference(
+            masked_data,
+            static_config,
+        )
         base_stacks = self._build_base_feature_stacks(
             masked_data,
             series.dates,
@@ -130,6 +135,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 dates=series.dates,
                 profile=series.profile,
                 plot_paths=plot_paths,
+                stable_reference=stable_diagnostics,
             ),
         )
 
@@ -207,19 +213,56 @@ class SlopeTemporalFeaturePipeline(Pipeline):
 
         stacks: dict[str, np.ndarray] = {}
         derivative_method = str(result_config.get('derivative_method', 'causal')).lower()
-        grad_fn = causal_temporal_gradient if derivative_method == 'causal' else temporal_gradient
+        if derivative_method != 'causal':
+            raise ValueError('Only causal derivative_method is supported for cumulative LOS.')
         for feature_name in [str(value) for value in configured_features]:
-            if feature_name == 'displacement':
-                stacks[feature_name] = data
+            if feature_name in {'cumulative_los', 'displacement'}:
+                stacks['cumulative_los'] = data.astype(np.float32, copy=True)
+            elif feature_name == 'displacement_increment':
+                stacks[feature_name] = SlopeFeatureExtractor.compute_displacement_increment(data)
             elif feature_name == 'velocity':
-                stacks[feature_name] = grad_fn(data, dates, order=1)
+                stacks[feature_name] = SlopeFeatureExtractor.compute_velocity(data, dates)
             elif feature_name == 'acceleration':
-                stacks[feature_name] = grad_fn(data, dates, order=2)
+                stacks[feature_name] = SlopeFeatureExtractor.compute_acceleration(data, dates)
             elif feature_name == 'jerk':
-                stacks[feature_name] = grad_fn(data, dates, order=3)
+                stacks[feature_name] = SlopeFeatureExtractor.compute_jerk(data, dates)
             else:
                 raise ValueError(f'Unsupported temporal input feature: {feature_name}')
         return stacks
+
+    def _stable_reference(
+        self,
+        data: np.ndarray,
+        static_config: dict[str, object],
+    ) -> tuple[dict[str, object], np.ndarray]:
+        """Calculate optional stable-area diagnostics without changing LOS by default."""
+        config = static_config.get('stable_reference', {})
+        if not isinstance(config, dict):
+            raise TypeError('slope_stability.static.stable_reference must be a mapping.')
+        filename = str(config.get('file', 'tsf_stable.tif'))
+        path = self._resolve_path(f'static/{filename}')
+        if not path.exists():
+            return {'available': False, 'common_mode_correction_applied': False}, data
+        with rasterio.open(path) as source:
+            stable_mask = source.read(1).astype(bool)
+        if stable_mask.shape != data.shape[1:]:
+            raise ValueError('tsf_stable.tif dimensions do not match LOS rasters.')
+        medians = np.full(data.shape[0], np.nan, dtype=np.float64)
+        mads = np.full(data.shape[0], np.nan, dtype=np.float64)
+        for index, layer in enumerate(data):
+            values = layer[stable_mask & np.isfinite(layer)]
+            if values.size:
+                medians[index] = np.median(values)
+                mads[index] = np.median(np.abs(values - medians[index]))
+        correction = bool(config.get('common_mode_correction', False))
+        corrected = data - medians[:, np.newaxis, np.newaxis] if correction else data
+        return {
+            'available': True,
+            'file': str(path),
+            'common_mode_correction_applied': correction,
+            'per_date_median': medians.tolist(),
+            'per_date_mad': mads.tolist(),
+        }, corrected.astype(np.float32, copy=False)
 
     def _build_current_features(
         self,
@@ -416,6 +459,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         dates: tuple[date, ...],
         profile: RasterProfile,
         plot_paths: dict[str, str],
+        stable_reference: dict[str, object],
     ) -> dict[str, object]:
         return {
             'feature_names': sorted(temporal_features),
@@ -437,6 +481,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             'input_files': [str(path) for path in input_files],
             'output_files': output_paths,
             'plot_files': plot_paths,
+            'stable_reference_diagnostics': stable_reference,
             'spatial_reference': str(profile.crs),
             'statistics': {
                 feature_name: feature_statistics(values)

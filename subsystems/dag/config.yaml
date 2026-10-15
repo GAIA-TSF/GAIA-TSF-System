@@ -5,8 +5,8 @@
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
 # Cadia
-# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
-project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_cadia/'
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
+# project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_cadia/'
 # Jagesfontein 
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagesfontein'
 # project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein'
@@ -41,17 +41,29 @@ slope_stability:
       filename_pattern: "los_*.tif"
   static:
     tsf_mask: "static/tsf_mask.tif"
+    # Optional stable area for diagnostics. DPR cumulative LOS is unchanged
+    # unless common_mode_correction is explicitly enabled.
+    stable_reference:
+      file: "tsf_stable.tif"
+      common_mode_correction: false
   feature_engineering:
-    cumulative_displacement: true
-    velocity: true
-    acceleration: true
-    jerk: true
+    # Retrospective 2-D products only. Select an explicit historical range
+    # before enabling them; never use these as monitoring model inputs.
+    summary_window:
+      start_date: "2018-01-01"
+      end_date: "2020-12-31"
+    cumulative_los: false
+    displacement_increment: false
+    velocity: false
+    acceleration: false
+    jerk: false
     minimum: true
     maximum: true
     mean: true
     standard_deviation: true
     variance: true
     range: true
+    net_displacement: true
     trend: false
     temporal_variance: false
   results:
@@ -61,11 +73,11 @@ slope_stability:
       dpi: 300
       style: "seaborn-v0_8-whitegrid"
       cmap: "viridis"
+      # Negative mean LOS is red; zero is white; positive mean LOS is blue.
+      mean_heatmap_cmap: "RdBu"
       temporal_mean_ylim: null
-      temporal_std_ylim: null
       temporal_axis_padding_fraction: 0.30
-      temporal_los_percentile: 5.0
-      displacement_unit: "mm"
+      temporal_los_percentile: 10.0
       mean_heatmap_limits: null
       std_heatmap_limits: null
       heatmap_padding_fraction: 0.30
@@ -75,7 +87,6 @@ slope_stability:
         temporal_mean_std: "temporal_mean_std.png"
         histogram: "histogram.png"
         boxplot: "temporal_boxplot.png"
-        cumulative_displacement: "cumulative_displacement.png"
         mean_heatmap: "mean_los_heatmap.png"
         std_heatmap: "temporal_std_heatmap.png"
         mean_map: "mean_map.tif"
@@ -94,31 +105,23 @@ slope_stability:
         diverging_cmap: "RdBu"
         style: "seaborn-v0_8-whitegrid"
         units:
-          cumulative_displacement: "mm"
-          velocity: "mm/day"
-          acceleration: "mm/day²"
-          jerk: "mm/day³"
-          minimum: "mm"
-          maximum: "mm"
-          mean: "mm"
-          standard_deviation: "mm"
-          variance: "mm²"
-          range: "mm"
-          trend: "mm/day"
-          temporal_variance: "mm²"
+          temporal_summary_minimum: "mm"
+          temporal_summary_maximum: "mm"
+          temporal_summary_mean: "mm"
+          temporal_summary_standard_deviation: "mm"
+          temporal_summary_variance: "mm²"
+          temporal_summary_range: "mm"
+          net_displacement: "mm"
+          temporal_summary_linear_trend: "mm/day"
       filenames:
-        cumulative_displacement: "cumulative_displacement.tif"
-        velocity: "velocity.tif"
-        acceleration: "acceleration.tif"
-        jerk: "jerk.tif"
-        minimum: "minimum.tif"
-        maximum: "maximum.tif"
-        mean: "mean.tif"
-        standard_deviation: "std.tif"
-        variance: "variance.tif"
-        range: "range.tif"
-        trend: "trend.tif"
-        temporal_variance: "temporal_variance.tif"
+        temporal_summary_minimum: "temporal_summary_minimum.tif"
+        temporal_summary_maximum: "temporal_summary_maximum.tif"
+        temporal_summary_mean: "temporal_summary_mean.tif"
+        temporal_summary_standard_deviation: "temporal_summary_standard_deviation.tif"
+        temporal_summary_variance: "temporal_summary_variance.tif"
+        temporal_summary_range: "temporal_summary_range.tif"
+        net_displacement: "net_displacement.tif"
+        temporal_summary_linear_trend: "temporal_summary_linear_trend.tif"
     temporal_features:
       enabled: true
       output_dir: "results/temporal_features"
@@ -132,24 +135,24 @@ slope_stability:
         upper_percentile: 95.0
         style: "seaborn-v0_8-whitegrid"
         units:
+          cumulative_los: "mm"
+          displacement_increment: "mm"
           velocity: "mm/day"
           acceleration: "mm/day²"
           jerk: "mm/day³"
-          displacement: "mm"
           annual: "dimensionless"
       input_features:
+        - cumulative_los
+        - displacement_increment
         - velocity
         - acceleration
       current:
-        enabled: true
-        features:
-          - velocity
-        suffix: current
+        enabled: false
       lag:
         enabled: true
         orders: [1, 2, 3]
       difference:
-        enabled: true
+        enabled: false
         orders: [1, 2]
       rolling_mean:
         enabled: true

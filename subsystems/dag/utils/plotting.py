@@ -46,28 +46,24 @@ def _padded_limits(
 def save_temporal_mean_std_plot(
     dates: tuple[date, ...],
     means: np.ndarray,
-    stds: np.ndarray,
     output_path: Path,
     dpi: int,
     style: str | None = None,
     mean_ylim: tuple[float, float] | list[float] | None = None,
-    std_ylim: tuple[float, float] | list[float] | None = None,
     axis_padding_fraction: float = 0.30,
     percentile_values: np.ndarray | None = None,
     percentile: float | None = None,
 ) -> None:
-    """Save temporal mean and standard deviation plot with optional fixed axes."""
+    """Save a temporal mean LOS plot with its lower-tail percentile."""
     _prepare_figure(style)
     frame = pd.DataFrame(
         {
             'date': pd.to_datetime([value.isoformat() for value in dates]),
             'mean': means,
-            'std': stds,
         },
     )
 
     fig, ax_mean = plt.subplots(figsize=(9, 5), constrained_layout=True)
-    ax_std = ax_mean.twinx()
     ax_mean.plot(frame['date'], frame['mean'], marker='o', label='Mean LOS')
     mean_limit_values = means
     if percentile_values is not None:
@@ -86,16 +82,8 @@ def save_temporal_mean_std_plot(
             label=percentile_label,
         )
         mean_limit_values = np.concatenate((means, percentile_values))
-    ax_std.plot(
-        frame['date'],
-        frame['std'],
-        color='tab:orange',
-        marker='s',
-        label='Temporal std',
-    )
     ax_mean.set_xlabel('Acquisition date')
     ax_mean.set_ylabel('Mean LOS displacement')
-    ax_std.set_ylabel('Temporal standard deviation')
     if not 0 <= axis_padding_fraction <= 1:
         raise ValueError('axis_padding_fraction must be between 0 and 1')
     if mean_ylim is not None:
@@ -104,17 +92,7 @@ def save_temporal_mean_std_plot(
         ax_mean.set_ylim(float(mean_ylim[0]), float(mean_ylim[1]))
     else:
         ax_mean.set_ylim(_padded_limits(mean_limit_values, axis_padding_fraction))
-    if std_ylim is not None:
-        if len(std_ylim) != 2 or std_ylim[0] >= std_ylim[1]:
-            raise ValueError('std_ylim must contain two increasing values')
-        ax_std.set_ylim(float(std_ylim[0]), float(std_ylim[1]))
-    else:
-        ax_std.set_ylim(_padded_limits(stds, axis_padding_fraction, lower_bound=0))
-
-    # Combined legend
-    lines1, labels1 = ax_mean.get_legend_handles_labels()
-    lines2, labels2 = ax_std.get_legend_handles_labels()
-    ax_mean.legend(lines1 + lines2, labels1 + labels2, loc='best')
+    ax_mean.legend(loc='best')
     ax_mean.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     fig.autofmt_xdate()
     ax_mean.grid(True, alpha=0.3)
@@ -429,15 +407,31 @@ def save_heatmap(
     color_limits: tuple[float, float] | list[float] | None = None,
     color_padding_fraction: float = 0.30,
     nonnegative: bool = False,
+    center_zero: bool = False,
 ) -> None:
     """Save a raster heatmap with configured or data-derived color limits."""
     _prepare_figure(style)
     if not 0 <= color_padding_fraction <= 1:
         raise ValueError('color_padding_fraction must be between 0 and 1')
+    if center_zero and nonnegative:
+        raise ValueError('Heatmap cannot be both nonnegative and zero-centred.')
     if color_limits is not None:
         if len(color_limits) != 2 or color_limits[0] >= color_limits[1]:
             raise ValueError('color_limits must contain two increasing values')
         vmin, vmax = float(color_limits[0]), float(color_limits[1])
+        if center_zero and not np.isclose(abs(vmin), abs(vmax)):
+            raise ValueError(
+                'Zero-centred heatmap color_limits must be symmetric around zero.'
+            )
+    elif center_zero:
+        finite = np.asarray(values)[np.isfinite(values)]
+        if finite.size == 0:
+            raise ValueError('Cannot calculate plot limits without finite values')
+        limit = float(np.max(np.abs(finite)))
+        limit *= 1.0 + color_padding_fraction
+        if limit == 0.0:
+            limit = 1.0
+        vmin, vmax = -limit, limit
     else:
         vmin, vmax = _padded_limits(
             values,

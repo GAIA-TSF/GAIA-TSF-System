@@ -68,9 +68,6 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
                                 'temporal_mean_std': 'temporal_mean_std.png',
                                 'histogram': 'histogram.png',
                                 'boxplot': 'boxplot.png',
-                                'cumulative_displacement': (
-                                    'cumulative_displacement.png'
-                                ),
                                 'mean_heatmap': 'mean_los_heatmap.png',
                                 'std_heatmap': 'temporal_std_heatmap.png',
                                 'mean_map': 'mean_map.tif',
@@ -83,6 +80,11 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
         ),
         encoding='utf-8',
     )
+    (output_dir / 'cumulative_displacement.png').parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    (output_dir / 'cumulative_displacement.png').write_bytes(b'obsolete')
 
     result = SlopeEDAPipeline(config_path).run()
 
@@ -92,7 +94,7 @@ def test_slope_eda_pipeline_writes_statistics_and_maps(tmp_path):
     assert (output_dir / 'temporal_mean_std.png').exists()
     assert (output_dir / 'histogram.png').exists()
     assert (output_dir / 'boxplot.png').exists()
-    assert (output_dir / 'cumulative_displacement.png').exists()
+    assert not (output_dir / 'cumulative_displacement.png').exists()
     assert (output_dir / 'mean_los_heatmap.png').exists()
     assert (output_dir / 'temporal_std_heatmap.png').exists()
     assert (output_dir / 'mean_map.tif').exists()

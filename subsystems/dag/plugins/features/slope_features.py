@@ -1,4 +1,4 @@
-"""Static deformation-feature extraction from multi-temporal LOS rasters."""
+"""Causal dynamics and retrospective summaries for cumulative LOS rasters."""
 
 from __future__ import annotations
 
@@ -8,15 +8,14 @@ import numpy as np
 
 from subsystems.dag.core.interfaces import FeatureExtractor
 from subsystems.dag.utils.raster import temporal_mean, temporal_std
-from subsystems.dag.utils.temporal import linear_trend, nanmean_time, temporal_gradient
+from subsystems.dag.utils.temporal import causal_temporal_gradient, linear_trend
 
 
 class SlopeFeatureExtractor(FeatureExtractor):
-    """Compute DA_R_01 model-ready features from Sentinel-1 LOS time series."""
+    """Derive features from canonical cumulative LOS displacement ``C(t)``."""
 
     @property
     def name(self) -> str:
-        """Return the plugin name."""
         return 'slope_feature_extractor'
 
     def compute(
@@ -24,12 +23,14 @@ class SlopeFeatureExtractor(FeatureExtractor):
         data: np.ndarray,
         dates: tuple[date, ...],
         enabled_features: dict[str, bool],
+        summary_window: tuple[date, date] | None = None,
     ) -> dict[str, np.ndarray]:
-        """Compute enabled slope-stability deformation features."""
+        """Return causal stacks and explicitly-windowed retrospective maps."""
         features: dict[str, np.ndarray] = {}
-
-        if enabled_features.get('cumulative_displacement', False):
-            features['cumulative_displacement'] = self._sum_time(data)
+        if enabled_features.get('cumulative_los', False):
+            features['cumulative_los'] = data.astype(np.float32, copy=True)
+        if enabled_features.get('displacement_increment', False):
+            features['displacement_increment'] = self.compute_displacement_increment(data)
         if enabled_features.get('velocity', False):
             features['velocity'] = self.compute_velocity(data, dates)
         if enabled_features.get('acceleration', False):
@@ -37,79 +38,109 @@ class SlopeFeatureExtractor(FeatureExtractor):
         if enabled_features.get('jerk', False):
             features['jerk'] = self.compute_jerk(data, dates)
 
-        features.update(self.compute_statistics(data, enabled_features))
-
-        if enabled_features.get('trend', False):
-            features['trend'] = linear_trend(data, dates)
-        if enabled_features.get('temporal_variance', False):
-            features['temporal_variance'] = self._variance_time(data)
-
+        summary_options = (
+            'minimum', 'maximum', 'mean', 'standard_deviation', 'variance',
+            'range', 'net_displacement', 'trend', 'temporal_variance',
+        )
+        if any(enabled_features.get(name, False) for name in summary_options):
+            historical = self._summary_slice(data, dates, summary_window)
+            features.update(self.compute_statistics(historical, enabled_features))
+            if enabled_features.get('net_displacement', False):
+                features['net_displacement'] = self._net_displacement(historical)
+            if enabled_features.get('trend', False):
+                features['temporal_summary_linear_trend'] = linear_trend(
+                    historical, self._summary_dates(dates, summary_window)
+                )
+            if enabled_features.get('temporal_variance', False):
+                features['temporal_summary_variance'] = self._variance_time(historical)
         return features
 
-    def compute_velocity(
-        self,
-        data: np.ndarray,
-        dates: tuple[date, ...],
-    ) -> np.ndarray:
-        """Compute mean first temporal derivative in displacement units per day."""
-        return nanmean_time(temporal_gradient(data, dates, order=1))
+    @staticmethod
+    def compute_displacement_increment(data: np.ndarray) -> np.ndarray:
+        """Return causal displacement increments ``C(t) - C(t-1)``."""
+        output = np.full(data.shape, np.nan, dtype=np.float32)
+        output[1:] = data[1:] - data[:-1]
+        return output
 
-    def compute_acceleration(
-        self,
-        data: np.ndarray,
-        dates: tuple[date, ...],
-    ) -> np.ndarray:
-        """Compute mean second temporal derivative in units per day squared."""
-        return nanmean_time(temporal_gradient(data, dates, order=2))
+    @staticmethod
+    def compute_velocity(data: np.ndarray, dates: tuple[date, ...]) -> np.ndarray:
+        """Return causal velocity in displacement units per day."""
+        return causal_temporal_gradient(data, dates, order=1)
 
-    def compute_jerk(
-        self,
-        data: np.ndarray,
-        dates: tuple[date, ...],
-    ) -> np.ndarray:
-        """Compute mean third temporal derivative in units per day cubed."""
-        return nanmean_time(temporal_gradient(data, dates, order=3))
+    @staticmethod
+    def compute_acceleration(data: np.ndarray, dates: tuple[date, ...]) -> np.ndarray:
+        """Return causal acceleration in displacement units per day squared."""
+        return causal_temporal_gradient(data, dates, order=2)
+
+    @staticmethod
+    def compute_jerk(data: np.ndarray, dates: tuple[date, ...]) -> np.ndarray:
+        """Return optional causal jerk in displacement units per day cubed."""
+        return causal_temporal_gradient(data, dates, order=3)
 
     def compute_statistics(
-        self,
-        data: np.ndarray,
-        enabled_features: dict[str, bool],
+        self, data: np.ndarray, enabled_features: dict[str, bool]
     ) -> dict[str, np.ndarray]:
-        """Compute enabled per-pixel temporal statistics."""
+        """Return retrospective maps with names that cannot imply causality."""
         statistics: dict[str, np.ndarray] = {}
-
-        if enabled_features.get('minimum', False):
-            statistics['minimum'] = self._min_time(data)
-        if enabled_features.get('maximum', False):
-            statistics['maximum'] = self._max_time(data)
-        if enabled_features.get('mean', False):
-            statistics['mean'] = temporal_mean(data)
-        if enabled_features.get('standard_deviation', False):
-            statistics['standard_deviation'] = temporal_std(data)
-        if enabled_features.get('variance', False):
-            statistics['variance'] = self._variance_time(data)
+        mapping = {
+            'minimum': ('temporal_summary_minimum', self._min_time),
+            'maximum': ('temporal_summary_maximum', self._max_time),
+            'mean': ('temporal_summary_mean', temporal_mean),
+            'standard_deviation': ('temporal_summary_standard_deviation', temporal_std),
+            'variance': ('temporal_summary_variance', self._variance_time),
+        }
+        for option, (name, function) in mapping.items():
+            if enabled_features.get(option, False):
+                statistics[name] = function(data)
         if enabled_features.get('range', False):
-            statistics['range'] = self._max_time(data) - self._min_time(data)
-
+            statistics['temporal_summary_range'] = self._max_time(data) - self._min_time(data)
         return statistics
 
-    def _sum_time(self, data: np.ndarray) -> np.ndarray:
-        counts = np.sum(np.isfinite(data), axis=0)
-        sums = np.nansum(data, axis=0)
-        return np.where(counts > 0, sums, np.nan).astype(np.float32)
+    @staticmethod
+    def _summary_slice(
+        data: np.ndarray, dates: tuple[date, ...], summary_window: tuple[date, date] | None
+    ) -> np.ndarray:
+        if summary_window is None:
+            raise ValueError('Retrospective summary products require an explicit summary_window.')
+        start, end = summary_window
+        if start > end:
+            raise ValueError('summary_window start must not be after its end.')
+        indices = [index for index, value in enumerate(dates) if start <= value <= end]
+        if not indices:
+            raise ValueError('summary_window contains no acquisition dates.')
+        return data[indices]
 
-    def _min_time(self, data: np.ndarray) -> np.ndarray:
-        counts = np.sum(np.isfinite(data), axis=0)
-        values = np.where(np.isfinite(data), data, np.inf)
-        minimum = np.min(values, axis=0)
-        return np.where(counts > 0, minimum, np.nan).astype(np.float32)
+    @staticmethod
+    def _summary_dates(
+        dates: tuple[date, ...], summary_window: tuple[date, date] | None
+    ) -> tuple[date, ...]:
+        assert summary_window is not None
+        start, end = summary_window
+        return tuple(value for value in dates if start <= value <= end)
 
-    def _max_time(self, data: np.ndarray) -> np.ndarray:
-        counts = np.sum(np.isfinite(data), axis=0)
-        values = np.where(np.isfinite(data), data, -np.inf)
-        maximum = np.max(values, axis=0)
-        return np.where(counts > 0, maximum, np.nan).astype(np.float32)
+    @staticmethod
+    def _net_displacement(data: np.ndarray) -> np.ndarray:
+        output = np.full(data.shape[1:], np.nan, dtype=np.float32)
+        for row in range(data.shape[1]):
+            for column in range(data.shape[2]):
+                values = data[:, row, column]
+                finite = values[np.isfinite(values)]
+                if finite.size:
+                    output[row, column] = finite[-1] - finite[0]
+        return output
 
-    def _variance_time(self, data: np.ndarray) -> np.ndarray:
-        std = temporal_std(data)
-        return np.square(std).astype(np.float32)
+    @staticmethod
+    def _min_time(data: np.ndarray) -> np.ndarray:
+        counts = np.sum(np.isfinite(data), axis=0)
+        values = np.min(np.where(np.isfinite(data), data, np.inf), axis=0)
+        return np.where(counts > 0, values, np.nan).astype(np.float32)
+
+    @staticmethod
+    def _max_time(data: np.ndarray) -> np.ndarray:
+        counts = np.sum(np.isfinite(data), axis=0)
+        values = np.max(np.where(np.isfinite(data), data, -np.inf), axis=0)
+        return np.where(counts > 0, values, np.nan).astype(np.float32)
+
+    @staticmethod
+    def _variance_time(data: np.ndarray) -> np.ndarray:
+        return np.square(temporal_std(data)).astype(np.float32)

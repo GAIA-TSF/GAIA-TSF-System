@@ -112,16 +112,16 @@ def test_time_series_statistics_uses_nested_schema():
 def test_slope_feature_extractor_computes_enabled_features():
     dates = (
         date(2018, 1, 1),
-        date(2018, 1, 11),
-        date(2018, 1, 21),
-        date(2018, 1, 31),
+        date(2018, 1, 7),
+        date(2018, 1, 19),
+        date(2018, 2, 6),
     )
     data = np.array(
         [
             [[0.0, np.nan], [0.0, 0.0]],
-            [[10.0, np.nan], [10.0, 10.0]],
-            [[20.0, np.nan], [20.0, 20.0]],
-            [[30.0, np.nan], [30.0, 30.0]],
+            [[6.0, np.nan], [6.0, 6.0]],
+            [[18.0, np.nan], [18.0, 18.0]],
+            [[36.0, np.nan], [36.0, 36.0]],
         ],
         dtype=np.float32,
     )
@@ -130,30 +130,25 @@ def test_slope_feature_extractor_computes_enabled_features():
         data,
         dates,
         {
-            'cumulative_displacement': True,
+            'cumulative_los': True,
+            'displacement_increment': True,
             'velocity': True,
             'acceleration': True,
             'jerk': True,
-            'minimum': True,
-            'maximum': True,
-            'mean': True,
-            'standard_deviation': True,
-            'variance': True,
-            'range': True,
-            'trend': True,
+            'net_displacement': True,
         },
     )
 
-    assert features['cumulative_displacement'][0, 0] == pytest.approx(60.0)
-    assert features['velocity'][0, 0] == pytest.approx(1.0)
-    assert features['acceleration'][0, 0] == pytest.approx(0.0)
-    assert features['jerk'][0, 0] == pytest.approx(0.0)
-    assert features['minimum'][0, 0] == pytest.approx(0.0)
-    assert features['maximum'][0, 0] == pytest.approx(30.0)
-    assert features['mean'][0, 0] == pytest.approx(15.0)
-    assert features['range'][0, 0] == pytest.approx(30.0)
-    assert features['trend'][0, 0] == pytest.approx(1.0)
-    assert np.isnan(features['cumulative_displacement'][0, 1])
+    assert np.array_equal(features['cumulative_los'][:, 0, 0], data[:, 0, 0])
+    assert np.isnan(features['displacement_increment'][0, 0, 0])
+    assert np.allclose(features['displacement_increment'][1:, 0, 0], [6, 12, 18])
+    assert np.isnan(features['velocity'][0, 0, 0])
+    assert np.allclose(features['velocity'][1:, 0, 0], [1.0, 1.0, 1.0])
+    assert np.isnan(features['acceleration'][:2, 0, 0]).all()
+    assert np.allclose(features['acceleration'][2:, 0, 0], [0.0, 0.0])
+    assert np.isnan(features['jerk'][:3, 0, 0]).all()
+    assert features['net_displacement'][0, 0] == pytest.approx(36.0)
+    assert np.isnan(features['cumulative_los'][0, 0, 1])
 
 
 def test_temporal_feature_extractor_computes_enabled_features():
@@ -169,10 +164,7 @@ def test_temporal_feature_extractor_computes_enabled_features():
                 'enabled': True,
                 'orders': [1, 2],
             },
-            'difference': {
-                'enabled': True,
-                'orders': [1, 2],
-            },
+            'difference': {'enabled': False},
             'rolling_mean': {
                 'enabled': True,
                 'window': 3,
@@ -194,8 +186,6 @@ def test_temporal_feature_extractor_computes_enabled_features():
     assert np.isnan(features['velocity_lag1'][0, 0, 0])
     assert features['velocity_lag1'][-1, 0, 0] == pytest.approx(20.0)
     assert features['velocity_lag2'][-1, 0, 0] == pytest.approx(16.0)
-    assert features['velocity_diff1'][-1, 0, 0] == pytest.approx(4.0)
-    assert features['velocity_diff2'][-1, 0, 0] == pytest.approx(8.0)
     assert np.isnan(features['velocity_roll_mean'][1, 0, 0])
     assert features['velocity_roll_mean'][-1, 0, 0] == pytest.approx(20.0)
     assert features['velocity_roll_std'][-1, 0, 0] == pytest.approx(

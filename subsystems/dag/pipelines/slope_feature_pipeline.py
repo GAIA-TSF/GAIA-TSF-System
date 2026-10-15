@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 UTC = timezone.utc
 import logging
@@ -58,7 +58,18 @@ class SlopeFeaturePipeline(Pipeline):
         series = self.loader.load(los_dir, str(input_config['los']['filename_pattern']))
         mask = self._load_mask(mask_path, series.data.shape[1:])
         masked_data = apply_mask(series.data, mask)
-        features = self.extractor.compute(masked_data, series.dates, feature_config)
+        features = self.extractor.compute(
+            masked_data,
+            series.dates,
+            feature_config,
+            self._summary_window(scenario_config),
+        )
+        if any(values.ndim != 2 for values in features.values()):
+            raise ValueError(
+                'SlopeFeaturePipeline writes retrospective two-dimensional summary '
+                'products only. Generate cumulative_los, displacement_increment, '
+                'velocity, acceleration, and jerk with slope_temporal_features.',
+            )
         features = handle_missing_values(
             features,
             self.config.get('preprocessing', {}).get('missing_values'),
@@ -189,6 +200,23 @@ class SlopeFeaturePipeline(Pipeline):
             for name, enabled in feature_config.items()
             if isinstance(enabled, bool)
         }
+
+    @staticmethod
+    def _summary_window(scenario_config: dict[str, Any]) -> tuple[date, date] | None:
+        config = scenario_config.get('feature_engineering', {})
+        window = config.get('summary_window') if isinstance(config, dict) else None
+        if window is None:
+            return None
+        if not isinstance(window, dict):
+            raise TypeError('feature_engineering.summary_window must be a mapping.')
+        try:
+            start = date.fromisoformat(str(window['start_date']))
+            end = date.fromisoformat(str(window['end_date']))
+        except (KeyError, ValueError) as exc:
+            raise ValueError(
+                'summary_window requires ISO start_date and end_date.'
+            ) from exc
+        return start, end
 
     def _create_loader(self) -> Sentinel1LOSLoader:
         plugin = PLUGIN_REGISTRY.create('sentinel1_los_loader')

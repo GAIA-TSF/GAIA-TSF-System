@@ -82,10 +82,21 @@ class TemporalFeatureExtractor(FeatureExtractor):
         if not difference_config.get('enabled', False):
             return {}
 
-        return {
-            f'{feature_name}_diff{order}': self._difference(stack, order)
-            for order in self._orders(difference_config)
-        }
+        if feature_name != 'cumulative_los':
+            raise ValueError(
+                'Temporal differences are displacement increments and are only '
+                'valid for the cumulative_los stack. Use velocity or acceleration '
+                'for rate-based temporal features.',
+            )
+        outputs: dict[str, np.ndarray] = {}
+        for order in self._orders(difference_config):
+            name = (
+                'displacement_increment'
+                if order == 1
+                else f'displacement_increment_lag{order}'
+            )
+            outputs[name] = self._difference(stack, order)
+        return outputs
 
     def _compute_rolling_mean(
         self,

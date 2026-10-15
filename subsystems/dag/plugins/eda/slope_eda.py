@@ -26,7 +26,6 @@ class EDAOutputPaths:
     temporal_mean_std: Path
     histogram: Path
     boxplot: Path
-    cumulative_displacement: Path
     mean_heatmap: Path
     std_heatmap: Path
 
@@ -104,9 +103,9 @@ class SlopeEDA(Plugin):
         return {
             'dpi': int(options.get('dpi', 300)),
             'style': options.get('style'),
-            'cmap': str(options.get('cmap', 'viridis')),
+            'mean_heatmap_cmap': str(options.get('mean_heatmap_cmap', 'RdBu')),
+            'std_heatmap_cmap': str(options.get('cmap', 'viridis')),
             'temporal_mean_ylim': options.get('temporal_mean_ylim'),
-            'temporal_std_ylim': options.get('temporal_std_ylim'),
             'temporal_axis_padding_fraction': float(
                 options.get('temporal_axis_padding_fraction', 0.30)
             ),
@@ -116,9 +115,8 @@ class SlopeEDA(Plugin):
             'mean_heatmap_limits': options.get('mean_heatmap_limits'),
             'std_heatmap_limits': options.get('std_heatmap_limits'),
             'temporal_los_percentile': float(
-                options.get('temporal_los_percentile', 2.0)
+                options.get('temporal_los_percentile', 10.0)
             ),
-            'displacement_unit': str(options.get('displacement_unit', '')).strip(),
         }
 
     def _output_paths(
@@ -129,17 +127,17 @@ class SlopeEDA(Plugin):
         filenames = options['filenames']
         if not isinstance(filenames, dict):
             raise TypeError('EDA filenames configuration must be a mapping.')
+        legacy_cumulative_plot = output_dir / str(
+            filenames.get('cumulative_displacement', 'cumulative_displacement.png')
+        )
+        if legacy_cumulative_plot.exists():
+            legacy_cumulative_plot.unlink()
+            LOGGER.info('Removed obsolete EDA plot: %s', legacy_cumulative_plot)
         return EDAOutputPaths(
             statistics=output_dir / str(filenames['statistics']),
             temporal_mean_std=output_dir / str(filenames['temporal_mean_std']),
             histogram=output_dir / str(filenames['histogram']),
             boxplot=output_dir / str(filenames['boxplot']),
-            cumulative_displacement=output_dir / str(
-                filenames.get(
-                    'cumulative_displacement',
-                    'cumulative_displacement.png',
-                )
-            ),
             mean_heatmap=output_dir / str(filenames['mean_heatmap']),
             std_heatmap=output_dir / str(filenames['std_heatmap']),
         )
@@ -164,35 +162,20 @@ class SlopeEDA(Plugin):
     ) -> None:
         finite = finite_values(data)
         per_acquisition_means = np.nanmean(data, axis=(1, 2))
-        per_acquisition_stds = np.nanstd(data, axis=(1, 2))
         percentile = float(plot_options['temporal_los_percentile'])
         if not 0 <= percentile <= 100:
             raise ValueError('temporal_los_percentile must be between 0 and 100')
         percentile_values = np.nanpercentile(data, percentile, axis=(1, 2))
-        finite_mask = np.isfinite(data)
-        cumulative_displacement = np.cumsum(
-            np.where(finite_mask, data, 0.0),
-            axis=0,
-            dtype=np.float64,
-        )
-        cumulative_displacement = np.where(
-            np.any(finite_mask, axis=0)[np.newaxis, :, :],
-            cumulative_displacement,
-            np.nan,
-        )
         dpi = int(plot_options['dpi'])
         style = plot_options['style']
-        cmap = str(plot_options['cmap'])
 
         plotting.save_temporal_mean_std_plot(
             dates,
             per_acquisition_means,
-            per_acquisition_stds,
             output_paths.temporal_mean_std,
             dpi=dpi,
             style=style if isinstance(style, str) else None,
             mean_ylim=plot_options['temporal_mean_ylim'],
-            std_ylim=plot_options['temporal_std_ylim'],
             axis_padding_fraction=float(
                 plot_options['temporal_axis_padding_fraction']
             ),
@@ -213,25 +196,17 @@ class SlopeEDA(Plugin):
             dpi=dpi,
             style=style if isinstance(style, str) else None,
         )
-        plotting.save_cumulative_displacement_plot(
-            cumulative_displacement,
-            dates,
-            output_paths.cumulative_displacement,
-            dpi=dpi,
-            style=style if isinstance(style, str) else None,
-            lower_percentile=percentile,
-            displacement_unit=str(plot_options['displacement_unit']),
-        )
         plotting.save_heatmap(
             mean_map,
             output_paths.mean_heatmap,
             title='Mean LOS',
             colorbar_label='Mean LOS displacement',
             dpi=dpi,
-            cmap=cmap,
+            cmap=str(plot_options['mean_heatmap_cmap']),
             style=style if isinstance(style, str) else None,
             color_limits=plot_options['mean_heatmap_limits'],
             color_padding_fraction=float(plot_options['heatmap_padding_fraction']),
+            center_zero=True,
         )
         plotting.save_heatmap(
             std_map,
@@ -239,7 +214,7 @@ class SlopeEDA(Plugin):
             title='Temporal standard deviation',
             colorbar_label='LOS standard deviation',
             dpi=dpi,
-            cmap=cmap,
+            cmap=str(plot_options['std_heatmap_cmap']),
             style=style if isinstance(style, str) else None,
             color_limits=plot_options['std_heatmap_limits'],
             color_padding_fraction=float(plot_options['heatmap_padding_fraction']),
