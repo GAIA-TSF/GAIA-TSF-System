@@ -69,6 +69,11 @@ storage:
 
 dask_parameters:
   silence_logs: 'WARNING'
-  n_workers: 1
-  threads_per_worker: 4
+  # Number of separate worker processes. Each process has its own memory space.
+  n_workers: 2
+  # Threads in each worker process; n_workers * threads_per_worker is the
+  # potential number of tasks running concurrently (here: 2 * 2 = 4).
+  threads_per_worker: 2
+  # 'auto' splits detected system memory evenly across workers; this is a
+  # per-worker limit, enforced on a best-effort basis when using processes.
   memory_limit: 'auto'
