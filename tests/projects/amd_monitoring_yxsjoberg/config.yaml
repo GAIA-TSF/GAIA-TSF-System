@@ -13,7 +13,7 @@ project:
   aoi: './static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
 
   masks:
-    tsf_mask: null            # Tailings Storage Facility mask (must-have)
+    tsf_mask: './static/aoi.tif'            # Tailings Storage Facility mask (must-have)
     tsf_water: null           # Tailings Storage Facility water mask (optional)
     stable_reference: null    # clean/stable area mask (baseline reference)
 

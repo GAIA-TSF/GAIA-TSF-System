@@ -22,6 +22,9 @@ from timezonefinder import TimezoneFinder
 from retry_requests import retry
 from shapely.wkt import loads
 from pyproj import Transformer
+import rasterio
+from rasterio.crs import CRS
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 from .base import PreprocessingBasePipeline
 from .insar_diagnostics import InSARDiagnostics
@@ -83,6 +86,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             'result_dir': {
                 'dtype': PosixPath,
                 'description': 'Path to the directory where final results will be stored',
+            },
+            'reference': {
+                'dtype': PosixPath,
+                'required': False,
+                'description': 'Path to the reference raster file',
+            },
+            'crs': {
+                'dtype': int,
+                'required': False,
+                'description': 'Target CRS of the output raster files',
             },
         },
     }
@@ -1240,6 +1253,126 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     prefix = 'los' if name == 'los_incremental' else 'velocity'
                     values.rio.to_raster(base_path / name / f'{prefix}_{date_str}.tif')
 
+    def _reproject_raster(self, output_dir: Path, reference_path, target_crs):
+        self.logger.info('Reprojecting raster outputs.')
+        NODATA = -9999.0
+        input_dirs = [
+            output_dir / 'los_cumulative',
+            output_dir / 'los_incremental',
+            output_dir / 'displacements',
+        ]
+        with rasterio.open(reference_path) as reference:
+            if reference.crs is None:
+                raise ValueError(f'Reference raster has no CRS: {reference_path}')
+            if reference.crs == target_crs:
+                transform = reference.transform
+                width = reference.width
+                height = reference.height
+            else:
+                results = calculate_default_transform(reference.crs, target_crs, reference.width,
+                                                      reference.height, *reference.bounds,)
+                transform = results[0]
+                width = results[1]
+                height = results[2]
+
+            # Process each input directory.
+        for input_dir in input_dirs:
+            if not input_dir.is_dir():
+                raise FileNotFoundError(
+                    f'Input directory does not exist: {input_dir}'
+                )
+
+            output_subdir = input_dir.with_name(
+                f'{input_dir.name}_utm'
+            )
+            output_subdir.mkdir(parents=True, exist_ok=True)
+
+            files = sorted(input_dir.glob('*.tif'))
+
+            if not files:
+                print(f'No TIFF files found in {input_dir}')
+                continue
+
+            print(
+                f'Processing {len(files)} rasters from {input_dir} '
+                f'-> {output_subdir}'
+            )
+
+            for src_path in files:
+                dst_path = output_subdir / src_path.name
+
+                if src_path.resolve() == dst_path.resolve():
+                    raise ValueError(
+                        'Input and output raster paths must differ.'
+                    )
+
+                with rasterio.open(src_path) as src:
+                    if src.crs != CRS.from_epsg(4326):
+                        raise ValueError(
+                            f'Expected WGS-84 (EPSG:4326) input: '
+                            f'{src_path}; got {src.crs}'
+                        )
+
+                    if src.count != 1:
+                        raise ValueError(
+                            f'Expected a single LOS band: {src_path}'
+                        )
+
+                    source = (
+                        src.read(1, masked=True)
+                        .astype('float32')
+                        .filled(np.nan)
+                    )
+                    source[~np.isfinite(source)] = np.nan
+
+                    destination = np.full(
+                        (height, width),
+                        NODATA,
+                        dtype=np.float32,
+                    )
+
+                    reproject(
+                        source=source,
+                        destination=destination,
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        src_nodata=np.nan,
+                        dst_transform=transform,
+                        dst_crs=target_crs,
+                        dst_nodata=NODATA,
+                        resampling=Resampling.bilinear,
+                    )
+
+                    with rasterio.open(
+                            dst_path,
+                            'w',
+                            driver='GTiff',
+                            dtype='float32',
+                            count=1,
+                            width=width,
+                            height=height,
+                            crs=target_crs,
+                            transform=transform,
+                            nodata=NODATA,
+                            compress='deflate',
+                    ) as dst:
+                        dst.write(destination, 1)
+
+                        # Preserve source metadata.
+                        dst.update_tags(**src.tags())
+                        dst.update_tags(1, **src.tags(1))
+                        dst.scales = src.scales
+                        dst.offsets = src.offsets
+
+                        if src.descriptions[0]:
+                            dst.set_band_description(
+                                1, src.descriptions[0]
+                            )
+
+                        if src.units[0]:
+                            dst.set_band_unit(1, src.units[0])
+
+
     def _cleanup(self, workdir):
         """Remove unnecessary directory with files after computation is done.
 
@@ -1337,6 +1470,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             step(self._compute_risk)
             step(self._environmental_database, self._config['aoi'], self._config['result_dir'])
             step(self._compute_risk_database, self._config['result_dir'])
+        if self._config.get('reference') is not None and self._config.get('crs') is not None:
+            step(self._reproject_raster, self._config['result_dir'], self._config['reference'], self._config['crs'])
         step(self._cleanup, self._config['workdir'])
 
         elapsed_minutes = (time.time() - start) / 60
