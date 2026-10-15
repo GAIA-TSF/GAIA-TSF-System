@@ -123,10 +123,12 @@ class ConfigNode(dict):
         except KeyError:
             raise AttributeError(item)
 
-        # Resolve any string that explicitly looks like a relative path
-        # (starts with './') into an absolute pathlib.Path object.
-        if isinstance(value, str) and value.startswith('./') and self._base_path is not None:
-            return (self._base_path / value).resolve()
+        if isinstance(value, str) and self._base_path is not None:
+            path = Path(value)
+            if not path.is_absolute():
+                resolved_path = (self._base_path / path).resolve()
+                if value.startswith('./') or resolved_path.exists():
+                    return resolved_path
 
         if isinstance(value, dict):
             return ConfigNode(value, base_path=self._base_path)

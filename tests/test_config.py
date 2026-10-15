@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from lib.config import ProjectConfigReader, SettingsReader
@@ -53,7 +55,6 @@ class TestProjectConfig:
     def test_config_005_project_aoi_attribute_is_absolute_path(self, project_config):
         """Ensure attribute-style project.aoi returns an absolute pathlib.Path."""
         p = project_config.project.aoi
-        from pathlib import Path
         assert isinstance(p, Path)
         assert p.is_absolute()
         assert p.exists()
