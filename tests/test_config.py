@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from lib.config import ProjectConfigReader, SettingsReader
@@ -49,6 +51,13 @@ class TestProjectConfig:
         """Check if project directory was created."""
         data_dir = project_config.data_dir()
         assert data_dir.exists() and data_dir.is_dir()
+
+    def test_config_005_project_aoi_attribute_is_absolute_path(self, project_config):
+        """Ensure attribute-style project.aoi returns an absolute pathlib.Path."""
+        p = project_config.project.aoi
+        assert isinstance(p, Path)
+        assert p.is_absolute()
+        assert p.exists()
 
 
 class TestSettings:
