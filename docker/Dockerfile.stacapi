@@ -1,6 +1,13 @@
 # Base image from stac-fastapi
 FROM ghcr.io/stac-utils/stac-fastapi:latest
 
+# Use archived repositories
+RUN sed -i 's|deb.debian.org/debian-security|archive.debian.org/debian-security|g; s|deb.debian.org/debian|archive.debian.org/debian|g' /etc/apt/sources.list \
+    && sed -i '/stretch-updates/d' /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev gcc curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Dependencies for psycopg3
 RUN apt-get update && apt-get install -y libpq-dev gcc curl
 RUN pip install --no-cache-dir psycopg[binary] psycopg_pool gunicorn
