@@ -176,12 +176,14 @@ class ResidualAnalyzer:
             'proj:epsg': crs.to_epsg(),
             'proj:shape': [dataset.grid.height, dataset.grid.width],
             'proj:transform': list(dataset.grid.transform)[:6],
-            'raster:bands': [{
-                'name': description,
-                'data_type': 'float32',
-                'nodata': _json_number(nodata),
-                **({'unit': unit} if unit else {}),
-            }],
+            'raster:bands': [
+                {
+                    'name': description,
+                    'data_type': 'float32',
+                    'nodata': _json_number(nodata),
+                    **({'unit': unit} if unit else {}),
+                }
+            ],
             'gaia:product_type': description,
         }
         payload = {
@@ -191,11 +193,15 @@ class ResidualAnalyzer:
             'bbox': bbox,
             'geometry': {
                 'type': 'Polygon',
-                'coordinates': [[
-                    [bbox[0], bbox[1]], [bbox[0], bbox[3]],
-                    [bbox[2], bbox[3]], [bbox[2], bbox[1]],
-                    [bbox[0], bbox[1]],
-                ]],
+                'coordinates': [
+                    [
+                        [bbox[0], bbox[1]],
+                        [bbox[0], bbox[3]],
+                        [bbox[2], bbox[3]],
+                        [bbox[2], bbox[1]],
+                        [bbox[0], bbox[1]],
+                    ]
+                ],
             },
             'properties': properties,
             'assets': {

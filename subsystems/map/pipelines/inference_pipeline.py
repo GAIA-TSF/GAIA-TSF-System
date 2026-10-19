@@ -256,9 +256,9 @@ class InferencePipeline:
             observed_stack,
             prediction_stack,
             residuals.stack,
-            None if prediction.uncertainty is None else analyzer.restore_stack(
-                dataset, prediction.uncertainty
-            ),
+            None
+            if prediction.uncertainty is None
+            else analyzer.restore_stack(dataset, prediction.uncertainty),
             fixed_support,
             calibration_window,
             monitoring_window,
@@ -266,7 +266,9 @@ class InferencePipeline:
         run_after_inference = bool(
             self.config.get('monitoring', {}).get('run_after_inference', False)
         )
-        monitoring_result = MonitoringPipeline(self.config).run() if run_after_inference else None
+        monitoring_result = (
+            MonitoringPipeline(self.config).run() if run_after_inference else None
+        )
         result = {
             'prediction_count': int(prediction.y_pred.size),
             'residual_statistics_native': residuals.statistics,
@@ -281,7 +283,9 @@ class InferencePipeline:
             ),
             'output_root': str(output_root),
             'dashboard_path': (
-                None if monitoring_result is None else monitoring_result['dashboard_path']
+                None
+                if monitoring_result is None
+                else monitoring_result['dashboard_path']
             ),
         }
         write_json(output_root / 'inference_metadata.json', result)
@@ -319,10 +323,12 @@ class InferencePipeline:
             fixed_support_mask=fixed_support,
             dates=np.asarray(dataset.dates),
             calibration_window=np.array(
-                [calibration_window.start_index, calibration_window.end_index], dtype=np.int64
+                [calibration_window.start_index, calibration_window.end_index],
+                dtype=np.int64,
             ),
             monitoring_window=np.array(
-                [monitoring_window.start_index, monitoring_window.end_index], dtype=np.int64
+                [monitoring_window.start_index, monitoring_window.end_index],
+                dtype=np.int64,
             ),
             transform=np.asarray(tuple(dataset.grid.transform)[:6], dtype=np.float64),
             crs=np.asarray(str(dataset.grid.crs)),
@@ -366,7 +372,9 @@ class InferencePipeline:
         dashboard = self._dashboard_config()
         value = dashboard.get('spatial_coherence', {})
         if not isinstance(value, dict):
-            raise ValueError('monitoring.dashboard.spatial_coherence must be a mapping.')
+            raise ValueError(
+                'monitoring.dashboard.spatial_coherence must be a mapping.'
+            )
         return value
 
     def _write_predictions(
@@ -513,7 +521,9 @@ class InferencePipeline:
             )
             return {}
         if point_frame.empty:
-            LOGGER.warning('Observation-point file contains no features: %s', source_path)
+            LOGGER.warning(
+                'Observation-point file contains no features: %s', source_path
+            )
             return {}
         if point_frame.crs is None:
             LOGGER.warning(
@@ -542,7 +552,12 @@ class InferencePipeline:
         for index, feature in point_frame.iterrows():
             name = str(feature[name_field]).strip()
             geometry = feature.geometry
-            if not name or geometry is None or geometry.is_empty or geometry.geom_type != 'Point':
+            if (
+                not name
+                or geometry is None
+                or geometry.is_empty
+                or geometry.geom_type != 'Point'
+            ):
                 LOGGER.warning('Skipping invalid observation-point feature %s.', index)
                 continue
             if name in points:

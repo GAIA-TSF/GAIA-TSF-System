@@ -8,8 +8,13 @@ from subsystems.dag.plugins.eda.amd_trends import fill_short_gaps, robust_lowess
 
 
 def test_fill_short_gaps_uses_dates_and_rejects_long_gaps():
-    dates = (date(2020, 6, 1), date(2020, 6, 6), date(2020, 6, 11),
-             date(2020, 12, 31), date(2021, 1, 5))
+    dates = (
+        date(2020, 6, 1),
+        date(2020, 6, 6),
+        date(2020, 6, 11),
+        date(2020, 12, 31),
+        date(2021, 1, 5),
+    )
     values = np.array([0, np.nan, 10, 20, 30], dtype=float)
     filled, flags, gaps = fill_short_gaps(values, dates, max_gap_days=15)
     np.testing.assert_allclose(filled[:3], [0, 5, 10])

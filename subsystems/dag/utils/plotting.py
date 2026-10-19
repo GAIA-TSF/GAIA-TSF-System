@@ -132,9 +132,7 @@ def save_boxplot(
     positions = np.arange(1, len(distributions) + 1)
     ax.boxplot(distributions, positions=positions, showfliers=False)
     tick_count = min(12, len(dates))
-    tick_indices = np.unique(
-        np.linspace(0, len(dates) - 1, tick_count, dtype=int)
-    )
+    tick_indices = np.unique(np.linspace(0, len(dates) - 1, tick_count, dtype=int))
     ax.set_xticks(positions[tick_indices])
     ax.set_xticklabels([dates[index].isoformat() for index in tick_indices])
     ax.set_xlabel('Acquisition date')

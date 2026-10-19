@@ -285,16 +285,19 @@ class DatasetBuilder:
         if min(train_ratio, validation_ratio, test_ratio) <= 0.0:
             raise ValueError('Spatial split ratios must all be positive.')
 
-        in_window = (
-            (dataset.time_indices >= start_index)
-            & (dataset.time_indices < end_index)
+        in_window = (dataset.time_indices >= start_index) & (
+            dataset.time_indices < end_index
         )
         pixels = np.unique(dataset.pixel_indices[in_window])
         generator = np.random.default_rng(random_seed)
         pixels = generator.permutation(pixels)
         train_end = int(pixels.size * train_ratio)
         validation_end = train_end + int(pixels.size * validation_ratio)
-        if train_end < 1 or validation_end <= train_end or validation_end >= pixels.size:
+        if (
+            train_end < 1
+            or validation_end <= train_end
+            or validation_end >= pixels.size
+        ):
             raise ValueError('Spatial split needs at least one pixel per subset.')
 
         splits = DatasetSplits(
@@ -323,7 +326,9 @@ class DatasetBuilder:
         ):
             missing = np.setdiff1d(expected_times, np.unique(subset.time_indices))
             if missing.size:
-                missing_dates = ', '.join(dataset.dates[int(index)] for index in missing)
+                missing_dates = ', '.join(
+                    dataset.dates[int(index)] for index in missing
+                )
                 raise ValueError(
                     f'Spatial {name} subset has no valid pixels on: {missing_dates}. '
                     'Increase the subset ratio or improve feature coverage.'

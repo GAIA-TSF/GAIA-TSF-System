@@ -77,8 +77,12 @@ class MonitoringPipeline:
             grid_width=dataset.grid.width,
             grid_height=dataset.grid.height,
             colormap=self._persistent_residual_colormap(),
-            persistence_start_time_index=int(anomalies.summary['persistence_start_time_index']),
-            persistence_end_time_index=int(anomalies.summary['persistence_end_time_index']),
+            persistence_start_time_index=int(
+                anomalies.summary['persistence_start_time_index']
+            ),
+            persistence_end_time_index=int(
+                anomalies.summary['persistence_end_time_index']
+            ),
             persistence_fraction_display_max=self._persistent_fraction_display_max(),
         )
 
@@ -105,7 +109,9 @@ class MonitoringPipeline:
 
         dashboard_path: Path | None = None
         if bool(dashboard_config.get('enabled', True)):
-            uncertainty = inputs['uncertainty_stack'] if inputs['has_uncertainty'] else None
+            uncertainty = (
+                inputs['uncertainty_stack'] if inputs['has_uncertainty'] else None
+            )
             temporal = residual_monitor.analyze(
                 observed_stack=inputs['observed_stack'],
                 prediction_stack=inputs['prediction_stack'],
@@ -116,8 +122,8 @@ class MonitoringPipeline:
                 fixed_support_mask=inputs['fixed_support_mask'],
                 coherent_regions=coherence.regions,
             )
-            dashboard_path = self.output_root / 'monitoring' / str(
-                dashboard_config['filename']
+            dashboard_path = (
+                self.output_root / 'monitoring' / str(dashboard_config['filename'])
             )
             write_slope_stability_dashboard(
                 output_path=dashboard_path,
@@ -147,7 +153,9 @@ class MonitoringPipeline:
             'maximum_coherence_acceleration_cusum_path': str(coherent_cusum_path),
             'animation_path': None if animation_path is None else str(animation_path),
             'animation_dashboard_data_path': (
-                None if animation_path is None else str(animation_path.with_suffix('.json'))
+                None
+                if animation_path is None
+                else str(animation_path.with_suffix('.json'))
             ),
         }
         write_json(self.output_root / 'monitoring' / 'monitoring_metadata.json', result)
@@ -177,7 +185,10 @@ class MonitoringPipeline:
 
         dates = inputs['dates']
         calibration_window = TemporalWindow(
-            calibration[0], calibration[1], dates[calibration[0]], dates[calibration[1] - 1]
+            calibration[0],
+            calibration[1],
+            dates[calibration[0]],
+            dates[calibration[1] - 1],
         )
         monitoring_window = TemporalWindow(
             monitoring[0], monitoring[1], dates[monitoring[0]], dates[monitoring[1] - 1]
@@ -217,20 +228,33 @@ class MonitoringPipeline:
             )
         with np.load(path, allow_pickle=False) as archive:
             required = {
-                'observed_stack', 'prediction_stack', 'residual_stack',
-                'uncertainty_stack', 'has_uncertainty', 'mask', 'fixed_support_mask',
-                'dates', 'calibration_window', 'monitoring_window', 'transform',
-                'crs', 'nodata',
+                'observed_stack',
+                'prediction_stack',
+                'residual_stack',
+                'uncertainty_stack',
+                'has_uncertainty',
+                'mask',
+                'fixed_support_mask',
+                'dates',
+                'calibration_window',
+                'monitoring_window',
+                'transform',
+                'crs',
+                'nodata',
             }
             missing = required.difference(archive.files)
             if missing:
-                raise ValueError(f'Monitoring input artifact is incomplete: {sorted(missing)}')
+                raise ValueError(
+                    f'Monitoring input artifact is incomplete: {sorted(missing)}'
+                )
             inputs = {name: archive[name] for name in required}
         for name in ('observed_stack', 'prediction_stack', 'residual_stack'):
             if inputs[name].ndim != 3:
                 raise ValueError(f'Monitoring input {name} must be a 3D stack.')
         if inputs['prediction_stack'].shape != inputs['observed_stack'].shape:
-            raise ValueError('Monitoring observation and prediction stack shapes differ.')
+            raise ValueError(
+                'Monitoring observation and prediction stack shapes differ.'
+            )
         inputs['has_uncertainty'] = bool(inputs['has_uncertainty'].item())
         inputs['dates'] = tuple(str(value) for value in inputs['dates'])
         return inputs
@@ -285,23 +309,33 @@ class MonitoringPipeline:
     def _spatial_coherence_config(self) -> dict[str, Any]:
         value = self._dashboard_config().get('spatial_coherence', {})
         if not isinstance(value, dict):
-            raise ValueError('monitoring.dashboard.spatial_coherence must be a mapping.')
+            raise ValueError(
+                'monitoring.dashboard.spatial_coherence must be a mapping.'
+            )
         return value
 
     def _plot_unit(self) -> str:
         return str(self.config.get('plotting', {}).get('deformation_unit', ''))
 
     def _native_plot_unit(self) -> str:
-        return str(self.config.get('plotting', {}).get('native_deformation_rate_unit', self._plot_unit()))
+        return str(
+            self.config.get('plotting', {}).get(
+                'native_deformation_rate_unit', self._plot_unit()
+            )
+        )
 
     def _plot_value_scale(self) -> float:
         return float(self.config.get('plotting', {}).get('value_scale', 1.0))
 
     def _persistent_residual_colormap(self) -> str:
-        return str(self.config.get('plotting', {}).get('persistent_residual_colormap', 'magma'))
+        return str(
+            self.config.get('plotting', {}).get('persistent_residual_colormap', 'magma')
+        )
 
     def _persistent_fraction_display_max(self) -> float:
-        return float(self.config.get('plotting', {}).get('persistent_fraction_display_max', 1.0))
+        return float(
+            self.config.get('plotting', {}).get('persistent_fraction_display_max', 1.0)
+        )
 
 
 def run_monitoring(config: dict[str, Any]) -> dict[str, Any]:

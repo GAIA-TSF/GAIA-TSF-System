@@ -34,7 +34,6 @@ python3 subsystems/dag/scripts/synthetic_tsf_deformation.py \
 
 import argparse
 import json
-import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -61,7 +60,9 @@ with args.config.open(encoding='utf-8') as stream:
     CONFIG = yaml.safe_load(stream)
 SCENARIO_NAME = args.scenario or CONFIG['active_scenario']
 if SCENARIO_NAME not in CONFIG['scenarios']:
-    raise ValueError(f"Unknown scenario {SCENARIO_NAME!r}; choose one of {sorted(CONFIG['scenarios'])}")
+    raise ValueError(
+        f'Unknown scenario {SCENARIO_NAME!r}; choose one of {sorted(CONFIG["scenarios"])}'
+    )
 SCENARIO = CONFIG['scenarios'][SCENARIO_NAME]
 root = args.output_root or Path(CONFIG['simulation']['output_root'])
 if not root.is_absolute():
@@ -76,9 +77,12 @@ OUTDIR.mkdir(exist_ok=True, parents=True)
 INPUTS_DIR = OUTDIR / 'inputs'
 STATIC_DIR = OUTDIR / 'static'
 
+
 def _resolve_input_path(value):
     path = Path(value).expanduser()
-    return path if path.is_absolute() else (args.config.resolve().parent / path).resolve()
+    return (
+        path if path.is_absolute() else (args.config.resolve().parent / path).resolve()
+    )
 
 
 def _read_geometries(path, target_crs=None):
@@ -116,15 +120,19 @@ else:
     NX, NY = grid_config['width_px'], grid_config['height_px']
     XMIN, YMAX = grid_config['xmin'], grid_config['ymax']
     SPATIAL_BOUNDS = (
-        XMIN, YMAX - NY * PIXEL_SIZE,
-        XMIN + NX * PIXEL_SIZE, YMAX,
+        XMIN,
+        YMAX - NY * PIXEL_SIZE,
+        XMIN + NX * PIXEL_SIZE,
+        YMAX,
     )
     aoi_geometries = None
 
 YEARS = CONFIG['simulation']['duration_days'] / 365
 REVISIT_DAYS = CONFIG['simulation']['revisit_days']
 
-START_DATE = datetime.fromisoformat(CONFIG['simulation']['start_date']).replace(tzinfo=timezone.utc)
+START_DATE = datetime.fromisoformat(CONFIG['simulation']['start_date']).replace(
+    tzinfo=timezone.utc
+)
 
 INCIDENCE_DEG = CONFIG['observation']['incidence_angle_deg']
 FAILURE_START_DAY = 730
@@ -156,15 +164,24 @@ if aoi_geometries is None:
     ROI_MASK = AOI_MASK.copy()
 else:
     AOI_MASK = geometry_mask(
-        aoi_geometries, (NY, NX), transform,
-        invert=True, all_touched=grid_config.get('all_touched', False),
+        aoi_geometries,
+        (NY, NX),
+        transform,
+        invert=True,
+        all_touched=grid_config.get('all_touched', False),
     )
     roi_path = _resolve_input_path(grid_config['deformation_roi_file'])
     roi_geometries, _, _ = _read_geometries(roi_path, CRS)
-    ROI_MASK = geometry_mask(
-        roi_geometries, (NY, NX), transform,
-        invert=True, all_touched=grid_config.get('all_touched', False),
-    ) & AOI_MASK
+    ROI_MASK = (
+        geometry_mask(
+            roi_geometries,
+            (NY, NX),
+            transform,
+            invert=True,
+            all_touched=grid_config.get('all_touched', False),
+        )
+        & AOI_MASK
+    )
     if not ROI_MASK.any():
         raise ValueError('The deformation ROI has no pixels inside the AOI grid')
 
@@ -208,7 +225,9 @@ sigma_bowl = 18
 
 aoi_rows, aoi_cols = np.where(AOI_MASK)
 aoi_center = [aoi_cols.mean(), aoi_rows.mean()]
-bowl = np.exp(-((X - aoi_center[0]) ** 2 + (Y - aoi_center[1]) ** 2) / (2 * sigma_bowl**2))
+bowl = np.exp(
+    -((X - aoi_center[0]) ** 2 + (Y - aoi_center[1]) ** 2) / (2 * sigma_bowl**2)
+)
 
 coherence_config = CONFIG['observation']
 coherence_texture = gaussian_filter(
@@ -312,14 +331,27 @@ def write_stac_item(
             transform_geom(CRS, 'EPSG:4326', item.__geo_interface__)
             for item in aoi_geometries
         ]
-        geometry = wgs84_geometries[0] if len(wgs84_geometries) == 1 else {
-            'type': 'GeometryCollection', 'geometries': wgs84_geometries,
-        }
+        geometry = (
+            wgs84_geometries[0]
+            if len(wgs84_geometries) == 1
+            else {
+                'type': 'GeometryCollection',
+                'geometries': wgs84_geometries,
+            }
+        )
     else:
-        geometry = {'type': 'Polygon', 'coordinates': [[
-            [lon_min, lat_min], [lon_min, lat_max], [lon_max, lat_max],
-            [lon_max, lat_min], [lon_min, lat_min],
-        ]]}
+        geometry = {
+            'type': 'Polygon',
+            'coordinates': [
+                [
+                    [lon_min, lat_min],
+                    [lon_min, lat_max],
+                    [lon_max, lat_max],
+                    [lon_max, lat_min],
+                    [lon_min, lat_min],
+                ]
+            ],
+        }
 
     stage_name = {
         0: 'stable',
@@ -400,9 +432,7 @@ def generate_tsf_dem():
         dem_rng.normal(0.0, DEM_ROUGHNESS_STD, (NY, NX)),
         sigma=5,
     )
-    return (regional_terrain + impoundment + embankment + roughness).astype(
-        np.float32
-    )
+    return (regional_terrain + impoundment + embankment + roughness).astype(np.float32)
 
 
 ### SYNTHETIC METEODATA ###
@@ -434,9 +464,7 @@ def generate_meteodata():
     temperature_mean = seasonal_temperature + np.random.normal(
         0, 3.0, len(simulation_days)
     )
-    diurnal_range = np.maximum(
-        2.0, np.random.normal(8.0, 2.0, len(simulation_days))
-    )
+    diurnal_range = np.maximum(2.0, np.random.normal(8.0, 2.0, len(simulation_days)))
     temperature_min = temperature_mean - diurnal_range / 2
     temperature_max = temperature_mean + diurnal_range / 2
 
@@ -458,6 +486,7 @@ def generate_meteodata():
 
 meteo_data = generate_meteodata()
 
+
 ### DATA SIMULATION ###
 def scenario_state(t):
     """Return displacement, probability, stage and trigger fields in millimetres."""
@@ -465,9 +494,10 @@ def scenario_state(t):
     probability_threshold = CONFIG['classification']['hotspot_probability_threshold']
     zero = np.zeros_like(bowl)
     if kind == 'no_failure':
-        fluctuation = (
-            p['fluctuation_amplitude_mm'] * np.sin(2*np.pi*t/p['primary_period_days'])
-            + p['secondary_amplitude_mm'] * np.sin(2*np.pi*t/p['secondary_period_days'] + np.pi/3)
+        fluctuation = p['fluctuation_amplitude_mm'] * np.sin(
+            2 * np.pi * t / p['primary_period_days']
+        ) + p['secondary_amplitude_mm'] * np.sin(
+            2 * np.pi * t / p['secondary_period_days'] + np.pi / 3
         )
         settlement = p['local_settlement_mm_per_year'] * t / 365.0
         # Negative control: apply stable motion uniformly. In particular, never
@@ -478,43 +508,129 @@ def scenario_state(t):
         if POLYGON_MODE:
             h = ROI_WEIGHT
         else:
-            h = np.exp(-0.5 * (((X-p['center_px'][0])/p['sigma_px'][0])**2 + ((Y-p['center_px'][1])/p['sigma_px'][1])**2))
+            h = np.exp(
+                -0.5
+                * (
+                    ((X - p['center_px'][0]) / p['sigma_px'][0]) ** 2
+                    + ((Y - p['center_px'][1]) / p['sigma_px'][1]) ** 2
+                )
+            )
         if t < p['onset_day']:
             d, stage = 0, 0
         elif t < p['velocity_increase_day']:
-            d, stage = p['slow_velocity_mm_per_day']*(t-p['onset_day']), 1
+            d, stage = p['slow_velocity_mm_per_day'] * (t - p['onset_day']), 1
         elif t < p['acceleration_day']:
-            dt=t-p['velocity_increase_day']; d0=p['slow_velocity_mm_per_day']*(p['velocity_increase_day']-p['onset_day'])
-            d=d0+p['slow_velocity_mm_per_day']*dt+.5*p['linear_acceleration_mm_per_day2']*dt**2; stage=2
+            dt = t - p['velocity_increase_day']
+            d0 = p['slow_velocity_mm_per_day'] * (
+                p['velocity_increase_day'] - p['onset_day']
+            )
+            d = (
+                d0
+                + p['slow_velocity_mm_per_day'] * dt
+                + 0.5 * p['linear_acceleration_mm_per_day2'] * dt**2
+            )
+            stage = 2
         else:
-            dt=t-p['acceleration_day']; span=p['acceleration_day']-p['velocity_increase_day']; v=p['slow_velocity_mm_per_day']+p['linear_acceleration_mm_per_day2']*span
-            d0=p['slow_velocity_mm_per_day']*(p['velocity_increase_day']-p['onset_day'])+p['slow_velocity_mm_per_day']*span+.5*p['linear_acceleration_mm_per_day2']*span**2
-            d=d0+v*(np.exp(p['exponential_growth_rate_per_day']*dt)-1)/p['exponential_growth_rate_per_day']; stage=3
-        d=max(d,p['maximum_displacement_mm']); stage=4 if t>=p['failure_day'] else stage
-        prob=np.clip(abs(d/p['maximum_displacement_mm']),0,1)*h
-        return d*h, prob, np.where(prob > probability_threshold, stage, 0), zero
+            dt = t - p['acceleration_day']
+            span = p['acceleration_day'] - p['velocity_increase_day']
+            v = (
+                p['slow_velocity_mm_per_day']
+                + p['linear_acceleration_mm_per_day2'] * span
+            )
+            d0 = (
+                p['slow_velocity_mm_per_day']
+                * (p['velocity_increase_day'] - p['onset_day'])
+                + p['slow_velocity_mm_per_day'] * span
+                + 0.5 * p['linear_acceleration_mm_per_day2'] * span**2
+            )
+            d = (
+                d0
+                + v
+                * (np.exp(p['exponential_growth_rate_per_day'] * dt) - 1)
+                / p['exponential_growth_rate_per_day']
+            )
+            stage = 3
+        d = max(d, p['maximum_displacement_mm'])
+        stage = 4 if t >= p['failure_day'] else stage
+        prob = np.clip(abs(d / p['maximum_displacement_mm']), 0, 1) * h
+        return d * h, prob, np.where(prob > probability_threshold, stage, 0), zero
     if kind == 'spatial_propagation':
-        if t < p['initiation_day']: return zero, zero, zero.astype('uint8'), zero
-        initial_center = ROI_CENTER if POLYGON_MODE else np.array(p['initial_center_px'])
-        dt=t-p['initiation_day']; c=initial_center+np.array(p['center_velocity_px_per_day'])*dt
-        s=np.minimum(np.array(p['maximum_sigma_px']),np.array(p['initial_sigma_px'])+np.array(p['propagation_rate_px_per_day'])*dt)
-        h=np.exp(-.5*(((X-c[0])/s[0])**2+((Y-c[1])/s[1])**2))*ROI_WEIGHT; d=p['core_velocity_mm_per_day']*(dt+.5*p['velocity_growth_per_day']*dt**2)*h
-        prob=h*min(1,.15+dt/(p['failure_day']-p['initiation_day'])); frac=np.mean(prob > probability_threshold); stage=1 if frac<p['failure_area_fraction']*.25 else 2 if frac<p['failure_area_fraction']*.7 else 3
-        if t>=p['failure_day'] or frac>=p['failure_area_fraction']: stage=4
-        return d,prob,np.where(prob > probability_threshold, stage, 0),zero
-    base=p['baseline_velocity_mm_per_day']*t*bowl; trigger=zero.copy(); active=False
+        if t < p['initiation_day']:
+            return zero, zero, zero.astype('uint8'), zero
+        initial_center = (
+            ROI_CENTER if POLYGON_MODE else np.array(p['initial_center_px'])
+        )
+        dt = t - p['initiation_day']
+        c = initial_center + np.array(p['center_velocity_px_per_day']) * dt
+        s = np.minimum(
+            np.array(p['maximum_sigma_px']),
+            np.array(p['initial_sigma_px'])
+            + np.array(p['propagation_rate_px_per_day']) * dt,
+        )
+        h = (
+            np.exp(-0.5 * (((X - c[0]) / s[0]) ** 2 + ((Y - c[1]) / s[1]) ** 2))
+            * ROI_WEIGHT
+        )
+        d = (
+            p['core_velocity_mm_per_day']
+            * (dt + 0.5 * p['velocity_growth_per_day'] * dt**2)
+            * h
+        )
+        prob = h * min(1, 0.15 + dt / (p['failure_day'] - p['initiation_day']))
+        frac = np.mean(prob > probability_threshold)
+        stage = (
+            1
+            if frac < p['failure_area_fraction'] * 0.25
+            else 2
+            if frac < p['failure_area_fraction'] * 0.7
+            else 3
+        )
+        if t >= p['failure_day'] or frac >= p['failure_area_fraction']:
+            stage = 4
+        return d, prob, np.where(prob > probability_threshold, stage, 0), zero
+    base = p['baseline_velocity_mm_per_day'] * t * bowl
+    trigger = zero.copy()
+    active = False
     for event in p['events']:
-        age=t-event['day']-event.get('response_delay_days',0)
-        if age<0: continue
+        age = t - event['day'] - event.get('response_delay_days', 0)
+        if age < 0:
+            continue
         event_center = ROI_CENTER if POLYGON_MODE else np.array(event['center_px'])
-        active=True; h=np.exp(-.5*(((X-event_center[0])/event['sigma_px'][0])**2+((Y-event_center[1])/event['sigma_px'][1])**2))*ROI_WEIGHT
-        if event['type']=='rainfall': response=event['displacement_scale_mm']*(1-np.exp(-age/event['response_rise_days']))*np.exp(-age/event['decay_days'])
-        else: response=event['instantaneous_offset_mm']
-        trigger += response*h
+        active = True
+        h = (
+            np.exp(
+                -0.5
+                * (
+                    ((X - event_center[0]) / event['sigma_px'][0]) ** 2
+                    + ((Y - event_center[1]) / event['sigma_px'][1]) ** 2
+                )
+            )
+            * ROI_WEIGHT
+        )
+        if event['type'] == 'rainfall':
+            response = (
+                event['displacement_scale_mm']
+                * (1 - np.exp(-age / event['response_rise_days']))
+                * np.exp(-age / event['decay_days'])
+            )
+        else:
+            response = event['instantaneous_offset_mm']
+        trigger += response * h
     if active:
-        age=t-min(e['day'] for e in p['events']); trigger+=(p['post_trigger_velocity_mm_per_day']*age+.5*p['post_trigger_acceleration_mm_per_day2']*age**2)*ROI_WEIGHT
-    prob=np.clip(abs(trigger)/50,0,1); stage=3 if active else 0
-    return base+trigger,prob,np.where(prob > probability_threshold, stage, 0),trigger
+        age = t - min(e['day'] for e in p['events'])
+        trigger += (
+            p['post_trigger_velocity_mm_per_day'] * age
+            + 0.5 * p['post_trigger_acceleration_mm_per_day2'] * age**2
+        ) * ROI_WEIGHT
+    prob = np.clip(abs(trigger) / 50, 0, 1)
+    stage = 3 if active else 0
+    return (
+        base + trigger,
+        prob,
+        np.where(prob > probability_threshold, stage, 0),
+        trigger,
+    )
+
 
 previous_disp = previous_velocity = None
 
@@ -540,8 +656,16 @@ for t in times:
 
     scenario_disp_mm, hotspot, stage, trigger_mm = scenario_state(t)
     total_vertical = background + seasonal + scenario_disp_mm / 1000
-    velocity = np.zeros_like(bowl) if previous_disp is None else (scenario_disp_mm-previous_disp)/REVISIT_DAYS/1000
-    acceleration = np.zeros_like(bowl) if previous_velocity is None else (velocity-previous_velocity)/REVISIT_DAYS
+    velocity = (
+        np.zeros_like(bowl)
+        if previous_disp is None
+        else (scenario_disp_mm - previous_disp) / REVISIT_DAYS / 1000
+    )
+    acceleration = (
+        np.zeros_like(bowl)
+        if previous_velocity is None
+        else (velocity - previous_velocity) / REVISIT_DAYS
+    )
     previous_disp, previous_velocity = scenario_disp_mm.copy(), velocity.copy()
 
     true_los = total_vertical * np.cos(np.deg2rad(INCIDENCE_DEG))
@@ -555,7 +679,9 @@ for t in times:
     los_obs_masked = los_obs.copy()
     los_obs_masked[~mask] = np.nan
 
-    label = (hotspot > CONFIG['classification']['hotspot_probability_threshold']).astype(np.uint8)
+    label = (
+        hotspot > CONFIG['classification']['hotspot_probability_threshold']
+    ).astype(np.uint8)
 
     stage = stage.astype(np.uint8)
 
@@ -626,12 +752,27 @@ for t in times:
         product_type='rainfall_trigger',
         stage=int(stage.max()),
     )
-    write_tif(INPUTS_DIR / 'velocity' / f'velocity_{date_str}.tif', velocity,
-              acquisition_date, 'velocity', int(stage.max()))
-    write_tif(INPUTS_DIR / 'acceleration' / f'acceleration_{date_str}.tif', acceleration,
-              acquisition_date, 'acceleration', int(stage.max()))
-    write_tif(INPUTS_DIR / 'trigger_response' / f'trigger_response_{date_str}.tif', trigger_mm / 1000,
-              acquisition_date, 'trigger_response', int(stage.max()))
+    write_tif(
+        INPUTS_DIR / 'velocity' / f'velocity_{date_str}.tif',
+        velocity,
+        acquisition_date,
+        'velocity',
+        int(stage.max()),
+    )
+    write_tif(
+        INPUTS_DIR / 'acceleration' / f'acceleration_{date_str}.tif',
+        acceleration,
+        acquisition_date,
+        'acceleration',
+        int(stage.max()),
+    )
+    write_tif(
+        INPUTS_DIR / 'trigger_response' / f'trigger_response_{date_str}.tif',
+        trigger_mm / 1000,
+        acquisition_date,
+        'trigger_response',
+        int(stage.max()),
+    )
 
 
 ### METEODATA CSV ###
@@ -661,10 +802,25 @@ write_tif(
     apply_aoi=False,
 )
 
-write_tif(STATIC_DIR / 'aoi_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
-write_tif(STATIC_DIR / 'roi_failure_mask.tif', ROI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
+write_tif(
+    STATIC_DIR / 'aoi_mask.tif',
+    AOI_MASK.astype(np.uint8),
+    dtype='uint8',
+    apply_aoi=False,
+)
+write_tif(
+    STATIC_DIR / 'roi_failure_mask.tif',
+    ROI_MASK.astype(np.uint8),
+    dtype='uint8',
+    apply_aoi=False,
+)
 write_tif(STATIC_DIR / 'roi_failure_weight.tif', ROI_WEIGHT, dtype='float32')
-write_tif(STATIC_DIR / 'tsf_mask.tif', AOI_MASK.astype(np.uint8), dtype='uint8', apply_aoi=False)
+write_tif(
+    STATIC_DIR / 'tsf_mask.tif',
+    AOI_MASK.astype(np.uint8),
+    dtype='uint8',
+    apply_aoi=False,
+)
 
 tsf_dem = generate_tsf_dem()
 write_tif(STATIC_DIR / 'tsf_dem.tif', tsf_dem, dtype='float32', nodata=np.nan)
@@ -676,17 +832,38 @@ if SCENARIO['archetype'] == 'no_failure':
     timeline = [{'event': 'stable_period', 'date': START_DATE.strftime('%Y-%m-%d')}]
 elif SCENARIO['archetype'] == 'gradual_acceleration':
     timeline = [
-        {'event': event, 'date': (START_DATE + timedelta(days=SCENARIO[key])).strftime('%Y-%m-%d')}
-        for event, key in [('slow_phase', 'onset_day'), ('developing_phase', 'velocity_increase_day'), ('accelerating_phase', 'acceleration_day'), ('failure', 'failure_day')]
+        {
+            'event': event,
+            'date': (START_DATE + timedelta(days=SCENARIO[key])).strftime('%Y-%m-%d'),
+        }
+        for event, key in [
+            ('slow_phase', 'onset_day'),
+            ('developing_phase', 'velocity_increase_day'),
+            ('accelerating_phase', 'acceleration_day'),
+            ('failure', 'failure_day'),
+        ]
     ]
 elif SCENARIO['archetype'] == 'spatial_propagation':
     timeline = [
-        {'event': 'localized_instability', 'date': (START_DATE + timedelta(days=SCENARIO['initiation_day'])).strftime('%Y-%m-%d')},
-        {'event': 'failure', 'date': (START_DATE + timedelta(days=SCENARIO['failure_day'])).strftime('%Y-%m-%d')},
+        {
+            'event': 'localized_instability',
+            'date': (START_DATE + timedelta(days=SCENARIO['initiation_day'])).strftime(
+                '%Y-%m-%d'
+            ),
+        },
+        {
+            'event': 'failure',
+            'date': (START_DATE + timedelta(days=SCENARIO['failure_day'])).strftime(
+                '%Y-%m-%d'
+            ),
+        },
     ]
 else:
     timeline = [
-        {'event': event['type'], 'date': (START_DATE + timedelta(days=event['day'])).strftime('%Y-%m-%d')}
+        {
+            'event': event['type'],
+            'date': (START_DATE + timedelta(days=event['day'])).strftime('%Y-%m-%d'),
+        }
         for event in SCENARIO.get('events', [])
     ]
 pd.DataFrame(timeline).to_csv(INPUTS_DIR / 'failure_timeline.csv', index=False)
@@ -732,7 +909,9 @@ pd.DataFrame(
 
 # Preserve the exact scenario definition alongside every generated data set.
 with open(OUTDIR / 'scenario_config.yaml', 'w', encoding='utf-8') as stream:
-    yaml.safe_dump({**CONFIG, 'active_scenario': SCENARIO_NAME}, stream, sort_keys=False)
+    yaml.safe_dump(
+        {**CONFIG, 'active_scenario': SCENARIO_NAME}, stream, sort_keys=False
+    )
 
 print('Finished.')
 print(f'Output: {OUTDIR.resolve()}')

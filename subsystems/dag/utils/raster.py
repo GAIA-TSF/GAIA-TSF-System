@@ -201,10 +201,15 @@ def write_raster_sidecar(
         bbox = list(transform_bounds(crs, 'EPSG:4326', west, south, east, north))
     geometry = {
         'type': 'Polygon',
-        'coordinates': [[
-            [bbox[0], bbox[1]], [bbox[0], bbox[3]],
-            [bbox[2], bbox[3]], [bbox[2], bbox[1]], [bbox[0], bbox[1]],
-        ]],
+        'coordinates': [
+            [
+                [bbox[0], bbox[1]],
+                [bbox[0], bbox[3]],
+                [bbox[2], bbox[3]],
+                [bbox[2], bbox[1]],
+                [bbox[0], bbox[1]],
+            ]
+        ],
     }
     names = tuple(name for name in (band_names or ()) if name)
     item_properties: dict[str, Any] = {

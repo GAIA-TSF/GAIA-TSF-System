@@ -46,12 +46,8 @@ def test_spatial_split_is_reproducible() -> None:
     dataset = _dataset()
     builder = DatasetBuilder()
 
-    first = builder.split_spatial_window(
-        dataset, 0, 5, 0.5, 0.25, 0.25, random_seed=7
-    )
-    second = builder.split_spatial_window(
-        dataset, 0, 5, 0.5, 0.25, 0.25, random_seed=7
-    )
+    first = builder.split_spatial_window(dataset, 0, 5, 0.5, 0.25, 0.25, random_seed=7)
+    second = builder.split_spatial_window(dataset, 0, 5, 0.5, 0.25, 0.25, random_seed=7)
 
     np.testing.assert_array_equal(first.train.pixel_indices, second.train.pixel_indices)
     np.testing.assert_array_equal(
@@ -62,10 +58,7 @@ def test_spatial_split_is_reproducible() -> None:
 
 def test_spatial_split_rejects_missing_date_coverage() -> None:
     dataset = _dataset(time_count=3, pixel_count=3)
-    include = ~(
-        (dataset.time_indices == 2)
-        & (dataset.pixel_indices != 0)
-    )
+    include = ~((dataset.time_indices == 2) & (dataset.pixel_indices != 0))
     incomplete = DatasetBuilder._subset(dataset, include)
 
     with pytest.raises(ValueError, match='has no valid pixels'):

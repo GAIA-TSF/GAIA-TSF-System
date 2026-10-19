@@ -11,7 +11,10 @@ from subsystems.map.scripts.simulate_monitoring_animation import (
     frame_indices,
     run_precomputed_simulation,
 )
-from subsystems.map.utils.temporal_windows import TemporalWindow, resolve_temporal_window
+from subsystems.map.utils.temporal_windows import (
+    TemporalWindow,
+    resolve_temporal_window,
+)
 
 
 DATES = (

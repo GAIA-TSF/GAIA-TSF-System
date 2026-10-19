@@ -81,7 +81,9 @@ def write_slope_stability_dashboard(
         axis.grid(alpha=0.25)
         if axis is temporal_axes[2] and regional_cusum_axis is not None:
             left_handles, left_labels = axis.get_legend_handles_labels()
-            right_handles, right_labels = regional_cusum_axis.get_legend_handles_labels()
+            right_handles, right_labels = (
+                regional_cusum_axis.get_legend_handles_labels()
+            )
             axis.legend(
                 left_handles + right_handles,
                 left_labels + right_labels,
@@ -155,9 +157,8 @@ def _plot_predictions(
             alpha=0.2,
             label='Prediction uncertainty',
         )
-    if (
-        result.regional_observed_mean is not None
-        and np.any(np.isfinite(result.regional_observed_mean[positions]))
+    if result.regional_observed_mean is not None and np.any(
+        np.isfinite(result.regional_observed_mean[positions])
     ):
         reg_observed = result.regional_observed_mean[positions] * value_scale
         axis.plot(
@@ -260,10 +261,7 @@ def _plot_cusum(
         color='black',
         linestyle='--',
         linewidth=1.2,
-        label=(
-            'Decision threshold '
-            f'({result.cusum_decision_threshold:g})'
-        ),
+        label=(f'Decision threshold ({result.cusum_decision_threshold:g})'),
     )
     oscillation = positions[result.oscillation[positions]]
     if oscillation.size:

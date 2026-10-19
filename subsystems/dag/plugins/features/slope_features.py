@@ -30,7 +30,9 @@ class SlopeFeatureExtractor(FeatureExtractor):
         if enabled_features.get('cumulative_los', False):
             features['cumulative_los'] = data.astype(np.float32, copy=True)
         if enabled_features.get('displacement_increment', False):
-            features['displacement_increment'] = self.compute_displacement_increment(data)
+            features['displacement_increment'] = self.compute_displacement_increment(
+                data
+            )
         if enabled_features.get('velocity', False):
             features['velocity'] = self.compute_velocity(data, dates)
         if enabled_features.get('acceleration', False):
@@ -39,8 +41,15 @@ class SlopeFeatureExtractor(FeatureExtractor):
             features['jerk'] = self.compute_jerk(data, dates)
 
         summary_options = (
-            'minimum', 'maximum', 'mean', 'standard_deviation', 'variance',
-            'range', 'net_displacement', 'trend', 'temporal_variance',
+            'minimum',
+            'maximum',
+            'mean',
+            'standard_deviation',
+            'variance',
+            'range',
+            'net_displacement',
+            'trend',
+            'temporal_variance',
         )
         if any(enabled_features.get(name, False) for name in summary_options):
             historical = self._summary_slice(data, dates, summary_window)
@@ -93,15 +102,21 @@ class SlopeFeatureExtractor(FeatureExtractor):
             if enabled_features.get(option, False):
                 statistics[name] = function(data)
         if enabled_features.get('range', False):
-            statistics['temporal_summary_range'] = self._max_time(data) - self._min_time(data)
+            statistics['temporal_summary_range'] = self._max_time(
+                data
+            ) - self._min_time(data)
         return statistics
 
     @staticmethod
     def _summary_slice(
-        data: np.ndarray, dates: tuple[date, ...], summary_window: tuple[date, date] | None
+        data: np.ndarray,
+        dates: tuple[date, ...],
+        summary_window: tuple[date, date] | None,
     ) -> np.ndarray:
         if summary_window is None:
-            raise ValueError('Retrospective summary products require an explicit summary_window.')
+            raise ValueError(
+                'Retrospective summary products require an explicit summary_window.'
+            )
         start, end = summary_window
         if start > end:
             raise ValueError('summary_window start must not be after its end.')

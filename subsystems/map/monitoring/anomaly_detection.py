@@ -40,7 +40,9 @@ class StatisticalAnomalyDetector:
             raise ValueError(
                 "anomaly_detection.direction must be 'both', 'positive', or 'negative'."
             )
-        self.combination_operator = str(config.get('combination_operator', 'or')).lower()
+        self.combination_operator = str(
+            config.get('combination_operator', 'or')
+        ).lower()
         if self.combination_operator not in {'or', 'and'}:
             raise ValueError(
                 "anomaly_detection.combination_operator must be 'or' or 'and'."
@@ -88,10 +90,14 @@ class StatisticalAnomalyDetector:
         if self.residual_threshold is not None:
             if self.direction == 'negative':
                 criteria.append(residual_stack <= -self.residual_threshold)
-                score_parts.append(np.maximum(0.0, -residual_stack / self.residual_threshold))
+                score_parts.append(
+                    np.maximum(0.0, -residual_stack / self.residual_threshold)
+                )
             elif self.direction == 'positive':
                 criteria.append(residual_stack >= self.residual_threshold)
-                score_parts.append(np.maximum(0.0, residual_stack / self.residual_threshold))
+                score_parts.append(
+                    np.maximum(0.0, residual_stack / self.residual_threshold)
+                )
             else:
                 criteria.append(np.abs(residual_stack) >= self.residual_threshold)
                 score_parts.append(np.abs(residual_stack) / self.residual_threshold)

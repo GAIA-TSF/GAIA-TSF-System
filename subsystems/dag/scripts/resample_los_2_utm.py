@@ -11,6 +11,7 @@ If the reference already uses the target CRS, its grid is matched exactly.
 Otherwise its bounds and dimensions determine a suggested reprojected grid.
 Displacement values retain their original units (no mm-to-m conversion).
 """
+
 import argparse
 from pathlib import Path
 
@@ -30,7 +31,10 @@ def target_grid(reference_path: Path, target_crs: CRS):
         if reference.crs == target_crs:
             return reference.transform, reference.width, reference.height
         return calculate_default_transform(
-            reference.crs, target_crs, reference.width, reference.height,
+            reference.crs,
+            target_crs,
+            reference.width,
+            reference.height,
             *reference.bounds,
         )
 
@@ -42,22 +46,37 @@ def reproject_raster(src_path: Path, dst_path: Path, target_crs: CRS, grid) -> N
     transform, width, height = grid
     with rasterio.open(src_path) as src:
         if src.crs != CRS.from_epsg(4326):
-            raise ValueError(f'Expected WGS-84 (EPSG:4326) input: {src_path}; got {src.crs}')
+            raise ValueError(
+                f'Expected WGS-84 (EPSG:4326) input: {src_path}; got {src.crs}'
+            )
         if src.count != 1:
             raise ValueError(f'Expected a single LOS band: {src_path}')
         source = src.read(1, masked=True).astype('float32').filled(np.nan)
         source[~np.isfinite(source)] = np.nan
         destination = np.full((height, width), NODATA, dtype=np.float32)
         reproject(
-            source=source, destination=destination,
-            src_transform=src.transform, src_crs=src.crs, src_nodata=np.nan,
-            dst_transform=transform, dst_crs=target_crs, dst_nodata=NODATA,
+            source=source,
+            destination=destination,
+            src_transform=src.transform,
+            src_crs=src.crs,
+            src_nodata=np.nan,
+            dst_transform=transform,
+            dst_crs=target_crs,
+            dst_nodata=NODATA,
             resampling=Resampling.bilinear,
         )
         with rasterio.open(
-            dst_path, 'w', driver='GTiff', dtype='float32', count=1,
-            width=width, height=height, crs=target_crs, transform=transform,
-            nodata=NODATA, compress='deflate',
+            dst_path,
+            'w',
+            driver='GTiff',
+            dtype='float32',
+            count=1,
+            width=width,
+            height=height,
+            crs=target_crs,
+            transform=transform,
+            nodata=NODATA,
+            compress='deflate',
         ) as dst:
             dst.write(destination, 1)
             dst.update_tags(**src.tags())
@@ -71,12 +90,20 @@ def reproject_raster(src_path: Path, dst_path: Path, target_crs: CRS, grid) -> N
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument('--input-dir', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, required=True)
-    parser.add_argument('--target-epsg', required=True, help='EPSG number or EPSG:code, e.g. 32735')
+    parser.add_argument(
+        '--target-epsg', required=True, help='EPSG number or EPSG:code, e.g. 32735'
+    )
     parser.add_argument('--reference-raster', type=Path, required=True)
-    parser.add_argument('--pattern', default='los_*.tif', help='Input filename pattern (default: los_*.tif)')
+    parser.add_argument(
+        '--pattern',
+        default='los_*.tif',
+        help='Input filename pattern (default: los_*.tif)',
+    )
     args = parser.parse_args(argv)
     if args.input_dir.resolve() == args.output_dir.resolve():
         parser.error('Input and output directories must differ.')
@@ -84,11 +111,18 @@ def main(argv=None):
     grid = target_grid(args.reference_raster, target_crs)
     files = sorted(args.input_dir.glob(args.pattern))
     if not files:
-        raise FileNotFoundError(f'No files matching {args.pattern!r} in {args.input_dir}')
-    if any((args.output_dir / src.name).resolve() == args.reference_raster.resolve() for src in files):
+        raise FileNotFoundError(
+            f'No files matching {args.pattern!r} in {args.input_dir}'
+        )
+    if any(
+        (args.output_dir / src.name).resolve() == args.reference_raster.resolve()
+        for src in files
+    ):
         parser.error('An output would overwrite the reference raster.')
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    print(f'Found {len(files)} rasters; target {target_crs}, size {grid[1]} x {grid[2]}. Units unchanged.')
+    print(
+        f'Found {len(files)} rasters; target {target_crs}, size {grid[1]} x {grid[2]}. Units unchanged.'
+    )
     for src_path in files:
         reproject_raster(src_path, args.output_dir / src_path.name, target_crs, grid)
 

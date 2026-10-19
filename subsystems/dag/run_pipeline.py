@@ -47,11 +47,16 @@ def main() -> None:
 
     if args.pipeline in ('amd_features', 'amd_temporal_features', 'amd_meteo_features'):
         from subsystems.dag.pipelines.amd_model_feature_pipeline import (
-            AMDFeaturePipeline, AMDTemporalFeaturePipeline, AMDMeteoFeaturePipeline,
+            AMDFeaturePipeline,
+            AMDTemporalFeaturePipeline,
+            AMDMeteoFeaturePipeline,
         )
-        pipelines = {'amd_features': AMDFeaturePipeline,
-                     'amd_temporal_features': AMDTemporalFeaturePipeline,
-                     'amd_meteo_features': AMDMeteoFeaturePipeline}
+
+        pipelines = {
+            'amd_features': AMDFeaturePipeline,
+            'amd_temporal_features': AMDTemporalFeaturePipeline,
+            'amd_meteo_features': AMDMeteoFeaturePipeline,
+        }
         print(pipelines[args.pipeline](args.config).run())
 
     elif args.pipeline == 'amd_eda':

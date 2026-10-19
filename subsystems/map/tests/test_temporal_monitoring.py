@@ -207,8 +207,14 @@ def test_monitoring_signals_do_not_change_when_future_data_arrives() -> None:
         monitoring_window=(4, current_index + 1),
     )
 
-    assert replay.acceleration_cusum[current_index] == full.acceleration_cusum[current_index]
-    assert replay.deceleration_cusum[current_index] == full.deceleration_cusum[current_index]
+    assert (
+        replay.acceleration_cusum[current_index]
+        == full.acceleration_cusum[current_index]
+    )
+    assert (
+        replay.deceleration_cusum[current_index]
+        == full.deceleration_cusum[current_index]
+    )
     assert replay.regime_risk[current_index] == full.regime_risk[current_index]
 
 
@@ -283,14 +289,24 @@ def test_shared_support_aligns_observed_and_predicted_spatial_means() -> None:
                 'persistence_window': 2,
                 'persistence_threshold': 0.25,
             },
-            'regime': {'smoothing_span': 2, 'medium_risk_threshold': 0.3, 'high_risk_threshold': 0.7},
+            'regime': {
+                'smoothing_span': 2,
+                'medium_risk_threshold': 0.3,
+                'high_risk_threshold': 0.7,
+            },
         },
     )
     observed = np.array(
         [[[1.0, 9.0]], [[2.0, 10.0]], [[3.0, 11.0]], [[4.0, 12.0]], [[5.0, 13.0]]]
     )
     predicted = np.array(
-        [[[1.0, np.nan]], [[2.0, np.nan]], [[3.0, np.nan]], [[4.0, np.nan]], [[5.0, np.nan]]]
+        [
+            [[1.0, np.nan]],
+            [[2.0, np.nan]],
+            [[3.0, np.nan]],
+            [[4.0, np.nan]],
+            [[5.0, np.nan]],
+        ]
     )
 
     result = monitor.analyze(
@@ -320,10 +336,16 @@ def test_observed_velocity_cusum_is_independent_of_prediction_stack() -> None:
                 'persistence_window': 2,
                 'persistence_threshold': 0.25,
             },
-            'regime': {'smoothing_span': 2, 'medium_risk_threshold': 0.3, 'high_risk_threshold': 0.7},
+            'regime': {
+                'smoothing_span': 2,
+                'medium_risk_threshold': 0.3,
+                'high_risk_threshold': 0.7,
+            },
         },
     )
-    observed = np.array([0.0, -0.1, -0.4, -0.9, -1.6, -2.5, -3.6])[:, np.newaxis, np.newaxis]
+    observed = np.array([0.0, -0.1, -0.4, -0.9, -1.6, -2.5, -3.6])[
+        :, np.newaxis, np.newaxis
+    ]
     first = monitor.analyze(
         observed,
         np.zeros_like(observed),

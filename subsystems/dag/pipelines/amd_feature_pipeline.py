@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 
 from subsystems.dag.pipelines.amd_eda_pipeline import AMDEDAPipeline
 

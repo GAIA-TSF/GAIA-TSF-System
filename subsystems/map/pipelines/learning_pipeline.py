@@ -73,7 +73,9 @@ class LearningPipeline:
             loaded.dates, dataset_config, 'calibration', end_inclusive=False
         )
         stable_mask, calibration_selection = self._calibration_mask(
-            dataset_config, loaded, target_feature,
+            dataset_config,
+            loaded,
+            target_feature,
             spatial_calibration_window.start_index,
             spatial_calibration_window.end_index,
         )
@@ -107,9 +109,7 @@ class LearningPipeline:
                 random_seed=int(split.get('random_seed', self._random_seed())),
             )
         else:
-            raise ValueError(
-                'dataset.split.method must be one of: spatial, temporal.'
-            )
+            raise ValueError('dataset.split.method must be one of: spatial, temporal.')
         self._seed()
         model.set_random_seed(self._random_seed())
         model.set_validation_data(
@@ -217,7 +217,8 @@ class LearningPipeline:
             raise TypeError('dataset.calibration_spatial_selection must be a mapping.')
         method = str(selection.get('method', 'temporal_std'))
         supported = {
-            'temporal_std', 'configured_mask',
+            'temporal_std',
+            'configured_mask',
             'configured_mask_and_temporal_std',
         }
         if method not in supported:
@@ -279,8 +280,10 @@ class LearningPipeline:
             values = source.read(1, masked=True).filled(0)
             grid = (source.height, source.width, source.transform, source.crs)
         expected = (
-            loaded.grid.height, loaded.grid.width,
-            loaded.grid.transform, loaded.grid.crs,
+            loaded.grid.height,
+            loaded.grid.width,
+            loaded.grid.transform,
+            loaded.grid.crs,
         )
         if grid != expected:
             raise ValueError(

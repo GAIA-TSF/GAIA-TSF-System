@@ -26,7 +26,6 @@ from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.plotting import save_temporal_feature_summary_plot
 from subsystems.dag.utils.raster import RasterProfile, apply_mask
 from subsystems.dag.utils.statistics import feature_statistics
-from subsystems.dag.utils.temporal import causal_temporal_gradient, temporal_gradient
 
 LOGGER = logging.getLogger(__name__)
 
@@ -197,7 +196,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             return str(units[feature_name])
         for family, unit in units.items():
             family_name = str(family)
-            if feature_name == family_name or feature_name.startswith(f'{family_name}_'):
+            if feature_name == family_name or feature_name.startswith(
+                f'{family_name}_'
+            ):
                 return str(unit)
         return ''
 
@@ -212,18 +213,28 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             raise ValueError('temporal_features.input_features must be a list.')
 
         stacks: dict[str, np.ndarray] = {}
-        derivative_method = str(result_config.get('derivative_method', 'causal')).lower()
+        derivative_method = str(
+            result_config.get('derivative_method', 'causal')
+        ).lower()
         if derivative_method != 'causal':
-            raise ValueError('Only causal derivative_method is supported for cumulative LOS.')
+            raise ValueError(
+                'Only causal derivative_method is supported for cumulative LOS.'
+            )
         for feature_name in [str(value) for value in configured_features]:
             if feature_name in {'cumulative_los', 'displacement'}:
                 stacks['cumulative_los'] = data.astype(np.float32, copy=True)
             elif feature_name == 'displacement_increment':
-                stacks[feature_name] = SlopeFeatureExtractor.compute_displacement_increment(data)
+                stacks[feature_name] = (
+                    SlopeFeatureExtractor.compute_displacement_increment(data)
+                )
             elif feature_name == 'velocity':
-                stacks[feature_name] = SlopeFeatureExtractor.compute_velocity(data, dates)
+                stacks[feature_name] = SlopeFeatureExtractor.compute_velocity(
+                    data, dates
+                )
             elif feature_name == 'acceleration':
-                stacks[feature_name] = SlopeFeatureExtractor.compute_acceleration(data, dates)
+                stacks[feature_name] = SlopeFeatureExtractor.compute_acceleration(
+                    data, dates
+                )
             elif feature_name == 'jerk':
                 stacks[feature_name] = SlopeFeatureExtractor.compute_jerk(data, dates)
             else:
@@ -238,7 +249,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         """Calculate optional stable-area diagnostics without changing LOS by default."""
         config = static_config.get('stable_reference', {})
         if not isinstance(config, dict):
-            raise TypeError('slope_stability.static.stable_reference must be a mapping.')
+            raise TypeError(
+                'slope_stability.static.stable_reference must be a mapping.'
+            )
         filename = str(config.get('file', 'tsf_stable.tif'))
         path = self._resolve_path(f'static/{filename}')
         if not path.exists():
@@ -290,10 +303,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
                 'Current feature requested without a configured base stack: '
                 + ', '.join(missing)
             )
-        return {
-            f'{name}_{suffix}': base_stacks[name].copy()
-            for name in names
-        }
+        return {f'{name}_{suffix}': base_stacks[name].copy() for name in names}
 
     def _build_calendar_features(
         self,

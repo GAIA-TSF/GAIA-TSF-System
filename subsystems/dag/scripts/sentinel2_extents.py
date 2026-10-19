@@ -13,7 +13,8 @@ def main():
     parser.add_argument('--directory', type=Path, help='Override Sentinel-2 directory.')
     parser.add_argument('--pattern', help='Override configured filename pattern.')
     parser.add_argument(
-        '--config', type=Path,
+        '--config',
+        type=Path,
         default=Path(__file__).resolve().parents[1] / 'config.yaml',
     )
     args = parser.parse_args()
@@ -21,7 +22,9 @@ def main():
         config = yaml.safe_load(stream)
     inputs = config['amd']['inputs']['sentinel2']
     directory = args.directory or Path(config['project_dir']) / inputs['directory']
-    paths = sorted(directory.glob(args.pattern or inputs.get('filename_pattern', '*.jp2')))
+    paths = sorted(
+        directory.glob(args.pattern or inputs.get('filename_pattern', '*.jp2'))
+    )
     if not paths:
         parser.error(f'No images found in {directory}')
     groups = defaultdict(list)

@@ -90,7 +90,9 @@ def load_animation_inputs(
         raise ValueError('TSF mask contains no selected pixels.')
 
     eda = results.get('eda', {}) if isinstance(results, dict) else {}
-    unit = str(eda.get('displacement_unit', '')).strip() if isinstance(eda, dict) else ''
+    unit = (
+        str(eda.get('displacement_unit', '')).strip() if isinstance(eda, dict) else ''
+    )
     default_output = project_dir / 'results' / 'eda' / 'los_observation_period.mp4'
     return (
         apply_mask(series.data, mask),
@@ -205,7 +207,9 @@ def main() -> None:
     values, dates, profile, unit, default_output = load_animation_inputs(
         args.config.expanduser().resolve()
     )
-    output = default_output if args.output is None else args.output.expanduser().resolve()
+    output = (
+        default_output if args.output is None else args.output.expanduser().resolve()
+    )
     saved = save_los_animation(
         values,
         dates,

@@ -10,7 +10,10 @@ import numpy as np
 
 def analyse_amd_gaps(dates, series):
     """Summarise candidate-date availability for named Boolean time series."""
-    dates = tuple(date.fromisoformat(value) if isinstance(value, str) else value for value in dates)
+    dates = tuple(
+        date.fromisoformat(value) if isinstance(value, str) else value
+        for value in dates
+    )
     if not dates or any(current <= previous for previous, current in pairwise(dates)):
         raise ValueError('AMD gap dates must be nonempty and strictly chronological.')
     candidate_gaps = np.asarray([(b - a).days for a, b in pairwise(dates)], dtype=float)
@@ -32,10 +35,16 @@ def analyse_amd_gaps(dates, series):
         if valid.shape != (len(dates),):
             raise ValueError(f'AMD gap series {scope!r} does not match dates.')
         indices = np.flatnonzero(valid)
-        gaps = np.asarray([(dates[b] - dates[a]).days for a, b in pairwise(indices)], dtype=float)
+        gaps = np.asarray(
+            [(dates[b] - dates[a]).days for a, b in pairwise(indices)], dtype=float
+        )
         within_year_gaps = np.asarray(
-            [(dates[b] - dates[a]).days for a, b in pairwise(indices)
-             if dates[a].year == dates[b].year], dtype=float
+            [
+                (dates[b] - dates[a]).days
+                for a, b in pairwise(indices)
+                if dates[a].year == dates[b].year
+            ],
+            dtype=float,
         )
         missing = np.asarray([b - a - 1 for a, b in pairwise(indices)], dtype=float)
         years = {}
@@ -59,23 +68,34 @@ def analyse_amd_gaps(dates, series):
             'yearly': years,
         }
         for a, b in pairwise(indices):
-            intervals.append({
-                'scope': scope,
-                'previous_valid_date': dates[a].isoformat(),
-                'next_valid_date': dates[b].isoformat(),
-                'gap_days': (dates[b] - dates[a]).days,
-                'missing_acquisitions': b - a - 1,
-            })
+            intervals.append(
+                {
+                    'scope': scope,
+                    'previous_valid_date': dates[a].isoformat(),
+                    'next_valid_date': dates[b].isoformat(),
+                    'gap_days': (dates[b] - dates[a]).days,
+                    'missing_acquisitions': b - a - 1,
+                }
+            )
     return report, intervals
 
 
 def _stats(values):
     values = np.asarray(values, dtype=float)
     if not values.size:
-        return {'count': 0, 'min': None, 'median': None, 'mean': None,
-                'p90': None, 'max': None}
+        return {
+            'count': 0,
+            'min': None,
+            'median': None,
+            'mean': None,
+            'p90': None,
+            'max': None,
+        }
     return {
-        'count': int(values.size), 'min': float(values.min()),
-        'median': float(np.median(values)), 'mean': float(values.mean()),
-        'p90': float(np.percentile(values, 90)), 'max': float(values.max()),
+        'count': int(values.size),
+        'min': float(values.min()),
+        'median': float(np.median(values)),
+        'mean': float(values.mean()),
+        'p90': float(np.percentile(values, 90)),
+        'max': float(values.max()),
     }

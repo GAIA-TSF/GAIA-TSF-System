@@ -151,9 +151,7 @@ class SlopeFeaturePipeline(Pipeline):
                 unit=str(units.get(feature_name, '')),
                 dpi=int(plot_config.get('dpi', 200)),
                 histogram_bins=int(plot_config.get('histogram_bins', 50)),
-                robust_percentile=float(
-                    plot_config.get('robust_percentile', 98.0)
-                ),
+                robust_percentile=float(plot_config.get('robust_percentile', 98.0)),
                 sequential_cmap=str(plot_config.get('sequential_cmap', 'viridis')),
                 diverging_cmap=str(plot_config.get('diverging_cmap', 'RdBu_r')),
                 extent=extent,

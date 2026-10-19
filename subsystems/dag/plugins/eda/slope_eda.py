@@ -176,9 +176,7 @@ class SlopeEDA(Plugin):
             dpi=dpi,
             style=style if isinstance(style, str) else None,
             mean_ylim=plot_options['temporal_mean_ylim'],
-            axis_padding_fraction=float(
-                plot_options['temporal_axis_padding_fraction']
-            ),
+            axis_padding_fraction=float(plot_options['temporal_axis_padding_fraction']),
             percentile_values=percentile_values,
             percentile=percentile,
         )

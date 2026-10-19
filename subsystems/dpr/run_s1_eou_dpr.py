@@ -45,24 +45,39 @@ def load_reference_area(path, aoi):
     reference = gpd.read_file(path)
     if reference.crs is None or reference.empty:
         raise ValueError('Reference file must contain polygons and a declared CRS.')
-    if (reference.geometry.isna().any() or reference.geometry.is_empty.any()
-            or not reference.geometry.is_valid.all()
-            or not reference.geom_type.isin(['Polygon', 'MultiPolygon']).all()):
+    if (
+        reference.geometry.isna().any()
+        or reference.geometry.is_empty.any()
+        or not reference.geometry.is_valid.all()
+        or not reference.geom_type.isin(['Polygon', 'MultiPolygon']).all()
+    ):
         raise ValueError('Reference file must contain only valid nonempty polygons.')
     geometry = reference.to_crs(4326).geometry.union_all()
     if not aoi.covers(geometry):
-        raise ValueError('All stable reference polygons must be inside the processing AOI.')
+        raise ValueError(
+            'All stable reference polygons must be inside the processing AOI.'
+        )
     return geometry.wkt
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process a configured Sentinel-1 project.')
+    parser = argparse.ArgumentParser(
+        description='Process a configured Sentinel-1 project.'
+    )
     parser.add_argument('--project', default='slope_monitoring_jagersfontein')
-    parser.add_argument('--skip-download', action='store_true', help='Reuse local SLC inputs')
-    parser.add_argument('--result-dir', type=Path, help='Separate output directory for comparison runs')
-    parser.add_argument('--reference-area', type=Path, help='Stable-ground polygon file with a declared CRS')
+    parser.add_argument(
+        '--skip-download', action='store_true', help='Reuse local SLC inputs'
+    )
+    parser.add_argument(
+        '--result-dir', type=Path, help='Separate output directory for comparison runs'
+    )
+    parser.add_argument(
+        '--reference-area',
+        type=Path,
+        help='Stable-ground polygon file with a declared CRS',
+    )
     args = parser.parse_args()
-    
+
     config_path = Path(TestUtils.get_project_config_path(args.project))
     project_config = ProjectConfigReader(config_path)
     sentinel1 = project_config.get('sentinel1', {})
@@ -97,13 +112,12 @@ if __name__ == '__main__':
     pipeline.configure(
         datadir=data_dir,
         aoi=project_config.aoi(),
-        dem_path= data_dir / 'dem.nc',
-        landmask_path= data_dir / 'landmask.nc',
-        workdir= data_dir / 'workdir',
+        dem_path=data_dir / 'dem.nc',
+        landmask_path=data_dir / 'landmask.nc',
+        workdir=data_dir / 'workdir',
         result_dir=args.result_dir or data_dir / 'results',
         excluded_dates=sentinel1.get('excluded_dates') or [],
         reference_area_wkt=reference_wkt,
     )
 
     pipeline.run()
-

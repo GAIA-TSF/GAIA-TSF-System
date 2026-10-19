@@ -1,7 +1,5 @@
 """Bounded interpolation and robust date-aware smoothing for AMD EDA."""
 
-from datetime import date
-
 import numpy as np
 
 
@@ -9,7 +7,9 @@ def fill_short_gaps(values, dates, max_gap_days=30, require_same_year=True):
     """Linearly fill missing candidate dates bracketed by valid observations."""
     values = np.asarray(values, dtype=float)
     if max_gap_days < 1 or len(values) != len(dates):
-        raise ValueError('Trend values/dates must match and max_gap_days must be positive.')
+        raise ValueError(
+            'Trend values/dates must match and max_gap_days must be positive.'
+        )
     filled = values.copy()
     interpolated = np.zeros(values.shape, dtype=bool)
     gap_days = np.full(values.shape, np.nan)
@@ -17,26 +17,44 @@ def fill_short_gaps(values, dates, max_gap_days=30, require_same_year=True):
     for left, right in zip(valid, valid[1:]):
         missing = np.arange(left + 1, right)
         duration = (dates[right] - dates[left]).days
-        if (not missing.size or duration > max_gap_days
-                or (require_same_year and dates[left].year != dates[right].year)):
+        if (
+            not missing.size
+            or duration > max_gap_days
+            or (require_same_year and dates[left].year != dates[right].year)
+        ):
             continue
         elapsed = np.asarray([(dates[i] - dates[left]).days for i in missing])
-        filled[missing] = values[left] + elapsed / duration * (values[right] - values[left])
+        filled[missing] = values[left] + elapsed / duration * (
+            values[right] - values[left]
+        )
         interpolated[missing] = True
         gap_days[missing] = duration
     return filled, interpolated, gap_days
 
 
-def robust_lowess(values, dates, interpolated=None, window_days=45,
-                  robust_iterations=2, interpolated_weight=.5,
-                  process_each_year=True):
+def robust_lowess(
+    values,
+    dates,
+    interpolated=None,
+    window_days=45,
+    robust_iterations=2,
+    interpolated_weight=0.5,
+    process_each_year=True,
+):
     """Local-linear tricube smoother evaluated without extrapolation."""
     values = np.asarray(values, dtype=float)
-    if (window_days < 1 or robust_iterations < 0
-            or not 0 <= interpolated_weight <= 1 or len(values) != len(dates)):
+    if (
+        window_days < 1
+        or robust_iterations < 0
+        or not 0 <= interpolated_weight <= 1
+        or len(values) != len(dates)
+    ):
         raise ValueError('Invalid robust LOWESS parameters or mismatched dates.')
-    interpolated = (np.zeros(values.shape, dtype=bool) if interpolated is None
-                    else np.asarray(interpolated, dtype=bool))
+    interpolated = (
+        np.zeros(values.shape, dtype=bool)
+        if interpolated is None
+        else np.asarray(interpolated, dtype=bool)
+    )
     output = np.full(values.shape, np.nan)
     ordinal = np.asarray([value.toordinal() for value in dates], dtype=float)
     groups = sorted({d.year for d in dates}) if process_each_year else [None]
@@ -63,11 +81,14 @@ def robust_lowess(values, dates, interpolated=None, window_days=45,
                     continue
                 weight = (1 - (distance[local] / window_days) ** 3) ** 3
                 weight *= base[local] * robust[local]
-                design = np.column_stack((np.ones(local.sum()), x[local] - ordinal[target]))
+                design = np.column_stack(
+                    (np.ones(local.sum()), x[local] - ordinal[target])
+                )
                 if np.count_nonzero(weight) < 2:
                     continue
                 beta = np.linalg.lstsq(
-                    design * np.sqrt(weight[:, None]), y[local] * np.sqrt(weight),
+                    design * np.sqrt(weight[:, None]),
+                    y[local] * np.sqrt(weight),
                     rcond=None,
                 )[0]
                 fitted[j] = beta[0]
@@ -77,12 +98,16 @@ def robust_lowess(values, dates, interpolated=None, window_days=45,
             if np.isfinite(fitted).sum() < 2:
                 output[targets] = fitted
                 break
-            at_observations = np.interp(x, ordinal[targets][np.isfinite(fitted)],
-                                        fitted[np.isfinite(fitted)])
+            at_observations = np.interp(
+                x, ordinal[targets][np.isfinite(fitted)], fitted[np.isfinite(fitted)]
+            )
             residual = np.abs(y - at_observations)
             scale = 6 * np.median(residual)
-            robust = ((1 - np.minimum(residual / scale, 1) ** 2) ** 2
-                      if scale > 0 else np.ones_like(residual))
+            robust = (
+                (1 - np.minimum(residual / scale, 1) ** 2) ** 2
+                if scale > 0
+                else np.ones_like(residual)
+            )
     return output
 
 
@@ -94,16 +119,21 @@ def process_trend_stack(data, dates, domain, config):
     gap_days = np.full(data.shape, np.nan, dtype=np.float32)
     for row, col in zip(*np.nonzero(domain)):
         series, flags, gaps = fill_short_gaps(
-            data[:, row, col], dates, int(config.get('max_gap_days', 30)),
+            data[:, row, col],
+            dates,
+            int(config.get('max_gap_days', 30)),
             bool(config.get('require_same_year', True)),
         )
         filled[:, row, col] = series
         interpolation[:, row, col] = flags
         gap_days[:, row, col] = gaps
         smoothed[:, row, col] = robust_lowess(
-            series, dates, flags, int(config.get('window_days', 45)),
+            series,
+            dates,
+            flags,
+            int(config.get('window_days', 45)),
             int(config.get('robust_iterations', 2)),
-            float(config.get('interpolated_weight', .5)),
+            float(config.get('interpolated_weight', 0.5)),
             bool(config.get('process_each_year', True)),
         )
     return filled, smoothed, interpolation, gap_days

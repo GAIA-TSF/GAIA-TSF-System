@@ -137,7 +137,11 @@ class TemporalResidualMonitor:
         residual_mean = observed_mean - predicted_mean
         anomaly_magnitude = np.abs(residual_mean)
         time_days = self._days_from_start(dates)
-        cusum_stack = observed_stack if self.cusum_signal == 'observed_velocity' else observed_stack - prediction_stack
+        cusum_stack = (
+            observed_stack
+            if self.cusum_signal == 'observed_velocity'
+            else observed_stack - prediction_stack
+        )
         cusum_values = self._cusum_spatial_series(cusum_stack)
         (
             acceleration,
@@ -404,7 +408,9 @@ class TemporalResidualMonitor:
         directional_trend = trend * self.instability_direction
         directional_baseline = directional_trend[calibration_start:calibration_end]
         directional_baseline = directional_baseline[np.isfinite(directional_baseline)]
-        zscore = (directional_trend - float(np.mean(directional_baseline))) / baseline_std
+        zscore = (
+            directional_trend - float(np.mean(directional_baseline))
+        ) / baseline_std
         persistence = self._sign_persistence(zscore, self.persistence_window)
         acceleration_cusum, deceleration_cusum = self._cusum(
             zscore,
@@ -442,7 +448,15 @@ class TemporalResidualMonitor:
         calibration_window: tuple[int, int],
         monitoring_window: tuple[int, int],
         regions: tuple[SpatialCoherenceRegion, ...],
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ]:
         """Return local CUSUM and regime evidence from qualified regions.
 
         Each region keeps the support it had when it first passed spatial
@@ -463,11 +477,13 @@ class TemporalResidualMonitor:
             support = np.broadcast_to(region.support, observed_stack.shape)
             series = self._aggregate_masks(observed_stack, support)
             try:
-                _, positive, negative, _, _, regional_dynamics = self._calculate_cusum_signal(
-                    series,
-                    time_days,
-                    calibration_window,
-                    monitoring_window,
+                _, positive, negative, _, _, regional_dynamics = (
+                    self._calculate_cusum_signal(
+                        series,
+                        time_days,
+                        calibration_window,
+                        monitoring_window,
+                    )
                 )
                 regional_observed, regional_predicted, _ = self._shared_spatial_series(
                     np.where(support, observed_stack, np.nan),
@@ -777,9 +793,7 @@ class TemporalResidualMonitor:
                 where=valid,
             )
             centred_x = x_values[:, np.newaxis, np.newaxis] - mean_x
-            denominator = np.sum(
-                np.where(finite, np.square(centred_x), 0.0), axis=0
-            )
+            denominator = np.sum(np.where(finite, np.square(centred_x), 0.0), axis=0)
             numerator = np.sum(
                 np.where(finite, centred_x * (y_values - mean_y), 0.0), axis=0
             )
@@ -801,8 +815,10 @@ class TemporalResidualMonitor:
             if not np.isfinite(value):
                 output[index] = previous
                 continue
-            previous = value if not np.isfinite(previous) else (
-                alpha * value + (1.0 - alpha) * previous
+            previous = (
+                value
+                if not np.isfinite(previous)
+                else (alpha * value + (1.0 - alpha) * previous)
             )
             output[index] = previous
         return output

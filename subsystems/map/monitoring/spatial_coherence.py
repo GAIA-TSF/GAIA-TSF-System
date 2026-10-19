@@ -45,7 +45,9 @@ class SpatialCoherenceDetector:
         if self.connectivity not in {4, 8}:
             raise ValueError('spatial_coherence.connectivity must be 4 or 8.')
 
-    def detect(self, binary_stack: np.ndarray, mask: np.ndarray) -> SpatialCoherenceResult:
+    def detect(
+        self, binary_stack: np.ndarray, mask: np.ndarray
+    ) -> SpatialCoherenceResult:
         """Filter anomaly regions by area and inter-acquisition spatial overlap."""
         if binary_stack.ndim != 3 or binary_stack.shape[1:] != mask.shape:
             raise ValueError('Coherence input stack and TSF mask are incompatible.')

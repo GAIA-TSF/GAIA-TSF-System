@@ -8,8 +8,7 @@ from subsystems.dag.plugins.eda.amd_gaps import analyse_amd_gaps
 
 
 def test_gap_metrics_distinguish_calendar_days_and_missing_acquisitions():
-    dates = (date(2020, 12, 20), date(2020, 12, 30),
-             date(2021, 1, 9), date(2021, 2, 8))
+    dates = (date(2020, 12, 20), date(2020, 12, 30), date(2021, 1, 9), date(2021, 2, 8))
     report, intervals = analyse_amd_gaps(dates, {'point:a': [True, False, True, True]})
     result = report['series']['point:a']
     assert report['candidate_cadence_days']['median'] == 10

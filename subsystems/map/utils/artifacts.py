@@ -616,8 +616,8 @@ def write_observation_point_timeseries(
         include = np.isin(pixel_indices, pixel_indices_in_window)
         if not np.any(include):
             LOGGER.warning(
-                "Skipping configured observation point %r: no valid MAP "
-                "samples in its %dx%d pixel window.",
+                'Skipping configured observation point %r: no valid MAP '
+                'samples in its %dx%d pixel window.',
                 name,
                 window_size,
                 window_size,
@@ -633,11 +633,7 @@ def write_observation_point_timeseries(
         )
         point_series[name] = (point_times, point_observed)
         display_name = _point_display_name(name)
-        color = (
-            'tab:orange'
-            if name == 'deformation_zone'
-            else f'C{valid_series_index}'
-        )
+        color = 'tab:orange' if name == 'deformation_zone' else f'C{valid_series_index}'
         axis.scatter(
             record_times,
             record_observed,
@@ -846,7 +842,9 @@ def write_latest_residual_map(
                 window_size=1,
             )
         except (TypeError, ValueError) as exc:
-            LOGGER.warning('Skipping map marker for observation point %r: %s', name, exc)
+            LOGGER.warning(
+                'Skipping map marker for observation point %r: %s', name, exc
+            )
             continue
         coordinates = point_config['coordinates']
         x_coordinate, y_coordinate = coordinates  # validated immediately above

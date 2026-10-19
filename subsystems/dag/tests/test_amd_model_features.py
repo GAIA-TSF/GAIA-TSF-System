@@ -8,9 +8,10 @@ import pytest
 import rasterio
 import yaml
 
-from subsystems.dag.tests.test_amd_eda import scenario  # noqa: F401
 from subsystems.dag.pipelines.amd_model_feature_pipeline import (
-    AMDFeaturePipeline, AMDTemporalFeaturePipeline, AMDMeteoFeaturePipeline,
+    AMDFeaturePipeline,
+    AMDTemporalFeaturePipeline,
+    AMDMeteoFeaturePipeline,
 )
 from subsystems.dag.plugins.features.amd_temporal_features import compute_amd_temporal
 
@@ -19,8 +20,9 @@ def test_history_skips_clouds_and_crosses_years():
     data = np.array([1, np.nan, 3, 5, np.nan, 9], dtype=np.float32)[:, None, None]
     dates = tuple(date(2020, 12, 29) + timedelta(days=i) for i in range(6))
     features = compute_amd_temporal(data, dates, {'rolling_window': 3})
-    np.testing.assert_allclose(features['lag1'][:, 0, 0],
-                               [np.nan, np.nan, 1, 3, np.nan, 5], equal_nan=True)
+    np.testing.assert_allclose(
+        features['lag1'][:, 0, 0], [np.nan, np.nan, 1, 3, np.nan, 5], equal_nan=True
+    )
     assert features['lag3'][5, 0, 0] == 1
     assert features['amd_diff2'][5, 0, 0] == 6
     assert features['roll_mean'][5, 0, 0] == pytest.approx(17 / 3)
@@ -76,7 +78,9 @@ def test_coverage_threshold_and_pixel_specific_lags(scenario):
     result = AMDFeaturePipeline(path).run()
     metadata = json.loads(open(result['metadata']).read())
     assert metadata['excluded_dates'] == ['2020-01-11']
-    data = np.array([[[1, 10]], [[np.nan, 20]], [[3, np.nan]], [[5, 40]]], dtype=np.float32)
+    data = np.array(
+        [[[1, 10]], [[np.nan, 20]], [[3, np.nan]], [[5, 40]]], dtype=np.float32
+    )
     dates = tuple(date(2020, 1, 1) + timedelta(days=i * 20) for i in range(4))
     features = compute_amd_temporal(data, dates, {'rolling_window': 2})
     np.testing.assert_allclose(features['lag2'][3], [[1, 10]])
@@ -90,8 +94,9 @@ def test_weather_preserves_partial_cloud_mask_and_baseline_required(scenario):
         'inputs': {'table': {'path': 'weather.csv'}},
         'feature_engineering': {'precipitation': True},
     }
-    (path.parent / 'weather.csv').write_text('date,precipitation\n' + ''.join(
-        f'2020-01-{i:02},2\n' for i in range(1, 22)))
+    (path.parent / 'weather.csv').write_text(
+        'date,precipitation\n' + ''.join(f'2020-01-{i:02},2\n' for i in range(1, 22))
+    )
     path.write_text(yaml.safe_dump(config))
     AMDFeaturePipeline(path).run()
     result = AMDMeteoFeaturePipeline(path).run()

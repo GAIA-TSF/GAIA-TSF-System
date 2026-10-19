@@ -21,7 +21,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description='Run MAP monitoring, anomaly, coherence, and dashboard products.'
     )
-    parser.add_argument('--config', type=Path, required=True, help='Path to MAP config.yaml')
+    parser.add_argument(
+        '--config', type=Path, required=True, help='Path to MAP config.yaml'
+    )
     args = parser.parse_args()
     logging.basicConfig(
         level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s'

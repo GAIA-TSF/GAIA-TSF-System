@@ -323,14 +323,20 @@ def run_precomputed_simulation(
             )
         predicted[current] = result.predicted_mean[current]
         uncertainty[current] = (
-            np.nan if result.uncertainty_mean is None else result.uncertainty_mean[current]
+            np.nan
+            if result.uncertainty_mean is None
+            else result.uncertainty_mean[current]
         )
         velocity[current] = result.velocity[current]
         acceleration[current] = result.acceleration[current]
         acceleration_cusum[current] = result.acceleration_cusum[current]
         deceleration_cusum[current] = result.deceleration_cusum[current]
-        regional_acceleration_cusum[current] = result.regional_acceleration_cusum[current]
-        regional_deceleration_cusum[current] = result.regional_deceleration_cusum[current]
+        regional_acceleration_cusum[current] = result.regional_acceleration_cusum[
+            current
+        ]
+        regional_deceleration_cusum[current] = result.regional_deceleration_cusum[
+            current
+        ]
         regional_cusum_available[current] = result.regional_cusum_available[current]
         regional_dynamics[current] = result.regional_dynamics[current]
         probabilities[current] = result.regime_risk[current]
@@ -378,7 +384,9 @@ def run_precomputed_simulation(
         high_threshold=monitor.high_risk_threshold,
         cusum_decision_threshold=monitor.cusum_decision,
         unit=str(config.get('plotting', {}).get('deformation_unit', '')),
-        native_unit=str(config.get('plotting', {}).get('native_deformation_rate_unit', '')),
+        native_unit=str(
+            config.get('plotting', {}).get('native_deformation_rate_unit', '')
+        ),
         value_scale=float(config.get('plotting', {}).get('value_scale', 1.0)),
     )
 
@@ -453,7 +461,9 @@ def export_dashboard_json(result: SimulationResult, output: Path) -> Path:
                     result.uncertainty[index] * result.value_scale
                 ),
                 'mean_residual_rate': (
-                    None if observed is None or predicted is None else observed - predicted
+                    None
+                    if observed is None or predicted is None
+                    else observed - predicted
                 ),
                 'observed_acceleration': _json_number(
                     result.acceleration[index] * result.value_scale
@@ -654,12 +664,22 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         [], [], color='#4c78a8', label='Predicted baseline rate'
     )
     (deceleration_cusum_line,) = axes[1].plot(
-        [], [], color='#54a24b', linewidth=0.9, linestyle='--', alpha=0.75,
-        label='TSF-wide deceleration CUSUM'
+        [],
+        [],
+        color='#54a24b',
+        linewidth=0.9,
+        linestyle='--',
+        alpha=0.75,
+        label='TSF-wide deceleration CUSUM',
     )
     (acceleration_cusum_line,) = axes[1].plot(
-        [], [], color='#e45756', linewidth=0.9, linestyle='--', alpha=0.75,
-        label='TSF-wide acceleration CUSUM'
+        [],
+        [],
+        color='#e45756',
+        linewidth=0.9,
+        linestyle='--',
+        alpha=0.75,
+        label='TSF-wide acceleration CUSUM',
     )
     axes[1].axhline(
         result.cusum_decision_threshold,
@@ -669,20 +689,32 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
         label=f'Decision threshold ({result.cusum_decision_threshold:g})',
     )
     (regional_acceleration_line,) = regional_axis.plot(
-        [], [], color='darkorchid', linewidth=1.5,
+        [],
+        [],
+        color='darkorchid',
+        linewidth=1.5,
         label='Coherent-region acceleration CUSUM',
     )
     (regional_deceleration_line,) = regional_axis.plot(
-        [], [], color='teal', linewidth=1.5,
+        [],
+        [],
+        color='teal',
+        linewidth=1.5,
         label='Coherent-region deceleration CUSUM',
     )
     (regional_acceleration_period,) = axes[1].plot(
-        [], [], color='firebrick', linewidth=4.0,
+        [],
+        [],
+        color='firebrick',
+        linewidth=4.0,
         transform=axes[1].get_xaxis_transform(),
         label='Regional acceleration period',
     )
     (regional_deceleration_period,) = axes[1].plot(
-        [], [], color='seagreen', linewidth=4.0,
+        [],
+        [],
+        color='seagreen',
+        linewidth=4.0,
         transform=axes[1].get_xaxis_transform(),
         label='Regional deceleration / recovery period',
     )
@@ -708,7 +740,9 @@ def _create_figure(result: SimulationResult) -> tuple[Any, Any]:
     axes[1].legend(
         left_handles + right_handles,
         left_labels + right_labels,
-        loc='upper left', fontsize=8, ncols=2,
+        loc='upper left',
+        fontsize=8,
+        ncols=2,
     )
     axes[2].legend(loc='upper left', fontsize=8)
 
@@ -847,10 +881,7 @@ def _load_dataset_and_model(config: dict[str, Any]) -> tuple[Dataset, Any]:
     builder = DatasetBuilder()
     dataset = builder.build(loaded, names, target)
     model_name = str(config['model'])
-    model_path = (
-        experiment_model_directory(results_root, config)
-        / 'model.pkl'
-    )
+    model_path = experiment_model_directory(results_root, config) / 'model.pkl'
     if not model_path.is_file():
         raise FileNotFoundError(f'MAP model artifact not found: {model_path}')
     model = MODEL_REGISTRY[model_name].load(model_path)
