@@ -56,3 +56,22 @@ class TestParsingEngine:
 
         assert result['status'] == 'quarantine'
         assert 'No parser matched' in result['reason']
+
+    def test_MOD_004_synthetic_insar_deformation_csv(self, engine):
+        """PR #448: synthetic in-situ deformation CSV (PLATFORM/DATE/LATITUDE/
+        LONGITUDE/LOS_DEFORMATION/QC) generated from TRUE_LOS GeoTIFF time
+        series must be recognized by the slope parser and every row kept —
+        regression test for the low-confidence quarantine and the
+        dayfirst-corrupted ISO-8601 timestamp bug this dataset exposed.
+        """
+        p = TEST_DATA_DIR / 'synthetic_insar_deformation.csv'
+
+        content = p.read_bytes()
+        result = engine.route_and_parse(content, p.name)
+
+        assert result['status'] == 'success'
+        assert 'Slope' in result['parser_applied']
+        assert result['confidence'] >= engine.confidence_threshold
+        # 92 acquisition dates x 3 synthetic sensors; none should be dropped
+        # as "invalid timestamp" now that year-first ISO dates parse correctly.
+        assert result['row_count'] == 276

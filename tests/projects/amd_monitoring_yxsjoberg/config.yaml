@@ -36,8 +36,10 @@ project:
 
   meteo_data:
     source: 'meteostat'        # Python package
-    variables: ['precipitation', 'temperature'] 
+    variables: ['precipitation', 'temperature']
     temporal_resolution: 'daily'
+    data_path: 'inputs/meteodata.csv'
+    station_id: '02468'        # Stora Spansberget Spansfab, 42.7 km from AOI
 
   # IN-SITU DATA 
   in_situ:
