@@ -5,10 +5,12 @@ from pathlib import Path, PosixPath
 import numpy
 from osgeo import gdal, ogr
 from shapely import wkt
+from shapely.geometry import mapping
 from shapely.ops import transform
 from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
+from subsystems.dpr.metadata_processor import MetadataGenerator
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
@@ -21,12 +23,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         'Processing steps include:'
         '(1) Location of the metadata files, extraction of key attributes, list of .jp2 files'
         '(2) Extraction of spectral and SCL bands from the GRANULE. Bands are then cropped and resampled '
-        'using GDAL'
+        'using GDAL and SCL statistics are recalculated for the new ROI.'
         '(3) Saving output raster (separate bands or multi-band) and metadata to an output folder.',
         'params': {
             'input_safe': {
                 'dtype': PosixPath,
-                'description': 'Path to the Sentinel-2 SAFE product (can be a .zip file or an unzipped folder)',
+                'description': 'Path to the Sentinel-2 unzipped SAFE product',
             },
             'output_folder': {
                 'dtype': PosixPath,
@@ -75,10 +77,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Paths to specific files
         self.msil2a_path = None
         self.mtd_tl_path = None
+        self.raster_paths = None
 
         # Other attributes
         self.granule_list = None
         self.offset_values_list = None
+        self.assets = None
 
     def _locate_metadata_files(self):
         """Locates the required XML files within the input folder hierarchy."""
@@ -112,17 +116,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # Define tags to find directly (flat search)
         direct_tags = [
-            'PRODUCT_START_TIME',
-            'PRODUCT_STOP_TIME',
-            'PRODUCT_URI',
-            'PROCESSING_LEVEL',
             'PRODUCT_TYPE',
             'PRODUCT_DOI',
             'GENERATION_TIME',
-            'SPACECRAFT_NAME',
-            'DATATAKE_SENSING_START',
             'DATATAKE_TYPE',
-            'SENSING_ORBIT_NUMBER',
             'SENSING_ORBIT_DIRECTION',
         ]
 
@@ -130,7 +127,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         for tag in direct_tags:
             elem = root.find(f'.//{tag}')
             if elem is not None:
-                self.s2_metadata[tag] = elem.text
+                self.s2_metadata['properties']['s2:' + tag.lower()] = elem.text
 
         # Extract Granule_List
         for granule in root.findall('.//Granule'):
@@ -150,7 +147,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         if rc_elem is not None:
             for child in rc_elem:
                 ref_conv[self._get_clean_tag(child)] = child.text
-        self.s2_metadata['Reflectance_Conversion'] = ref_conv
+        self.s2_metadata['properties']['s2:reflectance_conversion_factor'] = float(
+            ref_conv['U']
+        )
 
         # Extract all physical bands and wavelengths
         wavelengths = {}
@@ -162,14 +161,13 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             if w_node is not None:
                 wavelengths[phys_band] = {
                     'bandId': band_id,
-                    'min': w_node.findtext('MIN'),
-                    'max': w_node.findtext('MAX'),
-                    'central': w_node.findtext('CENTRAL'),
+                    'min': float(w_node.findtext('MIN')),
+                    'max': float(w_node.findtext('MAX')),
+                    'central': float(w_node.findtext('CENTRAL')),
                     'unit': w_node.find('MIN').get('unit')
                     if w_node.find('MIN') is not None
                     else 'nm',
                 }
-        self.s2_metadata['Wavelengths'] = wavelengths
 
     def _extract_mtd_tl(self):
         """Extracts required fields from MTD_TL.xml (Tile Metadata)."""
@@ -184,37 +182,58 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # CS Name and Code
         cs_name = root.find('.//HORIZONTAL_CS_NAME')
         cs_code = root.find('.//HORIZONTAL_CS_CODE')
-        self.s2_metadata['HORIZONTAL_CS_NAME'] = (
+        self.s2_metadata['properties']['s2:horizontal_cs_name'] = (
             cs_name.text if cs_name is not None else None
         )
-        self.s2_metadata['HORIZONTAL_CS_CODE'] = (
+        self.s2_metadata['properties']['s2:horizontal_cs_code'] = (
             cs_code.text if cs_code is not None else None
         )
 
     def _save_json(self):
         """Save metadata to a JSON file."""
-        filename = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '.json')
+        filename = self.s2_metadata['properties']['s2:product_uri'].replace(
+            '.SAFE', '.json'
+        )
         output_path = self._config['output_folder'] / filename
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(self.s2_metadata, f, indent=4)
         self.logger.info(f'Metadata saved to: {output_path}')
 
-    def _roi_transform(self):
-        """Transform coordinates from EPSG:4326 to SAFE product coordinates.
-
-        :return roi transformed  (WKT)
+    def _roi_transform_wgs_to_utm(self):
+        """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
+        :return: roi transformed  (WKT)
         :rtype: str
         """
         # Convert WKT to Shapely geometry
         geom = wkt.loads(self._config['roi'])
 
         # Create transformer (From EPSG:4326 to target EPSG)
-        target_epsg = self.s2_metadata['HORIZONTAL_CS_CODE']
+        target_epsg = self.s2_metadata['properties']['s2:horizontal_cs_code']
         transformer = Transformer.from_crs('EPSG:4326', target_epsg, always_xy=True)
 
         # Transform the geometry
         transformed_geom = transform(transformer.transform, geom)
         return transformed_geom.wkt
+
+    def _update_metadata_bbox_geometry(self, gdal_dataset):
+        """Transform coordinates from EPSG:4326 to SAFE product UTM coordinates.
+        :return: roi transformed  (WKT)
+        :rtype: str
+        """
+        gt = gdal_dataset.GetGeoTransform()
+        width = gdal_dataset.RasterXSize
+        height = gdal_dataset.RasterYSize
+        xmin = gt[0]
+        ymax = gt[3]
+        xmax = xmin + gt[1] * width
+        ymin = ymax + gt[5] * height
+        geom = f'POLYGON (({xmin} {ymin}, {xmin} {ymax}, {xmax} {ymax}, {xmax} {ymin}, {xmin} {ymin}))'
+        geom = wkt.loads(geom)
+        target_epsg = self.s2_metadata['properties']['s2:horizontal_cs_code']
+        transformer = Transformer.from_crs(target_epsg, 'EPSG:4326', always_xy=True)
+        transformed_geom = transform(transformer.transform, geom)
+        self.s2_metadata['bbox'] = transformed_geom.bounds
+        self.s2_metadata['geometry'] = mapping(transformed_geom)
 
     def _process_scl_statistics(self, slc_array):
         """
@@ -234,42 +253,38 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         # List of SLC band labels corresponding to pixel values 0 to 11
         slc_labels = [
-            'SCL_no_data',
-            'SCL_saturated_or_defective',
-            'SCL_dark_areas',
-            'SCL_cloud_shadows',
-            'SCL_vegetation',
-            'SCL_non_vegetated',
-            'SCL_water',
-            'SCL_unclassified',
-            'SCL_cloud_medium_probability',
-            'SCL_cloud_high_probability',
-            'SCL_thin_cirrus',
-            'SCL_snow_or_ice',
+            's2:nodata_pixel_percentage',
+            's2:saturated_defective_pixel_percentage',
+            's2:dark_features_percentage',
+            's2:cloud_shadow_percentage',
+            's2:vegetation_percentage',
+            's2:not_vegetated_percentage',
+            's2:water_percentage',
+            's2:unclassified_percentage',
+            's2:medium_proba_clouds_percentage',
+            's2:high_proba_clouds_percentage',
+            's2:thin_cirrus_percentage',
+            's2:snow_ice_percentage',
         ]
 
         # Initialize a dictionary with the labels and 0s
         stats_dict = dict.fromkeys(slc_labels, 0)
 
-        # get pixel percentages (float 0.0 - 1.0) for classes appearing in the SCL band
+        # get pixel percentages (float 0.0 - 100.0) for classes appearing in the SCL band
         for k, v in zip(unique, counts):
-            stats_dict[slc_labels[k]] = round(v / npix, 4)
+            stats_dict[slc_labels[k]] = round((v / npix) * 100, 6)
+
+        # Update metadata
+        for key in slc_labels:
+            self.s2_metadata['properties'][key] = stats_dict[key]
 
         # Sum of cloud classes (key named 'cloud_cover_pct' as in QCL subsystem)
         sum_cloud_classes = (
-            stats_dict['SCL_cloud_medium_probability']
-            + stats_dict['SCL_cloud_high_probability']
-            + stats_dict['SCL_thin_cirrus']
+            stats_dict['s2:medium_proba_clouds_percentage']
+            + stats_dict['s2:high_proba_clouds_percentage']
+            + stats_dict['s2:thin_cirrus_percentage']
         )
-        cloud_cover_pct = {'cloud_cover_pct': sum_cloud_classes}
-
-        # add a no data key named 'null_pixel_pct' as in QCL subsystem
-        null_pixel_pct = {'null_pixel_pct': stats_dict['SCL_no_data']}
-
-        # Update metadata object
-        self.s2_metadata['SCL_classes_pct'] = stats_dict
-        self.s2_metadata.update(cloud_cover_pct)
-        self.s2_metadata.update(null_pixel_pct)
+        self.s2_metadata['properties']['eo:cloud_cover'] = sum_cloud_classes
 
     def _tiff_to_jp2(self):
         """
@@ -278,7 +293,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
 
         self.logger.info('Converting outputs to JP2OpenJPEG.')
 
-        for input_tiff in self.s2_metadata['source_paths']:
+        for input_tiff in self.raster_paths:
             self.logger.info(f'--- {input_tiff}')
             output_jp2 = input_tiff.replace('.tiff', '.jp2')
 
@@ -290,9 +305,15 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             src_ds = None
             os.remove(input_tiff)
 
-        self.s2_metadata['source_paths'] = [
-            path.replace('.tiff', '.jp2') for path in self.s2_metadata['source_paths']
+        self.raster_paths = [
+            path.replace('.tiff', '.jp2') for path in self.raster_paths
         ]
+
+        # update assets
+        for band_id, properties in self.assets.items():
+            # Check if the nested dictionary has an 'href' key
+            if 'href' in properties:
+                properties['href'] = properties['href'].replace('.tiff', '.jp2')
 
     def _process_and_merge_jp2(self, roi):
         """
@@ -307,27 +328,33 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             self.logger.error('GRANULE list is empty. Unable to retrieve .jp2 files.')
             return
 
-        self.logger.info('Converting .jp2 files to .tiff')
+        # Band names for output files
+        band_names = [
+            'B01',
+            'B02',
+            'B03',
+            'B04',
+            'B05',
+            'B06',
+            'B07',
+            'B08',
+            'B8A',
+            'B09',
+            'B11',
+            'B12',
+            'SCL',
+        ]
+
+        # Make an empty dictionary to store the paths to the output rasters (will be used to update the stac assets)
+        self.assets = {band: {'href': None} for band in band_names}
+
+        self.logger.info('Converting SAFE .jp2 files to .tiff')
         # Make a list of paths to the jp2 files in the GRANULE folder.
         # For each band uses the file with the smaller pixel size (i.e. 10m if available, else 20m or 60m).
         # Note: make sure that the gdal plugin gdal_JP2OpenJPEG.dll is installed.
         jp2_bands = [
             next((item for item in self.granule_list if string in item), None)
-            for string in [
-                'B01',
-                'B02',
-                'B03',
-                'B04',
-                'B05',
-                'B06',
-                'B07',
-                'B08',
-                'B8A',
-                'B09',
-                'B11',
-                'B12',
-                'SCL',
-            ]
+            for string in band_names
         ]
         jp2_paths = [
             os.path.join(self.input_folder, file + '.jp2') for file in jp2_bands
@@ -352,10 +379,12 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Make an empty list to store paths to temp VRT files
         resampled_vrt_files = []
 
-        # Resample with gdal.Warp using in-memory VRT files
+        # Get bounding box
         geom = ogr.CreateGeometryFromWkt(roi)
         xmin, xmax, ymin, ymax = geom.GetEnvelope()
         bounds = [xmin, ymin, xmax, ymax]
+
+        # Resample with gdal.Warp using in-memory VRT files
         for i, (src_file, alg) in enumerate(zip(jp2_paths, resampling_algorithms)):
             vrt_output = os.path.join(
                 self._config['output_folder'], f'temp_{i + 1}.vrt'
@@ -375,24 +404,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             gdal.Warp(vrt_output, src_file, options=warp_options)
             resampled_vrt_files.append(vrt_output)
 
-        # Band names for output files
-        band_names = [
-            'B01',
-            'B02',
-            'B03',
-            'B04',
-            'B05',
-            'B06',
-            'B07',
-            'B08',
-            'B8A',
-            'B09',
-            'B11',
-            'B12',
-            'SCL',
-        ]
-
-        base_name = self.s2_metadata['PRODUCT_URI'].replace('.SAFE', '')
+        base_name = self.s2_metadata['properties']['s2:product_uri'].replace(
+            '.SAFE', ''
+        )
         if self._config['split_bands']:
             # Save each band as a separate GeoTIFF
             self.logger.info('Saving bands as separate GeoTIFF files')
@@ -404,6 +418,8 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             scl_data = scl_ds.GetRasterBand(1)
             mask = scl_data.ReadAsArray() <= 1  # SCL values: NODATA=0 and SATURATED=1
             scl_data.FlushCache()
+            # update metadata bbox
+            self._update_metadata_bbox_geometry(scl_ds)
             del scl_ds
 
             for i, (vrt_file, band_name, offset) in enumerate(
@@ -414,9 +430,11 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                     self._config['output_folder'], output_filename
                 )
 
-                options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
+                # save filename to assets
+                self.assets[band_name]['href'] = os.path.join('./', output_filename)
 
                 # Convert VRT to GeoTIFF or JP2
+                options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
                 gdal.Translate(
                     output_path, vrt_file, format='Gtiff', creationOptions=options
                 )
@@ -443,7 +461,7 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 self.logger.info(f'Band {band_name} saved to: {output_path}')
 
             # Add paths to the metadata
-            self.s2_metadata['source_paths'] = [str(p) for p in output_paths]
+            self.raster_paths = [str(p) for p in output_paths]
 
         else:
             # merge all VRTs together (gdal.Translate won't accept a list of VRTs)
@@ -455,6 +473,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
             # Create the final geotiff
             product_name = f'{base_name}.tiff'
             output_path = os.path.join(self._config['output_folder'], product_name)
+
+            # save file name to assets dictionary
+            for band in band_names:
+                self.assets[band]['href'] = os.path.join('./', product_name)
 
             options = ['COMPRESS=DEFLATE', 'TILED=YES', 'PREDICTOR=2']
             gdal.Translate(
@@ -474,14 +496,14 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 band.FlushCache()
             # get land cover stats from SCL band
             self._process_scl_statistics(scl_band.ReadAsArray())
-            del ds
-            self.logger.info(f'Raster saved to: {output_path}')
-
+            # update metadata bbox
+            self._update_metadata_bbox_geometry(ds)
             # Add path to the metadata
-            self.s2_metadata['source_paths'] = [str(output_path)]
-
+            self.raster_paths = [str(output_path)]
             # Clean temp mosaic VRT
             gdal.Unlink(mosaic_vrt)
+            del ds
+            self.logger.info(f'Raster saved to: {output_path}')
 
         if self.driver_name == 'JP2OpenJPEG':
             self._tiff_to_jp2()
@@ -489,6 +511,50 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         # Clean temp files
         for vrt in resampled_vrt_files:
             gdal.Unlink(vrt)
+
+    def _update_stack_assets(self):
+        """Append the paths of the generated raster(s) and spectral bands as STAC assets to the metadata."""
+        self.s2_metadata['assets'] = {}
+        if self.driver_name == 'JP2OpenJPEG':
+            asset_type = 'image/jp2'
+        else:
+            asset_type = 'image/tiff'
+
+        if self._config['split_bands']:
+            for band_name, properties in self.assets.items():
+                # SCL is categorized with a classification role instead of standard spectral data
+                roles = (
+                    ['data', 'classification']
+                    if band_name == 'SCL'
+                    else ['data', 'reflectance']
+                )
+
+                asset_entry = {
+                    'href': properties['href'].replace('\\', '/'),
+                    'type': asset_type,
+                    'roles': roles,
+                }
+
+                self.s2_metadata['assets'][band_name] = asset_entry
+
+        else:
+            # Construct the multiband asset
+            self.s2_metadata['assets']['data'] = {
+                'href': self.assets['B01']['href'].replace('\\', '/'),
+                'type': asset_type,
+                'roles': ['data', 'reflectance'],
+            }
+
+        # Add SCL band to stac bands
+        self.s2_metadata['eo:bands'].append(
+            {'name': 'SCL', 'common_name': 'Scene classification map (SCL)', 'gsd': 10}
+        )
+
+        # update the stac bands with the spatial resolution of the cropped raster(s)
+        for bnd in range(len(self.s2_metadata['eo:bands'])):
+            self.s2_metadata['eo:bands'][bnd]['gsd'] = int(
+                numpy.abs(self._config['target_res'][0])
+            )
 
     def _run(self):
         self._configure()
@@ -531,17 +597,20 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
                 f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
             )
 
-        # check if input safe is a folder or a zip. Unzip to a temporary folder if necessary.
         self.input_folder = self._config['input_safe']
 
+        self.logger.info(f'Processing folder: {self.input_folder}')
+        mdgen = MetadataGenerator()
+        mdgen.set_datasource(self.input_folder)
+        self.s2_metadata = mdgen.stac.create_item()
+
         # Proceed with the conversion of the SAFE to Geotiff
-        self.logger.info(f'Scanning folder: {self.input_folder}')
         if self._locate_metadata_files():
-            self.s2_metadata['Input_SAFE_path'] = str(self._config['input_safe'])
             self._extract_mtd_msil2a()
             self._extract_mtd_tl()
-            roi = self._roi_transform()
+            roi = self._roi_transform_wgs_to_utm()
             self._process_and_merge_jp2(roi)
+            self._update_stack_assets()
             self._save_json()
         else:
             self.logger.error(

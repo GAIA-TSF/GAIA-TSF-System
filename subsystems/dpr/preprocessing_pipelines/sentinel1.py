@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import time
 from pathlib import Path, PosixPath
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -307,7 +308,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         ).persist()
 
         # Trigger computation to catch SNAPHU execution errors immediately
-        _ = float(self.unwrap.phase.isel(pair=0).mean().compute())
+        self.unwrap = self.unwrap.compute()
 
     def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
         """Remove long-wavelength ramps from the unwrapped phase in radar geometry.
@@ -923,6 +924,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             'threads_per_worker': glob_config['dask_parameters']['threads_per_worker'],
             'memory_limit': glob_config['dask_parameters']['memory_limit'],
         }
+        self.logger.debug(f'Dask parameters: {dask_kwargs}')
+
+        start = time.time()
 
         self._download_orbits(self._config['datadir'])
         self._download_dem(self._config['aoi'], self._config['dem_path'])
@@ -945,3 +949,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self._compute_risk_database(self._config['result_dir'])
         self._export_displacements(self._config['result_dir'])
         self._cleanup(self._config['workdir'])
+
+        elapsed_minutes = (time.time() - start) / 60
+        self.logger.info(f'Computation completed in {elapsed_minutes:.2f} minutes.')

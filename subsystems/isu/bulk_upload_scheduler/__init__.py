@@ -178,9 +178,9 @@ class BulkUploadScheduler(GaiaBase):
                 return []
             return fetch_from_s3(
                 bucket=self.config.get('s3_bucket'),
+                logger=self.logger,
                 prefix=self.config.get('s3_prefix', ''),
                 region_name=self.config.get('s3_region'),
-                logger=self.logger,
             )
 
         if self.source_type == 'ftp':
@@ -188,20 +188,20 @@ class BulkUploadScheduler(GaiaBase):
                 host=self.config.get('ftp_host'),
                 user=self.config.get('ftp_user'),
                 password=self.config.get('ftp_password'),
+                logger=self.logger,
                 remote_dir=self.config.get('ftp_remote_dir', '/'),
                 port=self.config.get('ftp_port', 21),
-                logger=self.logger,
             )
 
         if self.source_type == 'sftp':
             return fetch_from_sftp(
                 host=self.config.get('sftp_host'),
                 user=self.config.get('sftp_user'),
+                logger=self.logger,
                 password=self.config.get('sftp_password'),
                 key_path=self.config.get('sftp_key_path'),
                 remote_dir=self.config.get('sftp_remote_dir', '.'),
                 port=self.config.get('sftp_port', 22),
-                logger=self.logger,
             )
 
         self.logger.error(

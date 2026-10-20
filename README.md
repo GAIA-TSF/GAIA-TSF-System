@@ -114,5 +114,5 @@ The example can be executed as follows:
 
 ```sh
 cd docker/
-docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m examples.eou_download_sentinel2
+docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m examples.eou_sentinel2_download
 ```

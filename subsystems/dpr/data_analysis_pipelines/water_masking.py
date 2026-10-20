@@ -47,11 +47,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 'default': 'jp2',
             },
             'max_cloud_snow_dark': {
-                'dtype': float,
+                'dtype': int,
                 'description': 'Parameter used to filter scenes based on the maximum percentage of pixels containing '
-                'clouds/snow/shadows. Ratio between 0 and 1. Scenes with a ratio above this value will '
+                'clouds/snow/shadows. Value between 0 and 100. Scenes with a ratio above this value will '
                 'be filtered out',
-                'default': 0.2,
+                'default': 20,
             },
             'threshold_parameters': {
                 'dtype': dict,
@@ -150,6 +150,62 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         self.scenes_metadata = None
         self.scenes_metadata_filtered = None
 
+    def _list_stac_assets(self, stac_data: str):
+        """
+        Parses a STAC Item for raster assets and return their filenames and count.
+        :param stac_data: Opened STAC JSON file.
+        """
+        # Check that the item is not a collection
+        # Normalize data structure into a list of items
+        stac_type = stac_data.get('type')
+        if stac_type == 'Feature':  # single STAC Item
+            items = [stac_data]
+        elif 'assets' in stac_data:  # Collection with assets directly attached
+            items = [stac_data]
+        else:
+            print(f'Provided JSON does not directly contain STAC assets: {stac_data}')
+            return [], 0
+
+        # Common raster identifiers based on STAC specifications
+        raster_types = {
+            'image/tiff',
+            'image/vnd.stac.geotiff',
+            'image/jp2',
+            'image/jpeg',
+            'image/png',
+        }
+        raster_roles = {'data', 'visual', 'overview', 'reflectance', 'classification'}
+
+        asset_count = 0
+        asset_paths = []
+        # Iterate through items and extract assets
+        for item in items:
+            assets = item.get('assets', {})
+            if not assets:
+                continue
+
+            for asset_key, asset_info in assets.items():
+                href = asset_info.get('href')
+                if not href:
+                    continue
+
+                media_type = asset_info.get('type', '')
+                roles = asset_info.get('roles', [])
+
+                # Determine if the asset is a raster layer
+                is_raster = (media_type in raster_types) or any(
+                    role in raster_roles for role in roles
+                )
+
+                # Extract the filename
+                if is_raster:
+                    clean_url = href.split('?')[0]
+                    filename = os.path.basename(clean_url)
+                    asset_paths.append(filename)
+                    asset_count += 1
+
+        return asset_paths, asset_count
+
     def _parse_metadata(self):
         """
         Retrieve metadata from json files and store them to a dictionary ('scenes_metadata'). Also perform a filtering
@@ -175,21 +231,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 data = json.load(f)
 
             # locate raster associated to metadata
-            if isinstance(data.get('source_paths'), str):
-                source_path = Path(data.get('source_paths'))
-            elif isinstance(data.get('source_paths'), list):
-                if len(data.get('source_paths')) > 1:
-                    raise ValueError(
-                        f'Error parsing metadata. The input must be a single multi_band raster. The metadata contains'
-                        f'paths for {len(data.get("source_paths"))} separate files.'
-                    )
-                else:
-                    source_path = Path(data.get('source_paths')[0])
-            else:
+            asset_paths, asset_count = self._list_stac_assets(data)
+            if asset_count != 1:
                 raise ValueError(
-                    'Error parsing raster path from metadata. The "source_paths" key is neither a string '
-                    'or a list.'
+                    f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
+                    f'{asset_count} rasters.'
                 )
+
+            source_path = Path(
+                os.path.join(self._config['input_folder'], asset_paths[0])
+            )
+
             if source_path.exists():
                 raster_path = source_path
             elif json_path.with_suffix('.jp2').exists():
@@ -198,18 +250,17 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 raster_path = json_path.with_suffix('.tiff')
             else:
                 raise FileNotFoundError(
-                    f'Could not locate the raster associated with {json_path}'
+                    f'Could not locate the raster associated with {source_path}'
                 )
 
-            scl_stats = data.get('SCL_classes_pct', {})
             record = {
-                'DATATAKE_SENSING_START': data.get('DATATAKE_SENSING_START'),
+                'datetime': data['properties']['datetime'],
                 'source_path': raster_path,
                 'metadata_path': json_path,
-                'SCL_snow_or_ice': scl_stats.get('SCL_snow_or_ice', 0),
-                'cloud_cover_pct': data.get('cloud_cover_pct', 0),
-                'SCL_cloud_shadows': scl_stats.get('SCL_cloud_shadows', 0),
-                'SCL_dark_areas': scl_stats.get('SCL_dark_areas', 0),
+                'SCL_snow_or_ice': data['properties']['s2:snow_ice_percentage'],
+                'cloud_cover_pct': data['properties']['eo:cloud_cover'],
+                'SCL_cloud_shadows': data['properties']['s2:cloud_shadow_percentage'],
+                'SCL_dark_areas': data['properties']['s2:dark_features_percentage'],
             }
             records.append(record)
 
@@ -225,12 +276,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 df = self.scenes_metadata.copy()
 
                 # Convert column to datetime if not already
-                if not pd.api.types.is_datetime64_any_dtype(
-                    df['DATATAKE_SENSING_START']
-                ):
-                    df['DATATAKE_SENSING_START'] = pd.to_datetime(
-                        df['DATATAKE_SENSING_START']
-                    )
+                if not pd.api.types.is_datetime64_any_dtype(df['datetime']):
+                    df['datetime'] = pd.to_datetime(df['datetime'])
 
                 # Apply start date filter
                 if self._config['start_date'] is not None:
@@ -240,7 +287,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         ).tz_localize('UTC')
                     else:
                         start_dt = pd.to_datetime(self._config['start_date'])
-                    df = df[df['DATATAKE_SENSING_START'] >= start_dt]
+                    df = df[df['datetime'] >= start_dt]
                     self.logger.info(f'--- Applied start date filter: {start_dt}')
 
                 # Apply end date filter
@@ -251,7 +298,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                         )
                     else:
                         end_dt = pd.to_datetime(self._config['end_date'])
-                    df = df[df['DATATAKE_SENSING_START'] <= end_dt]
+                    df = df[df['datetime'] <= end_dt]
                     self.logger.info(f'--- Applied end date filter: {end_dt}')
 
                 # Update the filtered metadata attribute
@@ -273,11 +320,11 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 < self._config['max_cloud_snow_dark']
             ].copy()
 
-            self.scenes_metadata_filtered['DATATAKE_SENSING_START'] = pd.to_datetime(
-                self.scenes_metadata_filtered['DATATAKE_SENSING_START']
+            self.scenes_metadata_filtered['datetime'] = pd.to_datetime(
+                self.scenes_metadata_filtered['datetime']
             )
             self.scenes_metadata_filtered = self.scenes_metadata_filtered.sort_values(
-                'DATATAKE_SENSING_START'
+                'datetime'
             ).reset_index(drop=True)
 
             self.logger.info(
@@ -541,8 +588,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         # Filter by months if requested
         if self._config['input_months']:
-            # Ensure DATATAKE_SENSING_START is datetime (already handled in _parse_metadata, but being safe)
-            df['month'] = df['DATATAKE_SENSING_START'].dt.month
+            # Ensure datetime is datetime (already handled in _parse_metadata, but being safe)
+            df['month'] = df['datetime'].dt.month
             df = df[df['month'].isin(self._config['input_months'])]
             self.logger.info(
                 f'Filtered {len(df)} scenes matching months: {self._config["input_months"]}'
@@ -641,7 +688,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         if self._config['input_months']:
             self.logger.info(f'Month filter = {self._config["input_months"]}')
             self.scenes_metadata_filtered['month'] = self.scenes_metadata_filtered[
-                'DATATAKE_SENSING_START'
+                'datetime'
             ].dt.month
             indices = self.scenes_metadata_filtered['month'].isin(
                 self._config['input_months']
@@ -748,11 +795,21 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f:
                         metadata = json.load(f)
+                    # Add water mask band to assets
+                    new_band = {
+                        'name': 'watermask',
+                        'common_name': 'labeled water bodies',
+                    }
+                    bands = metadata['eo:bands']
+                    bands.append(new_band)
+                    metadata['eo:bands'] = bands
+                    # Add water mask surface in %
                     rows, cols = gdal_dataset.RasterYSize, gdal_dataset.RasterXSize
-                    metadata['water_mask_pct'] = round(
-                        np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols), 4
+                    metadata['properties']['eo:water_mask_percentage'] = round(
+                        (np.nansum((refined_mask > 0).astype('uint8')) / (rows * cols))
+                        * 100,
+                        4,
                     )
-                    metadata['source_paths'] = [out_path]
                     _, file_extension = os.path.splitext(out_path)
                     with open(out_path.replace(file_extension, '.json'), 'w') as f:
                         json.dump(metadata, f, indent=4)
