@@ -5,6 +5,7 @@ from shapely.geometry import box
 from shapely.ops import unary_union
 
 from lib.base import GaiaBase, SubsystemId
+from lib.exceptions import GaiaDataError
 
 
 class AssetChecker(GaiaBase):
@@ -70,10 +71,10 @@ class AssetChecker(GaiaBase):
         :param aoi: Shapely geometry of the AOI in WGS84 (EPSG:4326); if None coverage check is skipped (10 pts)
         :param verbose: Print a conformance report to stdout
         :return: {'conformance': int, 'result': dict}
-        :raises ValueError: If key_variable is not a recognised task type
+        :raises GaiaDataError: If key_variable is not a recognised task type
         """
         if key_variable not in self._task_required_types:
-            raise ValueError(
+            raise GaiaDataError(
                 f"Unknown key_variable '{key_variable}'. "
                 f'Supported: {list(self._task_required_types)}'
             )

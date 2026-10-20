@@ -10,6 +10,7 @@ from scipy.ndimage import label
 from shapely.geometry import box as sbox
 
 from .base import DataAnalysisBasePipeline
+from lib.exceptions import GaiaDataError
 
 
 class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
@@ -221,7 +222,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         except Exception as e:
             self.logger.error(f'Error parsing {self._config["input_folder"]}: {e}')
         if len(json_files) == 0:
-            raise FileNotFoundError(f'Error parsing {self._config["input_folder"]}')
+            raise GaiaDataError(f'Error parsing {self._config["input_folder"]}')
 
         self.logger.info(f'--- The input folder contains {len(json_files)} entries.')
 
@@ -233,7 +234,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             # locate raster associated to metadata
             asset_paths, asset_count = self._list_stac_assets(data)
             if asset_count != 1:
-                raise ValueError(
+                raise GaiaDataError(
                     f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
                     f'{asset_count} rasters.'
                 )
@@ -249,7 +250,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             elif json_path.with_suffix('.tiff').exists():
                 raster_path = json_path.with_suffix('.tiff')
             else:
-                raise FileNotFoundError(
+                raise GaiaDataError(
                     f'Could not locate the raster associated with {source_path}'
                 )
 
@@ -341,7 +342,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
 
         raster_path = os.path.abspath(self.scenes_metadata_filtered['source_path'][0])
         if os.path.exists(raster_path) is False:
-            raise FileNotFoundError(
+            raise GaiaDataError(
                 f'Retrieval of EPSG and geotransform failed: '
                 f'{raster_path} either cannot be accessed or does not exists.'
             )
@@ -364,7 +365,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.bounds = (min_x, min_y, max_x, max_y)
             ds = None
         else:
-            raise OSError(
+            raise GaiaDataError(
                 f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}'
             )
 
@@ -780,9 +781,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 if os.path.exists(out_path) is False:
-                    raise FileNotFoundError(
-                        f'Could not create output raster {out_name}'
-                    )
+                    raise GaiaDataError(f'Could not create output raster {out_name}')
 
                 if self.driver_name == 'JP2OpenJPEG':
                     self._tiff_to_jp2(out_path)
@@ -850,7 +849,7 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         elif format_lower in ['jp2', 'jpeg2000', 'jpeg 2000']:
             self.driver_name = 'JP2OpenJPEG'
         else:
-            raise ValueError(
+            raise GaiaDataError(
                 f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
             )
 

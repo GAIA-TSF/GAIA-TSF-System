@@ -33,6 +33,8 @@ try:
 except ImportError:
     mqtt = None
 
+from lib.exceptions import GaiaDataError
+
 
 class BaseStreamHandler(ABC):
     """
@@ -73,7 +75,9 @@ class BaseStreamHandler(ABC):
         try:
             # 1. Structural Validation (Fast Fail)
             if not isinstance(payload, dict):
-                raise TypeError(f'Payload must be a dictionary, got {type(payload)}')
+                raise GaiaDataError(
+                    f'Payload must be a dictionary, got {type(payload)}'
+                )
 
             # 2. DataFrame Conversion
             df = pd.DataFrame([payload])

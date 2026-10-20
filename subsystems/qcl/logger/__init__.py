@@ -34,10 +34,6 @@ class Logger:
 
         :return: Configured instance of ``logging.Logger``.
         :rtype: logging.Logger
-
-        :raises Exception:
-            May raise exceptions depending on logging handler initialization
-            (e.g. database connection errors).
         """
         base_logger = logging.getLogger(name)
 

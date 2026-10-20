@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 from abc import ABC, abstractmethod
 
 from lib.base import GaiaBase, SubsystemId
+from lib.exceptions import GaiaConfigError
 
 
 class BasePipeline(ABC, GaiaBase):
@@ -32,7 +33,7 @@ class BasePipeline(ABC, GaiaBase):
     def _check_config(self):
         """Check pipeline configuration based on metadata['params']
 
-        Raise RuntimeError on failure
+        Raise GaiaConfigError on failure
         """
         self.logger.debug(
             f'Checking pipeline parameters: {self.metadata.get("params", "undefined")}'
@@ -42,10 +43,10 @@ class BasePipeline(ABC, GaiaBase):
             or self.metadata['params'] is None
             or len(self.metadata['params'].keys()) < 1
         ):
-            raise RuntimeError('Pipeline has no paramaters defined')
+            raise GaiaConfigError('Pipeline has no paramaters defined')
 
         if self._config is None:
-            raise RuntimeError('Pipeline is not configured. Call configure() method')
+            raise GaiaConfigError('Pipeline is not configured. Call configure() method')
 
         for k, v in self.metadata['params'].items():
             if self._config.get(k, None) is None:
@@ -53,9 +54,9 @@ class BasePipeline(ABC, GaiaBase):
                     self._config[k] = v['default']
                 else:
                     if v.get('required', True) is True:
-                        raise RuntimeError(f"Parameter '{k}' not defined")
+                        raise GaiaConfigError(f"Parameter '{k}' not defined")
             if self._config[k] is not None and type(self._config[k]) is not v['dtype']:
-                raise RuntimeError(
+                raise GaiaConfigError(
                     f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})"
                 )
 

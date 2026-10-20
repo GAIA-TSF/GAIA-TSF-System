@@ -11,14 +11,9 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy_utils import database_exists, create_database
 
 from lib.base import SubsystemId
+from lib.exceptions import GaiaConfigError
 
 Base = declarative_base()
-
-
-class DbConnectionError(Exception):
-    """DB connection error."""
-
-    pass
 
 
 class DbRecord(Base):
@@ -122,7 +117,7 @@ class DbLogger(logging.Handler):
             Base.metadata.create_all(Base.metadata.bind)
         except OperationalError as e:
             self._close_all()
-            raise DbConnectionError('{}'.format(e))
+            raise GaiaConfigError('{}'.format(e))
 
     def emit(self, record: logging.LogRecord):
         """Format the record and store in DB log tables.
