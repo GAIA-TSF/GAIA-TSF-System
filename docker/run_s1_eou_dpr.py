@@ -32,13 +32,13 @@ project_config = ProjectConfigReader(
 if __name__ == '__main__':
 
     # download input data
-    data_dir = project_config.data_dir() / 'sentinel1'
+    data_dir = project_config.data_dir() / 'sentinel1_pre_failure'
     
     dag_module = DataAcquisitionGateway(backend='asf')
     results = dag_module.backend.search(
         geom=project_config.aoi(),
         start='2016-01-01',
-        end='2026-10-15',
+        end='2026-02-19',
         direction='A', 
     )
     dag_module.backend.download_all(results, target_dir=data_dir) 
