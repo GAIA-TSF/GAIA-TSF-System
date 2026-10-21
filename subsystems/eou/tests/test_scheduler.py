@@ -1,12 +1,11 @@
 import shutil
 import time
 import pytest
-from pathlib import Path
 
 from lib.scheduler import Scheduler
 from subsystems.eou.bulk_upload_scheduler import BulkUploadScheduler
 from tests.utils import TestUtils
-from lib.config import SettingsReader, ProjectConfigReader
+from lib.config import ProjectConfigReader
 
 
 @pytest.fixture(scope='module')
