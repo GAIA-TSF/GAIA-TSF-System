@@ -2,7 +2,10 @@ import time
 import signal
 import sys
 from eodag import setup_logging
-setup_logging(verbose=0)  # Otherwise the eodag progressbar is spamming the logging output
+
+setup_logging(
+    verbose=0
+)  # Otherwise the eodag progressbar is spamming the logging output
 # import os
 
 from subsystems.eou.bulk_upload_scheduler import BulkUploadScheduler
