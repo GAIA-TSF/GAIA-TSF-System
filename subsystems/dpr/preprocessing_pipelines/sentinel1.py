@@ -504,13 +504,18 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
             )
 
-        self.logger.info('Unwrapping phases.')
-        self.unwrap = self.sbas.unwrap_snaphu(
-            intf_u.where(valid), corr_mask, conncomp=True
-        ).persist()
-
-        # Trigger computation to catch SNAPHU execution errors immediately
-        self.unwrap = self.unwrap.compute()
+        # pygmtsar wraps one delayed task per pair whose closure holds the whole
+        # stack; on dask.distributed every task pickles it and re-submits nested
+        # graphs, stalling the worker for thousands of pairs. Load the inputs
+        # once and run SNAPHU (an external process) on a local thread pool sized
+        # to the cluster's total threads (n_workers * threads_per_worker), which
+        # sit idle meanwhile.
+        phase_in, corr_in = dask.compute(intf_u.where(valid), corr_mask)
+        client = getattr(self, 'client', None)
+        n_threads = sum(client.nthreads().values()) if client is not None else os.cpu_count()
+        self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs, {n_threads} threads).')
+        with dask.config.set(scheduler='threads', num_workers=n_threads):
+            self.unwrap = self.sbas.unwrap_snaphu(phase_in, corr_in, conncomp=True).compute()
         self.unwrap['phase'] = self.unwrap.phase.where(valid)
         if self._checkpoints is not None:
             unwrapped = self.unwrap.rename({'phase': 'unwrapped_phase', 'conncomp': 'snaphu_component'})
