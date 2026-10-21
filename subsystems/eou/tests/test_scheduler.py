@@ -6,7 +6,7 @@ from pathlib import Path
 from lib.scheduler import Scheduler
 from subsystems.eou.bulk_upload_scheduler import BulkUploadScheduler
 from tests.utils import TestUtils
-from lib.config import SettingsReader
+from lib.config import SettingsReader, ProjectConfigReader
 
 
 @pytest.fixture(scope='module')
@@ -62,7 +62,7 @@ class TestBulkUploadScheduler:
             item['target_dir'] = f'test_scheduler_dir_{index}'
 
         # Resolve download destination from backend root data directory
-        data_dir = Path(SettingsReader()['storage']['data_dir']).resolve()
+        data_dir = ProjectConfigReader(project_config_path).data_dir()
         download_dirs = [
             data_dir / item.target_dir for item in scheduler.project_config.eou
         ]
