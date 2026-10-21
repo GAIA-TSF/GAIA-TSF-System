@@ -1,16 +1,13 @@
-from pathlib import Path
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
 from subsystems.dpr.preprocessing_pipelines import PreprocessingPipelines
-from lib.config import ProjectConfigReader, SettingsReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
 
 project_config = ProjectConfigReader(
     TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
 )
 
-base_dir = Path(SettingsReader()['storage']['data_dir']).resolve()
-data_dir = base_dir / 'sentinel1'
+data_dir = project_config.data_dir() / 'sentinel1'
 
 if __name__ == '__main__':
     # download input data
