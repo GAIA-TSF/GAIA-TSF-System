@@ -179,6 +179,33 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if self.client is None:
             self.client = Client(**kwargs)
 
+    def _local_threads(self):
+        """Dask config context running computations on a local thread pool.
+
+        PyGMTSAR's stack-wide operations (unwrap_snaphu, ra2ll) build one
+        delayed task per slice whose closure holds the whole input stack; on
+        dask.distributed every task pickles it and re-submits nested graphs,
+        stalling the worker for thousands of slices. Inputs must already be in
+        memory. The pool is sized to the cluster's total threads
+        (n_workers * threads_per_worker), which sit idle meanwhile.
+
+        :return: dask.config.set context manager
+        """
+        client = getattr(self, 'client', None)
+        n_threads = sum(client.nthreads().values()) if client is not None else os.cpu_count()
+        self.logger.debug(f'Running on local thread pool ({n_threads} threads).')
+        return dask.config.set(scheduler='threads', num_workers=n_threads)
+
+    def _ra2ll(self, data):
+        """Geocode radar-coordinate data to an in-memory lat/lon grid.
+
+        :param xarray.DataArray data: Data in radar coordinates.
+        :return: xarray.DataArray in geographic coordinates
+        """
+        data = data.compute()
+        with self._local_threads():
+            return self.sbas.ra2ll(data).compute()
+
     def _stack_scenes(self, datadir, workdir):
         """Stack Sentinel-1 scenes together.
 
@@ -504,17 +531,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
             )
 
-        # pygmtsar wraps one delayed task per pair whose closure holds the whole
-        # stack; on dask.distributed every task pickles it and re-submits nested
-        # graphs, stalling the worker for thousands of pairs. Load the inputs
-        # once and run SNAPHU (an external process) on a local thread pool sized
-        # to the cluster's total threads (n_workers * threads_per_worker), which
-        # sit idle meanwhile.
+        # Load the inputs once; SNAPHU is an external process (see _local_threads).
         phase_in, corr_in = dask.compute(intf_u.where(valid), corr_mask)
-        client = getattr(self, 'client', None)
-        n_threads = sum(client.nthreads().values()) if client is not None else os.cpu_count()
-        self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs, {n_threads} threads).')
-        with dask.config.set(scheduler='threads', num_workers=n_threads):
+        self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs).')
+        with self._local_threads():
             self.unwrap = self.sbas.unwrap_snaphu(phase_in, corr_in, conncomp=True).compute()
         self.unwrap['phase'] = self.unwrap.phase.where(valid)
         if self._checkpoints is not None:
@@ -646,8 +666,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
         self.logger.info('Computing displacements.')
-        self.disp_ll = self.sbas.cropna(self.sbas.ra2ll(disp_ra)).persist()
-        self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
+        self.disp_ll = self.sbas.cropna(self._ra2ll(disp_ra))
+        self.vel_ll = self.sbas.cropna(self._ra2ll(vel_ra))
         self.disp_ll.attrs.update(units='mm', spatial_reference='stable_area' if
                                  (self._config or {}).get('reference_area_wkt') else 'unreferenced')
         self.disp_ll.attrs['temporal_reference_utc'] = str(pd.to_datetime(self.disp_ll.date.values[0]))
@@ -666,16 +686,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             / weight_sum.where(weight_sum > 0)
         ).persist()
         self.quality_ll = {
-            'pair_rmse_mm': self.sbas.ra2ll(self.rmse),
-            'mean_coherence': self.sbas.ra2ll(self.corr.mean('pair')),
-            'valid_pair_fraction': self.sbas.ra2ll(np.isfinite(phase_ra).mean('pair')),
+            'pair_rmse_mm': self._ra2ll(self.rmse),
+            'mean_coherence': self._ra2ll(self.corr.mean('pair')),
+            'valid_pair_fraction': self._ra2ll(np.isfinite(phase_ra).mean('pair')),
         }
         # Retain pair-level evidence rather than only temporal summaries.
         valid_pair = np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)
         self.pair_products_ll = {
-            'coherence': self.sbas.ra2ll(corr_ra).persist(),
-            'valid_coverage': self.sbas.ra2ll(valid_pair.astype(float)).persist(),
-            'pair_residuals': self.sbas.ra2ll(residual).persist(),
+            'coherence': self._ra2ll(corr_ra),
+            'valid_coverage': self._ra2ll(valid_pair.astype(float)),
+            'pair_residuals': self._ra2ll(residual),
         }
         if self._diagnostics is not None:
             self._diagnostics.displacement(self.disp_ll)
