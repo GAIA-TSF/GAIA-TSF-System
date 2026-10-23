@@ -101,7 +101,7 @@ def test_meteo_pipeline_reads_daily_csv_input(tmp_path):
     _write_raster(project / 'static' / 'mask.tif', 1.0)
     _write_raster(project / 'inputs' / 'insar' / 'los_20250102.tif', 0.0)
     input_path = project / 'inputs' / 'meteodata.csv'
-    input_path.parent.mkdir(parents=True)
+    input_path.parent.mkdir(parents=True, exist_ok=True)
     input_path.write_text(
         'date,precipitation,temperature_mean,temperature_min,temperature_max\n'
         '20250101,1.0,-1.0,-3.0,1.0\n'

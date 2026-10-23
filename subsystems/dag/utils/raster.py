@@ -61,6 +61,49 @@ def apply_mask(data: np.ndarray, mask: np.ndarray) -> np.ndarray:
     return np.where(mask_bool[np.newaxis, :, :], data, np.nan)
 
 
+def load_tsf_mask(
+    mask_path: Path,
+    expected_shape: tuple[int, int],
+    profile: RasterProfile,
+) -> np.ndarray:
+    """Load a TSF mask that shares the LOS raster grid.
+
+    Args:
+        mask_path: Single-band mask raster; nonzero pixels are selected.
+        expected_shape: LOS raster shape ``(rows, cols)``.
+        profile: LOS raster profile the mask grid must match.
+
+    Returns:
+        Boolean mask in which zero, nodata, and non-finite pixels are
+        unselected.
+
+    Raises:
+        FileNotFoundError: If the mask does not exist.
+        ValueError: If the mask shape or grid differs from the LOS rasters, or
+            if the mask selects no pixels.
+    """
+    if not mask_path.exists():
+        raise FileNotFoundError(f'TSF mask does not exist: {mask_path}')
+    with rasterio.open(mask_path) as dataset:
+        values = dataset.read(1)
+        nodata = dataset.nodata
+        grid = (dataset.crs, dataset.transform, dataset.width, dataset.height)
+
+    if values.shape != expected_shape:
+        raise ValueError(
+            'TSF mask dimensions do not match LOS raster dimensions: '
+            f'{values.shape} != {expected_shape}',
+        )
+    if grid != (profile.crs, profile.transform, profile.width, profile.height):
+        raise ValueError('TSF mask grid does not match the LOS raster grid.')
+    mask = np.isfinite(values) & (values != 0)
+    if nodata is not None and np.isfinite(nodata):
+        mask &= values != nodata
+    if not np.any(mask):
+        raise ValueError('TSF mask does not contain any selected pixels.')
+    return mask
+
+
 def temporal_mean(data: np.ndarray) -> np.ndarray:
     """Compute pixel-wise temporal mean."""
     counts = np.sum(np.isfinite(data), axis=0)

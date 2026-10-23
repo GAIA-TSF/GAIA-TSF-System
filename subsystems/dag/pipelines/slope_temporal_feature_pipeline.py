@@ -24,7 +24,7 @@ from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.dag.utils.plotting import save_temporal_feature_summary_plot
-from subsystems.dag.utils.raster import RasterProfile, apply_mask
+from subsystems.dag.utils.raster import RasterProfile, apply_mask, load_tsf_mask
 from subsystems.dag.utils.statistics import feature_statistics
 
 LOGGER = logging.getLogger(__name__)
@@ -67,6 +67,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         mask = self._load_mask(
             self._resolve_path(static_config['tsf_mask']),
             series.data.shape[1:],
+            series.profile,
         )
         masked_data = apply_mask(series.data, mask)
         stable_diagnostics, masked_data = self._stable_reference(
@@ -440,24 +441,13 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             raise KeyError('Missing required project_dir in config.yaml.')
         return Path(project_dir).expanduser().resolve()
 
+    @staticmethod
     def _load_mask(
-        self,
         mask_path: Path,
         expected_shape: tuple[int, int],
+        profile: RasterProfile,
     ) -> np.ndarray:
-        if not mask_path.exists():
-            raise FileNotFoundError(f'TSF mask does not exist: {mask_path}')
-        with rasterio.open(mask_path) as dataset:
-            mask = dataset.read(1)
-
-        if mask.shape != expected_shape:
-            raise ValueError(
-                'TSF mask dimensions do not match LOS raster dimensions: '
-                f'{mask.shape} != {expected_shape}',
-            )
-        if not np.any(mask.astype(bool)):
-            raise ValueError('TSF mask does not contain any selected pixels.')
-        return mask
+        return load_tsf_mask(mask_path, expected_shape, profile)
 
     def _build_metadata(
         self,

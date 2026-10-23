@@ -226,10 +226,16 @@ class AMDEDAPipeline(Pipeline):
         for item in sorted(dated, key=lambda value: (value[0], value[1].name)):
             if item[0] in unique:
                 quality.setdefault('duplicate_acquisitions', {}).setdefault(
-                    item[0].isoformat(), []
+                    item[0].isoformat(), [str(unique[item[0]][1])]
                 ).append(str(item[1]))
             else:
                 unique[item[0]] = item
+        # Same-date scenes (e.g. S2A and S2B) must be selected upstream.
+        for acquired, images in quality.get('duplicate_acquisitions', {}).items():
+            quality['errors'].append(
+                f'duplicate acquisition date {acquired}: '
+                + ', '.join(Path(image).name for image in images)
+            )
         dated = list(unique.values())
         _csv(eda_dir / 'inventory.csv', inventory)
         try:

@@ -48,7 +48,7 @@ def test_sentinel1_loader_sorts_by_acquisition_date(tmp_path):
 
 
 def test_sentinel1_loader_rejects_invalid_filename(tmp_path):
-    _write_raster(tmp_path / 'los_20180101.tif', np.ones((2, 2)))
+    _write_raster(tmp_path / 'los_2018-01-01.tif', np.ones((2, 2)))
 
     with pytest.raises(ValueError, match='Invalid LOS filename'):
         Sentinel1LOSLoader().load(tmp_path, '*.tif')
@@ -141,6 +141,7 @@ def test_slope_feature_extractor_computes_enabled_features():
             'jerk': True,
             'net_displacement': True,
         },
+        summary_window=(dates[0], dates[-1]),
     )
 
     assert np.array_equal(features['cumulative_los'][:, 0, 0], data[:, 0, 0])

@@ -28,7 +28,8 @@ def test_zscore_produces_zero_mean_and_unit_standard_deviation():
         {'feature': np.array([1.0, 2.0, 3.0, 4.0])},
         {'enabled': True, 'method': 'zscore'},
     )['feature']
-    assert np.isclose(np.mean(result), 0.0)
+    # Output is float32, so the mean is zero only to float32 precision.
+    assert np.isclose(np.mean(result), 0.0, atol=1e-6)
     assert np.isclose(np.std(result), 1.0)
 
 

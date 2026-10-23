@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import rasterio
 import yaml
 
 import subsystems.dag.plugins  # noqa: F401
@@ -15,7 +14,12 @@ from subsystems.dag.core.interfaces import Pipeline
 from subsystems.dag.core.registry import PLUGIN_REGISTRY
 from subsystems.dag.plugins.eda.slope_eda import SlopeEDA, SlopeEDAResult
 from subsystems.dag.plugins.ingestion.sentinel1_loader import Sentinel1LOSLoader
-from subsystems.dag.utils.raster import apply_mask, write_single_band_raster
+from subsystems.dag.utils.raster import (
+    RasterProfile,
+    apply_mask,
+    load_tsf_mask,
+    write_single_band_raster,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +48,7 @@ class SlopeEDAPipeline(Pipeline):
 
         LOGGER.info('Starting slope EDA pipeline.')
         series = self.loader.load(los_dir, filename_pattern)
-        mask = self._load_mask(mask_path, series.data.shape[1:])
+        mask = self._load_mask(mask_path, series.data.shape[1:], series.profile)
         masked_data = apply_mask(series.data, mask)
 
         result = self.eda.run(
@@ -106,24 +110,13 @@ class SlopeEDAPipeline(Pipeline):
             raise KeyError('Missing required project_dir in config.yaml.')
         return Path(project_dir).expanduser().resolve()
 
+    @staticmethod
     def _load_mask(
-        self,
         mask_path: Path,
         expected_shape: tuple[int, int],
+        profile: RasterProfile,
     ) -> np.ndarray:
-        if not mask_path.exists():
-            raise FileNotFoundError(f'TSF mask does not exist: {mask_path}')
-        with rasterio.open(mask_path) as dataset:
-            mask = dataset.read(1)
-
-        if mask.shape != expected_shape:
-            raise ValueError(
-                'TSF mask dimensions do not match LOS raster dimensions: '
-                f'{mask.shape} != {expected_shape}',
-            )
-        if not np.any(mask.astype(bool)):
-            raise ValueError('TSF mask does not contain any selected pixels.')
-        return mask
+        return load_tsf_mask(mask_path, expected_shape, profile)
 
     def _write_map_outputs(
         self,

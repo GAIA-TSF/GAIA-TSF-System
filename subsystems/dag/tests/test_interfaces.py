@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import rasterio
 import yaml
 from rasterio.transform import from_origin
@@ -120,16 +121,19 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
                 'project_dir': str(project_dir),
                 'slope_stability': {
                     'feature_engineering': {
-                        'cumulative_displacement': True,
-                        'velocity': True,
-                        'acceleration': True,
-                        'jerk': True,
+                        # Causal stacks (velocity, ...) belong to the temporal
+                        # pipeline; this one writes windowed 2-D summaries only.
+                        'summary_window': {
+                            'start_date': '2018-01-01',
+                            'end_date': '2018-01-31',
+                        },
                         'minimum': True,
                         'maximum': True,
                         'mean': True,
                         'standard_deviation': True,
                         'variance': True,
                         'range': True,
+                        'net_displacement': True,
                         'trend': True,
                         'temporal_variance': True,
                     },
@@ -154,20 +158,8 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
                                 'histogram_bins': 4,
                             },
                             'filenames': {
-                                'cumulative_displacement': (
-                                    'cumulative_displacement.tif'
-                                ),
-                                'velocity': 'velocity.tif',
-                                'acceleration': 'acceleration.tif',
-                                'jerk': 'jerk.tif',
-                                'minimum': 'minimum.tif',
-                                'maximum': 'maximum.tif',
-                                'mean': 'mean.tif',
-                                'standard_deviation': 'std.tif',
-                                'variance': 'variance.tif',
-                                'range': 'range.tif',
-                                'trend': 'trend.tif',
-                                'temporal_variance': 'temporal_variance.tif',
+                                'temporal_summary_mean': 'mean.tif',
+                                'temporal_summary_linear_trend': 'trend.tif',
                             },
                         },
                     },
@@ -180,15 +172,20 @@ def test_slope_feature_pipeline_writes_feature_rasters_and_metadata(tmp_path):
     result = SlopeFeaturePipeline(config_path).run()
 
     assert result['pipeline'] == 'slope_features'
-    assert (output_dir / 'velocity.tif').exists()
-    assert (output_dir / 'cumulative_displacement.tif').exists()
+    assert (output_dir / 'trend.tif').exists()
+    assert (output_dir / 'mean.tif').exists()
+    assert (output_dir / 'net_displacement.tif').exists()
     assert (output_dir / 'metadata.json').exists()
-    assert (output_dir / 'plots' / 'velocity.png').exists()
+    assert (output_dir / 'plots' / 'temporal_summary_linear_trend.png').exists()
 
     metadata = json.loads((output_dir / 'metadata.json').read_text())
-    assert 'velocity' in metadata['feature_names']
-    assert metadata['statistics']['velocity']['mean'] == 1.0
-    assert 'velocity' in metadata['plot_files']
+    assert 'velocity' not in metadata['feature_names']
+    assert 'temporal_summary_linear_trend' in metadata['feature_names']
+    statistics = metadata['statistics']
+    assert statistics['temporal_summary_linear_trend']['mean'] == pytest.approx(1.0)
+    assert statistics['temporal_summary_mean']['mean'] == pytest.approx(15.0)
+    assert statistics['net_displacement']['mean'] == pytest.approx(30.0)
+    assert 'temporal_summary_linear_trend' in metadata['plot_files']
 
 
 def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
@@ -244,10 +241,8 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
                                 'enabled': True,
                                 'orders': [1, 2],
                             },
-                            'difference': {
-                                'enabled': True,
-                                'orders': [1],
-                            },
+                            # Differences are only valid for cumulative_los.
+                            'difference': {'enabled': False},
                             'rolling_mean': {
                                 'enabled': True,
                                 'window': 3,
@@ -281,7 +276,6 @@ def test_slope_temporal_feature_pipeline_writes_rasters_and_metadata(tmp_path):
     assert result['pipeline'] == 'slope_temporal_features'
     assert (output_dir / 'velocity_lag1.tif').exists()
     assert (output_dir / 'velocity_current.tif').exists()
-    assert (output_dir / 'velocity_diff1.tif').exists()
     assert (output_dir / 'velocity_roll_mean.tif').exists()
     assert (output_dir / 'velocity_roll_std.tif').exists()
     assert (output_dir / 'annual_sin.tif').exists()
