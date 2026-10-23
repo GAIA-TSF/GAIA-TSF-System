@@ -1,0 +1,61 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "tsf_los_20180101",
+    "bbox": [
+        14.999999999999982,
+        60.427298521164744,
+        15.01816805791119,
+        60.43627595649972
+    ],
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    14.999999999999982,
+                    60.427298521164744
+                ],
+                [
+                    14.999999999999982,
+                    60.43627595649972
+                ],
+                [
+                    15.01816805791119,
+                    60.43627595649972
+                ],
+                [
+                    15.01816805791119,
+                    60.427298521164744
+                ],
+                [
+                    14.999999999999982,
+                    60.427298521164744
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "datetime": "2018-01-01T00:00:00Z",
+        "platform": "synthetic-tsf",
+        "constellation": "synthetic",
+        "instruments": [
+            "simulation"
+        ],
+        "processing:level": "L2",
+        "proj:epsg": 32633,
+        "simulation:type": "los",
+        "simulation:failure_stage": "stable",
+        "simulation:unit": "m"
+    },
+    "assets": {
+        "data": {
+            "href": "./tsf_los_20180101.tif",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "data"
+            ]
+        }
+    },
+    "collection": "gaia-tsf-synthetic"
+}
