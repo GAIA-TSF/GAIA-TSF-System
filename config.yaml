@@ -10,6 +10,9 @@ eou:
     auth:
       credentials:
         <<: *cred
+  bulk_import:
+    scan_interval_seconds: 3600
+    lookback_days: 3
 sdi:
   db: &sdi_db
     host: 'postgis'
