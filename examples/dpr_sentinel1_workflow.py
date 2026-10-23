@@ -30,6 +30,8 @@ if __name__ == '__main__':
         landmask_path=data_dir / 'landmask.nc',
         workdir=data_dir / 'workdir',
         result_dir=data_dir / 'results',
+        crs=int(project_config.crs),
+        reference=project_config.masks.tsf_mask,
     )
 
     pipeline.run()
