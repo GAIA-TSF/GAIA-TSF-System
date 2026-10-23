@@ -89,6 +89,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'default': [80, 100, 120, 150, 180],
                 'description': 'Possible values for maximum perpendicular baseline (m)',
             },
+            'max_bridge_meters': {
+                'dtype': float,
+                'default': 400.0,
+                'description': 'Maximum perpendicular baseline (m) of a pair added to connect a disconnected SBAS network',
+            },
+            'max_dropped_dates_fraction': {
+                'dtype': float,
+                'default': 0.1,
+                'description': 'Maximum fraction of dates that may be dropped when the SBAS network cannot be bridged',
+            },
             'workdir': {
                 'dtype': PosixPath,
                 'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
@@ -395,47 +405,136 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     else self.sbas.baseline_pairs(days=days, meters=meters)
                 )
 
-                # Connectivity check
-                adj = defaultdict(set)
-                for a, b in pairs_df.iloc[:, :2].astype(str).values:
-                    adj[a].add(b)
-                    adj[b].add(a)
-
-                seen, components = set(), 0
-                for node in all_dates:
-                    if node not in seen:
-                        components += 1
-                        stack = [node]
-                        while stack:
-                            curr = stack.pop()
-                            if curr not in seen:
-                                seen.add(curr)
-                                stack.extend(adj[curr] - seen)
-
                 results.append(
                     {
                         'days': days,
                         'meters': meters,
                         'n_pairs': len(pairs_df),
-                        'n_comp': components,
+                        'n_comp': len(self._network_components(all_dates, pairs_df)),
                         'df': pairs_df,
                     }
                 )
 
+        candidates = [{k: v for k, v in r.items() if k != 'df'} for r in results]
         valid = [r for r in results if r['n_comp'] == 1]
-        if not valid:
-            if self._diagnostics is not None:
-                self._diagnostics.network(None, [{k: v for k, v in r.items() if k != 'df'} for r in results])
-            raise RuntimeError('No connected network found. Try increasing thresholds.')
+        if valid:
+            best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
+            self.baseline_pairs = best_config['df']
+            repair = None
+        else:
+            # Repair the least fragmented candidate instead of loosening the
+            # thresholds for the whole network because of a few outlier dates.
+            best_config = min(results, key=lambda x: (x['n_comp'], x['n_pairs'], x['days'], x['meters']))
+            all_pairs = (self.sbas.sbas_pairs() if hasattr(self.sbas, 'sbas_pairs')
+                         else self.sbas.baseline_pairs(days=None))
+            try:
+                self.baseline_pairs, repair = self._repair_network(
+                    all_dates, best_config['df'], all_pairs,
+                    max(basedays), max(basemeters),
+                    float(self._config.get('max_bridge_meters', 400.0)),
+                    float(self._config.get('max_dropped_dates_fraction', 0.1)),
+                )
+            except RuntimeError:
+                if self._diagnostics is not None:
+                    self._diagnostics.network(None, candidates)
+                raise
+            repair.update(days=best_config['days'], meters=best_config['meters'])
+            if repair['bridges']:
+                self.logger.warning(
+                    f"SBAS network disconnected at all thresholds; added {len(repair['bridges'])} bridge "
+                    f"pairs to the {best_config['days']} d / {best_config['meters']} m network: {repair['bridges']}")
+            if repair['dropped_dates']:
+                self.logger.warning(
+                    f"Dropped {len(repair['dropped_dates'])} dates not connectable within "
+                    f"{self._config.get('max_bridge_meters', 400.0)} m: {repair['dropped_dates']}")
 
-        best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
-        self.baseline_pairs = best_config['df']
         if self._checkpoints is not None:
-            self._checkpoints.network(self.baseline_pairs,
-                                      [{k: v for k, v in r.items() if k != 'df'} for r in results])
+            if repair is not None:
+                self._checkpoints.manifest['network_repair'] = repair
+            self._checkpoints.network(self.baseline_pairs, candidates)
         if self._diagnostics is not None:
-            self._diagnostics.network(self.baseline_pairs,
-                                      [{k: v for k, v in r.items() if k != 'df'} for r in results])
+            if repair is not None:
+                self._diagnostics.summary['network_repair'] = repair
+            self._diagnostics.network(self.baseline_pairs, candidates)
+
+    @staticmethod
+    def _network_components(dates, pairs):
+        """Return connected components (sets of normalized dates) of the pair graph."""
+        nodes = pd.to_datetime(pd.Index(dates)).normalize()
+        adj = defaultdict(set)
+        for a, b in zip(pd.to_datetime(pairs['ref']).dt.normalize(), pd.to_datetime(pairs['rep']).dt.normalize()):
+            adj[a].add(b)
+            adj[b].add(a)
+        seen, components = set(), []
+        for node in nodes:
+            if node in seen:
+                continue
+            component, stack = set(), [node]
+            while stack:
+                curr = stack.pop()
+                if curr not in component:
+                    component.add(curr)
+                    stack.extend(adj[curr] - component)
+            seen |= component
+            components.append(component)
+        return components
+
+    @classmethod
+    def _repair_network(cls, dates, pairs, all_pairs, max_days, max_meters,
+                        max_bridge_meters, max_dropped_fraction):
+        """Connect a fragmented SBAS network by adding the cheapest bridging pairs.
+
+        Components are joined greedily (Kruskal) by the cheapest pair between them, where the cost
+        is the temporal and perpendicular baseline normalised by the largest thresholds. Components
+        that cannot be bridged within max_bridge_meters are dropped, keeping the largest one.
+
+        :return: (pairs, report) with bridges and dropped dates listed in the report.
+        """
+        components = cls._network_components(dates, pairs)
+        owner = {date: i for i, component in enumerate(components) for date in component}
+        candidates = all_pairs.assign(
+            _ref=pd.to_datetime(all_pairs['ref']).dt.normalize(),
+            _rep=pd.to_datetime(all_pairs['rep']).dt.normalize(),
+        )
+        candidates = candidates[candidates['baseline'].abs() <= max_bridge_meters]
+        candidates = candidates.assign(
+            _cost=candidates['duration'] / max_days + candidates['baseline'].abs() / max_meters
+        ).sort_values('_cost')
+
+        bridges = []
+        for index, row in candidates.iterrows():
+            a, b = owner.get(row['_ref']), owner.get(row['_rep'])
+            if a is None or b is None or a == b:
+                continue
+            for date, comp in owner.items():
+                if comp == b:
+                    owner[date] = a
+            bridges.append(index)
+        if bridges:
+            pairs = pd.concat([pairs, all_pairs.loc[bridges]]).sort_values(['ref', 'rep']).reset_index(drop=True)
+
+        groups = defaultdict(set)
+        for date, comp in owner.items():
+            groups[comp].add(date)
+        dropped = []
+        if len(groups) > 1:
+            keep = max(groups.values(), key=len)
+            dropped = sorted(date for date in owner if date not in keep)
+            if len(dropped) > max_dropped_fraction * len(owner):
+                raise RuntimeError(
+                    f'No connected SBAS network: {len(dropped)} of {len(owner)} dates cannot be bridged within '
+                    f'{max_bridge_meters} m (limit {max_dropped_fraction:.0%}). '
+                    'Increase max_bridge_meters or exclude the dates.')
+            ref = pd.to_datetime(pairs['ref']).dt.normalize()
+            rep = pd.to_datetime(pairs['rep']).dt.normalize()
+            pairs = pairs[ref.isin(keep) & rep.isin(keep)].reset_index(drop=True)
+
+        report = {
+            'bridges': [{'pair': all_pairs.at[i, 'pair'], 'duration': int(all_pairs.at[i, 'duration']),
+                         'baseline': float(all_pairs.at[i, 'baseline'])} for i in bridges],
+            'dropped_dates': [date.strftime('%Y-%m-%d') for date in dropped],
+        }
+        return pairs, report
 
     def _compute_interferograms(
         self,
