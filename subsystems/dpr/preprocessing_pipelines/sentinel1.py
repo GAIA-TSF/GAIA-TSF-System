@@ -235,6 +235,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 return all(any(part.endswith('.SAFE') for part in Path(path).parts) for path in paths)
             s1 = s1.loc[s1.datapath.map(original_source)].copy()
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
+        s1 = self._filter_incomplete_dates(s1)
         self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = self.sbas.set_scenes(s1)
 
@@ -307,6 +308,31 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         filtered = scenes.loc[~mask].copy()
         if filtered.empty:
             raise ValueError('No Sentinel-1 scenes remain after applying excluded_dates')
+        return filtered
+
+    def _filter_incomplete_dates(self, scenes):
+        """Exclude dates with fewer bursts per subswath than the most complete date.
+
+        A date missing a burst only partially covers an AOI spanning a burst
+        boundary, which leaves too few tie points for alignment (fitoffset).
+        """
+        dates = pd.to_datetime(scenes.index).normalize()
+        # bursts are identified by start time; generated duplicates share it
+        burst = scenes['datetime'] if 'datetime' in scenes else scenes['datapath']
+        subswath = scenes['subswath'].to_numpy() if 'subswath' in scenes else 0
+        counts = (pd.DataFrame({'date': dates.to_numpy(), 'subswath': subswath, 'burst': burst.to_numpy()})
+                  .groupby(['date', 'subswath'])['burst'].nunique()
+                  .unstack(fill_value=0))
+        expected = counts.max()
+        incomplete = counts.index[(counts < expected).any(axis=1)]
+        if len(incomplete):
+            removed = [date.strftime('%Y-%m-%d') for date in incomplete]
+            self.logger.warning(
+                f'Excluding {len(removed)} dates with incomplete burst coverage '
+                f'(expected bursts per subswath: {expected.to_dict()}): {removed}')
+        filtered = scenes.loc[~dates.isin(incomplete)].copy()
+        if len(filtered.index.unique()) < 2:
+            raise ValueError('At least two acquisition dates with complete burst coverage are required.')
         return filtered
 
     def _reframe_scenes(self, aoi):

@@ -61,6 +61,29 @@ def test_single_date_fails_even_with_multiple_bursts():
         p._filter_processing_dates(pd.DataFrame(index=['2018-02-25', '2018-02-25']))
 
 
+def test_dates_with_missing_bursts_are_excluded():
+    p = Sentinel1Pipeline(); p._configure()
+    scenes = pd.DataFrame({
+        'datetime': ['2026-03-04 18:26:05', '2026-03-04 18:26:08', '2026-03-04 18:26:05',
+                     '2026-04-15 18:27:07',
+                     '2026-04-21 18:26:07', '2026-04-21 18:26:10'],
+        'subswath': [2, 2, 2, 2, 2, 2],
+        'datapath': list('abcdef')},
+        index=pd.Index(['2026-03-04', '2026-03-04', '2026-03-04', '2026-04-15', '2026-04-21', '2026-04-21'],
+                       name='date'))
+    kept = p._filter_incomplete_dates(scenes)
+    # the duplicate 'c' shares a start time with 'a' and does not count as an extra burst
+    assert kept.datapath.tolist() == list('abcef')
+
+
+def test_too_few_complete_dates_fail():
+    p = Sentinel1Pipeline(); p._configure()
+    scenes = pd.DataFrame({'datetime': ['t1', 't2', 't3'], 'subswath': [2, 2, 2]},
+                          index=['2026-03-04', '2026-03-04', '2026-04-15'])
+    with pytest.raises(ValueError, match='complete burst coverage'):
+        p._filter_incomplete_dates(scenes)
+
+
 def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
     from subsystems.dpr.preprocessing_pipelines import sentinel1
     p = Sentinel1Pipeline(); p._configure()
