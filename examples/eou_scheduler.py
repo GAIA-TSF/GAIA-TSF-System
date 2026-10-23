@@ -18,7 +18,7 @@ def main():
     # os.environ['GAIA_PROJECT_PATH'] = str(project_path)  # If running locally to prevent logging KeyError (import os)
 
     # Instantiate the scheduler
-    scheduler = BulkUploadScheduler(project_path=str(project_path))
+    scheduler = BulkUploadScheduler(project_path=project_path)
 
     # (Optional) Override settings programmatically if needed for testing/runs:
     # scheduler.scheduler.interval = 120  # Default value 3600 seconds
