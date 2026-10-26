@@ -42,7 +42,8 @@ def test_non_epoch_project_and_explicit_full():
 
 
 def test_local_filter_inclusive_dates_keeps_all_bursts():
-    p = Sentinel1Pipeline(); p._configure()
+    p = Sentinel1Pipeline()
+    p._configure()
     scenes = pd.DataFrame({'datapath': list('abcdef')},
                           index=['2018-02-13', '2018-02-25', '2018-02-25', '2018-03-09', '2018-03-21', '2018-04-02'])
     p._config = {'processing_start': '2015-01-01', 'processing_end': '2018-02-25'}
@@ -55,14 +56,16 @@ def test_local_filter_inclusive_dates_keeps_all_bursts():
 
 
 def test_single_date_fails_even_with_multiple_bursts():
-    p = Sentinel1Pipeline(); p._configure()
+    p = Sentinel1Pipeline()
+    p._configure()
     p._config = {'processing_start': '2018-02-25', 'processing_end': '2018-02-25'}
     with pytest.raises(ValueError, match='two acquisition'):
         p._filter_processing_dates(pd.DataFrame(index=['2018-02-25', '2018-02-25']))
 
 
 def test_dates_with_missing_bursts_are_excluded():
-    p = Sentinel1Pipeline(); p._configure()
+    p = Sentinel1Pipeline()
+    p._configure()
     scenes = pd.DataFrame({
         'datetime': ['2026-03-04 18:26:05', '2026-03-04 18:26:08', '2026-03-04 18:26:05',
                      '2026-04-15 18:27:07',
@@ -77,7 +80,8 @@ def test_dates_with_missing_bursts_are_excluded():
 
 
 def test_too_few_complete_dates_fail():
-    p = Sentinel1Pipeline(); p._configure()
+    p = Sentinel1Pipeline()
+    p._configure()
     scenes = pd.DataFrame({'datetime': ['t1', 't2', 't3'], 'subswath': [2, 2, 2]},
                           index=['2026-03-04', '2026-03-04', '2026-04-15'])
     with pytest.raises(ValueError, match='complete burst coverage'):
@@ -86,14 +90,16 @@ def test_too_few_complete_dates_fail():
 
 def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
     from subsystems.dpr.preprocessing_pipelines import sentinel1
-    p = Sentinel1Pipeline(); p._configure()
+    p = Sentinel1Pipeline()
+    p._configure()
     p._config = {'source_safe_only': True, 'excluded_dates': [],
                  'processing_start': '2018-03-21', 'processing_end': '2018-12-31'}
     scenes = pd.DataFrame({'datapath': ['/data/a.SAFE/a.tiff', '/data/b.SAFE/b.tiff',
                                        '/data/workdir/a.tiff', '/data/c.SAFE/c.tiff']},
                           index=['2018-03-21', '2018-04-02', '2018-03-21', '2018-02-25'])
     monkeypatch.setattr(p, '_scan_original_slcs', lambda path: scenes)
-    stack = Mock(); stack.set_scenes.return_value = stack
+    stack = Mock()
+    stack.set_scenes.return_value = stack
     monkeypatch.setattr(sentinel1, 'Stack', lambda *a, **kw: stack)
     p._stack_scenes(tmp_path / 'inputs', tmp_path / 'work')
     selected = stack.set_scenes.call_args.args[0]

@@ -1413,7 +1413,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
     def _reproject_raster(self, output_dir: Path, reference_path, target_crs):
         self.logger.info('Reprojecting raster outputs.')
-        NODATA = -9999.0
+        nodata = -9999.0
         input_dirs = [
             output_dir / 'los_cumulative',
             output_dir / 'los_incremental',
@@ -1485,7 +1485,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
                     destination = np.full(
                         (height, width),
-                        NODATA,
+                        nodata,
                         dtype=np.float32,
                     )
 
@@ -1497,7 +1497,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                         src_nodata=np.nan,
                         dst_transform=transform,
                         dst_crs=target_crs,
-                        dst_nodata=NODATA,
+                        dst_nodata=nodata,
                         resampling=Resampling.bilinear,
                     )
 
@@ -1511,7 +1511,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                             height=height,
                             crs=target_crs,
                             transform=transform,
-                            nodata=NODATA,
+                            nodata=nodata,
                             compress='deflate',
                     ) as dst:
                         dst.write(destination, 1)

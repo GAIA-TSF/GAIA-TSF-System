@@ -116,13 +116,20 @@ def plots(report, output):
         ax.annotate(d, (date.fromisoformat(d), lookup[d]['baseline_m']), xytext=(4, 8), textcoords='offset points')
     ax.set(xlabel='Acquisition date (UTC)', ylabel='Perpendicular baseline relative to reference (m)',
            title=f"SBAS: {report['component_count']} components, {report['pair_count']} pairs")
-    ax.legend(fontsize=8); ax.grid(alpha=.2); fig.autofmt_xdate(); fig.tight_layout()
-    fig.savefig(output / 'sbas_network.png', dpi=180); plt.close(fig)
+    ax.legend(fontsize=8)
+    ax.grid(alpha=.2)
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    fig.savefig(output / 'sbas_network.png', dpi=180)
+    plt.close(fig)
     fig, ax = plt.subplots(figsize=(13, 4))
     ax.plot([date.fromisoformat(r['date']) for r in rows], [r['degree'] for r in rows], '.-')
     ax.set(xlabel='Acquisition date (UTC)', ylabel='Number of incident pairs', title='Acquisition connectivity (zero = isolated)')
-    ax.grid(alpha=.2); fig.autofmt_xdate(); fig.tight_layout()
-    fig.savefig(output / 'acquisition_degree.png', dpi=180); plt.close(fig)
+    ax.grid(alpha=.2)
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    fig.savefig(output / 'acquisition_degree.png', dpi=180)
+    plt.close(fig)
 
 
 def main(argv=None):
@@ -158,10 +165,13 @@ def main(argv=None):
     output.mkdir(parents=True, exist_ok=True)
     (output / 'network_report.json').write_text(json.dumps(report, indent=2, allow_nan=False))
     with (output / 'baselines.csv').open('w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=['date', 'baseline_m']); writer.writeheader(); writer.writerows(rows)
+        writer = csv.DictWriter(f, fieldnames=['date', 'baseline_m'])
+        writer.writeheader()
+        writer.writerows(rows)
     plots(report, output)
     if 'exclusion_trial' in report:
-        trial_dir = output / 'exclusion_trial'; trial_dir.mkdir(exist_ok=True)
+        trial_dir = output / 'exclusion_trial'
+        trial_dir.mkdir(exist_ok=True)
         plots(report['exclusion_trial'], trial_dir)
     print(f"{len(rows)} acquisitions; {report['component_count']} components; isolated: {report['isolated_dates']}")
     print(f'Report: {output / "network_report.json"}')
