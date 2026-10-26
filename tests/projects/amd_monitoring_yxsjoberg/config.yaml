@@ -10,10 +10,10 @@ project:
   risk_indicator: 'amd_index' # derived indicator (e.g. B4/B2 ratio)
 
   # SPATIAL DATA
-  aoi: './static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
+  aoi: 'static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
 
   masks:
-    tsf_mask: './static/aoi.tif'            # Tailings Storage Facility mask (must-have)
+    tsf_mask: null            # Tailings Storage Facility mask (must-have)
     tsf_water: null           # Tailings Storage Facility water mask (optional)
     stable_reference: null    # clean/stable area mask (baseline reference)
 
