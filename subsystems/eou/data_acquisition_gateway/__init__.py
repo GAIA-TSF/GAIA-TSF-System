@@ -30,7 +30,9 @@ class DataAcquisitionGateway(GaiaBase):
                 ASFDataAcquisitionBackend as DataAcquisitionBackend,
             )
         else:
-            raise GaiaConfigError(f'Unsupported data acquisition backend: {backend}')
+            raise GaiaConfigError(
+                f'Unsupported data acquisition backend: {backend}', self.logger
+            )
 
         self.backend = DataAcquisitionBackend(
             data_dir=Path(self.settings['storage']['data_dir']), logger=self.logger

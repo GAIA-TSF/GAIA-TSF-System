@@ -36,7 +36,7 @@ class BaseParser(ABC):
             except (UnicodeDecodeError, pd.errors.ParserError) as e:
                 last_err = e
         raise GaiaDataError(
-            f'Could not decode CSV with any supported encoding: {last_err}'
+            f'Could not decode CSV with any supported encoding: {last_err}', self.logger
         )
 
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -195,7 +195,7 @@ class BaseParser(ABC):
             return df
 
         except (KeyError, ValueError) as e:
-            self.logger.error(f'Timestamp standardization failed: {str(e)}')
             raise GaiaDataError(
-                f"Failed to standardize timestamp column '{target_col}': {str(e)}"
+                f"Failed to standardize timestamp column '{target_col}': {str(e)}",
+                self.logger,
             )

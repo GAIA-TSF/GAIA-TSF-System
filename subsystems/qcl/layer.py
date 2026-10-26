@@ -308,8 +308,7 @@ class QcCatalog:
         if data_type in self._controllers:
             return self._controllers[data_type].validate(data, metadata, dataset_id)
 
-        self._logger.error(f'No QC Controller found for {data_type}')
-        raise GaiaConfigError(f'No QC Controller found for {data_type}')
+        raise GaiaConfigError(f'No QC Controller found for {data_type}', self._logger)
 
 
 class QualityControlLoggingLayer(GaiaBase):

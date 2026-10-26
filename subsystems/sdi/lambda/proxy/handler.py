@@ -6,7 +6,7 @@ import json
 from subsystems.qcl.logger import Logger
 from lib.base import SubsystemId
 from lib.config import SettingsReader
-from lib.exceptions import GaiaSdiEError
+from lib.exceptions import GaiaSdiError
 
 
 LOCALSTACK = os.getenv('LOCALSTACK', '0') == '1'
@@ -42,7 +42,7 @@ def user_has_access(auth_header, key):
 def s3_parse_s3_url(s3_url):
     """Returns bucket name and path from full s3 path"""
     if not s3_url.startswith('s3://'):
-        raise GaiaSdiEError('URL must start with s3://')
+        raise GaiaSdiError('URL must start with s3://', logger)
 
     # Remove s3
     path = s3_url[5:]

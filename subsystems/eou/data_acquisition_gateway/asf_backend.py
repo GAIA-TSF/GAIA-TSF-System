@@ -40,7 +40,7 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             try:
                 geom = loads(geom)
             except Exception as e:
-                raise GaiaDataError(f'Failed to parse AOI WKT string: {e}')
+                raise GaiaDataError(f'Failed to parse AOI WKT string: {e}', self.logger)
 
         all_results = ASF.search(
             geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
@@ -122,6 +122,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             if match:
                 resolved.append(match)
             else:
-                raise GaiaDataError(f'SAFE not found for {fid}')
+                raise GaiaDataError(f'SAFE not found for {fid}', self.logger)
 
         return resolved

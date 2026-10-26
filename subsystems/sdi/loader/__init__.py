@@ -65,7 +65,7 @@ class SdiLoader(ABC, GaiaBase):
                     self.json_file = os.path.join(root, file)
 
         if not self.json_file:
-            raise GaiaSdiError('ZIP must contain one JSON file.')
+            raise GaiaSdiError('ZIP must contain one JSON file.', self.logger)
 
     def _load_stac_json(self):
         """
@@ -98,7 +98,8 @@ class SdiLoader(ABC, GaiaBase):
             or 'collection' not in self.stac_json
         ):
             raise GaiaSdiError(
-                'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection'
+                'Missing required fields: Not all items are in the metadata. Requiring datetime, bbox and collection',
+                self.logger,
             )
 
         # Temporal interval from JSON
@@ -143,11 +144,12 @@ class SdiLoader(ABC, GaiaBase):
                 f'{self.stac_api_url}/collections', json=collection_payload
             )
             if response.status_code not in (200, 201):
-                raise GaiaSdiError(f'STAC API error: {response.text}')
+                raise GaiaSdiError(f'STAC API error: {response.text}', self.logger)
         else:
             # Other problem
             raise GaiaSdiError(
-                f'STAC API Error checking collection: {check_response.status_code} {check_response.text}'
+                f'STAC API Error checking collection: {check_response.status_code} {check_response.text}',
+                self.logger,
             )
 
         # We are deleting the item first. Not sure if this is the right approach.
@@ -163,7 +165,7 @@ class SdiLoader(ABC, GaiaBase):
             json=self.stac_json,
         )
         if response.status_code not in (200, 201):
-            raise GaiaSdiError(f'STAC API error: {response.text}')
+            raise GaiaSdiError(f'STAC API error: {response.text}', self.logger)
 
         self.logger.debug('STAC item successfully posted.')
 
@@ -192,7 +194,7 @@ class InSituDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise GaiaSdiError('STAC JSON contains no assets')
+            raise GaiaSdiError('STAC JSON contains no assets', self.logger)
 
         for asset_key, asset in assets.items():
             href = asset.get('href')
@@ -336,7 +338,8 @@ class InSituDataLoader(SdiLoader):
                     Table: {self.table_name}
                     SQLSTATE: {e.sqlstate}
                     Message: {e}
-                    """
+                    """,
+                    self.logger,
                 ) from e
 
     def _update_stac_json(self):
@@ -377,7 +380,7 @@ class EarthObservationDataLoader(SdiLoader):
         """
         assets = self.stac_json.get('assets', {})
         if not assets:
-            raise GaiaSdiError('STAC JSON contains no assets')
+            raise GaiaSdiError('STAC JSON contains no assets', self.logger)
 
         self.raster_files = []
 

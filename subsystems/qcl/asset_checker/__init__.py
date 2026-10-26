@@ -76,7 +76,8 @@ class AssetChecker(GaiaBase):
         if key_variable not in self._task_required_types:
             raise GaiaDataError(
                 f"Unknown key_variable '{key_variable}'. "
-                f'Supported: {list(self._task_required_types)}'
+                f'Supported: {list(self._task_required_types)}',
+                self.logger,
             )
 
         if not assets:

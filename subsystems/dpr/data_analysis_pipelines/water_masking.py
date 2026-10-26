@@ -222,7 +222,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         except Exception as e:
             self.logger.error(f'Error parsing {self._config["input_folder"]}: {e}')
         if len(json_files) == 0:
-            raise GaiaDataError(f'Error parsing {self._config["input_folder"]}')
+            raise GaiaDataError(
+                f'Error parsing {self._config["input_folder"]}', self.logger
+            )
 
         self.logger.info(f'--- The input folder contains {len(json_files)} entries.')
 
@@ -236,7 +238,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             if asset_count != 1:
                 raise GaiaDataError(
                     f'Error parsing metadata. The input must be a single multi-band raster. The metadata contains'
-                    f'{asset_count} rasters.'
+                    f'{asset_count} rasters.',
+                    self.logger,
                 )
 
             source_path = Path(
@@ -251,7 +254,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 raster_path = json_path.with_suffix('.tiff')
             else:
                 raise GaiaDataError(
-                    f'Could not locate the raster associated with {source_path}'
+                    f'Could not locate the raster associated with {source_path}',
+                    self.logger,
                 )
 
             record = {
@@ -344,7 +348,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
         if os.path.exists(raster_path) is False:
             raise GaiaDataError(
                 f'Retrieval of EPSG and geotransform failed: '
-                f'{raster_path} either cannot be accessed or does not exists.'
+                f'{raster_path} either cannot be accessed or does not exists.',
+                self.logger,
             )
         ds = gdal.Open(raster_path)
         if ds:
@@ -366,7 +371,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             ds = None
         else:
             raise GaiaDataError(
-                f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}'
+                f'Retrieval of EPSG and geotransform failed: could not read raster {raster_path}',
+                self.logger,
             )
 
     def _calculate_spectral_angle(self, reference_spectrum, dataset, bands=None):
@@ -781,7 +787,9 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
                 out_ds = None
 
                 if os.path.exists(out_path) is False:
-                    raise GaiaDataError(f'Could not create output raster {out_name}')
+                    raise GaiaDataError(
+                        f'Could not create output raster {out_name}', self.logger
+                    )
 
                 if self.driver_name == 'JP2OpenJPEG':
                     self._tiff_to_jp2(out_path)
@@ -850,7 +858,8 @@ class Sentinel2WaterMaskingPipeline(DataAnalysisBasePipeline):
             self.driver_name = 'JP2OpenJPEG'
         else:
             raise GaiaDataError(
-                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
+                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'.",
+                self.logger,
             )
 
         if not os.path.exists(self._config['output_folder']):

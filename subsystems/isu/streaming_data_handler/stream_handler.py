@@ -76,7 +76,7 @@ class BaseStreamHandler(ABC):
             # 1. Structural Validation (Fast Fail)
             if not isinstance(payload, dict):
                 raise GaiaDataError(
-                    f'Payload must be a dictionary, got {type(payload)}'
+                    f'Payload must be a dictionary, got {type(payload)}', self.logger
                 )
 
             # 2. DataFrame Conversion

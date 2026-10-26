@@ -88,7 +88,7 @@ class WaterQualityParser(BaseParser):
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
-                raise GaiaConfigError(f'Unsupported format: {ext}')
+                raise GaiaConfigError(f'Unsupported format: {ext}', self.logger)
 
             df.columns = [str(c).strip().lower() for c in df.columns]
 
@@ -100,4 +100,4 @@ class WaterQualityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise GaiaDataError(f'Water Quality parser failed: {str(e)}')
+            raise GaiaDataError(f'Water Quality parser failed: {str(e)}', self.logger)
