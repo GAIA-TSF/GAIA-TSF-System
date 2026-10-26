@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+from logging import LoggerAdapter
 
 import yaml
 from pathlib import Path
@@ -226,19 +227,23 @@ class YamlValidator:
 
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
-    def __init__(self, config_path: str | Path):
+    def __init__(self, config_path: str | Path, logger: LoggerAdapter | None = None):
         """Initialize project config reader.
 
         Raise GaiaConfigError when project definition is not valid.
 
         :param str config_path: path to config file
+        :param LoggerAdapter logger: logger to be used or None
         """
         ConfigReader.__init__(self, config_path)
+        self._logger = logger
         YamlValidator.__init__(self, {'project': {'name': None, 'aoi': None}})
 
         self.validate(dict(self))
         if self.is_valid() is False:
-            raise GaiaConfigError(f'{config_path}: {";".join(self.errors)}')
+            raise GaiaConfigError(
+                f'{config_path}: {";".join(self.errors)}', self._logger
+            )
 
         self._root = 'project'  # used by __getattr__
 
@@ -266,7 +271,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         layer = ds.GetLayer(0)
 
         if layer.GetFeatureCount() > 1:
-            raise GaiaConfigError('AOI: Only one feature expected')
+            raise GaiaConfigError('AOI: Only one feature expected', self._logger)
 
         srs = layer.GetSpatialRef()
         target_srs = osr.SpatialReference()
@@ -281,7 +286,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         feature = layer.GetNextFeature()
         if feature is None:
             ds = None
-            raise GaiaConfigError('No features found')
+            raise GaiaConfigError('No features found', self._logger)
 
         geom = feature.GetGeometryRef().Clone()
         if transform is not None:
