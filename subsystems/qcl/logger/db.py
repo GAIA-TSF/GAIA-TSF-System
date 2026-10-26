@@ -117,7 +117,7 @@ class DbLogger(logging.Handler):
             Base.metadata.create_all(Base.metadata.bind)
         except OperationalError as e:
             self._close_all()
-            raise GaiaConfigError('{}'.format(e))
+            raise GaiaConfigError('{}'.format(e), None)
 
     def emit(self, record: logging.LogRecord):
         """Format the record and store in DB log tables.

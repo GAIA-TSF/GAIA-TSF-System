@@ -2,7 +2,7 @@ from logging import LoggerAdapter
 
 
 class GaiaError(Exception):
-    def __init__(self, msg: str, logger: LoggerAdapter | None = None):
+    def __init__(self, msg: str, logger: LoggerAdapter | None):
         """Initialize generic GaiaError.
 
         :param str msg: error message

@@ -45,7 +45,7 @@ def build_inputs(config: dict, pipeline_name: str):
         }
 
     else:
-        raise GaiaConfigError(f'Unknown pipeline: {pipeline_name}')
+        raise GaiaConfigError(f'Unknown pipeline: {pipeline_name}', None)
 
 
 # Pipeline factory
@@ -55,7 +55,7 @@ def get_pipeline(name: str):
     elif name == 'slope':
         return SlopeStabilityPipeline()
     else:
-        raise GaiaConfigError(f'Unknown pipeline: {name}')
+        raise GaiaConfigError(f'Unknown pipeline: {name}', None)
 
 
 # MAIN

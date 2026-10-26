@@ -49,7 +49,7 @@ class ConfigReader(dict):
         try:
             value = self[item] if self._root is None else self[self._root][item]
         except KeyError:
-            raise GaiaConfigError(item)
+            raise GaiaConfigError(item, None)
 
         return self._wrap(value)
 
@@ -110,7 +110,7 @@ class ConfigNode(dict):
         try:
             value = self[item]
         except KeyError:
-            raise GaiaConfigError(item)
+            raise GaiaConfigError(item, None)
 
         if isinstance(value, dict):
             return ConfigNode(value)
