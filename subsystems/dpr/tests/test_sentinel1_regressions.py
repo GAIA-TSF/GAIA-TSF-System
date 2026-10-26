@@ -1,4 +1,5 @@
 """Small numerical regressions: no downloads, GMTSAR executables or cluster."""
+
 from unittest.mock import Mock
 
 import numpy as np
@@ -23,16 +24,21 @@ def pipeline():
 
 def phase_grid(values):
     values = np.asarray(values, dtype=float)
-    return xr.DataArray(values, dims=('pair', 'y', 'x'),
-                        coords={'pair': np.arange(values.shape[0]),
-                                'y': np.arange(values.shape[1]),
-                                'x': np.arange(values.shape[2])})
+    return xr.DataArray(
+        values,
+        dims=('pair', 'y', 'x'),
+        coords={
+            'pair': np.arange(values.shape[0]),
+            'y': np.arange(values.shape[1]),
+            'x': np.arange(values.shape[2]),
+        },
+    )
 
 
 def test_preserves_broad_deformation(pipeline):
     y, x = np.mgrid[-1:1:40j, -1:1:40j]
-    bowl = 5 * np.exp(-(x*x + y*y))
-    phase = phase_grid([bowl, 2*bowl])
+    bowl = 5 * np.exp(-(x * x + y * y))
+    phase = phase_grid([bowl, 2 * bowl])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline._detrend_phase()
     xr.testing.assert_allclose(pipeline.detrend.compute(), phase)
@@ -42,7 +48,7 @@ def test_preserves_broad_deformation(pipeline):
 def test_stable_reference_removes_offset_not_deformation(pipeline):
     phase = phase_grid([[[3, 3, 8], [3, 3, 8]], [[7, 7, 17], [7, 7, 17]]])
     pipeline.unwrap = phase.to_dataset(name='phase')
-    pipeline._config['reference_area_wkt'] = box(-.5, -.5, 1.5, 1.5).wkt
+    pipeline._config['reference_area_wkt'] = box(-0.5, -0.5, 1.5, 1.5).wkt
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=2), [[5, 5], [10, 10]])
@@ -61,8 +67,10 @@ def test_reference_failure_reports_pair_and_stage_counts(pipeline, tmp_path):
     phase = phase_grid([[[np.nan, np.nan], [np.nan, np.nan]], [[1, 1], [1, 1]]])
     phase = phase.assign_coords(pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25'])
     pipeline.unwrap = phase.to_dataset(name='phase')
-    pipeline.corr_unwrap = xr.ones_like(phase) * .8
-    pipeline._config.update(reference_area_wkt=box(-1, -1, 2, 2).wkt, result_dir=tmp_path)
+    pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
+    pipeline._config.update(
+        reference_area_wkt=box(-1, -1, 2, 2).wkt, result_dir=tmp_path
+    )
     pipeline.sbas.geocode.side_effect = lambda p: p
     with pytest.raises(ValueError, match='2020-01-01 2020-01-13'):
         pipeline._detrend_phase()
@@ -75,7 +83,7 @@ def test_reference_failure_reports_pair_and_stage_counts(pipeline, tmp_path):
 
 def test_all_reference_polygons_contribute(pipeline):
     pipeline.unwrap = phase_grid([[[2, 20, 6], [2, 20, 6]]]).to_dataset(name='phase')
-    reference = MultiPolygon([box(-.4, -.4, .4, 1.4), box(1.6, -.4, 2.4, 1.4)])
+    reference = MultiPolygon([box(-0.4, -0.4, 0.4, 1.4), box(1.6, -0.4, 2.4, 1.4)])
     pipeline._config['reference_area_wkt'] = reference.wkt
     pipeline.sbas.geocode.side_effect = lambda polygon: polygon
     pipeline._detrend_phase()
@@ -93,21 +101,26 @@ def test_configured_site_reference_files(site, count):
 
     config_path = Path(TestUtils.get_project_config_path('slope_monitoring_' + site))
     config = ProjectConfigReader(config_path)
-    reference = loads(load_reference_area(
-        config_path.parent / config['sentinel1']['reference_area'], config.aoi()))
+    reference = loads(
+        load_reference_area(
+            config_path.parent / config['sentinel1']['reference_area'], config.aoi()
+        )
+    )
     assert isinstance(reference, MultiPolygon)
     assert len(reference.geoms) == count
 
 
 def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
     pipeline.intf = phase_grid([[[1, 2], [3, 1]]])
-    pipeline.corr = phase_grid([[[.8, .1], [np.nan, .7]]])
+    pipeline.corr = phase_grid([[[0.8, 0.1], [np.nan, 0.7]]])
     pipeline.sbas.decimator.return_value = lambda a: a
+
     def unwrap(phase, weight, conncomp=False):
         assert conncomp
         assert np.isnan(phase.values[0, 0, 1])
         assert np.isnan(phase.values[0, 1, 0])
         return phase.fillna(123).to_dataset(name='phase')
+
     pipeline.sbas.unwrap_snaphu.side_effect = unwrap
     pipeline._unwrap_phase()
     assert pipeline.unwrap.phase.count() == 2
@@ -115,25 +128,30 @@ def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
 
 
 def test_wrapped_phase_decimation_handles_branch_cut(pipeline):
-    pipeline.intf = phase_grid([[[np.pi-.1, -np.pi+.1]]])
-    pipeline.corr = xr.ones_like(pipeline.intf) * .8
+    pipeline.intf = phase_grid([[[np.pi - 0.1, -np.pi + 0.1]]])
+    pipeline.corr = xr.ones_like(pipeline.intf) * 0.8
     pipeline.sbas.decimator.return_value = lambda a: a.coarsen(x=2).mean()
-    pipeline.sbas.unwrap_snaphu.side_effect = lambda phase, weight, conncomp=False: phase.to_dataset(name='phase')
+    pipeline.sbas.unwrap_snaphu.side_effect = (
+        lambda phase, weight, conncomp=False: phase.to_dataset(name='phase')
+    )
     pipeline._unwrap_phase()
     assert abs(float(pipeline.unwrap.phase.item())) == pytest.approx(np.pi)
 
 
 def test_unwrap_checkpoints_preserve_inputs_and_component_labels(pipeline, tmp_path):
     from subsystems.dpr.preprocessing_pipelines.insar_checkpoints import PairCheckpoints
+
     pipeline._checkpoints = PairCheckpoints(tmp_path, {})
     pipeline.intf = phase_grid([[[1, 2], [3, 1]]])
-    pipeline.corr = phase_grid([[[.8, .1], [np.nan, .7]]])
+    pipeline.corr = phase_grid([[[0.8, 0.1], [np.nan, 0.7]]])
     pipeline.sbas.decimator.return_value = lambda a: a
     pipeline.sbas.snaphu_config.return_value = 'DEFOMAX_CYCLE 0'
     labels = phase_grid([[[1, 0], [0, 2]]])
+
     def unwrap(phase, weight, conncomp=False):
         assert conncomp
         return xr.Dataset({'phase': phase.fillna(123), 'conncomp': labels})
+
     pipeline.sbas.unwrap_snaphu.side_effect = unwrap
     pipeline._unwrap_phase()
     with PairCheckpoints.open_stage(pipeline._checkpoints.path, 'wrapped') as saved:
@@ -151,9 +169,11 @@ def test_coherence_requires_matching_kernels(pipeline):
 
 @pytest.mark.parametrize('empty_value', [np.nan, 0j])
 def test_empty_slc_is_identified_before_interferograms(pipeline, tmp_path, empty_value):
-    data = xr.DataArray(np.array([[[1j, 2j]], [[empty_value, empty_value]]]),
-                        dims=('date', 'y', 'x'),
-                        coords={'date': pd.to_datetime(['2017-09-22', '2017-10-04'])})
+    data = xr.DataArray(
+        np.array([[[1j, 2j]], [[empty_value, empty_value]]]),
+        dims=('date', 'y', 'x'),
+        coords={'date': pd.to_datetime(['2017-09-22', '2017-10-04'])},
+    )
     pipeline._config['result_dir'] = tmp_path
     with pytest.raises(ValueError, match='2017-10-04'):
         pipeline._check_slc_coverage(data)
@@ -164,20 +184,29 @@ def test_empty_slc_is_identified_before_interferograms(pipeline, tmp_path, empty
 def test_disconnected_epochs_are_not_observed_zeroes():
     refs, reps = np.array([0, 1, 2]), np.array([1, 2, 3])
     np.testing.assert_array_equal(
-        Sentinel1Pipeline._reference_connected(np.array([True, False, True]), refs, reps, 4),
-        [True, True, False, False])
-    assert not Sentinel1Pipeline._reference_connected(np.zeros(3, bool), refs, reps, 4).any()
+        Sentinel1Pipeline._reference_connected(
+            np.array([True, False, True]), refs, reps, 4
+        ),
+        [True, True, False, False],
+    )
+    assert not Sentinel1Pipeline._reference_connected(
+        np.zeros(3, bool), refs, reps, 4
+    ).any()
 
 
 @pytest.mark.parametrize('missing_bridge', [False, True])
-def test_solver_units_reference_epoch_quality_and_export(pipeline, tmp_path, missing_bridge):
+def test_solver_units_reference_epoch_quality_and_export(
+    pipeline, tmp_path, missing_bridge
+):
     # Exercise the installed PyGMTSAR least-squares and velocity implementations.
     stack = object.__new__(Stack)
     phase = phase_grid([np.ones((2, 2)), np.ones((2, 2)) * 2])
     dates = pd.to_datetime(['2020-01-01', '2020-01-13', '2020-01-25'])
-    phase = phase.assign_coords(ref=('pair', dates[:-1]), rep=('pair', dates[1:])).chunk()
+    phase = phase.assign_coords(
+        ref=('pair', dates[:-1]), rep=('pair', dates[1:])
+    ).chunk()
     pipeline.detrend = phase
-    pipeline.corr = xr.ones_like(phase) * .8
+    pipeline.corr = xr.ones_like(phase) * 0.8
     pipeline.corr_unwrap = pipeline.corr.copy()
     if missing_bridge:
         pipeline.detrend[1, 1, 1] = np.nan
@@ -220,17 +249,21 @@ def test_solver_units_reference_epoch_quality_and_export(pipeline, tmp_path, mis
     for product in ('coherence', 'valid_coverage', 'pair_residuals'):
         assert len(list((tmp_path / product).glob('*.tif'))) == 2
     with rasterio.open(tmp_path / 'coherence/coherence_20200113_20200125.tif') as src:
-        np.testing.assert_allclose(src.read(1)[0, 0], .8)
-    with rasterio.open(tmp_path / 'pair_residuals/pair_residuals_20200113_20200125.tif') as src:
+        np.testing.assert_allclose(src.read(1)[0, 0], 0.8)
+    with rasterio.open(
+        tmp_path / 'pair_residuals/pair_residuals_20200113_20200125.tif'
+    ) as src:
         np.testing.assert_allclose(src.read(1)[0, 0], 0, atol=1e-5)
     if missing_bridge:
-        with rasterio.open(tmp_path / 'valid_coverage/valid_coverage_20200113_20200125.tif') as src:
+        with rasterio.open(
+            tmp_path / 'valid_coverage/valid_coverage_20200113_20200125.tif'
+        ) as src:
             assert src.read(1)[1, 1] == 0
 
 
 def test_no_coherent_pixels_fails(pipeline):
     pipeline.intf = phase_grid([[[1, 2], [3, 4]]])
-    pipeline.corr = xr.ones_like(pipeline.intf) * .1
+    pipeline.corr = xr.ones_like(pipeline.intf) * 0.1
     pipeline.sbas.decimator.return_value = lambda a: a
     with pytest.raises(RuntimeError, match='No pixels'):
         pipeline._unwrap_phase()
@@ -239,13 +272,16 @@ def test_no_coherent_pixels_fails(pipeline):
 
 def test_rmse_in_mm_is_not_wrapped(pipeline):
     dates = pd.to_datetime(['2020-01-01', '2020-01-13', '2020-01-25'])
-    phase = phase_grid([np.ones((2, 2))*10, np.ones((2, 2))*10])
+    phase = phase_grid([np.ones((2, 2)) * 10, np.ones((2, 2)) * 10])
     phase = phase.assign_coords(ref=('pair', dates[:-1]), rep=('pair', dates[1:]))
     pipeline.detrend = phase
-    pipeline.corr = pipeline.corr_unwrap = xr.ones_like(phase) * .8
+    pipeline.corr = pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
     pipeline.sbas.get_pairs.side_effect = object.__new__(Stack).get_pairs
-    pipeline.sbas.lstsq.return_value = xr.DataArray(np.zeros((3, 2, 2)),
-        dims=('date', 'y', 'x'), coords={'date': dates, 'y': [0, 1], 'x': [0, 1]})
+    pipeline.sbas.lstsq.return_value = xr.DataArray(
+        np.zeros((3, 2, 2)),
+        dims=('date', 'y', 'x'),
+        coords={'date': dates, 'y': [0, 1], 'x': [0, 1]},
+    )
     pipeline.sbas.los_displacement_mm.side_effect = lambda a: a * -4.4
     pipeline.sbas.velocity.side_effect = lambda a: a.isel(date=0, drop=True)
     pipeline.sbas.ra2ll.side_effect = lambda a: a.rename({'y': 'lat', 'x': 'lon'})

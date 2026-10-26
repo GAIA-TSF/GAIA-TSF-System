@@ -38,11 +38,31 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
-            'retain_pair_checkpoints': {'dtype': bool, 'default': True, 'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels'},
-            'processing_start': {'dtype': str, 'default': '', 'description': 'Inclusive acquisition date in UTC'},
-            'processing_end': {'dtype': str, 'default': '', 'description': 'Inclusive acquisition date in UTC'},
-            'source_safe_only': {'dtype': bool, 'default': False, 'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs'},
-            'insar_only': {'dtype': bool, 'default': False, 'description': 'Export InSAR results without environmental and risk processing'},
+            'retain_pair_checkpoints': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels',
+            },
+            'processing_start': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'processing_end': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'source_safe_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs',
+            },
+            'insar_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Export InSAR results without environmental and risk processing',
+            },
             'diagnostics_root': {
                 'dtype': str,
                 'default': '',
@@ -152,8 +172,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if not any(datadir.glob('*.SAFE/')):
             raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
         self.logger.info('Downloading precise orbit files.')
-        s1 = (self._scan_original_slcs(datadir) if self._config.get('source_safe_only', False)
-              else S1.scan_slc(datadir))
+        s1 = (
+            self._scan_original_slcs(datadir)
+            if self._config.get('source_safe_only', False)
+            else S1.scan_slc(datadir)
+        )
         S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
@@ -202,7 +225,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: dask.config.set context manager
         """
         client = getattr(self, 'client', None)
-        n_threads = sum(client.nthreads().values()) if client is not None else os.cpu_count()
+        n_threads = (
+            sum(client.nthreads().values()) if client is not None else os.cpu_count()
+        )
         self.logger.debug(f'Running on local thread pool ({n_threads} threads).')
         return dask.config.set(scheduler='threads', num_workers=n_threads)
 
@@ -237,12 +262,20 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Reset generated files before the recursive scan: workdir may be
         # inside datadir, and stale reframed scenes would become input scenes.
         self.sbas = Stack(workdir, drop_if_exists=True)
-        s1 = (self._scan_original_slcs(datadir) if self._config.get('source_safe_only', False)
-              else S1.scan_slc(datadir))
+        s1 = (
+            self._scan_original_slcs(datadir)
+            if self._config.get('source_safe_only', False)
+            else S1.scan_slc(datadir)
+        )
         if self._config.get('source_safe_only', False):
+
             def original_source(value):
                 paths = value if isinstance(value, (list, tuple)) else [value]
-                return all(any(part.endswith('.SAFE') for part in Path(path).parts) for path in paths)
+                return all(
+                    any(part.endswith('.SAFE') for part in Path(path).parts)
+                    for path in paths
+                )
+
             s1 = s1.loc[s1.datapath.map(original_source)].copy()
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         s1 = self._filter_incomplete_dates(s1)
@@ -273,10 +306,19 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 parent.mkdir()
                 (parent / orbit.name).symlink_to(orbit.resolve())
             scenes = S1.scan_slc(view)
-            for column in ('datapath', 'metapath', 'noisepath', 'calibpath', 'orbitpath'):
+            for column in (
+                'datapath',
+                'metapath',
+                'noisepath',
+                'calibpath',
+                'orbitpath',
+            ):
                 if column in scenes:
                     scenes[column] = scenes[column].map(
-                        lambda path: str(Path(path).resolve()) if isinstance(path, (str, Path)) else path)
+                        lambda path: str(Path(path).resolve())
+                        if isinstance(path, (str, Path))
+                        else path
+                    )
             return scenes.drop_duplicates(subset=['datapath', 'metapath'])
 
     def _filter_processing_dates(self, scenes):
@@ -296,12 +338,20 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if end is not None:
             keep &= dates <= end
         filtered = scenes.loc[keep].sort_index().copy()
-        selected = pd.to_datetime(filtered.index, utc=True).normalize().unique().sort_values()
+        selected = (
+            pd.to_datetime(filtered.index, utc=True).normalize().unique().sort_values()
+        )
         if len(selected) < 2:
-            raise ValueError('At least two acquisition dates are required within the processing period.')
-        self.logger.info(f'Processing {len(selected)} acquisition dates: {selected[0]} to {selected[-1]}')
+            raise ValueError(
+                'At least two acquisition dates are required within the processing period.'
+            )
+        self.logger.info(
+            f'Processing {len(selected)} acquisition dates: {selected[0]} to {selected[-1]}'
+        )
         if self._diagnostics is not None:
-            self._diagnostics.table('selected_acquisitions', pd.DataFrame({'date': selected}))
+            self._diagnostics.table(
+                'selected_acquisitions', pd.DataFrame({'date': selected})
+            )
         return filtered
 
     def _filter_excluded_dates(self, scenes):
@@ -313,11 +363,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             raise ValueError('excluded_dates contains an empty or invalid date')
         mask = pd.to_datetime(scenes.index).normalize().isin(excluded)
         if mask.any():
-            removed = sorted(set(pd.to_datetime(scenes.index[mask]).strftime('%Y-%m-%d')))
+            removed = sorted(
+                set(pd.to_datetime(scenes.index[mask]).strftime('%Y-%m-%d'))
+            )
             self.logger.info(f'Excluding {int(mask.sum())} scenes on dates: {removed}')
         filtered = scenes.loc[~mask].copy()
         if filtered.empty:
-            raise ValueError('No Sentinel-1 scenes remain after applying excluded_dates')
+            raise ValueError(
+                'No Sentinel-1 scenes remain after applying excluded_dates'
+            )
         return filtered
 
     def _filter_incomplete_dates(self, scenes):
@@ -330,19 +384,31 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # bursts are identified by start time; generated duplicates share it
         burst = scenes['datetime'] if 'datetime' in scenes else scenes['datapath']
         subswath = scenes['subswath'].to_numpy() if 'subswath' in scenes else 0
-        counts = (pd.DataFrame({'date': dates.to_numpy(), 'subswath': subswath, 'burst': burst.to_numpy()})
-                  .groupby(['date', 'subswath'])['burst'].nunique()
-                  .unstack(fill_value=0))
+        counts = (
+            pd.DataFrame(
+                {
+                    'date': dates.to_numpy(),
+                    'subswath': subswath,
+                    'burst': burst.to_numpy(),
+                }
+            )
+            .groupby(['date', 'subswath'])['burst']
+            .nunique()
+            .unstack(fill_value=0)
+        )
         expected = counts.max()
         incomplete = counts.index[(counts < expected).any(axis=1)]
         if len(incomplete):
             removed = [date.strftime('%Y-%m-%d') for date in incomplete]
             self.logger.warning(
                 f'Excluding {len(removed)} dates with incomplete burst coverage '
-                f'(expected bursts per subswath: {expected.to_dict()}): {removed}')
+                f'(expected bursts per subswath: {expected.to_dict()}): {removed}'
+            )
         filtered = scenes.loc[~dates.isin(incomplete)].copy()
         if len(filtered.index.unique()) < 2:
-            raise ValueError('At least two acquisition dates with complete burst coverage are required.')
+            raise ValueError(
+                'At least two acquisition dates with complete burst coverage are required.'
+            )
         return filtered
 
     def _reframe_scenes(self, aoi):
@@ -418,19 +484,30 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         candidates = [{k: v for k, v in r.items() if k != 'df'} for r in results]
         valid = [r for r in results if r['n_comp'] == 1]
         if valid:
-            best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
+            best_config = min(
+                valid, key=lambda x: (x['n_pairs'], x['days'], x['meters'])
+            )
             self.baseline_pairs = best_config['df']
             repair = None
         else:
             # Repair the least fragmented candidate instead of loosening the
             # thresholds for the whole network because of a few outlier dates.
-            best_config = min(results, key=lambda x: (x['n_comp'], x['n_pairs'], x['days'], x['meters']))
-            all_pairs = (self.sbas.sbas_pairs() if hasattr(self.sbas, 'sbas_pairs')
-                         else self.sbas.baseline_pairs(days=None))
+            best_config = min(
+                results,
+                key=lambda x: (x['n_comp'], x['n_pairs'], x['days'], x['meters']),
+            )
+            all_pairs = (
+                self.sbas.sbas_pairs()
+                if hasattr(self.sbas, 'sbas_pairs')
+                else self.sbas.baseline_pairs(days=None)
+            )
             try:
                 self.baseline_pairs, repair = self._repair_network(
-                    all_dates, best_config['df'], all_pairs,
-                    max(basedays), max(basemeters),
+                    all_dates,
+                    best_config['df'],
+                    all_pairs,
+                    max(basedays),
+                    max(basemeters),
                     float(self._config.get('max_bridge_meters', 400.0)),
                     float(self._config.get('max_dropped_dates_fraction', 0.1)),
                 )
@@ -441,12 +518,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             repair.update(days=best_config['days'], meters=best_config['meters'])
             if repair['bridges']:
                 self.logger.warning(
-                    f"SBAS network disconnected at all thresholds; added {len(repair['bridges'])} bridge "
-                    f"pairs to the {best_config['days']} d / {best_config['meters']} m network: {repair['bridges']}")
+                    f'SBAS network disconnected at all thresholds; added {len(repair["bridges"])} bridge '
+                    f'pairs to the {best_config["days"]} d / {best_config["meters"]} m network: {repair["bridges"]}'
+                )
             if repair['dropped_dates']:
                 self.logger.warning(
-                    f"Dropped {len(repair['dropped_dates'])} dates not connectable within "
-                    f"{self._config.get('max_bridge_meters', 400.0)} m: {repair['dropped_dates']}")
+                    f'Dropped {len(repair["dropped_dates"])} dates not connectable within '
+                    f'{self._config.get("max_bridge_meters", 400.0)} m: {repair["dropped_dates"]}'
+                )
 
         if self._checkpoints is not None:
             if repair is not None:
@@ -462,7 +541,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """Return connected components (sets of normalized dates) of the pair graph."""
         nodes = pd.to_datetime(pd.Index(dates)).normalize()
         adj = defaultdict(set)
-        for a, b in zip(pd.to_datetime(pairs['ref']).dt.normalize(), pd.to_datetime(pairs['rep']).dt.normalize()):
+        for a, b in zip(
+            pd.to_datetime(pairs['ref']).dt.normalize(),
+            pd.to_datetime(pairs['rep']).dt.normalize(),
+        ):
             adj[a].add(b)
             adj[b].add(a)
         seen, components = set(), []
@@ -480,8 +562,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         return components
 
     @classmethod
-    def _repair_network(cls, dates, pairs, all_pairs, max_days, max_meters,
-                        max_bridge_meters, max_dropped_fraction):
+    def _repair_network(
+        cls,
+        dates,
+        pairs,
+        all_pairs,
+        max_days,
+        max_meters,
+        max_bridge_meters,
+        max_dropped_fraction,
+    ):
         """Connect a fragmented SBAS network by adding the cheapest bridging pairs.
 
         Components are joined greedily (Kruskal) by the cheapest pair between them, where the cost
@@ -491,14 +581,17 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: (pairs, report) with bridges and dropped dates listed in the report.
         """
         components = cls._network_components(dates, pairs)
-        owner = {date: i for i, component in enumerate(components) for date in component}
+        owner = {
+            date: i for i, component in enumerate(components) for date in component
+        }
         candidates = all_pairs.assign(
             _ref=pd.to_datetime(all_pairs['ref']).dt.normalize(),
             _rep=pd.to_datetime(all_pairs['rep']).dt.normalize(),
         )
         candidates = candidates[candidates['baseline'].abs() <= max_bridge_meters]
         candidates = candidates.assign(
-            _cost=candidates['duration'] / max_days + candidates['baseline'].abs() / max_meters
+            _cost=candidates['duration'] / max_days
+            + candidates['baseline'].abs() / max_meters
         ).sort_values('_cost')
 
         bridges = []
@@ -511,7 +604,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     owner[date] = a
             bridges.append(index)
         if bridges:
-            pairs = pd.concat([pairs, all_pairs.loc[bridges]]).sort_values(['ref', 'rep']).reset_index(drop=True)
+            pairs = (
+                pd.concat([pairs, all_pairs.loc[bridges]])
+                .sort_values(['ref', 'rep'])
+                .reset_index(drop=True)
+            )
 
         groups = defaultdict(set)
         for date, comp in owner.items():
@@ -524,14 +621,21 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 raise RuntimeError(
                     f'No connected SBAS network: {len(dropped)} of {len(owner)} dates cannot be bridged within '
                     f'{max_bridge_meters} m (limit {max_dropped_fraction:.0%}). '
-                    'Increase max_bridge_meters or exclude the dates.')
+                    'Increase max_bridge_meters or exclude the dates.'
+                )
             ref = pd.to_datetime(pairs['ref']).dt.normalize()
             rep = pd.to_datetime(pairs['rep']).dt.normalize()
             pairs = pairs[ref.isin(keep) & rep.isin(keep)].reset_index(drop=True)
 
         report = {
-            'bridges': [{'pair': all_pairs.at[i, 'pair'], 'duration': int(all_pairs.at[i, 'duration']),
-                         'baseline': float(all_pairs.at[i, 'baseline'])} for i in bridges],
+            'bridges': [
+                {
+                    'pair': all_pairs.at[i, 'pair'],
+                    'duration': int(all_pairs.at[i, 'duration']),
+                    'baseline': float(all_pairs.at[i, 'baseline']),
+                }
+                for i in bridges
+            ],
             'dropped_dates': [date.strftime('%Y-%m-%d') for date in dropped],
         }
         return pairs, report
@@ -552,12 +656,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if intensity_wavelength != phase_wavelength:
-            raise ValueError('Intensity and phase must use the same averaging kernel for coherence.')
+            raise ValueError(
+                'Intensity and phase must use the same averaging kernel for coherence.'
+            )
         if self._checkpoints is not None:
             self._checkpoints.manifest['interferograms'] = {
                 'intensity_wavelength_m': intensity_wavelength,
                 'phase_wavelength_m': phase_wavelength,
-                'coarsen': list(coarsen), 'goldstein_patch': goldstein_patch,
+                'coarsen': list(coarsen),
+                'goldstein_patch': goldstein_patch,
             }
             self._checkpoints.save()
         topo = self.sbas.get_topo()
@@ -617,9 +724,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Decimate to target unwrap spacing
         dec_u = self.sbas.decimator(unwrap_m)
         # Wrapped angles must be averaged on the unit circle, not arithmetically.
-        corr_u, phasor_u = dask.persist(
-            dec_u(self.corr), dec_u(np.exp(1j * self.intf))
-        )
+        corr_u, phasor_u = dask.persist(dec_u(self.corr), dec_u(np.exp(1j * self.intf)))
         intf_u = xr.apply_ufunc(np.angle, phasor_u, dask='allowed')
 
         # Build Correlation Mask
@@ -627,25 +732,30 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         corr_mask = corr_u.where(valid)
         self.corr_unwrap = corr_mask
         if self._checkpoints is not None:
-            wrapped = xr.Dataset({
-                'wrapped_phase': intf_u,
-                'coherence': corr_u,
-                'snaphu_phase': intf_u.where(valid),
-                'snaphu_coherence': corr_mask,
-                'valid_mask': valid.astype('uint8'),
-            })
+            wrapped = xr.Dataset(
+                {
+                    'wrapped_phase': intf_u,
+                    'coherence': corr_u,
+                    'snaphu_phase': intf_u.where(valid),
+                    'snaphu_coherence': corr_mask,
+                    'valid_mask': valid.astype('uint8'),
+                }
+            )
             for name in ('wrapped_phase', 'snaphu_phase'):
                 wrapped[name].attrs['units'] = 'rad'
             for name in ('coherence', 'snaphu_coherence'):
                 wrapped[name].attrs['units'] = '1'
             self._checkpoints.manifest['unwrapping'] = {
-                'coherence_threshold': corr_limit, 'target_spacing_m': unwrap_m,
+                'coherence_threshold': corr_limit,
+                'target_spacing_m': unwrap_m,
                 'snaphu_configuration': self.sbas.snaphu_config(),
             }
             self._checkpoints.write('wrapped', wrapped)
         if self._diagnostics is not None:
-            self._diagnostics.summary['unwrapping'] = {'coherence_threshold': corr_limit,
-                                                       'target_spacing_m': unwrap_m}
+            self._diagnostics.summary['unwrapping'] = {
+                'coherence_threshold': corr_limit,
+                'target_spacing_m': unwrap_m,
+            }
             self._diagnostics.save()
             self._diagnostics.pairs(intf_u.where(valid), corr_mask, 'wrapped_phase')
 
@@ -660,13 +770,19 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         phase_in, corr_in = dask.compute(intf_u.where(valid), corr_mask)
         self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs).')
         with self._local_threads():
-            self.unwrap = self.sbas.unwrap_snaphu(phase_in, corr_in, conncomp=True).compute()
+            self.unwrap = self.sbas.unwrap_snaphu(
+                phase_in, corr_in, conncomp=True
+            ).compute()
         self.unwrap['phase'] = self.unwrap.phase.where(valid)
         if self._checkpoints is not None:
-            unwrapped = self.unwrap.rename({'phase': 'unwrapped_phase', 'conncomp': 'snaphu_component'})
+            unwrapped = self.unwrap.rename(
+                {'phase': 'unwrapped_phase', 'conncomp': 'snaphu_component'}
+            )
             unwrapped['unwrapped_phase'].attrs['units'] = 'rad'
             # Preserve raw SNAPHU labels (including NaNs for failed pairs).
-            unwrapped['snaphu_component'].attrs['description'] = 'Pair-local SNAPHU label; 0 unassigned; inspect valid_mask in wrapped checkpoint'
+            unwrapped['snaphu_component'].attrs['description'] = (
+                'Pair-local SNAPHU label; 0 unassigned; inspect valid_mask in wrapped checkpoint'
+            )
             self._checkpoints.write('unwrapped', unwrapped)
         if self._diagnostics is not None:
             self._diagnostics.pairs(self.unwrap.phase, corr_mask, 'unwrapped_phase')
@@ -694,28 +810,45 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             from shapely import contains_xy
 
             polygon = loads(reference)
-            if not isinstance(polygon, (Polygon, MultiPolygon)) or polygon.is_empty or not polygon.is_valid:
-                raise ValueError('reference_area_wkt must be a valid nonempty Polygon or MultiPolygon.')
+            if (
+                not isinstance(polygon, (Polygon, MultiPolygon))
+                or polygon.is_empty
+                or not polygon.is_valid
+            ):
+                raise ValueError(
+                    'reference_area_wkt must be a valid nonempty Polygon or MultiPolygon.'
+                )
             aoi = (self._config or {}).get('aoi')
             if aoi is not None and not aoi.covers(polygon):
-                raise ValueError('Stable reference polygon must be inside the processing AOI.')
+                raise ValueError(
+                    'Stable reference polygon must be inside the processing AOI.'
+                )
             # PyGMTSAR.geocode supports Polygon, but not MultiPolygon.
-            polygons = list(polygon.geoms) if isinstance(polygon, MultiPolygon) else [polygon]
+            polygons = (
+                list(polygon.geoms) if isinstance(polygon, MultiPolygon) else [polygon]
+            )
             xx, yy = np.meshgrid(phase_data.x.values, phase_data.y.values)
             reference_pixels = np.zeros(xx.shape, dtype=bool)
             for part in polygons:
                 reference_pixels |= contains_xy(self.sbas.geocode(part), xx, yy)
-            mask = xr.DataArray(reference_pixels,
-                                dims=('y', 'x'), coords={'y': phase_data.y, 'x': phase_data.x})
+            mask = xr.DataArray(
+                reference_pixels,
+                dims=('y', 'x'),
+                coords={'y': phase_data.y, 'x': phase_data.x},
+            )
             reference_phase = phase_data.where(mask)
-            diagnostics = xr.Dataset({
-                'reference_valid_phase_pixels': reference_phase.count(('y', 'x')),
-                'all_valid_phase_pixels': phase_data.count(('y', 'x')),
-                'reference_mean_phase_rad': reference_phase.mean(('y', 'x')),
-            })
+            diagnostics = xr.Dataset(
+                {
+                    'reference_valid_phase_pixels': reference_phase.count(('y', 'x')),
+                    'all_valid_phase_pixels': phase_data.count(('y', 'x')),
+                    'reference_mean_phase_rad': reference_phase.mean(('y', 'x')),
+                }
+            )
             if self.corr_unwrap is not None:
                 _, reference_corr = xr.align(phase_data, self.corr_unwrap, join='exact')
-                diagnostics['reference_coherent_pixels'] = reference_corr.where(mask).count(('y', 'x'))
+                diagnostics['reference_coherent_pixels'] = reference_corr.where(
+                    mask
+                ).count(('y', 'x'))
             report = diagnostics.compute().to_dataframe()
             report['reference_mask_pixels'] = int(reference_pixels.sum())
             if self._diagnostics is not None:
@@ -737,7 +870,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             offset = reference_phase.mean(('y', 'x'), skipna=True)
             phase_data = phase_data - offset
         else:
-            self.logger.warning('No stable-ground reference configured; preserving unwrapped phase without spatial detrending.')
+            self.logger.warning(
+                'No stable-ground reference configured; preserving unwrapped phase without spatial detrending.'
+            )
         self.detrend = phase_data.persist()
 
         # Trigger computation
@@ -771,10 +906,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             reps = dates.get_indexer(pd.to_datetime(pairs.rep))
             connected = xr.apply_ufunc(
                 self._reference_connected,
-                (np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)).chunk({'pair': -1}),
-                input_core_dims=[['pair']], output_core_dims=[['date']],
+                (np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)).chunk(
+                    {'pair': -1}
+                ),
+                input_core_dims=[['pair']],
+                output_core_dims=[['date']],
                 kwargs={'refs': refs, 'reps': reps, 'n_dates': len(dates)},
-                vectorize=True, dask='parallelized', output_dtypes=[bool],
+                vectorize=True,
+                dask='parallelized',
+                output_dtypes=[bool],
                 dask_gufunc_kwargs={'output_sizes': {'date': len(dates)}},
             ).assign_coords(date=dates)
             sol = sol.where(connected)
@@ -793,9 +933,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Computing displacements.')
         self.disp_ll = self.sbas.cropna(self._ra2ll(disp_ra))
         self.vel_ll = self.sbas.cropna(self._ra2ll(vel_ra))
-        self.disp_ll.attrs.update(units='mm', spatial_reference='stable_area' if
-                                 (self._config or {}).get('reference_area_wkt') else 'unreferenced')
-        self.disp_ll.attrs['temporal_reference_utc'] = str(pd.to_datetime(self.disp_ll.date.values[0]))
+        self.disp_ll.attrs.update(
+            units='mm',
+            spatial_reference='stable_area'
+            if (self._config or {}).get('reference_area_wkt')
+            else 'unreferenced',
+        )
+        self.disp_ll.attrs['temporal_reference_utc'] = str(
+            pd.to_datetime(self.disp_ll.date.values[0])
+        )
         self.vel_ll.attrs['units'] = 'mm/year'
 
         # RMSE Calculation
@@ -1022,8 +1168,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'timezone': tz_name,
                 'models': model,
             }
-            df = weather_store.fetch(om_client, cache_session, climate_url, params,
-                                     tz_name, self.logger)
+            df = weather_store.fetch(
+                om_client, cache_session, climate_url, params, tz_name, self.logger
+            )
             df['location'] = name
 
             # Rainfall indicators
@@ -1081,8 +1228,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'hourly': aq_vars,
                 'timezone': tz_name,
             }
-            df_h = weather_store.fetch(om_client, cache_session, aq_url, params,
-                                       tz_name, self.logger)
+            df_h = weather_store.fetch(
+                om_client, cache_session, aq_url, params, tz_name, self.logger
+            )
 
             # Resample to daily max and calculate AQI
             df_aq = df_h.resample('D', on='datetime').max().reset_index()
@@ -1320,12 +1468,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 grid = data.isel(pair=i).rename({'lat': 'y', 'lon': 'x'}).copy()
                 grid.attrs.update(
                     units='mm' if product == 'pair_residuals' else '1',
-                    interval_start=ref.isoformat(), interval_end=rep.isoformat(),
+                    interval_start=ref.isoformat(),
+                    interval_end=rep.isoformat(),
                     product_type=product,
                 )
                 grid.rio.write_crs('EPSG:4326', inplace=True)
                 grid.rio.write_nodata(np.nan, inplace=True)
-                grid.rio.to_raster(product_path / f'{product}_{ref:%Y%m%d}_{rep:%Y%m%d}.tif')
+                grid.rio.to_raster(
+                    product_path / f'{product}_{ref:%Y%m%d}_{rep:%Y%m%d}.tif'
+                )
         disp_path = base_path / 'displacements'
         vel_path = base_path / 'velocity'
 
@@ -1370,7 +1521,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             num_dates = len(data_to_export[t_dim])
             dates = pd.to_datetime(data_to_export[t_dim].values)
             if dates.isna().any() or np.any(np.diff(dates.asi8) <= 0):
-                raise ValueError('LOS acquisition dates must be valid and strictly increasing.')
+                raise ValueError(
+                    'LOS acquisition dates must be valid and strictly increasing.'
+                )
             for name in ('los_cumulative', 'los_incremental', 'velocity_interval'):
                 (base_path / name).mkdir(parents=True, exist_ok=True)
 
@@ -1388,13 +1541,17 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 slice_data.rio.to_raster(filename)
                 # Displacement is already LOS in mm. Copy the exported raster
                 # to the explicit LOS product directory without recomputation.
-                shutil.copy2(filename, base_path / 'los_cumulative' / f'los_{date_str}.tif')
+                shutil.copy2(
+                    filename, base_path / 'los_cumulative' / f'los_{date_str}.tif'
+                )
                 if i == 0:
                     continue
                 previous = data_to_export.isel({t_dim: i - 1})
                 # Drop scalar date coordinates to avoid conflicting endpoints.
                 interval = slice_data.drop_vars(t_dim) - previous.drop_vars(t_dim)
-                interval = interval.where(np.isfinite(slice_data) & np.isfinite(previous))
+                interval = interval.where(
+                    np.isfinite(slice_data) & np.isfinite(previous)
+                )
                 days = (dates[i] - dates[i - 1]).total_seconds() / 86400.0
                 for name, values, units in (
                     ('los_incremental', interval, 'mm'),
@@ -1402,8 +1559,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 ):
                     values = values.copy()
                     values.attrs.update(
-                        units=units, interval_start=dates[i - 1].isoformat(),
-                        interval_end=dates[i].isoformat(), interval_days=days,
+                        units=units,
+                        interval_start=dates[i - 1].isoformat(),
+                        interval_end=dates[i].isoformat(),
+                        interval_days=days,
                         product_type=name,
                     )
                     values.rio.write_crs('EPSG:4326', inplace=True)
@@ -1427,8 +1586,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 width = reference.width
                 height = reference.height
             else:
-                results = calculate_default_transform(reference.crs, target_crs, reference.width,
-                                                      reference.height, *reference.bounds,)
+                results = calculate_default_transform(
+                    reference.crs,
+                    target_crs,
+                    reference.width,
+                    reference.height,
+                    *reference.bounds,
+                )
                 transform = results[0]
                 width = results[1]
                 height = results[2]
@@ -1436,13 +1600,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             # Process each input directory.
         for input_dir in input_dirs:
             if not input_dir.is_dir():
-                raise FileNotFoundError(
-                    f'Input directory does not exist: {input_dir}'
-                )
+                raise FileNotFoundError(f'Input directory does not exist: {input_dir}')
 
-            output_subdir = input_dir.with_name(
-                f'{input_dir.name}_utm'
-            )
+            output_subdir = input_dir.with_name(f'{input_dir.name}_utm')
             output_subdir.mkdir(parents=True, exist_ok=True)
 
             files = sorted(input_dir.glob('*.tif'))
@@ -1452,17 +1612,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 continue
 
             self.logger.debug(
-                f'Processing {len(files)} rasters from {input_dir} '
-                f'-> {output_subdir}'
+                f'Processing {len(files)} rasters from {input_dir} -> {output_subdir}'
             )
 
             for src_path in files:
                 dst_path = output_subdir / src_path.name
 
                 if src_path.resolve() == dst_path.resolve():
-                    raise ValueError(
-                        'Input and output raster paths must differ.'
-                    )
+                    raise ValueError('Input and output raster paths must differ.')
 
                 with rasterio.open(src_path) as src:
                     if src.crs != CRS.from_epsg(4326):
@@ -1472,15 +1629,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                         )
 
                     if src.count != 1:
-                        raise ValueError(
-                            f'Expected a single LOS band: {src_path}'
-                        )
+                        raise ValueError(f'Expected a single LOS band: {src_path}')
 
-                    source = (
-                        src.read(1, masked=True)
-                        .astype('float32')
-                        .filled(np.nan)
-                    )
+                    source = src.read(1, masked=True).astype('float32').filled(np.nan)
                     source[~np.isfinite(source)] = np.nan
 
                     destination = np.full(
@@ -1502,17 +1653,17 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     )
 
                     with rasterio.open(
-                            dst_path,
-                            'w',
-                            driver='GTiff',
-                            dtype='float32',
-                            count=1,
-                            width=width,
-                            height=height,
-                            crs=target_crs,
-                            transform=transform,
-                            nodata=nodata,
-                            compress='deflate',
+                        dst_path,
+                        'w',
+                        driver='GTiff',
+                        dtype='float32',
+                        count=1,
+                        width=width,
+                        height=height,
+                        crs=target_crs,
+                        transform=transform,
+                        nodata=nodata,
+                        compress='deflate',
                     ) as dst:
                         dst.write(destination, 1)
 
@@ -1523,13 +1674,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                         dst.offsets = src.offsets
 
                         if src.descriptions[0]:
-                            dst.set_band_description(
-                                1, src.descriptions[0]
-                            )
+                            dst.set_band_description(1, src.descriptions[0])
 
                         if src.units[0]:
                             dst.set_band_unit(1, src.units[0])
-
 
     def _cleanup(self, workdir):
         """Remove unnecessary directory with files after computation is done.
@@ -1543,8 +1691,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     def _run_stage(self, method, *args, **kwargs):
         if self._diagnostics is None:
             return method(*args, **kwargs)
-        record = {'name': method.__name__, 'status': 'running',
-                  'started_utc': datetime.now(timezone.utc).isoformat()}
+        record = {
+            'name': method.__name__,
+            'status': 'running',
+            'started_utc': datetime.now(timezone.utc).isoformat(),
+        }
         self._diagnostics.summary['stages'].append(record)
         self._diagnostics.save()
         start = time.monotonic()
@@ -1553,7 +1704,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             record['status'] = 'complete'
             return result
         except Exception as exc:
-            record.update(status='failed', error_type=type(exc).__name__, error=str(exc))
+            record.update(
+                status='failed', error_type=type(exc).__name__, error=str(exc)
+            )
             raise
         finally:
             record['elapsed_seconds'] = round(time.monotonic() - start, 3)
@@ -1569,15 +1722,21 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._diagnostics = InSARDiagnostics(root, self._config)
             self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
             if self._checkpoints is not None:
-                self._diagnostics.summary['pair_checkpoints'] = str(self._checkpoints.path)
+                self._diagnostics.summary['pair_checkpoints'] = str(
+                    self._checkpoints.path
+                )
                 self._diagnostics.save()
         try:
             result = self._run_processing()
         except Exception as exc:
             if self._checkpoints is not None:
-                self._checkpoints.manifest.update(status='failed', error_type=type(exc).__name__, error=str(exc))
+                self._checkpoints.manifest.update(
+                    status='failed', error_type=type(exc).__name__, error=str(exc)
+                )
             if self._diagnostics is not None:
-                self._diagnostics.summary.update(status='failed', error_type=type(exc).__name__, error=str(exc))
+                self._diagnostics.summary.update(
+                    status='failed', error_type=type(exc).__name__, error=str(exc)
+                )
             raise
         else:
             if self._checkpoints is not None:
@@ -1589,7 +1748,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             if self._checkpoints is not None:
                 self._checkpoints.save()
             if self._diagnostics is not None:
-                self._diagnostics.summary['finished_utc'] = datetime.now(timezone.utc).isoformat()
+                self._diagnostics.summary['finished_utc'] = datetime.now(
+                    timezone.utc
+                ).isoformat()
                 self._diagnostics.save()
             self.close()
 
@@ -1608,12 +1769,17 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         step = self._run_stage
         step(self._download_orbits, self._config['datadir'])
         step(self._download_dem, self._config['aoi'], self._config['dem_path'])
-        step(self._download_landmask, self._config['aoi'], self._config['landmask_path'])
+        step(
+            self._download_landmask, self._config['aoi'], self._config['landmask_path']
+        )
         step(self._run_dask_cluster, **dask_kwargs)
         step(self._stack_scenes, self._config['datadir'], self._config['workdir'])
         step(self._reframe_scenes, self._config['aoi'])
-        step(self._load_dem_and_landmask,
-            self._config['aoi'], self._config['dem_path'], self._config['landmask_path']
+        step(
+            self._load_dem_and_landmask,
+            self._config['aoi'],
+            self._config['dem_path'],
+            self._config['landmask_path'],
         )
         step(self._align_images)
         step(self._geocoding_transform)
@@ -1630,10 +1796,22 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         step(self._export_displacements, self._config['result_dir'])
         if not self._config.get('insar_only', False):
             step(self._compute_risk)
-            step(self._environmental_database, self._config['aoi'], self._config['result_dir'])
+            step(
+                self._environmental_database,
+                self._config['aoi'],
+                self._config['result_dir'],
+            )
             step(self._compute_risk_database, self._config['result_dir'])
-        if self._config.get('reference') is not None and self._config.get('crs') is not None:
-            step(self._reproject_raster, self._config['result_dir'], self._config['reference'], self._config['crs'])
+        if (
+            self._config.get('reference') is not None
+            and self._config.get('crs') is not None
+        ):
+            step(
+                self._reproject_raster,
+                self._config['result_dir'],
+                self._config['reference'],
+                self._config['crs'],
+            )
         step(self._cleanup, self._config['workdir'])
 
         elapsed_minutes = (time.time() - start) / 60
