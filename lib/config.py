@@ -133,7 +133,10 @@ class ConfigNode(dict):
         if isinstance(value, dict):
             return ConfigNode(value, base_path=self._base_path)
         if isinstance(value, list):
-            return [ConfigNode(v, base_path=self._base_path) if isinstance(v, dict) else v for v in value]
+            return [
+                ConfigNode(v, base_path=self._base_path) if isinstance(v, dict) else v
+                for v in value
+            ]
         return value
 
 

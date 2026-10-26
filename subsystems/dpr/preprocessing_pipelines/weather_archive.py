@@ -1,4 +1,5 @@
 """Bounded weather requests, including retries for streamed API timeouts."""
+
 from contextlib import nullcontext
 import time
 
@@ -19,34 +20,61 @@ def fetch_weather_frame(client, session, url, params, timezone, logger, attempts
     frames = []
     while start <= end:
         stop = min(start + pd.offsets.MonthEnd(0), end)
-        chunk = dict(params, start_date=start.date().isoformat(), end_date=stop.date().isoformat())
-        logger.info(f"Weather request: {url} {chunk['start_date']} through {chunk['end_date']}")
+        chunk = dict(
+            params,
+            start_date=start.date().isoformat(),
+            end_date=stop.date().isoformat(),
+        )
+        logger.info(
+            f'Weather request: {url} {chunk["start_date"]} through {chunk["end_date"]}'
+        )
         for attempt in range(attempts):
             try:
                 # A streamed error can have HTTP 200 and therefore be cached.
                 # Bypass that response on retries rather than replaying it.
                 with session.cache_disabled() if attempt else nullcontext():
-                    response = client.weather_api(url, params=chunk, timeout=(15, 120))[0]
+                    response = client.weather_api(url, params=chunk, timeout=(15, 120))[
+                        0
+                    ]
                 break
             except (OpenMeteoRequestsError, ConnectionError, Timeout) as exc:
                 message = str(exc).lower()
                 minute_limit = 'minutely api request limit exceeded' in message
-                transient = minute_limit or isinstance(exc, (ConnectionError, Timeout)) or any(
-                    token in message for token in ('timeout', 'timed out', 'temporarily', '502', '503', '504'))
+                transient = (
+                    minute_limit
+                    or isinstance(exc, (ConnectionError, Timeout))
+                    or any(
+                        token in message
+                        for token in (
+                            'timeout',
+                            'timed out',
+                            'temporarily',
+                            '502',
+                            '503',
+                            '504',
+                        )
+                    )
+                )
                 if not transient or attempt == attempts - 1:
                     raise RuntimeError(
-                        f"Weather request failed for {chunk['start_date']} through {chunk['end_date']} "
-                        f"at ({params['latitude']}, {params['longitude']}): {exc}"
+                        f'Weather request failed for {chunk["start_date"]} through {chunk["end_date"]} '
+                        f'at ({params["latitude"]}, {params["longitude"]}): {exc}'
                     ) from exc
                 # The API asks for one minute. Do not apply short timeout backoff
                 # to quotas, or retry hourly/daily limits as minute limits.
                 delay = 60 if minute_limit else 2 ** (attempt + 1)
-                logger.warning(f'Weather request failed; retry {attempt + 2}/{attempts} in {delay}s: {exc}')
+                logger.warning(
+                    f'Weather request failed; retry {attempt + 2}/{attempts} in {delay}s: {exc}'
+                )
                 time.sleep(delay)
         values = response.Daily() if daily else response.Hourly()
         dates = pd.date_range(
-            start=pd.to_datetime(values.Time(), unit='s', utc=True).tz_convert(timezone).tz_localize(None),
-            periods=len(values.Variables(0).ValuesAsNumpy()), freq='D' if daily else 'h')
+            start=pd.to_datetime(values.Time(), unit='s', utc=True)
+            .tz_convert(timezone)
+            .tz_localize(None),
+            periods=len(values.Variables(0).ValuesAsNumpy()),
+            freq='D' if daily else 'h',
+        )
         frame = pd.DataFrame({'date' if daily else 'datetime': dates})
         for index, name in enumerate(variables):
             frame[name] = values.Variables(index).ValuesAsNumpy()
@@ -64,6 +92,7 @@ class WeatherStore:
 
     def __init__(self, root, interval=2.0):
         from pathlib import Path
+
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.interval = interval
@@ -75,7 +104,10 @@ class WeatherStore:
         from types import SimpleNamespace
 
         frames = []
-        start, end = pd.Timestamp(params['start_date']), pd.Timestamp(params['end_date'])
+        start, end = (
+            pd.Timestamp(params['start_date']),
+            pd.Timestamp(params['end_date']),
+        )
         if pd.isna(start) or pd.isna(end) or start > end:
             raise ValueError('Weather date bounds must be valid and ordered')
         date_column = 'date' if 'daily' in params else 'datetime'
@@ -92,25 +124,46 @@ class WeatherStore:
 
         while start <= end:
             stop = min(start + pd.offsets.MonthEnd(0), end)
-            chunk = dict(params, start_date=start.date().isoformat(), end_date=stop.date().isoformat())
+            chunk = dict(
+                params,
+                start_date=start.date().isoformat(),
+                end_date=stop.date().isoformat(),
+            )
             # Normalize insignificant coordinate rounding, including the grid centre.
             for key in ('latitude', 'longitude'):
                 chunk[key] = round(float(chunk[key]), 8)
-            identity = json.dumps({'schema': 1, 'url': url, 'params': chunk, 'timezone': timezone}, sort_keys=True)
+            identity = json.dumps(
+                {'schema': 1, 'url': url, 'params': chunk, 'timezone': timezone},
+                sort_keys=True,
+            )
             key = hashlib.sha256(identity.encode()).hexdigest()
             path = self.root / f'{key}.csv'
             with (self.root / 'requests.lock').open('a') as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX)
-                historical = stop < pd.Timestamp.now(tz='UTC').tz_localize(None).normalize() - pd.Timedelta(days=30)
-                fresh = path.exists() and (historical or time.time() - path.stat().st_mtime < 3600)
+                historical = stop < pd.Timestamp.now(tz='UTC').tz_localize(
+                    None
+                ).normalize() - pd.Timedelta(days=30)
+                fresh = path.exists() and (
+                    historical or time.time() - path.stat().st_mtime < 3600
+                )
                 if fresh:
-                    logger.info(f'Weather cache hit: {chunk["start_date"]} through {chunk["end_date"]}')
-                    frame = pd.read_csv(path, parse_dates=[date_column], float_precision='round_trip')
+                    logger.info(
+                        f'Weather cache hit: {chunk["start_date"]} through {chunk["end_date"]}'
+                    )
+                    frame = pd.read_csv(
+                        path, parse_dates=[date_column], float_precision='round_trip'
+                    )
                 else:
                     # Decoded data are the authoritative cache; never cache a streamed error.
                     with session.cache_disabled():
-                        frame = fetch_weather_frame(SimpleNamespace(weather_api=paced_request),
-                                                    session, url, chunk, timezone, logger)
+                        frame = fetch_weather_frame(
+                            SimpleNamespace(weather_api=paced_request),
+                            session,
+                            url,
+                            chunk,
+                            timezone,
+                            logger,
+                        )
                     if frame.empty:
                         raise ValueError(f'Empty weather response for {chunk}')
                     tmp = path.with_suffix('.tmp')
