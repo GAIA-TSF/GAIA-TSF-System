@@ -25,6 +25,8 @@ from pyproj import Transformer
 import rasterio
 from rasterio.crs import CRS
 from rasterio.warp import calculate_default_transform, reproject, Resampling
+from osgeo import gdal, ogr
+import math
 
 from .base import PreprocessingBasePipeline
 from .insar_diagnostics import InSARDiagnostics
@@ -130,7 +132,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             'reference': {
                 'dtype': PosixPath,
                 'required': False,
-                'description': 'Path to the reference raster file',
+                'description': 'Path to the reference GPKG file',
             },
             'crs': {
                 'dtype': int,
@@ -1570,8 +1572,93 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     prefix = 'los' if name == 'los_incremental' else 'velocity'
                     values.rio.to_raster(base_path / name / f'{prefix}_{date_str}.tif')
 
-    def _reproject_raster(self, output_dir: Path, reference_path, target_crs):
+    def _rasterize_tsf_mask(self, tsf_mask_gpkg, target_crs):
+        self.logger.info('Rasterizing TSF mask.')
+        result_dir = (self._config or {}).get('result_dir')
+        output_tif = Path(result_dir) / 'tsf_mask_utm.tif'
+        resolution = 10
+
+        # Open the GeoPackage
+        vector_ds = ogr.Open(tsf_mask_gpkg, 0)
+        if vector_ds is None:
+            raise RuntimeError(f"Cannot open GeoPackage: {tsf_mask_gpkg}")
+
+        layer = vector_ds.GetLayer(0)
+        if layer is None:
+            raise RuntimeError("No layer found in the GeoPackage.")
+
+        # Get the spatial reference
+        spatial_ref = layer.GetSpatialRef()
+        if spatial_ref is None:
+            raise RuntimeError("The input layer has no defined CRS.")
+
+        # Require a projected CRS in meters
+        if not spatial_ref.IsProjected():
+            raise ValueError("The CRS of input TSF mask must be projected and use meters.")
+        spatial_ref.AutoIdentifyEPSG()
+        epsg_code = spatial_ref.GetAuthorityCode(None)
+        if int(epsg_code) != int(target_crs):
+            raise ValueError("The CRS of input TSF mask differs from config CRS.")
+
+        # Get polygon bounds: minX, maxX, minY, maxY
+        minx, maxx, miny, maxy = layer.GetExtent()
+
+        # Align raster boundaries to multiples of resolution
+        left = math.floor(minx / resolution) * resolution
+        right = math.ceil(maxx / resolution) * resolution
+        bottom = math.floor(miny / resolution) * resolution
+        top = math.ceil(maxy / resolution) * resolution
+
+        # Calculate raster dimensions
+        width = int(round((right - left) / resolution))
+        height = int(round((top - bottom) / resolution))
+
+        # Create output raster
+        driver = gdal.GetDriverByName("GTiff")
+        raster_ds = driver.Create(
+            output_tif,
+            width,
+            height,
+            1,
+            gdal.GDT_Byte,
+            options=["COMPRESS=LZW"]
+        )
+
+        if raster_ds is None:
+            raise RuntimeError(f"Cannot create output raster: {output_tif}")
+
+        # Set georeferencing
+        raster_ds.SetGeoTransform((
+            left,  # upper-left X
+            resolution,  # pixel width
+            0,  # rotation
+            top,  # upper-left Y
+            0,  # rotation
+            -resolution  # pixel height
+        ))
+        raster_ds.SetProjection(spatial_ref.ExportToWkt())
+
+        # Initialize background to 0
+        band = raster_ds.GetRasterBand(1)
+        band.Fill(0)
+        band.SetNoDataValue(0)
+
+        # Rasterize the polygon with value 1
+        gdal.RasterizeLayer(
+            raster_ds,
+            [1],
+            layer,
+            burn_values=[1]
+        )
+
+        # Flush and close datasets
+        raster_ds = None
+        vector_ds = None
+
+    def _reproject_raster(self, output_dir: Path, target_crs):
         self.logger.info('Reprojecting raster outputs.')
+        result_dir = (self._config or {}).get('result_dir')
+        reference_path = Path(result_dir) / 'tsf_mask_utm.tif'
         nodata = -9999.0
         input_dirs = [
             output_dir / 'los_cumulative',
@@ -1806,10 +1893,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._config.get('reference') is not None
             and self._config.get('crs') is not None
         ):
+            step(self._rasterize_tsf_mask, self._config['reference'], self._config['crs'],)
             step(
                 self._reproject_raster,
                 self._config['result_dir'],
-                self._config['reference'],
                 self._config['crs'],
             )
         step(self._cleanup, self._config['workdir'])
