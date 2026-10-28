@@ -1581,24 +1581,26 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Open the GeoPackage
         vector_ds = ogr.Open(tsf_mask_gpkg, 0)
         if vector_ds is None:
-            raise RuntimeError(f"Cannot open GeoPackage: {tsf_mask_gpkg}")
+            raise RuntimeError(f'Cannot open GeoPackage: {tsf_mask_gpkg}')
 
         layer = vector_ds.GetLayer(0)
         if layer is None:
-            raise RuntimeError("No layer found in the GeoPackage.")
+            raise RuntimeError('No layer found in the GeoPackage.')
 
         # Get the spatial reference
         spatial_ref = layer.GetSpatialRef()
         if spatial_ref is None:
-            raise RuntimeError("The input layer has no defined CRS.")
+            raise RuntimeError('The input layer has no defined CRS.')
 
         # Require a projected CRS in meters
         if not spatial_ref.IsProjected():
-            raise ValueError("The CRS of input TSF mask must be projected and use meters.")
+            raise ValueError(
+                'The CRS of input TSF mask must be projected and use meters.'
+            )
         spatial_ref.AutoIdentifyEPSG()
         epsg_code = spatial_ref.GetAuthorityCode(None)
         if int(epsg_code) != int(target_crs):
-            raise ValueError("The CRS of input TSF mask differs from config CRS.")
+            raise ValueError('The CRS of input TSF mask differs from config CRS.')
 
         # Get polygon bounds: minX, maxX, minY, maxY
         minx, maxx, miny, maxy = layer.GetExtent()
@@ -1614,28 +1616,25 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         height = int(round((top - bottom) / resolution))
 
         # Create output raster
-        driver = gdal.GetDriverByName("GTiff")
+        driver = gdal.GetDriverByName('GTiff')
         raster_ds = driver.Create(
-            output_tif,
-            width,
-            height,
-            1,
-            gdal.GDT_Byte,
-            options=["COMPRESS=LZW"]
+            output_tif, width, height, 1, gdal.GDT_Byte, options=['COMPRESS=LZW']
         )
 
         if raster_ds is None:
-            raise RuntimeError(f"Cannot create output raster: {output_tif}")
+            raise RuntimeError(f'Cannot create output raster: {output_tif}')
 
         # Set georeferencing
-        raster_ds.SetGeoTransform((
-            left,  # upper-left X
-            resolution,  # pixel width
-            0,  # rotation
-            top,  # upper-left Y
-            0,  # rotation
-            -resolution  # pixel height
-        ))
+        raster_ds.SetGeoTransform(
+            (
+                left,  # upper-left X
+                resolution,  # pixel width
+                0,  # rotation
+                top,  # upper-left Y
+                0,  # rotation
+                -resolution,  # pixel height
+            )
+        )
         raster_ds.SetProjection(spatial_ref.ExportToWkt())
 
         # Initialize background to 0
@@ -1644,12 +1643,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         band.SetNoDataValue(0)
 
         # Rasterize the polygon with value 1
-        gdal.RasterizeLayer(
-            raster_ds,
-            [1],
-            layer,
-            burn_values=[1]
-        )
+        gdal.RasterizeLayer(raster_ds, [1], layer, burn_values=[1])
 
         # Flush and close datasets
         raster_ds = None
@@ -1893,7 +1887,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._config.get('reference') is not None
             and self._config.get('crs') is not None
         ):
-            step(self._rasterize_tsf_mask, self._config['reference'], self._config['crs'],)
+            step(
+                self._rasterize_tsf_mask,
+                self._config['reference'],
+                self._config['crs'],
+            )
             step(
                 self._reproject_raster,
                 self._config['result_dir'],
