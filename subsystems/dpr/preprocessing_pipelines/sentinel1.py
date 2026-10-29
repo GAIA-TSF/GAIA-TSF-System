@@ -33,7 +33,7 @@ from .insar_diagnostics import InSARDiagnostics
 from .insar_checkpoints import PairCheckpoints
 from .weather_archive import WeatherStore
 from lib.config import SettingsReader
-from lib.exceptions import GaiaDataError, GaiaConfigError
+from lib.exceptions import GaiaDataError
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
