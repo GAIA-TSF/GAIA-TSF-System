@@ -11,6 +11,7 @@ from pyproj import Transformer
 
 from .base import PreprocessingBasePipeline
 from subsystems.dpr.metadata_processor import MetadataGenerator
+from lib.exceptions import GaiaDataError
 
 # GDAL configuration to handle errors
 gdal.UseExceptions()
@@ -242,9 +243,10 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         """
 
         if numpy.nanmax(slc_array) > 12 or numpy.nanmax(slc_array) < 0:
-            raise ValueError(
+            raise GaiaDataError(
                 f'Invalid SCL values {numpy.nanmax(slc_array)}. SCL values should be comprised between 1'
-                f'and 12.'
+                f'and 12.',
+                self.logger,
             )
 
         # Get the unique values and their counts
@@ -593,8 +595,9 @@ class Sentinel2SafeProcessor(PreprocessingBasePipeline):
         elif format_lower in ['jp2', 'jpeg2000']:
             self.driver_name = 'JP2OpenJPEG'
         else:
-            raise ValueError(
-                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'."
+            raise GaiaDataError(
+                f"Unsupported format '{self._config['output_format']}'. Use 'tiff' or 'jp2'.",
+                self.logger,
             )
 
         self.input_folder = self._config['input_safe']

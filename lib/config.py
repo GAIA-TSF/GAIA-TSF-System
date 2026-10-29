@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+from logging import LoggerAdapter
 
 import yaml
 from pathlib import Path
@@ -10,6 +11,8 @@ from shapely.geometry import box
 from osgeo import gdal, osr
 
 gdal.UseExceptions()
+
+from lib.exceptions import GaiaConfigError
 
 
 class ConfigReader(dict):
@@ -41,12 +44,12 @@ class ConfigReader(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
             value = self[item] if self._root is None else self[self._root][item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item, None)
 
         return self._wrap(value)
 
@@ -102,12 +105,12 @@ class ConfigNode(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
             value = self[item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item, None)
 
         if isinstance(value, dict):
             return ConfigNode(value)
@@ -224,17 +227,23 @@ class YamlValidator:
 
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
-    def __init__(self, config_path: str | Path):
+    def __init__(self, config_path: str | Path, logger: LoggerAdapter | None = None):
         """Initialize project config reader.
 
-        Validity may be checked by is_valid() method.
+        Raise GaiaConfigError when project definition is not valid.
 
         :param str config_path: path to config file
+        :param LoggerAdapter logger: logger to be used or None
         """
         ConfigReader.__init__(self, config_path)
+        self._logger = logger
         YamlValidator.__init__(self, {'project': {'name': None, 'aoi': None}})
 
         self.validate(dict(self))
+        if self.is_valid() is False:
+            raise GaiaConfigError(
+                f'{config_path}: {";".join(self.errors)}', self._logger
+            )
 
         self._root = 'project'  # used by __getattr__
 
@@ -262,7 +271,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         layer = ds.GetLayer(0)
 
         if layer.GetFeatureCount() > 1:
-            raise RuntimeError('AOI: Only one feature expected')
+            raise GaiaConfigError('AOI: Only one feature expected', self._logger)
 
         srs = layer.GetSpatialRef()
         target_srs = osr.SpatialReference()
@@ -277,7 +286,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         feature = layer.GetNextFeature()
         if feature is None:
             ds = None
-            raise RuntimeError('No features found')
+            raise GaiaConfigError('No features found', self._logger)
 
         geom = feature.GetGeometryRef().Clone()
         if transform is not None:

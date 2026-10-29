@@ -79,7 +79,7 @@ class GaiaBase:
             )
 
         if _project_path:
-            self.project_config = ProjectConfigReader(_project_path)
+            self.project_config = ProjectConfigReader(_project_path, self.logger)
             self.logger.info(f'Project configuration read from {_project_path}')
         else:
             self.project_config = None
