@@ -4,12 +4,18 @@
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+
 # Cadia
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
 # project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_cadia/'
-# Jagesfontein 
-# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagesfontein'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia' 
+
+# Jagersfontein 
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagersfontein'
 # project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein'
+# Tharsis: 
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_tharsis/' 
+
 # AMD 
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_spatial_propagation/'
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022/'
@@ -50,8 +56,17 @@ slope_stability:
     # Retrospective 2-D products only. Select an explicit historical range
     # before enabling them; never use these as monitoring model inputs.
     summary_window:
-      start_date: "2018-01-01"
-      end_date: "2020-12-31"
+      # synthetic external drift 
+      # start_date: "2019-01-01"
+      # end_date: "2020-12-31"
+      # Cadia 
+      # start_date: "2015-01-01"
+      # end_date: "2018-12-31"
+      # Jagersfontein: failure 
+      start_date: "2015-01-01"
+      end_date: "2022-08-10"
+
+
     cumulative_los: false
     displacement_increment: false
     velocity: false

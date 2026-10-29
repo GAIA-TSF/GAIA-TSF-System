@@ -59,7 +59,11 @@ class DatasetBuilder:
         targets = target[valid]
         if targets.size == 0:
             raise ValueError(
-                'No finite samples remain after feature and mask filtering.'
+                'No finite samples remain after feature and mask filtering. '
+                'Check target and feature coverage within the selected pixels. '
+                'For stable pixels outside the TSF, regenerate DAG temporal '
+                'features with slope_stability.static.stable_reference.file '
+                'pointing to the calibration mask.'
             )
         return Dataset(
             feature_matrix,

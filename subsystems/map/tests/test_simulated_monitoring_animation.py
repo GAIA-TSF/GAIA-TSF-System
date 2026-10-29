@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from subsystems.map.scripts.simulate_monitoring_animation import (
+from subsystems.map.scripts.visualisation.simulate_monitoring_animation import (
     causal_prefix_indices,
     classify_risk,
     configured_animation_output,

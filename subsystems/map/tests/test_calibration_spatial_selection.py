@@ -1,5 +1,6 @@
 """Spatial calibration support for sites without a stable time period."""
 
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,7 +9,8 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from subsystems.map.dataset.feature_loader import RasterGrid
+from subsystems.map.dataset import DatasetBuilder
+from subsystems.map.dataset.feature_loader import LoadedFeatures, RasterGrid
 from subsystems.map.pipelines.learning_pipeline import LearningPipeline
 
 
@@ -68,7 +70,11 @@ def test_configured_stable_mask_controls_training_population(tmp_path):
     assert metadata['monitoring_domain'] == 'dataset.mask_file'
 
 
-def test_stable_mask_must_be_subset_of_tsf(tmp_path):
+@pytest.mark.parametrize('method', ['configured_mask', 'configured_mask_and_temporal_std'])
+@pytest.mark.parametrize('overlaps_tsf', [True, False])
+def test_stable_pixels_outside_tsf_contribute_training_samples(
+    tmp_path, method, overlaps_tsf,
+):
     path = tmp_path / 'stable.tif'
     grid = _write_mask(path, np.array([[1, 1], [0, 0]]))
     loaded = SimpleNamespace(

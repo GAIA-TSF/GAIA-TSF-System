@@ -111,7 +111,7 @@ TODO:
 ### Spatial calibration support
 
 Sites that lack a deformation-free historical period can calibrate the normal
-behaviour model on a surveyed stable subset while retaining the full TSF for
+behaviour model on a surveyed stable area while retaining the full TSF for
 inference and monitoring:
 
 ```yaml
@@ -134,12 +134,19 @@ Supported methods are:
   configured stable mask.
 
 `calibration_spatial_selection.mask_file` may override `stable_file`. The mask
-must be binary, nonempty, share the feature grid, and lie completely inside
-`mask_file`. Only learning is spatially restricted. Inference, residual maps,
+must be binary, nonempty, and share the feature grid. Stable pixels may lie
+outside `mask_file`, including an entirely separate reference area within the
+LOS image. Training requires finite target and feature values at those pixels.
+For external stable pixels, DAG temporal features must be regenerated with
+`slope_stability.static.stable_reference.file` set to the same mask filename
+(default `tsf_stable.tif`). Temporal feature generation retains the union of
+TSF and stable pixels; older TSF-only rasters contain no usable external samples.
+Any other required feature rasters must also cover the stable area.
+Only learning uses the stable area. Inference, residual maps,
 and monitoring continue over `mask_file`. The experiment metadata records the
 method, mask path, configured and selected pixel counts, and threshold.
 Temporal stability selection, when enabled, is calculated only from the
-configured calibration dates and never from monitoring observations.
+configured calibration dates within the selected calibration area.
 
 Spatial selection does not replace temporal windows. Learning uses the Cartesian
 intersection of the selected calibration pixels and calibration dates. The
@@ -155,6 +162,34 @@ temporal_windows:
     start_date: '2017-01-01'  # included
     end_date: '2018-02-20'    # included
 ```
+
+Calibration and monitoring windows are independent and may overlap, including
+covering the same full period. To learn normal behaviour from `tsf_stable.tif`
+over all dates and monitor `mask_file` from the beginning, use:
+
+```yaml
+calibration_spatial_selection:
+  method: configured_mask
+split:
+  method: spatial
+  train_ratio: 0.5
+  validation_ratio: 0.25
+  test_ratio: 0.25
+temporal_windows:
+  calibration:
+    full_period: true
+  monitoring:
+    full_period: true
+```
+
+`full_period: true` includes the first and last available acquisition and takes
+precedence over explicit date bounds. Spatial splitting retains the full time
+axis in each split while holding out stable pixels for validation and testing.
+LSTM predictions begin once the required feature lags and sequence history are
+available; physical observations can be displayed from the first acquisition.
+This full-period fit supports retrospective monitoring: early predictions use a
+model trained with later stable-area observations. Monitoring statistics also
+use their configured calibration period to establish their reference levels.
 
 Only real acquisition dates within these calendar bounds are selected; dates in
 the YAML do not need to match an acquisition exactly. The split method controls

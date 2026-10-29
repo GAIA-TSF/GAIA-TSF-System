@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import logging
 from pathlib import Path
 import random
@@ -81,7 +82,7 @@ class LearningPipeline:
         )
         builder = DatasetBuilder()
         stable_dataset = builder.build(
-            loaded, feature_names, target_feature, stable_mask
+            replace(loaded, mask=stable_mask), feature_names, target_feature
         )
         model = MODEL_REGISTRY[model_name](self._named_config('models', model_name))
         stable_dataset = self._sequence_dataset(builder, stable_dataset, model)
@@ -244,19 +245,13 @@ class LearningPipeline:
                 )
             configured_path = self._static_file(stable_file)
             configured = self._load_calibration_mask(configured_path, loaded)
-            outside = configured & ~loaded.mask
-            if np.any(outside):
-                raise ValueError(
-                    f'Calibration stable mask contains {np.count_nonzero(outside)} '
-                    'pixels outside dataset.mask_file.'
-                )
             configured_count = int(np.count_nonzero(configured))
             if method == 'configured_mask':
-                mask = configured & loaded.mask
+                mask = configured
             else:
                 mask = selector.select(
                     loaded.features[target_feature][calibration_start:calibration_end],
-                    configured & loaded.mask,
+                    configured,
                 )
         return mask, {
             'method': method,

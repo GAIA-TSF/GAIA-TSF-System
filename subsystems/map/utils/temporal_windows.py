@@ -9,7 +9,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class TemporalWindow:
-    """Inclusive calendar window represented as zero-based time-index bounds."""
+    """Calendar window represented as inclusive/exclusive time-index bounds."""
 
     start_index: int
     end_index: int
@@ -38,6 +38,10 @@ def resolve_temporal_window(
     if not isinstance(windows, dict) or not isinstance(windows.get(name), dict):
         raise KeyError(f'Missing datasets.*.temporal_windows.{name} configuration.')
     window = windows[name]
+    if window.get('full_period') is True:
+        if not dates:
+            raise ValueError(f'Temporal window {name} contains no acquisition dates.')
+        return TemporalWindow(0, len(dates), dates[0], dates[-1])
     start_value = window.get('start_date')
     end_value = window.get('end_date')
     if not isinstance(start_value, str) or not isinstance(end_value, str):

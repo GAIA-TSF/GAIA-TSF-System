@@ -175,7 +175,7 @@ class MonitoringPipeline:
             raise ValueError('monitoring.animation must be a mapping.')
         if not bool(config.get('enabled', False)):
             return None
-        from subsystems.map.scripts.simulate_monitoring_animation import (
+        from subsystems.map.scripts.visualisation.simulate_monitoring_animation import (
             configured_animation_output,
             export_dashboard_json,
             export_csv,

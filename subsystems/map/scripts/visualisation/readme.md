@@ -265,3 +265,71 @@ revealed only through the current animation cursor.
   and target feature.
 - **MP4 becomes GIF:** Install `ffmpeg` and ensure it is available on `PATH`.
 - **Pillow writer error:** Install Pillow in the MAP Python environment.
+
+
+## Static observation and monitoring plot
+
+`plot_monitoring_observations.py` reads the JSON exported alongside a monitoring
+animation. It writes two aligned panels: LOS observations above, and observations
+with predicted normal behaviour, exported uncertainty, regime-score shading, and
+regional acceleration/recovery intervals below. The dashed vertical line marks
+the configured monitoring start. Missing values remain gaps. Rates retain the
+JSON display units; this is velocity, not integrated displacement.
+
+```bash
+python3 subsystems/map/scripts/plot_monitoring_observations.py \
+  /path/to/results/monitoring/animation/tsf_monitoring.json \
+  --output /path/to/observations.png
+```
+
+Output defaults to `<input_stem>_observations.png` beside the JSON. Use
+`--output figure.pdf` or `--output figure.svg` for vector export, `--title` for a
+custom title, and `--dpi` for raster resolution. The script does not retrain or
+recompute monitoring statistics.
+
+To animate the same two panels through time, select MP4 or GIF:
+
+```bash
+python3 subsystems/map/scripts/plot_monitoring_observations.py \
+  /path/to/tsf_monitoring.json --output observations.mp4 \
+  --marker-size 6 --fps 8 --dpi 120
+```
+
+Historical observations use larger grey circles; the current acquisition uses a
+larger black circle in both panels. A moving date cursor and title show the
+current time. Baseline curves and monitoring overlays are revealed only up to
+that date, with fixed full-period axes for comparison. Missing observations
+remain gaps, including an absent current marker on missing dates. MP4 requires
+`ffmpeg`; GIF requires Pillow. This replays previously computed results and does
+not refit the model. Static exports use the same markers and highlight the final
+acquisition in black. `--marker-size` sets the historical diameter in points;
+the current marker is two points larger.
+
+## Level-1 z-score anomaly animation
+
+`plot_level1_anomalies.py` creates a new three-panel figure: LOS observations,
+comparison with the predicted normal behaviour, and standardized residuals.
+Red dots on the comparison and residual panels mark monitored observations with
+`abs((observed - expected) / sigma) > threshold`. Historical observations are grey;
+the current observation is black, or red when flagged on the lower panels.
+No persistence or warning classification is implied by a Level-1 anomaly.
+
+```bash
+python3 subsystems/map/scripts/plot_level1_anomalies.py \
+  /path/to/tsf_monitoring.json --output level1.mp4 --z-threshold 3
+```
+
+Sigma defaults to the sample standard deviation (ddof=1) of finite calibration
+residuals. The residual is not demeaned, following the presentation formula.
+If the export lacks calibration predictions, provide `--sigma` from stable-area
+validation residuals in the JSON velocity units. For example, `--sigma 0.01`
+means 0.01 in those units; this is an illustrative value, not a recommended
+calibration. Prediction uncertainty is not automatically treated as residual
+standard deviation. Missing baseline values cannot be classified.
+
+MP4 is the default output; GIF, PNG, PDF and SVG are also supported. Use `--fps`,
+`--marker-size`, `--dpi` and `--title` to control presentation. Animation reveals
+only acquisitions up to the current date, using fixed axes. The input contains
+spatial mean LOS velocity, so detection is on that aggregate, not individual
+pixels or cumulative displacement. Overlapping calibration and monitoring
+periods are allowed; fitting sigma over a full overlapping period is retrospective.

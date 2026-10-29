@@ -69,6 +69,7 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             series.data.shape[1:],
             series.profile,
         )
+        mask = self._include_stable_reference(mask, static_config, series.profile)
         masked_data = apply_mask(series.data, mask)
         stable_diagnostics, masked_data = self._stable_reference(
             masked_data,
@@ -241,6 +242,35 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             else:
                 raise ValueError(f'Unsupported temporal input feature: {feature_name}')
         return stacks
+
+    def _include_stable_reference(
+        self,
+        mask: np.ndarray,
+        static_config: dict[str, object],
+        profile: RasterProfile,
+    ) -> np.ndarray:
+        """Retain calibration pixels as well as TSF pixels in engineered features."""
+        config = static_config.get('stable_reference', {})
+        if not isinstance(config, dict):
+            raise TypeError('slope_stability.static.stable_reference must be a mapping.')
+        filename = str(config.get('file', 'tsf_stable.tif'))
+        path = self._resolve_path(f'static/{filename}')
+        if not path.exists():
+            return mask
+        with rasterio.open(path) as source:
+            grid = (source.height, source.width, source.transform, source.crs)
+            expected = (profile.height, profile.width, profile.transform, profile.crs)
+            if grid != expected:
+                raise ValueError('Stable reference mask grid does not match LOS rasters.')
+            values = source.read(1, masked=True).filled(0)
+        if not np.all(np.isin(values, [0, 1])):
+            raise ValueError('Stable reference mask must be binary (0/1).')
+        stable = values == 1
+        LOGGER.info(
+            'Including %d stable reference pixels outside the TSF in temporal features.',
+            np.count_nonzero(stable & ~mask.astype(bool)),
+        )
+        return mask.astype(bool) | stable
 
     def _stable_reference(
         self,

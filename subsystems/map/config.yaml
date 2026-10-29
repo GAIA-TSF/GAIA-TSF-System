@@ -1,16 +1,23 @@
 # Scenario 1: slope-stability baseline behaviour modelling.
 # Paths target the configured synthetic TSF project directly.
 experiment:
-  name:  slope_trf # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
+  name:  slope_lstm # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
   description: Stable-pixel model for synthetic TSF deformation monitoring
   seed: 42
 
 # Single root for this DAG/MAP scenario. MAP derives static inputs from
-# <experiment_dir>/static and all DAG/MAP products from <experiment_dir>/results.
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger 
-experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/
+# Synthetic
+# experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger
+# Cadia
+# experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/  
+# experiment_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia' 
+# Jagersfontein
+experiment_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagersfontein'
+# Tharsis
+
 variable: slope
-model: trf # constant | trf | lstm
+model: lstm # constant | trf | lstm
 dataset: slope_dataset
 
 data:
@@ -31,20 +38,20 @@ datasets:
     stable_file: tsf_stable.tif
     calibration_spatial_selection:
       # temporal_std | configured_mask | configured_mask_and_temporal_std
-      method: configured_mask
+      method: configured_mask # configured_mask
       # Supported methods are:
       # A/ temporal_std: automatic stability selection during calibration dates.
       # B/ configured_mask: use the defined stable area directly.
       # C/ configured_mask_and_temporal_std: apply the temporal stability threshold
       # within the defined stable area.
     features:
-      - velocity_lag1
+      # - velocity_lag1
       - velocity_lag2
       - velocity_lag3
       - acceleration_lag1
       - acceleration_lag2
       - acceleration_lag3
-    target_feature: velocity_current
+    target_feature: velocity_lag1 # velocity_current
     # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]
     split:
       # temporal: chronological validation; spatial: unseen pixels over all dates.
@@ -54,12 +61,21 @@ datasets:
       validation_ratio: 0.25
       test_ratio: 0.25
     temporal_windows:
+      # Independent windows: stable-area learning and TSF monitoring may overlap.
       calibration:
-        start_date: '2016-04-30'
-        end_date: '2018-02-01'
+        full_period: true
       monitoring:
-        start_date: '2017-06-01'
-        end_date: '2018-02-27'
+        # full_period: true
+        # Synthetic 
+        # start_date: '2018-01-01'
+        # end_date: '2020-12-31'
+        # Cadia 
+        # start_date: '2016-01-01'
+        # end_date: '2018-12-31'
+        # Jagesfontein
+        start_date: "2017-01-01"
+        end_date: "2022-08-10"
+       
   amd_dataset:
     mask_file: tsf_mask.tif
     features: [amd_lag1]
@@ -153,13 +169,13 @@ explainability:
       annual_seasonality:
         - annual_sin
         - annual_cos
-      meteorological_conditions:
-        - precipitation
-        - precip_7d
-        - precip_14d
-        - precip_30d
-        - precip_60d
-        - temperature_mean
+      # meteorological_conditions:
+      #   - precipitation
+      #   - precip_7d
+      #   - precip_14d
+      #   - precip_30d
+      #   - precip_60d
+      #   - temperature_mean
 
 plotting:
   # MAP rasters and model outputs are stored in native mm per day for InSAR LOS products.
