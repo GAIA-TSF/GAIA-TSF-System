@@ -33,6 +33,7 @@ from .insar_diagnostics import InSARDiagnostics
 from .insar_checkpoints import PairCheckpoints
 from .weather_archive import WeatherStore
 from lib.config import SettingsReader
+from lib.exceptions import GaiaDataError, GaiaConfigError
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -172,7 +173,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None.
         """
         if not any(datadir.glob('*.SAFE/')):
-            raise FileNotFoundError(f"No '.SAFE' directories found in {datadir}.")
+            raise GaiaDataError(
+                f"No '.SAFE' directories found in {datadir}.", self.logger
+            )
         self.logger.info('Downloading precise orbit files.')
         s1 = (
             self._scan_original_slcs(datadir)
@@ -251,14 +254,16 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if datadir == workdir:
-            raise ValueError(
+            raise GaiaDataError(
                 f'Safety Triggered: datadir and workdir are the same location ({datadir}). '
-                'Aborting to prevent accidental data deletion.'
+                'Aborting to prevent accidental data deletion.',
+                self.logger,
             )
         if workdir in datadir.parents:
-            raise ValueError(
+            raise GaiaDataError(
                 f'Safety Triggered: workdir ({workdir}) is a parent of datadir ({datadir}). '
-                'Aborting to prevent accidental data deletion.'
+                'Aborting to prevent accidental data deletion.',
+                self.logger,
             )
 
         # Reset generated files before the recursive scan: workdir may be
@@ -719,8 +724,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.intf is None or self.corr is None:
-            raise RuntimeError(
-                'Interferograms and correlation must be computed before unwrapping.'
+            raise GaiaDataError(
+                'Interferograms and correlation must be computed before unwrapping.',
+                self.logger,
             )
 
         # Decimate to target unwrap spacing
@@ -764,8 +770,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Verify we have valid pixels to unwrap
         n_valid = int(np.isfinite(corr_mask).sum().compute())
         if n_valid == 0:
-            raise RuntimeError(
-                f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.'
+            raise GaiaDataError(
+                f'No pixels found above corr_limit={corr_limit}. Unwrapping aborted.',
+                self.logger,
             )
 
         # Load the inputs once; SNAPHU is an external process (see _local_threads).
@@ -799,7 +806,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         The historical method name is retained for pipeline callers.
         """
         if self.unwrap is None:
-            raise RuntimeError('Phase must be unwrapped before detrending.')
+            raise GaiaDataError(
+                'Phase must be unwrapped before detrending.', self.logger
+            )
 
         # Ensure Dask chunking
         phase_data = self.unwrap.phase
@@ -887,7 +896,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.detrend is None or self.corr is None:
-            raise RuntimeError('Missing detrended phase or correlation data.')
+            raise GaiaDataError(
+                'Missing detrended phase or correlation data.', self.logger
+            )
 
         # Grid Alignment & SBAS Solve
         corr_ra = self.corr_unwrap
@@ -999,8 +1010,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if self.disp_ll is None:
-            raise RuntimeError(
-                'Missing displacement data. Run _compute_displacement first.'
+            raise GaiaDataError(
+                'Missing displacement data. Run _compute_displacement first.',
+                self.logger,
             )
 
         self.logger.info('Computing risk map..')
@@ -1267,8 +1279,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         """
         # Extract and Merge InSAR Layers
         if self.disp_ll is None or self.risk_map is None:
-            raise RuntimeError(
-                'InSAR displacement or risk map not found. Run previous steps first.'
+            raise GaiaDataError(
+                'InSAR displacement or risk map not found. Run previous steps first.',
+                self.logger,
             )
 
         self.logger.info('Computing risk database.')
@@ -1515,8 +1528,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
             if not t_dim:
-                raise ValueError(
-                    'Could not find a valid time/date dimension in self.disp_ll.'
+                raise GaiaDataError(
+                    'Could not find a valid time/date dimension in self.disp_ll.',
+                    self.logger,
                 )
 
             data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})

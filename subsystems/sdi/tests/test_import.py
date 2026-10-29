@@ -9,6 +9,7 @@ from subsystems.sdi.loader import EarthObservationDataLoader
 from subsystems.sdi.utils import SdiUtils
 
 from lib.config import SettingsReader
+from lib.exceptions import GaiaSdiError
 
 from config import INSITU_COLLECTION, INSITU_ITEM_ID
 from config import EO_COLLECTION, EO_ITEM_ID
@@ -154,7 +155,7 @@ class TestEarthObservationDataLoader:
         importer = EarthObservationDataLoader(zip_path=zip_path)
 
         # Expecting expection
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(GaiaSdiError) as excinfo:
             importer.import_zip()
 
         # Checking text of the exception
