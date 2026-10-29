@@ -32,7 +32,15 @@ project:
   monitoring_seasons: '05-01/10-31' # May–October (snow-free season)
 
   # DATA SOURCES
-  sensors: ['Sentinel-2']      # 'PlanetScope' optinal replacement 
+  eou:
+    - backend: eodag
+      provider: cop_dataspace
+      productType: S2_MSI_L2A
+      target_dir: sentinel2
+
+    - backend: asf
+      direction: A
+      target_dir: sentinel1
 
   meteo_data:
     source: 'meteostat'        # Python package
