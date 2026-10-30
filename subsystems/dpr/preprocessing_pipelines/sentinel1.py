@@ -14,6 +14,7 @@ import numpy as np
 import xarray as xr
 import rioxarray  # noqa: F401
 from shapely.geometry.polygon import Polygon
+from shapely.geometry import MultiPolygon
 import pandas as pd
 import requests_cache
 import openmeteo_requests
@@ -21,8 +22,16 @@ from timezonefinder import TimezoneFinder
 from retry_requests import retry
 from shapely.wkt import loads
 from pyproj import Transformer
+import rasterio
+from rasterio.crs import CRS
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+from osgeo import gdal, ogr
+import math
 
 from .base import PreprocessingBasePipeline
+from .insar_diagnostics import InSARDiagnostics
+from .insar_checkpoints import PairCheckpoints
+from .weather_archive import WeatherStore
 from lib.config import SettingsReader
 from lib.exceptions import GaiaDataError, GaiaConfigError
 
@@ -32,6 +41,51 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
+            'retain_pair_checkpoints': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels',
+            },
+            'processing_start': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'processing_end': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'source_safe_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs',
+            },
+            'insar_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Export InSAR results without environmental and risk processing',
+            },
+            'diagnostics_root': {
+                'dtype': str,
+                'default': '',
+                'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
+            },
+            'diagnostics': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Save per-run JSON/CSV statistics, SBAS graph and intermediate PNG diagnostics',
+            },
+            'reference_area_wkt': {
+                'dtype': str,
+                'default': '',
+                'description': 'Optional stable-ground Polygon/MultiPolygon WKT in EPSG:4326, inside processing AOI',
+            },
+            'excluded_dates': {
+                'dtype': list,
+                'default': [],
+                'description': 'Acquisition dates to exclude from processing (YYYY-MM-DD)',
+            },
             'datadir': {
                 'dtype': PosixPath,
                 'description': 'Path to the directory with Sentinel-1 SLC BURST data',
@@ -48,6 +102,26 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'dtype': PosixPath,
                 'description': 'Path where the landmask file will be downloaded and later used',
             },
+            'basedays': {
+                'dtype': list,
+                'default': [36, 48, 60, 80],
+                'description': 'Possible values for maximum temporal baseline (days)',
+            },
+            'basemeters': {
+                'dtype': list,
+                'default': [80, 100, 120, 150, 180],
+                'description': 'Possible values for maximum perpendicular baseline (m)',
+            },
+            'max_bridge_meters': {
+                'dtype': float,
+                'default': 400.0,
+                'description': 'Maximum perpendicular baseline (m) of a pair added to connect a disconnected SBAS network',
+            },
+            'max_dropped_dates_fraction': {
+                'dtype': float,
+                'default': 0.1,
+                'description': 'Maximum fraction of dates that may be dropped when the SBAS network cannot be bridged',
+            },
             'workdir': {
                 'dtype': PosixPath,
                 'description': "Path to the directory where computed data will be stored (cannot be the same as 'datadir')",
@@ -56,20 +130,34 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'dtype': PosixPath,
                 'description': 'Path to the directory where final results will be stored',
             },
+            'reference': {
+                'dtype': PosixPath,
+                'required': False,
+                'description': 'Path to the reference GPKG file',
+            },
+            'crs': {
+                'dtype': int,
+                'required': False,
+                'description': 'Target CRS of the output raster files',
+            },
         },
     }
 
     def _configure(self):
+        self._checkpoints = None
+        self._diagnostics = None
         self.client = None
         self.sbas = None
         self.baseline_pairs = None
         self.corr = None
+        self.corr_unwrap = None
         self.intf = None
         self.unwrap = None
         self.detrend = None
         self.disp_ll = None
         self.vel_ll = None
         self.rmse = None
+        self.quality_ll = {}
         self.risk_map = None
         self.failure_flag = None
 
@@ -89,7 +177,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f"No '.SAFE' directories found in {datadir}.", self.logger
             )
         self.logger.info('Downloading precise orbit files.')
-        s1 = S1.scan_slc(datadir)
+        s1 = (
+            self._scan_original_slcs(datadir)
+            if self._config.get('source_safe_only', False)
+            else S1.scan_slc(datadir)
+        )
         S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
@@ -125,6 +217,35 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if self.client is None:
             self.client = Client(**kwargs)
 
+    def _local_threads(self):
+        """Dask config context running computations on a local thread pool.
+
+        PyGMTSAR's stack-wide operations (unwrap_snaphu, ra2ll) build one
+        delayed task per slice whose closure holds the whole input stack; on
+        dask.distributed every task pickles it and re-submits nested graphs,
+        stalling the worker for thousands of slices. Inputs must already be in
+        memory. The pool is sized to the cluster's total threads
+        (n_workers * threads_per_worker), which sit idle meanwhile.
+
+        :return: dask.config.set context manager
+        """
+        client = getattr(self, 'client', None)
+        n_threads = (
+            sum(client.nthreads().values()) if client is not None else os.cpu_count()
+        )
+        self.logger.debug(f'Running on local thread pool ({n_threads} threads).')
+        return dask.config.set(scheduler='threads', num_workers=n_threads)
+
+    def _ra2ll(self, data):
+        """Geocode radar-coordinate data to an in-memory lat/lon grid.
+
+        :param xarray.DataArray data: Data in radar coordinates.
+        :return: xarray.DataArray in geographic coordinates
+        """
+        data = data.compute()
+        with self._local_threads():
+            return self.sbas.ra2ll(data).compute()
+
     def _stack_scenes(self, datadir, workdir):
         """Stack Sentinel-1 scenes together.
 
@@ -145,9 +266,157 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 self.logger,
             )
 
-        s1 = S1.scan_slc(datadir)
+        # Reset generated files before the recursive scan: workdir may be
+        # inside datadir, and stale reframed scenes would become input scenes.
+        self.sbas = Stack(workdir, drop_if_exists=True)
+        s1 = (
+            self._scan_original_slcs(datadir)
+            if self._config.get('source_safe_only', False)
+            else S1.scan_slc(datadir)
+        )
+        if self._config.get('source_safe_only', False):
+
+            def original_source(value):
+                paths = value if isinstance(value, (list, tuple)) else [value]
+                return all(
+                    any(part.endswith('.SAFE') for part in Path(path).parts)
+                    for path in paths
+                )
+
+            s1 = s1.loc[s1.datapath.map(original_source)].copy()
+        s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
+        s1 = self._filter_incomplete_dates(s1)
         self.logger.info('Stacking Sentinel-1 BURST data together.')
-        self.sbas = Stack(workdir, drop_if_exists=True).set_scenes(s1)
+        self.sbas = self.sbas.set_scenes(s1)
+
+    @staticmethod
+    def _scan_original_slcs(datadir):
+        """Exclude generated basename collisions before PyGMTSAR builds its index."""
+        from tempfile import TemporaryDirectory
+
+        root = Path(datadir).resolve()
+        safes = sorted(path for path in root.rglob('*.SAFE') if path.is_dir())
+        if not safes:
+            raise ValueError(f'No original .SAFE directories found in {root}')
+        # scan_slc recursively indexes by basename; filtering its output is too
+        # late when generated workdir files have overwritten source entries.
+        with TemporaryDirectory(prefix='gaia-s1-scan-') as directory:
+            view = Path(directory)
+            for index, source in enumerate(safes):
+                parent = view / str(index)
+                parent.mkdir()
+                (parent / source.name).symlink_to(source, target_is_directory=True)
+            orbit_dir = view / 'orbits'
+            orbit_dir.mkdir()
+            for index, orbit in enumerate(sorted(root.rglob('*.EOF'))):
+                parent = orbit_dir / str(index)
+                parent.mkdir()
+                (parent / orbit.name).symlink_to(orbit.resolve())
+            scenes = S1.scan_slc(view)
+            for column in (
+                'datapath',
+                'metapath',
+                'noisepath',
+                'calibpath',
+                'orbitpath',
+            ):
+                if column in scenes:
+                    scenes[column] = scenes[column].map(
+                        lambda path: str(Path(path).resolve())
+                        if isinstance(path, (str, Path))
+                        else path
+                    )
+            return scenes.drop_duplicates(subset=['datapath', 'metapath'])
+
+    def _filter_processing_dates(self, scenes):
+        """Filter original acquisitions before selecting a reference or constructing pairs."""
+        start = self._config.get('processing_start', '')
+        end = self._config.get('processing_end', '')
+        start = pd.to_datetime(start, utc=True).normalize() if start else None
+        end = pd.to_datetime(end, utc=True).normalize() if end else None
+        if (start is not None and pd.isna(start)) or (end is not None and pd.isna(end)):
+            raise ValueError('Processing bounds must be valid UTC dates.')
+        if start is not None and end is not None and start > end:
+            raise ValueError('processing_start must not be after processing_end')
+        dates = pd.to_datetime(scenes.index, utc=True).normalize()
+        keep = np.ones(len(scenes), dtype=bool)
+        if start is not None:
+            keep &= dates >= start
+        if end is not None:
+            keep &= dates <= end
+        filtered = scenes.loc[keep].sort_index().copy()
+        selected = (
+            pd.to_datetime(filtered.index, utc=True).normalize().unique().sort_values()
+        )
+        if len(selected) < 2:
+            raise ValueError(
+                'At least two acquisition dates are required within the processing period.'
+            )
+        self.logger.info(
+            f'Processing {len(selected)} acquisition dates: {selected[0]} to {selected[-1]}'
+        )
+        if self._diagnostics is not None:
+            self._diagnostics.table(
+                'selected_acquisitions', pd.DataFrame({'date': selected})
+            )
+        return filtered
+
+    def _filter_excluded_dates(self, scenes):
+        """Exclude all scenes on configured calendar dates, preserving source files."""
+        excluded = pd.to_datetime(
+            self._config.get('excluded_dates', []), errors='raise'
+        ).normalize()
+        if excluded.isna().any():
+            raise ValueError('excluded_dates contains an empty or invalid date')
+        mask = pd.to_datetime(scenes.index).normalize().isin(excluded)
+        if mask.any():
+            removed = sorted(
+                set(pd.to_datetime(scenes.index[mask]).strftime('%Y-%m-%d'))
+            )
+            self.logger.info(f'Excluding {int(mask.sum())} scenes on dates: {removed}')
+        filtered = scenes.loc[~mask].copy()
+        if filtered.empty:
+            raise ValueError(
+                'No Sentinel-1 scenes remain after applying excluded_dates'
+            )
+        return filtered
+
+    def _filter_incomplete_dates(self, scenes):
+        """Exclude dates with fewer bursts per subswath than the most complete date.
+
+        A date missing a burst only partially covers an AOI spanning a burst
+        boundary, which leaves too few tie points for alignment (fitoffset).
+        """
+        dates = pd.to_datetime(scenes.index).normalize()
+        # bursts are identified by start time; generated duplicates share it
+        burst = scenes['datetime'] if 'datetime' in scenes else scenes['datapath']
+        subswath = scenes['subswath'].to_numpy() if 'subswath' in scenes else 0
+        counts = (
+            pd.DataFrame(
+                {
+                    'date': dates.to_numpy(),
+                    'subswath': subswath,
+                    'burst': burst.to_numpy(),
+                }
+            )
+            .groupby(['date', 'subswath'])['burst']
+            .nunique()
+            .unstack(fill_value=0)
+        )
+        expected = counts.max()
+        incomplete = counts.index[(counts < expected).any(axis=1)]
+        if len(incomplete):
+            removed = [date.strftime('%Y-%m-%d') for date in incomplete]
+            self.logger.warning(
+                f'Excluding {len(removed)} dates with incomplete burst coverage '
+                f'(expected bursts per subswath: {expected.to_dict()}): {removed}'
+            )
+        filtered = scenes.loc[~dates.isin(incomplete)].copy()
+        if len(filtered.index.unique()) < 2:
+            raise ValueError(
+                'At least two acquisition dates with complete burst coverage are required.'
+            )
+        return filtered
 
     def _reframe_scenes(self, aoi):
         """Reframe stacked Sentinel-1 data to smaller area of interest and stitch them together.
@@ -188,13 +457,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Geocoding Sentinel-1 data.')
         self.sbas.compute_geocode(coarsen=coarsen)
 
-    def _find_optimal_network(
-        self, basedays=(36, 48, 60, 80), basemeters=(80, 100, 120, 150)
-    ):
+    def _find_optimal_network(self, basedays, basemeters):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
 
-        :param tuple basedays: Possible values for maximum temporal baseline (days). Defaults to (36, 48, 60, 80).
-        :param tuple basemeters: Possible values for maximum perpendicular baseline (m). Defaults to (80, 100, 120, 150).
+        :param tuple basedays: Possible values for maximum temporal baseline (days).
+        :param tuple basemeters: Possible values for maximum perpendicular baseline (m).
         :return: None
         """
         stack_df = self.sbas.to_dataframe()
@@ -211,59 +478,205 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     else self.sbas.baseline_pairs(days=days, meters=meters)
                 )
 
-                # Connectivity check
-                adj = defaultdict(set)
-                for a, b in pairs_df.iloc[:, :2].astype(str).values:
-                    adj[a].add(b)
-                    adj[b].add(a)
-
-                seen, components = set(), 0
-                for node in all_dates:
-                    if node not in seen:
-                        components += 1
-                        stack = [node]
-                        while stack:
-                            curr = stack.pop()
-                            if curr not in seen:
-                                seen.add(curr)
-                                stack.extend(adj[curr] - seen)
-
                 results.append(
                     {
                         'days': days,
                         'meters': meters,
                         'n_pairs': len(pairs_df),
-                        'n_comp': components,
+                        'n_comp': len(self._network_components(all_dates, pairs_df)),
                         'df': pairs_df,
                     }
                 )
 
+        candidates = [{k: v for k, v in r.items() if k != 'df'} for r in results]
         valid = [r for r in results if r['n_comp'] == 1]
-        if not valid:
-            raise GaiaConfigError(
-                'No connected network found. Try increasing thresholds.', self.logger
+        if valid:
+            best_config = min(
+                valid, key=lambda x: (x['n_pairs'], x['days'], x['meters'])
+            )
+            self.baseline_pairs = best_config['df']
+            repair = None
+        else:
+            # Repair the least fragmented candidate instead of loosening the
+            # thresholds for the whole network because of a few outlier dates.
+            best_config = min(
+                results,
+                key=lambda x: (x['n_comp'], x['n_pairs'], x['days'], x['meters']),
+            )
+            all_pairs = (
+                self.sbas.sbas_pairs()
+                if hasattr(self.sbas, 'sbas_pairs')
+                else self.sbas.baseline_pairs(days=None)
+            )
+            try:
+                self.baseline_pairs, repair = self._repair_network(
+                    all_dates,
+                    best_config['df'],
+                    all_pairs,
+                    max(basedays),
+                    max(basemeters),
+                    float(self._config.get('max_bridge_meters', 400.0)),
+                    float(self._config.get('max_dropped_dates_fraction', 0.1)),
+                )
+            except RuntimeError:
+                if self._diagnostics is not None:
+                    self._diagnostics.network(None, candidates)
+                raise
+            repair.update(days=best_config['days'], meters=best_config['meters'])
+            if repair['bridges']:
+                self.logger.warning(
+                    f'SBAS network disconnected at all thresholds; added {len(repair["bridges"])} bridge '
+                    f'pairs to the {best_config["days"]} d / {best_config["meters"]} m network: {repair["bridges"]}'
+                )
+            if repair['dropped_dates']:
+                self.logger.warning(
+                    f'Dropped {len(repair["dropped_dates"])} dates not connectable within '
+                    f'{self._config.get("max_bridge_meters", 400.0)} m: {repair["dropped_dates"]}'
+                )
+
+        if self._checkpoints is not None:
+            if repair is not None:
+                self._checkpoints.manifest['network_repair'] = repair
+            self._checkpoints.network(self.baseline_pairs, candidates)
+        if self._diagnostics is not None:
+            if repair is not None:
+                self._diagnostics.summary['network_repair'] = repair
+            self._diagnostics.network(self.baseline_pairs, candidates)
+
+    @staticmethod
+    def _network_components(dates, pairs):
+        """Return connected components (sets of normalized dates) of the pair graph."""
+        nodes = pd.to_datetime(pd.Index(dates)).normalize()
+        adj = defaultdict(set)
+        for a, b in zip(
+            pd.to_datetime(pairs['ref']).dt.normalize(),
+            pd.to_datetime(pairs['rep']).dt.normalize(),
+        ):
+            adj[a].add(b)
+            adj[b].add(a)
+        seen, components = set(), []
+        for node in nodes:
+            if node in seen:
+                continue
+            component, stack = set(), [node]
+            while stack:
+                curr = stack.pop()
+                if curr not in component:
+                    component.add(curr)
+                    stack.extend(adj[curr] - component)
+            seen |= component
+            components.append(component)
+        return components
+
+    @classmethod
+    def _repair_network(
+        cls,
+        dates,
+        pairs,
+        all_pairs,
+        max_days,
+        max_meters,
+        max_bridge_meters,
+        max_dropped_fraction,
+    ):
+        """Connect a fragmented SBAS network by adding the cheapest bridging pairs.
+
+        Components are joined greedily (Kruskal) by the cheapest pair between them, where the cost
+        is the temporal and perpendicular baseline normalised by the largest thresholds. Components
+        that cannot be bridged within max_bridge_meters are dropped, keeping the largest one.
+
+        :return: (pairs, report) with bridges and dropped dates listed in the report.
+        """
+        components = cls._network_components(dates, pairs)
+        owner = {
+            date: i for i, component in enumerate(components) for date in component
+        }
+        candidates = all_pairs.assign(
+            _ref=pd.to_datetime(all_pairs['ref']).dt.normalize(),
+            _rep=pd.to_datetime(all_pairs['rep']).dt.normalize(),
+        )
+        candidates = candidates[candidates['baseline'].abs() <= max_bridge_meters]
+        candidates = candidates.assign(
+            _cost=candidates['duration'] / max_days
+            + candidates['baseline'].abs() / max_meters
+        ).sort_values('_cost')
+
+        bridges = []
+        for index, row in candidates.iterrows():
+            a, b = owner.get(row['_ref']), owner.get(row['_rep'])
+            if a is None or b is None or a == b:
+                continue
+            for date, comp in owner.items():
+                if comp == b:
+                    owner[date] = a
+            bridges.append(index)
+        if bridges:
+            pairs = (
+                pd.concat([pairs, all_pairs.loc[bridges]])
+                .sort_values(['ref', 'rep'])
+                .reset_index(drop=True)
             )
 
-        best_config = min(valid, key=lambda x: (x['n_pairs'], x['days'], x['meters']))
-        self.baseline_pairs = best_config['df']
+        groups = defaultdict(set)
+        for date, comp in owner.items():
+            groups[comp].add(date)
+        dropped = []
+        if len(groups) > 1:
+            keep = max(groups.values(), key=len)
+            dropped = sorted(date for date in owner if date not in keep)
+            if len(dropped) > max_dropped_fraction * len(owner):
+                raise RuntimeError(
+                    f'No connected SBAS network: {len(dropped)} of {len(owner)} dates cannot be bridged within '
+                    f'{max_bridge_meters} m (limit {max_dropped_fraction:.0%}). '
+                    'Increase max_bridge_meters or exclude the dates.'
+                )
+            ref = pd.to_datetime(pairs['ref']).dt.normalize()
+            rep = pd.to_datetime(pairs['rep']).dt.normalize()
+            pairs = pairs[ref.isin(keep) & rep.isin(keep)].reset_index(drop=True)
+
+        report = {
+            'bridges': [
+                {
+                    'pair': all_pairs.at[i, 'pair'],
+                    'duration': int(all_pairs.at[i, 'duration']),
+                    'baseline': float(all_pairs.at[i, 'baseline']),
+                }
+                for i in bridges
+            ],
+            'dropped_dates': [date.strftime('%Y-%m-%d') for date in dropped],
+        }
+        return pairs, report
 
     def _compute_interferograms(
         self,
-        intensity_wavelength=20,
+        intensity_wavelength=30,
         phase_wavelength=30,
         coarsen=(1, 4),
         goldstein_patch=8,
     ):
         """Compute interferograms from baseline pairs.
 
-        :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity. Defaults to 20.
+        :param int intensity_wavelength: Gaussian smoothing cut-off wavelength (metres) for intensity. Defaults to 30; must match phase_wavelength.
         :param int phase_wavelength: Gaussian smoothing cut-off wavelength (metres) for wrapped phase. Defaults to 30.
         :param tuple coarsen: Radar coordinate downsampling (range_factor, azimuth_factor). Defaults to (1, 4).
         :param int goldstein_patch: Window size (pixels) for Goldstein filtering. Defaults to 8.
         :return: None
         """
+        if intensity_wavelength != phase_wavelength:
+            raise ValueError(
+                'Intensity and phase must use the same averaging kernel for coherence.'
+            )
+        if self._checkpoints is not None:
+            self._checkpoints.manifest['interferograms'] = {
+                'intensity_wavelength_m': intensity_wavelength,
+                'phase_wavelength_m': phase_wavelength,
+                'coarsen': list(coarsen),
+                'goldstein_patch': goldstein_patch,
+            }
+            self._checkpoints.save()
         topo = self.sbas.get_topo()
         data = self.sbas.open_data()
+        self._check_slc_coverage(data)
 
         # Process Intensity (for correlation weights)
         intensity = self.sbas.multilooking(
@@ -283,6 +696,26 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.info('Computing interferograms.')
         self.intf = self.sbas.interferogram(phase_goldstein)
 
+    def _check_slc_coverage(self, data):
+        """Reject empty aligned acquisitions before generating their interferograms."""
+        counts = (np.isfinite(data) & (np.abs(data) > 0)).sum(('y', 'x')).compute()
+        report = counts.to_dataframe(name='valid_slc_pixels')
+        if self._diagnostics is not None:
+            self._diagnostics.table('slc_coverage', report.reset_index())
+        result_dir = (self._config or {}).get('result_dir')
+        if result_dir is not None:
+            quality_dir = Path(result_dir) / 'quality'
+            quality_dir.mkdir(parents=True, exist_ok=True)
+            report.to_csv(quality_dir / 'slc_coverage.csv')
+        empty = report.index[report.valid_slc_pixels == 0]
+        if len(empty):
+            dates = ', '.join(pd.to_datetime(empty).strftime('%Y-%m-%d'))
+            raise ValueError(
+                f'Aligned SLC has no valid samples in the processing AOI on: {dates}. '
+                'Check burst completeness and alignment, or explicitly exclude the affected dates. '
+                'See quality/slc_coverage.csv when result_dir is configured.'
+            )
+
     def _unwrap_phase(self, corr_limit=0.20, unwrap_m=10.0):
         """Unwrap phases using SNAPHU.
 
@@ -298,10 +731,41 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Decimate to target unwrap spacing
         dec_u = self.sbas.decimator(unwrap_m)
-        corr_u, intf_u = dask.persist(dec_u(self.corr), dec_u(self.intf))
+        # Wrapped angles must be averaged on the unit circle, not arithmetically.
+        corr_u, phasor_u = dask.persist(dec_u(self.corr), dec_u(np.exp(1j * self.intf)))
+        intf_u = xr.apply_ufunc(np.angle, phasor_u, dask='allowed')
 
         # Build Correlation Mask
-        corr_mask = corr_u.where(corr_u >= corr_limit)
+        valid = np.isfinite(corr_u) & (corr_u >= corr_limit) & np.isfinite(intf_u)
+        corr_mask = corr_u.where(valid)
+        self.corr_unwrap = corr_mask
+        if self._checkpoints is not None:
+            wrapped = xr.Dataset(
+                {
+                    'wrapped_phase': intf_u,
+                    'coherence': corr_u,
+                    'snaphu_phase': intf_u.where(valid),
+                    'snaphu_coherence': corr_mask,
+                    'valid_mask': valid.astype('uint8'),
+                }
+            )
+            for name in ('wrapped_phase', 'snaphu_phase'):
+                wrapped[name].attrs['units'] = 'rad'
+            for name in ('coherence', 'snaphu_coherence'):
+                wrapped[name].attrs['units'] = '1'
+            self._checkpoints.manifest['unwrapping'] = {
+                'coherence_threshold': corr_limit,
+                'target_spacing_m': unwrap_m,
+                'snaphu_configuration': self.sbas.snaphu_config(),
+            }
+            self._checkpoints.write('wrapped', wrapped)
+        if self._diagnostics is not None:
+            self._diagnostics.summary['unwrapping'] = {
+                'coherence_threshold': corr_limit,
+                'target_spacing_m': unwrap_m,
+            }
+            self._diagnostics.save()
+            self._diagnostics.pairs(intf_u.where(valid), corr_mask, 'wrapped_phase')
 
         # Verify we have valid pixels to unwrap
         n_valid = int(np.isfinite(corr_mask).sum().compute())
@@ -311,29 +775,40 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 self.logger,
             )
 
-        self.logger.info('Unwrapping phases.')
-        self.unwrap = self.sbas.unwrap_snaphu(
-            intf_u.where(corr_mask), corr_mask
-        ).persist()
+        # Load the inputs once; SNAPHU is an external process (see _local_threads).
+        phase_in, corr_in = dask.compute(intf_u.where(valid), corr_mask)
+        self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs).')
+        with self._local_threads():
+            self.unwrap = self.sbas.unwrap_snaphu(
+                phase_in, corr_in, conncomp=True
+            ).compute()
+        self.unwrap['phase'] = self.unwrap.phase.where(valid)
+        if self._checkpoints is not None:
+            unwrapped = self.unwrap.rename(
+                {'phase': 'unwrapped_phase', 'conncomp': 'snaphu_component'}
+            )
+            unwrapped['unwrapped_phase'].attrs['units'] = 'rad'
+            # Preserve raw SNAPHU labels (including NaNs for failed pairs).
+            unwrapped['snaphu_component'].attrs['description'] = (
+                'Pair-local SNAPHU label; 0 unassigned; inspect valid_mask in wrapped checkpoint'
+            )
+            self._checkpoints.write('unwrapped', unwrapped)
+        if self._diagnostics is not None:
+            self._diagnostics.pairs(self.unwrap.phase, corr_mask, 'unwrapped_phase')
+        if not bool(np.isfinite(self.unwrap.phase).any()):
+            raise RuntimeError('SNAPHU returned no valid unwrapped phase.')
 
-        # Trigger computation to catch SNAPHU execution errors immediately
-        self.unwrap = self.unwrap.compute()
+    def _detrend_phase(self, chunksize=256):
+        """Preserve deformation and optionally subtract a stable-area pair offset.
 
-    def _detrend_phase(self, ramp_factor=3.0, base_wavelength=30, chunksize=256):
-        """Remove long-wavelength ramps from the unwrapped phase in radar geometry.
-
-        :param float ramp_factor: Multiplier applied to base_wavelength to define the ramp scale. Defaults to 3.0.
-        :param int base_wavelength: Reference smoothing wavelength (m). Defaults to 30.
-        :param int chunksize: Size of spatial blocks for Dask processing to optimize memory usage. Defaults to 256.
-        :return: None
+        A local Gaussian high-pass removes embankment-scale deformation along
+        with atmosphere. No spatial trend is fitted without stable-ground data.
+        The historical method name is retained for pipeline callers.
         """
         if self.unwrap is None:
             raise GaiaDataError(
                 'Phase must be unwrapped before detrending.', self.logger
             )
-
-        # Determine spatial scales
-        ramp_wavelength = ramp_factor * base_wavelength
 
         # Ensure Dask chunking
         phase_data = self.unwrap.phase
@@ -341,12 +816,75 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
-        # Build and subtract the ramp
-        ramp = self.sbas.gaussian(phase_data, wavelength=ramp_wavelength).persist()
+        reference = (self._config or {}).get('reference_area_wkt', '')
+        if reference:
+            from shapely import contains_xy
 
-        # Subtracting the ramp leaves only the localized displacement signal
-        self.logger.info('Detrending phases.')
-        self.detrend = (phase_data - ramp).persist()
+            polygon = loads(reference)
+            if (
+                not isinstance(polygon, (Polygon, MultiPolygon))
+                or polygon.is_empty
+                or not polygon.is_valid
+            ):
+                raise ValueError(
+                    'reference_area_wkt must be a valid nonempty Polygon or MultiPolygon.'
+                )
+            aoi = (self._config or {}).get('aoi')
+            if aoi is not None and not aoi.covers(polygon):
+                raise ValueError(
+                    'Stable reference polygon must be inside the processing AOI.'
+                )
+            # PyGMTSAR.geocode supports Polygon, but not MultiPolygon.
+            polygons = (
+                list(polygon.geoms) if isinstance(polygon, MultiPolygon) else [polygon]
+            )
+            xx, yy = np.meshgrid(phase_data.x.values, phase_data.y.values)
+            reference_pixels = np.zeros(xx.shape, dtype=bool)
+            for part in polygons:
+                reference_pixels |= contains_xy(self.sbas.geocode(part), xx, yy)
+            mask = xr.DataArray(
+                reference_pixels,
+                dims=('y', 'x'),
+                coords={'y': phase_data.y, 'x': phase_data.x},
+            )
+            reference_phase = phase_data.where(mask)
+            diagnostics = xr.Dataset(
+                {
+                    'reference_valid_phase_pixels': reference_phase.count(('y', 'x')),
+                    'all_valid_phase_pixels': phase_data.count(('y', 'x')),
+                    'reference_mean_phase_rad': reference_phase.mean(('y', 'x')),
+                }
+            )
+            if self.corr_unwrap is not None:
+                _, reference_corr = xr.align(phase_data, self.corr_unwrap, join='exact')
+                diagnostics['reference_coherent_pixels'] = reference_corr.where(
+                    mask
+                ).count(('y', 'x'))
+            report = diagnostics.compute().to_dataframe()
+            report['reference_mask_pixels'] = int(reference_pixels.sum())
+            if self._diagnostics is not None:
+                self._diagnostics.reference(report)
+            result_dir = (self._config or {}).get('result_dir')
+            if result_dir is not None:
+                quality_dir = Path(result_dir) / 'quality'
+                quality_dir.mkdir(parents=True, exist_ok=True)
+                report.to_csv(quality_dir / 'reference_phase_diagnostics.csv')
+            missing = report['reference_valid_phase_pixels'] == 0
+            if missing.any():
+                failed_pairs = report.index[missing].astype(str).tolist()
+                raise ValueError(
+                    f'Stable reference area has no valid phase for {int(missing.sum())} '
+                    f'of {len(report)} pairs; reference mask has {int(reference_pixels.sum())} pixels. '
+                    f'Affected pairs: {", ".join(failed_pairs)}. '
+                    'See quality/reference_phase_diagnostics.csv when result_dir is configured.'
+                )
+            offset = reference_phase.mean(('y', 'x'), skipna=True)
+            phase_data = phase_data - offset
+        else:
+            self.logger.warning(
+                'No stable-ground reference configured; preserving unwrapped phase without spatial detrending.'
+            )
+        self.detrend = phase_data.persist()
 
         # Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
@@ -363,33 +901,108 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
         # Grid Alignment & SBAS Solve
-        corr_ra = self.corr
-        if self.detrend.sizes != self.corr.sizes:
+        corr_ra = self.corr_unwrap
+        if corr_ra is None:
             corr_ra = self.sbas.decimator(float(target_m))(self.corr).persist()
+        # Matching shapes alone does not establish matching pixel coordinates.
+        phase_ra, corr_ra = xr.align(self.detrend, corr_ra, join='exact')
+        corr_ra = corr_ra.where(np.isfinite(phase_ra))
 
         with ProgressBar():
-            sol = self.sbas.lstsq(self.detrend, corr_ra)
+            sol = self.sbas.lstsq(phase_ra, corr_ra)
+            # PyGMTSAR's least-squares solver returns minimum-norm values even
+            # when masking disconnects a pixel's temporal network. Those dates
+            # have no displacement relative to the first epoch and are nodata.
+            pairs, dates = self.sbas.get_pairs(phase_ra, dates=True)
+            dates = pd.to_datetime(dates)
+            refs = dates.get_indexer(pd.to_datetime(pairs.ref))
+            reps = dates.get_indexer(pd.to_datetime(pairs.rep))
+            connected = xr.apply_ufunc(
+                self._reference_connected,
+                (np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)).chunk(
+                    {'pair': -1}
+                ),
+                input_core_dims=[['pair']],
+                output_core_dims=[['date']],
+                kwargs={'refs': refs, 'reps': reps, 'n_dates': len(dates)},
+                vectorize=True,
+                dask='parallelized',
+                output_dtypes=[bool],
+                dask_gufunc_kwargs={'output_sizes': {'date': len(dates)}},
+            ).assign_coords(date=dates)
+            sol = sol.where(connected)
             disp_ra = self.sbas.los_displacement_mm(sol).persist()
-            vel_ra = self.sbas.velocity(sol).persist()
 
         # Reference to Zero (Inline Time-Dim Selection)
         t_dim = next(
             (d for d in disp_ra.dims if d in ('date', 'time', 'epoch', 'pair')), None
         )
         if t_dim:
-            disp_ra = disp_ra.where(
-                disp_ra[t_dim] != disp_ra[t_dim].values[0], other=np.nan
-            )
+            disp_ra = disp_ra - disp_ra.isel({t_dim: 0})
+        vel_ra = self.sbas.velocity(disp_ra).persist()
 
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
         self.logger.info('Computing displacements.')
-        self.disp_ll = self.sbas.cropna(self.sbas.ra2ll(disp_ra)).persist()
-        self.vel_ll = self.sbas.cropna(self.sbas.ra2ll(vel_ra)).persist()
+        self.disp_ll = self.sbas.cropna(self._ra2ll(disp_ra))
+        self.vel_ll = self.sbas.cropna(self._ra2ll(vel_ra))
+        self.disp_ll.attrs.update(
+            units='mm',
+            spatial_reference='stable_area'
+            if (self._config or {}).get('reference_area_wkt')
+            else 'unreferenced',
+        )
+        self.disp_ll.attrs['temporal_reference_utc'] = str(
+            pd.to_datetime(self.disp_ll.date.values[0])
+        )
+        self.vel_ll.attrs['units'] = 'mm/year'
 
         # RMSE Calculation
         disp_pairs_ra = self.sbas.los_displacement_mm(self.detrend).persist()
-        self.rmse = self.sbas.rmse(disp_pairs_ra, disp_ra, corr_ra).persist()
+        # PyGMTSAR.rmse wraps residuals to [-pi, pi]; that is unsuitable for mm.
+        rep_disp = disp_ra.sel(date=phase_ra.rep).drop_vars('date')
+        ref_disp = disp_ra.sel(date=phase_ra.ref).drop_vars('date')
+        residual = disp_pairs_ra - (rep_disp - ref_disp)
+        weights = corr_ra.where(np.isfinite(residual))
+        weight_sum = weights.sum('pair')
+        self.rmse = np.sqrt(
+            (weights * residual**2).sum('pair', min_count=1)
+            / weight_sum.where(weight_sum > 0)
+        ).persist()
+        self.quality_ll = {
+            'pair_rmse_mm': self._ra2ll(self.rmse),
+            'mean_coherence': self._ra2ll(self.corr.mean('pair')),
+            'valid_pair_fraction': self._ra2ll(np.isfinite(phase_ra).mean('pair')),
+        }
+        # Retain pair-level evidence rather than only temporal summaries.
+        valid_pair = np.isfinite(phase_ra) & np.isfinite(corr_ra) & (corr_ra > 0)
+        self.pair_products_ll = {
+            'coherence': self._ra2ll(corr_ra),
+            'valid_coverage': self._ra2ll(valid_pair.astype(float)),
+            'pair_residuals': self._ra2ll(residual),
+        }
+        if self._diagnostics is not None:
+            self._diagnostics.displacement(self.disp_ll)
+
+    @staticmethod
+    def _reference_connected(valid, refs, reps, n_dates):
+        """Find acquisition dates connected to the first epoch at one pixel."""
+        parents = list(range(n_dates))
+
+        def root(i):
+            while parents[i] != i:
+                parents[i] = parents[parents[i]]
+                i = parents[i]
+            return i
+
+        for a, b in zip(refs[valid], reps[valid]):
+            parents[root(b)] = root(a)
+        first = root(0)
+        connected = np.array([root(i) == first for i in range(n_dates)])
+        # An isolated reference epoch is not an observed zero-displacement pixel.
+        if connected.sum() == 1:
+            connected[:] = False
+        return connected
 
     def _compute_risk(self):
         """Compute risk map based on displacements, velocity and slope.
@@ -521,8 +1134,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         cache_session = requests_cache.CachedSession(
             str(output_dir / 'openmeteo_cache'), expire_after=3600
         )
-        retry_session = retry(cache_session, retries=5, backoff_factor=0.3)
+        retry_session = retry(cache_session, retries=0, backoff_factor=0.3)
         om_client = openmeteo_requests.Client(session=retry_session)
+
+        # Share data and pacing across sites/epochs using the same data mount.
+        site_root = Path(self._config.get('diagnostics_root') or output_dir)
+        weather_store = WeatherStore(site_root.parent / 'weather_cache')
 
         # Build Grid & Sample Altitudes
         lats, lons = (
@@ -565,21 +1182,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'timezone': tz_name,
                 'models': model,
             }
-            res = om_client.weather_api(climate_url, params=params)[0]
-            daily = res.Daily()
-
-            num_days = len(daily.Variables(0).ValuesAsNumpy())
-            dates = pd.date_range(
-                start=pd.to_datetime(daily.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=num_days,
-                freq='D',
+            df = weather_store.fetch(
+                om_client, cache_session, climate_url, params, tz_name, self.logger
             )
-
-            df = pd.DataFrame({'date': dates, 'location': name})
-            for idx, var in enumerate(climate_vars):
-                df[var] = daily.Variables(idx).ValuesAsNumpy()
+            df['location'] = name
 
             # Rainfall indicators
             df['precip_7d_mm'] = df['precipitation_sum'].rolling(7, min_periods=1).sum()
@@ -607,6 +1213,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         climate_df = pd.concat(all_climate).reset_index(drop=True)
 
+        # Preserve completed climate data even if the air-quality service fails.
+        climate_df.to_csv(output_dir / 'climate_daily_db.csv', index=False)
+
         # Fetch & Process Air Quality Data
         aq_url = 'https://air-quality-api.open-meteo.com/v1/air-quality'
         aq_vars = ['pm10', 'pm2_5']
@@ -633,20 +1242,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'hourly': aq_vars,
                 'timezone': tz_name,
             }
-            res = om_client.weather_api(aq_url, params=params)[0]
-            hourly = res.Hourly()
-
-            dates = pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit='s', utc=True)
-                .tz_convert(tz_name)
-                .tz_localize(None),
-                periods=len(hourly.Variables(0).ValuesAsNumpy()),
-                freq='h',
+            df_h = weather_store.fetch(
+                om_client, cache_session, aq_url, params, tz_name, self.logger
             )
-
-            df_h = pd.DataFrame({'datetime': dates})
-            for idx, var in enumerate(aq_vars):
-                df_h[var] = hourly.Variables(idx).ValuesAsNumpy()
 
             # Resample to daily max and calculate AQI
             df_aq = df_h.resample('D', on='datetime').max().reset_index()
@@ -876,11 +1474,37 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         base_path = Path(output_dir)
+        for product, data in getattr(self, 'pair_products_ll', {}).items():
+            product_path = base_path / product
+            product_path.mkdir(parents=True, exist_ok=True)
+            for i in range(data.sizes['pair']):
+                ref = pd.to_datetime(data.ref.isel(pair=i).values)
+                rep = pd.to_datetime(data.rep.isel(pair=i).values)
+                grid = data.isel(pair=i).rename({'lat': 'y', 'lon': 'x'}).copy()
+                grid.attrs.update(
+                    units='mm' if product == 'pair_residuals' else '1',
+                    interval_start=ref.isoformat(),
+                    interval_end=rep.isoformat(),
+                    product_type=product,
+                )
+                grid.rio.write_crs('EPSG:4326', inplace=True)
+                grid.rio.write_nodata(np.nan, inplace=True)
+                grid.rio.to_raster(
+                    product_path / f'{product}_{ref:%Y%m%d}_{rep:%Y%m%d}.tif'
+                )
         disp_path = base_path / 'displacements'
         vel_path = base_path / 'velocity'
 
         disp_path.mkdir(parents=True, exist_ok=True)
         vel_path.mkdir(parents=True, exist_ok=True)
+
+        quality_path = base_path / 'quality'
+        quality_path.mkdir(parents=True, exist_ok=True)
+        for name, data in getattr(self, 'quality_ll', {}).items():
+            grid = data.rename({'lat': 'y', 'lon': 'x'})
+            grid.rio.write_crs('EPSG:4326', inplace=True)
+            grid.rio.write_nodata(np.nan, inplace=True)
+            grid.rio.to_raster(quality_path / f'{name}.tif')
 
         self.logger.info('Exporting displacements and velocity.')
         if hasattr(self, 'vel_ll') and self.vel_ll is not None:
@@ -890,6 +1514,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 vel_to_export.rio.write_crs('EPSG:4326', inplace=True)
 
             vel_filename = vel_path / 'velocity.tif'
+            vel_to_export.rio.write_nodata(np.nan, inplace=True)
             vel_to_export.rio.to_raster(vel_filename)
 
         if self.disp_ll is not None:
@@ -910,8 +1535,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
             data_to_export = self.disp_ll.rename({'lat': 'y', 'lon': 'x'})
             num_dates = len(data_to_export[t_dim])
+            dates = pd.to_datetime(data_to_export[t_dim].values)
+            if dates.isna().any() or np.any(np.diff(dates.asi8) <= 0):
+                raise ValueError(
+                    'LOS acquisition dates must be valid and strictly increasing.'
+                )
+            for name in ('los_cumulative', 'los_incremental', 'velocity_interval'):
+                (base_path / name).mkdir(parents=True, exist_ok=True)
 
-            for i in range(1, num_dates):
+            for i in range(num_dates):
                 slice_data = data_to_export.isel({t_dim: i})
 
                 date_val = pd.to_datetime(slice_data[t_dim].values)
@@ -921,7 +1553,226 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 if slice_data.rio.crs is None:
                     slice_data.rio.write_crs('EPSG:4326', inplace=True)
 
+                slice_data.rio.write_nodata(np.nan, inplace=True)
                 slice_data.rio.to_raster(filename)
+                # Displacement is already LOS in mm. Copy the exported raster
+                # to the explicit LOS product directory without recomputation.
+                shutil.copy2(
+                    filename, base_path / 'los_cumulative' / f'los_{date_str}.tif'
+                )
+                if i == 0:
+                    continue
+                previous = data_to_export.isel({t_dim: i - 1})
+                # Drop scalar date coordinates to avoid conflicting endpoints.
+                interval = slice_data.drop_vars(t_dim) - previous.drop_vars(t_dim)
+                interval = interval.where(
+                    np.isfinite(slice_data) & np.isfinite(previous)
+                )
+                days = (dates[i] - dates[i - 1]).total_seconds() / 86400.0
+                for name, values, units in (
+                    ('los_incremental', interval, 'mm'),
+                    ('velocity_interval', interval / days, 'mm/day'),
+                ):
+                    values = values.copy()
+                    values.attrs.update(
+                        units=units,
+                        interval_start=dates[i - 1].isoformat(),
+                        interval_end=dates[i].isoformat(),
+                        interval_days=days,
+                        product_type=name,
+                    )
+                    values.rio.write_crs('EPSG:4326', inplace=True)
+                    values.rio.write_nodata(np.nan, inplace=True)
+                    prefix = 'los' if name == 'los_incremental' else 'velocity'
+                    values.rio.to_raster(base_path / name / f'{prefix}_{date_str}.tif')
+
+    def _rasterize_tsf_mask(self, tsf_mask_gpkg, target_crs):
+        self.logger.info('Rasterizing TSF mask.')
+        result_dir = (self._config or {}).get('result_dir')
+        output_tif = Path(result_dir) / 'tsf_mask_utm.tif'
+        resolution = 10
+
+        # Open the GeoPackage
+        vector_ds = ogr.Open(tsf_mask_gpkg, 0)
+        if vector_ds is None:
+            raise RuntimeError(f'Cannot open GeoPackage: {tsf_mask_gpkg}')
+
+        layer = vector_ds.GetLayer(0)
+        if layer is None:
+            raise RuntimeError('No layer found in the GeoPackage.')
+
+        # Get the spatial reference
+        spatial_ref = layer.GetSpatialRef()
+        if spatial_ref is None:
+            raise RuntimeError('The input layer has no defined CRS.')
+
+        # Require a projected CRS in meters
+        if not spatial_ref.IsProjected():
+            raise ValueError(
+                'The CRS of input TSF mask must be projected and use meters.'
+            )
+        spatial_ref.AutoIdentifyEPSG()
+        epsg_code = spatial_ref.GetAuthorityCode(None)
+        if int(epsg_code) != int(target_crs):
+            raise ValueError('The CRS of input TSF mask differs from config CRS.')
+
+        # Get polygon bounds: minX, maxX, minY, maxY
+        minx, maxx, miny, maxy = layer.GetExtent()
+
+        # Align raster boundaries to multiples of resolution
+        left = math.floor(minx / resolution) * resolution
+        right = math.ceil(maxx / resolution) * resolution
+        bottom = math.floor(miny / resolution) * resolution
+        top = math.ceil(maxy / resolution) * resolution
+
+        # Calculate raster dimensions
+        width = int(round((right - left) / resolution))
+        height = int(round((top - bottom) / resolution))
+
+        # Create output raster
+        driver = gdal.GetDriverByName('GTiff')
+        raster_ds = driver.Create(
+            output_tif, width, height, 1, gdal.GDT_Byte, options=['COMPRESS=LZW']
+        )
+
+        if raster_ds is None:
+            raise RuntimeError(f'Cannot create output raster: {output_tif}')
+
+        # Set georeferencing
+        raster_ds.SetGeoTransform(
+            (
+                left,  # upper-left X
+                resolution,  # pixel width
+                0,  # rotation
+                top,  # upper-left Y
+                0,  # rotation
+                -resolution,  # pixel height
+            )
+        )
+        raster_ds.SetProjection(spatial_ref.ExportToWkt())
+
+        # Initialize background to 0
+        band = raster_ds.GetRasterBand(1)
+        band.Fill(0)
+        band.SetNoDataValue(0)
+
+        # Rasterize the polygon with value 1
+        gdal.RasterizeLayer(raster_ds, [1], layer, burn_values=[1])
+
+        # Flush and close datasets
+        raster_ds = None
+        vector_ds = None
+
+    def _reproject_raster(self, output_dir: Path, target_crs):
+        self.logger.info('Reprojecting raster outputs.')
+        result_dir = (self._config or {}).get('result_dir')
+        reference_path = Path(result_dir) / 'tsf_mask_utm.tif'
+        nodata = -9999.0
+        input_dirs = [
+            output_dir / 'los_cumulative',
+            output_dir / 'los_incremental',
+            output_dir / 'displacements',
+        ]
+        with rasterio.open(reference_path) as reference:
+            if reference.crs is None:
+                raise ValueError(f'Reference raster has no CRS: {reference_path}')
+            if reference.crs == target_crs:
+                transform = reference.transform
+                width = reference.width
+                height = reference.height
+            else:
+                results = calculate_default_transform(
+                    reference.crs,
+                    target_crs,
+                    reference.width,
+                    reference.height,
+                    *reference.bounds,
+                )
+                transform = results[0]
+                width = results[1]
+                height = results[2]
+
+            # Process each input directory.
+        for input_dir in input_dirs:
+            if not input_dir.is_dir():
+                raise FileNotFoundError(f'Input directory does not exist: {input_dir}')
+
+            output_subdir = input_dir.with_name(f'{input_dir.name}_utm')
+            output_subdir.mkdir(parents=True, exist_ok=True)
+
+            files = sorted(input_dir.glob('*.tif'))
+
+            if not files:
+                self.logger.warning(f'No TIFF files found in {input_dir}')
+                continue
+
+            self.logger.debug(
+                f'Processing {len(files)} rasters from {input_dir} -> {output_subdir}'
+            )
+
+            for src_path in files:
+                dst_path = output_subdir / src_path.name
+
+                if src_path.resolve() == dst_path.resolve():
+                    raise ValueError('Input and output raster paths must differ.')
+
+                with rasterio.open(src_path) as src:
+                    if src.crs != CRS.from_epsg(4326):
+                        raise ValueError(
+                            f'Expected WGS-84 (EPSG:4326) input: '
+                            f'{src_path}; got {src.crs}'
+                        )
+
+                    if src.count != 1:
+                        raise ValueError(f'Expected a single LOS band: {src_path}')
+
+                    source = src.read(1, masked=True).astype('float32').filled(np.nan)
+                    source[~np.isfinite(source)] = np.nan
+
+                    destination = np.full(
+                        (height, width),
+                        nodata,
+                        dtype=np.float32,
+                    )
+
+                    reproject(
+                        source=source,
+                        destination=destination,
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        src_nodata=np.nan,
+                        dst_transform=transform,
+                        dst_crs=target_crs,
+                        dst_nodata=nodata,
+                        resampling=Resampling.bilinear,
+                    )
+
+                    with rasterio.open(
+                        dst_path,
+                        'w',
+                        driver='GTiff',
+                        dtype='float32',
+                        count=1,
+                        width=width,
+                        height=height,
+                        crs=target_crs,
+                        transform=transform,
+                        nodata=nodata,
+                        compress='deflate',
+                    ) as dst:
+                        dst.write(destination, 1)
+
+                        # Preserve source metadata.
+                        dst.update_tags(**src.tags())
+                        dst.update_tags(1, **src.tags(1))
+                        dst.scales = src.scales
+                        dst.offsets = src.offsets
+
+                        if src.descriptions[0]:
+                            dst.set_band_description(1, src.descriptions[0])
+
+                        if src.units[0]:
+                            dst.set_band_unit(1, src.units[0])
 
     def _cleanup(self, workdir):
         """Remove unnecessary directory with files after computation is done.
@@ -932,7 +1783,73 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if os.path.exists(workdir) and os.path.isdir(workdir):
             shutil.rmtree(workdir)
 
+    def _run_stage(self, method, *args, **kwargs):
+        if self._diagnostics is None:
+            return method(*args, **kwargs)
+        record = {
+            'name': method.__name__,
+            'status': 'running',
+            'started_utc': datetime.now(timezone.utc).isoformat(),
+        }
+        self._diagnostics.summary['stages'].append(record)
+        self._diagnostics.save()
+        start = time.monotonic()
+        try:
+            result = method(*args, **kwargs)
+            record['status'] = 'complete'
+            return result
+        except Exception as exc:
+            record.update(
+                status='failed', error_type=type(exc).__name__, error=str(exc)
+            )
+            raise
+        finally:
+            record['elapsed_seconds'] = round(time.monotonic() - start, 3)
+            self._diagnostics.save()
+
     def _run(self):
+        if self._config.get('retain_pair_checkpoints', True):
+            root = self._config['result_dir']
+            self._checkpoints = PairCheckpoints(root, self._config)
+            self.logger.info(f'Per-pair checkpoints: {self._checkpoints.path}')
+        if self._config.get('diagnostics', True):
+            root = self._config.get('diagnostics_root') or self._config['result_dir']
+            self._diagnostics = InSARDiagnostics(root, self._config)
+            self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
+            if self._checkpoints is not None:
+                self._diagnostics.summary['pair_checkpoints'] = str(
+                    self._checkpoints.path
+                )
+                self._diagnostics.save()
+        try:
+            result = self._run_processing()
+        except Exception as exc:
+            if self._checkpoints is not None:
+                self._checkpoints.manifest.update(
+                    status='failed', error_type=type(exc).__name__, error=str(exc)
+                )
+            if self._diagnostics is not None:
+                self._diagnostics.summary.update(
+                    status='failed', error_type=type(exc).__name__, error=str(exc)
+                )
+            raise
+        else:
+            if self._checkpoints is not None:
+                self._checkpoints.manifest['status'] = 'complete'
+            if self._diagnostics is not None:
+                self._diagnostics.summary['status'] = 'complete'
+            return result
+        finally:
+            if self._checkpoints is not None:
+                self._checkpoints.save()
+            if self._diagnostics is not None:
+                self._diagnostics.summary['finished_utc'] = datetime.now(
+                    timezone.utc
+                ).isoformat()
+                self._diagnostics.save()
+            self.close()
+
+    def _run_processing(self):
         glob_config = SettingsReader()
         dask_kwargs = {
             'silence_logs': glob_config['dask_parameters']['silence_logs'],
@@ -944,27 +1861,57 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         start = time.time()
 
-        self._download_orbits(self._config['datadir'])
-        self._download_dem(self._config['aoi'], self._config['dem_path'])
-        self._download_landmask(self._config['aoi'], self._config['landmask_path'])
-        self._run_dask_cluster(**dask_kwargs)
-        self._stack_scenes(self._config['datadir'], self._config['workdir'])
-        self._reframe_scenes(self._config['aoi'])
-        self._load_dem_and_landmask(
-            self._config['aoi'], self._config['dem_path'], self._config['landmask_path']
+        step = self._run_stage
+        step(self._download_orbits, self._config['datadir'])
+        step(self._download_dem, self._config['aoi'], self._config['dem_path'])
+        step(
+            self._download_landmask, self._config['aoi'], self._config['landmask_path']
         )
-        self._align_images()
-        self._geocoding_transform()
-        self._find_optimal_network()
-        self._compute_interferograms()
-        self._unwrap_phase()
-        self._detrend_phase()
-        self._compute_displacement()
-        self._compute_risk()
-        self._environmental_database(self._config['aoi'], self._config['result_dir'])
-        self._compute_risk_database(self._config['result_dir'])
-        self._export_displacements(self._config['result_dir'])
-        self._cleanup(self._config['workdir'])
+        step(self._run_dask_cluster, **dask_kwargs)
+        step(self._stack_scenes, self._config['datadir'], self._config['workdir'])
+        step(self._reframe_scenes, self._config['aoi'])
+        step(
+            self._load_dem_and_landmask,
+            self._config['aoi'],
+            self._config['dem_path'],
+            self._config['landmask_path'],
+        )
+        step(self._align_images)
+        step(self._geocoding_transform)
+        step(
+            self._find_optimal_network,
+            self._config['basedays'],
+            self._config['basemeters'],
+        )
+        step(self._compute_interferograms)
+        step(self._unwrap_phase)
+        step(self._detrend_phase)
+        step(self._compute_displacement)
+        # Save InSAR products before optional external environmental requests.
+        step(self._export_displacements, self._config['result_dir'])
+        if not self._config.get('insar_only', False):
+            step(self._compute_risk)
+            step(
+                self._environmental_database,
+                self._config['aoi'],
+                self._config['result_dir'],
+            )
+            step(self._compute_risk_database, self._config['result_dir'])
+        if (
+            self._config.get('reference') is not None
+            and self._config.get('crs') is not None
+        ):
+            step(
+                self._rasterize_tsf_mask,
+                self._config['reference'],
+                self._config['crs'],
+            )
+            step(
+                self._reproject_raster,
+                self._config['result_dir'],
+                self._config['crs'],
+            )
+        step(self._cleanup, self._config['workdir'])
 
         elapsed_minutes = (time.time() - start) / 60
         self.logger.info(f'Computation completed in {elapsed_minutes:.2f} minutes.')

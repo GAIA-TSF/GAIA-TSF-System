@@ -13,7 +13,7 @@ project:
   aoi: './static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
 
   masks:
-    tsf_mask: './static/tsf_mask.tif'            # Tailings Storage Facility mask (must-have)
+    tsf_mask: './static/aoi.gpkg'            # Tailings Storage Facility mask (must-have)
     tsf_water: null           # Tailings Storage Facility water mask (optional)
     stable_reference: null    # clean/stable area mask (baseline reference)
 
@@ -44,7 +44,7 @@ project:
   # IN-SITU DATA 
   in_situ:
     file_name: null           # path to CSV / database (if available)
-    metadata_file: null       # meatadata of the measured vairables 
+    metadata_file: null       # metadata of the measured vairables
 
   # REFERENCE DATA (FOR CLASSIFICATION / EVALUATION)
     polygons:
