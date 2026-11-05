@@ -6,6 +6,10 @@ services:
     image: ghcr.io/gaia-tsf/gaiatesting:latest
     container_name: gaiatesting
     restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 524288
     depends_on:
       stacapi:
         condition: service_healthy

@@ -9,6 +9,7 @@ from dask.distributed import Client
 import numpy as np
 import pandas as pd
 import json
+import rasterio
 
 from lib.config import ProjectConfigReader, SettingsReader
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
@@ -17,9 +18,11 @@ from tests.utils import TestUtils
 
 
 @pytest.fixture(scope='class')
-def pipeline():
+def pipeline(config):
     module = PreprocessingPipelines()
-    return module.pipelines['sentinel1']
+    sentinel1_pipeline = module.pipelines['sentinel1']
+    sentinel1_pipeline._config = config
+    return sentinel1_pipeline
 
 
 @pytest.fixture(scope='class')
@@ -39,6 +42,8 @@ class ProjectContext:
     landmask_path: Path
     work_dir: Path
     result_dir: Path
+    crs: int
+    reference: Path
 
 
 @pytest.fixture(scope='class')
@@ -53,6 +58,8 @@ def ctx(config, glob_config):
         landmask_path=data_dir / 'landmask.nc',
         work_dir=data_dir / 'workdir',
         result_dir=data_dir / 'results',
+        crs=config.crs,
+        reference=config.masks.tsf_mask,
     )
 
 
@@ -187,7 +194,9 @@ class TestSentinel1Workflow:
 
     def test_010_find_optimal_network(self, pipeline):
         """Test finding optimal SBAS network."""
-        pipeline._find_optimal_network()
+        basedays = pipeline._config.get('basedays', [36, 48, 60, 80])
+        basemeters = pipeline._config.get('basemeters', [80, 100, 120, 150, 180])
+        pipeline._find_optimal_network(basedays, basemeters)
         assert pipeline.baseline_pairs is not None
         assert len(pipeline.baseline_pairs) > 0
         required_cols = {'ref', 'rep', 'pair'}
@@ -326,7 +335,17 @@ class TestSentinel1Workflow:
         assert len(tif_files) > 0
         assert velocity.is_file()
 
-    def test_019_cleanup(self, pipeline, ctx):
+    def test_019_reproject_raster(self, pipeline, ctx):
+        """Test reprojecting raster outputs."""
+        pipeline._reproject_raster(ctx.result_dir, ctx.reference, ctx.crs)
+        utm_dir = ctx.result_dir / 'displacements_utm'
+        assert utm_dir.is_dir()
+        utm_files = [f for f in os.listdir(utm_dir) if f.endswith('.tif')]
+        assert len(utm_files) > 0
+        with rasterio.open(utm_dir / utm_files[0]) as src:
+            assert src.crs.to_epsg() == ctx.crs
+
+    def test_020_cleanup(self, pipeline, ctx):
         """Test cleaning work directory."""
         pipeline._cleanup(ctx.work_dir)
         assert not ctx.work_dir.is_dir()
