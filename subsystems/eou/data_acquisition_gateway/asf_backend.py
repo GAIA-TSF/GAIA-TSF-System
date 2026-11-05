@@ -42,9 +42,20 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             except Exception as e:
                 raise GaiaDataError(f'Failed to parse AOI WKT string: {e}', self.logger)
 
-        all_results = ASF.search(
-            geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
-        )
+        try:
+            all_results = ASF.search(
+                geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
+            )
+        except ValueError as e:
+            # Handle pygmtsar empty result GeoDataFrame initialization failure
+            if 'without a geometry column is not supported' in str(e):
+                return GeoDataFrame()
+            raise e
+
+        # Return early if no products were found
+        if all_results.empty:
+            return all_results
+
         if path_number is None:
             best_orbit = all_results['pathNumber'].value_counts().idxmax()
             return all_results[all_results['pathNumber'] == best_orbit]
