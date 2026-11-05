@@ -81,6 +81,21 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'default': '',
                 'description': 'Optional stable-ground Polygon/MultiPolygon WKT in EPSG:4326, inside processing AOI',
             },
+            'reference_min_pixels': {
+                'dtype': int,
+                'default': 10,
+                'description': 'Minimum coherent reference pixels per pair used for the offset',
+            },
+            'reference_min_coherent_fraction': {
+                'dtype': float,
+                'default': 0.3,
+                'description': 'Minimum fraction of reference pixels above the unwrapping coherence threshold',
+            },
+            'reference_min_coherence': {
+                'dtype': float,
+                'default': 0.35,
+                'description': 'Minimum median coherence of the reference pixels used for the offset',
+            },
             'excluded_dates': {
                 'dtype': list,
                 'default': [],
@@ -856,30 +871,87 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 }
             )
             if self.corr_unwrap is not None:
-                _, reference_corr = xr.align(phase_data, self.corr_unwrap, join='exact')
-                diagnostics['reference_coherent_pixels'] = reference_corr.where(
-                    mask
-                ).count(('y', 'x'))
+                _, corr = xr.align(phase_data, self.corr_unwrap, join='exact')
+                diagnostics['reference_coherent_pixels'] = corr.where(mask).count(
+                    ('y', 'x')
+                )
+            else:
+                corr = xr.ones_like(phase_data)
+            comp = (
+                self.unwrap.conncomp
+                if 'conncomp' in self.unwrap
+                else xr.ones_like(phase_data, dtype=int)
+            )
+            # core dimensions must be a single chunk
+            whole = {'y': -1, 'x': -1}
+            offset, label, used, median_corr = xr.apply_ufunc(
+                self._reference_offset,
+                phase_data.chunk(whole),
+                corr.chunk(whole),
+                comp.chunk(whole),
+                mask,
+                input_core_dims=[['y', 'x']] * 4,
+                output_core_dims=[[]] * 4,
+                vectorize=True,
+                dask='parallelized',
+                output_dtypes=[float, int, int, float],
+            )
+            # pixels outside the reference component have an unknown 2π offset relative to it
+            in_component = comp == label
+            diagnostics = diagnostics.assign(
+                reference_offset_rad=offset,
+                reference_component=label,
+                reference_used_pixels=used,
+                reference_median_coherence=median_corr,
+                outside_reference_component_pixels=phase_data.where(
+                    ~in_component
+                ).count(('y', 'x')),
+            )
             report = diagnostics.compute().to_dataframe()
             report['reference_mask_pixels'] = int(reference_pixels.sum())
+            coherent = report.get(
+                'reference_coherent_pixels', report['reference_valid_phase_pixels']
+            )
+            report['reference_coherent_fraction'] = (
+                coherent / report['reference_mask_pixels']
+                if report['reference_mask_pixels'].iloc[0] > 0
+                else 0.0
+            )
+            cfg = self._config or {}
+            rejected = (
+                (report['reference_used_pixels'] < cfg.get('reference_min_pixels', 10))
+                | (
+                    report['reference_coherent_fraction']
+                    < cfg.get('reference_min_coherent_fraction', 0.3)
+                )
+                | ~(
+                    report['reference_median_coherence']
+                    >= cfg.get('reference_min_coherence', 0.35)
+                )
+            )
+            report['reference_ok'] = ~rejected
             if self._diagnostics is not None:
                 self._diagnostics.reference(report)
-            result_dir = (self._config or {}).get('result_dir')
+            result_dir = cfg.get('result_dir')
             if result_dir is not None:
                 quality_dir = Path(result_dir) / 'quality'
                 quality_dir.mkdir(parents=True, exist_ok=True)
                 report.to_csv(quality_dir / 'reference_phase_diagnostics.csv')
-            missing = report['reference_valid_phase_pixels'] == 0
-            if missing.any():
-                failed_pairs = report.index[missing].astype(str).tolist()
+            if rejected.all():
                 raise ValueError(
-                    f'Stable reference area has no valid phase for {int(missing.sum())} '
-                    f'of {len(report)} pairs; reference mask has {int(reference_pixels.sum())} pixels. '
-                    f'Affected pairs: {", ".join(failed_pairs)}. '
+                    f'Stable reference area fails the quality checks for all {len(report)} pairs; '
+                    f'reference mask has {int(reference_pixels.sum())} pixels. '
                     'See quality/reference_phase_diagnostics.csv when result_dir is configured.'
                 )
-            offset = reference_phase.mean(('y', 'x'), skipna=True)
-            phase_data = phase_data - offset
+            if rejected.any():
+                self.logger.warning(
+                    f'Dropping {int(rejected.sum())} of {len(report)} pairs with an unreliable '
+                    f'stable reference: {report.index[rejected].astype(str).tolist()}'
+                )
+            ok = xr.DataArray(
+                ~rejected.to_numpy(), dims='pair', coords={'pair': phase_data.pair}
+            )
+            phase_data = (phase_data - offset).where(ok & in_component)
         else:
             self.logger.warning(
                 'No stable-ground reference configured; preserving unwrapped phase without spatial detrending.'
@@ -888,6 +960,32 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
+
+    @staticmethod
+    def _reference_offset(phase, corr, comp, mask):
+        """Coherence-weighted median phase of reference pixels in their dominant SNAPHU component.
+
+        :return: offset (rad), component label, used pixel count, median coherence
+        """
+        use = mask & np.isfinite(phase) & np.isfinite(corr) & (corr > 0) & (comp > 0)
+        if not use.any():
+            return np.nan, 0, 0, np.nan
+        # the offset is only meaningful within one connected component
+        labels, counts = np.unique(comp[use], return_counts=True)
+        label = labels[np.argmax(counts)]
+        use &= comp == label
+        values, weights = phase[use], corr[use]
+        order = np.argsort(values)
+        values, weights = values[order], weights[order]
+        cumulative = np.cumsum(weights)
+        half = cumulative[-1] / 2
+        i = int(np.searchsorted(cumulative, half))
+        # average the two middle values when the weights split exactly in half
+        if np.isclose(cumulative[i], half) and i + 1 < len(values):
+            offset = (values[i] + values[i + 1]) / 2
+        else:
+            offset = values[i]
+        return offset, label, int(use.sum()), float(np.median(weights))
 
     def _compute_displacement(self, target_m=10.0):
         """Compute cumulative LOS displacement and error metrics.

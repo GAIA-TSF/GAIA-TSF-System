@@ -196,10 +196,16 @@ class InSARDiagnostics:
                 ylabel='Valid reference pixels',
                 title='Combined reference support and phase offset',
             )
-            axes[1].plot(report.reference_mean_phase_rad.to_numpy())
+            offset = report.get('reference_offset_rad', report.reference_mean_phase_rad)
+            axes[1].plot(offset.to_numpy())
+            if 'reference_ok' in report:
+                rejected = np.flatnonzero(~report.reference_ok.to_numpy(dtype=bool))
+                for ax in axes:
+                    for i in rejected:
+                        ax.axvline(i, color='red', alpha=0.3, linewidth=0.8)
             axes[1].set(
-                xlabel='Pair index (see accompanying CSV)',
-                ylabel='Mean phase offset (rad)',
+                xlabel='Pair index (see accompanying CSV; red = rejected)',
+                ylabel='Phase offset (rad)',
             )
 
         self.figure('reference_phase', draw)

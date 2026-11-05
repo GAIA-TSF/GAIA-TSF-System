@@ -49,6 +49,7 @@ def test_stable_reference_removes_offset_not_deformation(pipeline):
     phase = phase_grid([[[3, 3, 8], [3, 3, 8]], [[7, 7, 17], [7, 7, 17]]])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline._config['reference_area_wkt'] = box(-0.5, -0.5, 1.5, 1.5).wkt
+    pipeline._config['reference_min_pixels'] = 1
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=2), [[5, 5], [10, 10]])
@@ -59,36 +60,76 @@ def test_empty_reference_fails(pipeline):
     pipeline.unwrap = phase_grid([[[1, 2], [3, 4]]]).to_dataset(name='phase')
     pipeline._config['reference_area_wkt'] = box(20, 20, 30, 30).wkt
     pipeline.sbas.geocode.side_effect = lambda p: p
-    with pytest.raises(ValueError, match='no valid phase'):
+    with pytest.raises(ValueError, match='fails the quality checks for all'):
         pipeline._detrend_phase()
 
 
-def test_reference_failure_reports_pair_and_stage_counts(pipeline, tmp_path):
+def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
     phase = phase_grid([[[np.nan, np.nan], [np.nan, np.nan]], [[1, 1], [1, 1]]])
     phase = phase.assign_coords(pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25'])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
     pipeline._config.update(
-        reference_area_wkt=box(-1, -1, 2, 2).wkt, result_dir=tmp_path
+        reference_area_wkt=box(-1, -1, 2, 2).wkt,
+        result_dir=tmp_path,
+        reference_min_pixels=1,
     )
     pipeline.sbas.geocode.side_effect = lambda p: p
-    with pytest.raises(ValueError, match='2020-01-01 2020-01-13'):
-        pipeline._detrend_phase()
+    pipeline._detrend_phase()
     report = pd.read_csv(tmp_path / 'quality/reference_phase_diagnostics.csv')
     assert report.reference_mask_pixels.tolist() == [4, 4]
     assert report.reference_coherent_pixels.tolist() == [4, 4]
     assert report.reference_valid_phase_pixels.tolist() == [0, 4]
     assert report.all_valid_phase_pixels.tolist() == [0, 4]
+    assert report.reference_ok.tolist() == [False, True]
+    assert pipeline.detrend.isel(pair=0).isnull().all()
+    np.testing.assert_allclose(pipeline.detrend.isel(pair=1), 0)
 
 
 def test_all_reference_polygons_contribute(pipeline):
     pipeline.unwrap = phase_grid([[[2, 20, 6], [2, 20, 6]]]).to_dataset(name='phase')
     reference = MultiPolygon([box(-0.4, -0.4, 0.4, 1.4), box(1.6, -0.4, 2.4, 1.4)])
     pipeline._config['reference_area_wkt'] = reference.wkt
+    pipeline._config['reference_min_pixels'] = 1
     pipeline.sbas.geocode.side_effect = lambda polygon: polygon
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend, [[[-2, 16, 2], [-2, 16, 2]]])
     assert pipeline.sbas.geocode.call_count == 2
+
+
+def test_reference_offset_is_coherence_weighted_median(pipeline):
+    # one unwrapping-error pixel (+2π) in the reference must not shift the offset
+    phase = phase_grid([[[1, 1, 1, 1 + 2 * np.pi, 9], [1, 1, 1, 1, 9]]])
+    pipeline.unwrap = phase.to_dataset(name='phase')
+    pipeline.corr_unwrap = xr.full_like(phase, 0.8)
+    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline.sbas.geocode.side_effect = lambda p: p
+    pipeline._detrend_phase()
+    np.testing.assert_allclose(pipeline.detrend.isel(x=4), 8)
+
+
+def test_reference_uses_dominant_component_and_masks_others(pipeline):
+    phase = phase_grid([[[1, 1, 1, 50, 7], [1, 1, 1, 50, 7]]])
+    comp = xr.DataArray(np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]), dims=phase.dims, coords=phase.coords)
+    pipeline.unwrap = xr.Dataset({'phase': phase, 'conncomp': comp})
+    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline.sbas.geocode.side_effect = lambda p: p
+    pipeline._detrend_phase()
+    np.testing.assert_allclose(pipeline.detrend.isel(x=4), 6)
+    assert pipeline.detrend.isel(x=3).isnull().all()
+
+
+def test_low_coherence_reference_pair_is_dropped(pipeline):
+    phase = phase_grid([[[1, 1, 5], [1, 1, 5]], [[2, 2, 6], [2, 2, 6]]])
+    corr = xr.full_like(phase, 0.8)
+    corr[1] = 0.25
+    pipeline.unwrap = phase.to_dataset(name='phase')
+    pipeline.corr_unwrap = corr
+    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 1.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline.sbas.geocode.side_effect = lambda p: p
+    pipeline._detrend_phase()
+    np.testing.assert_allclose(pipeline.detrend.isel(pair=0, x=2), 4)
+    assert pipeline.detrend.isel(pair=1).isnull().all()
 
 
 @pytest.mark.parametrize('site,count', [('cadia', 9), ('jagersfontein', 3)])
