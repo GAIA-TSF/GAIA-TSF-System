@@ -102,7 +102,9 @@ def test_reference_offset_is_coherence_weighted_median(pipeline):
     phase = phase_grid([[[1, 1, 1, 1 + 2 * np.pi, 9], [1, 1, 1, 1, 9]]])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = xr.full_like(phase, 0.8)
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._config.update(
+        reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1
+    )
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=4), 8)
@@ -110,9 +112,15 @@ def test_reference_offset_is_coherence_weighted_median(pipeline):
 
 def test_reference_uses_dominant_component_and_masks_others(pipeline):
     phase = phase_grid([[[1, 1, 1, 50, 7], [1, 1, 1, 50, 7]]])
-    comp = xr.DataArray(np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]), dims=phase.dims, coords=phase.coords)
+    comp = xr.DataArray(
+        np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]),
+        dims=phase.dims,
+        coords=phase.coords,
+    )
     pipeline.unwrap = xr.Dataset({'phase': phase, 'conncomp': comp})
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._config.update(
+        reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1
+    )
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=4), 6)
@@ -125,7 +133,9 @@ def test_low_coherence_reference_pair_is_dropped(pipeline):
     corr[1] = 0.25
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = corr
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 1.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._config.update(
+        reference_area_wkt=box(-0.5, -0.5, 1.5, 1.5).wkt, reference_min_pixels=1
+    )
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(pair=0, x=2), 4)
