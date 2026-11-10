@@ -33,7 +33,7 @@ from .insar_diagnostics import InSARDiagnostics
 from .insar_checkpoints import PairCheckpoints
 from .weather_archive import WeatherStore
 from lib.config import SettingsReader
-from lib.exceptions import GaiaDataError
+from lib.exceptions import GaiaConfigError, GaiaDataError
 
 
 class Sentinel1Pipeline(PreprocessingBasePipeline):
@@ -41,66 +41,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         'title': 'Sentinel-1',
         'abstract': 'Anomaly detection for slope stability: preprocess Sentinel-1 data',
         'params': {
-            'retain_pair_checkpoints': {
-                'dtype': bool,
-                'default': True,
-                'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels',
-            },
-            'processing_start': {
-                'dtype': str,
-                'default': '',
-                'description': 'Inclusive acquisition date in UTC',
-            },
-            'processing_end': {
-                'dtype': str,
-                'default': '',
-                'description': 'Inclusive acquisition date in UTC',
-            },
-            'source_safe_only': {
-                'dtype': bool,
-                'default': False,
-                'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs',
-            },
-            'insar_only': {
-                'dtype': bool,
-                'default': False,
-                'description': 'Export InSAR results without environmental and risk processing',
-            },
-            'diagnostics_root': {
-                'dtype': str,
-                'default': '',
-                'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
-            },
-            'diagnostics': {
-                'dtype': bool,
-                'default': True,
-                'description': 'Save per-run JSON/CSV statistics, SBAS graph and intermediate PNG diagnostics',
-            },
-            'reference_area': {
-                'dtype': str,
-                'default': '',
-                'description': 'Optional stable-ground Polygon/MultiPolygon WKT in EPSG:4326, inside processing AOI',
-            },
-            'reference_min_pixels': {
-                'dtype': int,
-                'default': 10,
-                'description': 'Minimum coherent reference pixels per pair used for the offset',
-            },
-            'reference_min_coherent_fraction': {
-                'dtype': float,
-                'default': 0.3,
-                'description': 'Minimum fraction of reference pixels above the unwrapping coherence threshold',
-            },
-            'reference_min_coherence': {
-                'dtype': float,
-                'default': 0.35,
-                'description': 'Minimum median coherence of the reference pixels used for the offset',
-            },
-            'excluded_dates': {
-                'dtype': list,
-                'default': [],
-                'description': 'Acquisition dates to exclude from processing (YYYY-MM-DD)',
-            },
             'datadir': {
                 'dtype': PosixPath,
                 'description': 'Path to the directory with Sentinel-1 SLC BURST data',
@@ -145,6 +85,67 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'dtype': PosixPath,
                 'description': 'Path to the directory where final results will be stored',
             },
+            'retain_pair_checkpoints': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Retain lossless per-pair NetCDF inputs, unwrapped phase and SNAPHU labels',
+            },
+            'processing_start': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'processing_end': {
+                'dtype': str,
+                'default': '',
+                'description': 'Inclusive acquisition date in UTC',
+            },
+            'source_safe_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs',
+            },
+            'insar_only': {
+                'dtype': bool,
+                'default': False,
+                'description': 'Export InSAR results without environmental and risk processing',
+            },
+            'diagnostics_root': {
+                'dtype': str,
+                'default': '',
+                'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
+            },
+            'diagnostics': {
+                'dtype': bool,
+                'default': True,
+                'description': 'Save per-run JSON/CSV statistics, SBAS graph and intermediate PNG diagnostics',
+            },
+            'reference_stable_area': {
+                'dtype': PosixPath,
+                'required': False,
+                'description': 'Optional stable-ground polygon file (e.g. GPKG) in EPSG:4326; '
+                'all features are merged and must lie inside the processing AOI',
+            },
+            'reference_min_pixels': {
+                'dtype': int,
+                'default': 10,
+                'description': 'Minimum coherent reference pixels per pair used for the offset',
+            },
+            'reference_min_coherent_fraction': {
+                'dtype': float,
+                'default': 0.3,
+                'description': 'Minimum fraction of reference pixels above the unwrapping coherence threshold',
+            },
+            'reference_min_coherence': {
+                'dtype': float,
+                'default': 0.35,
+                'description': 'Minimum median coherence of the reference pixels used for the offset',
+            },
+            'excluded_dates': {
+                'dtype': list,
+                'default': [],
+                'description': 'Acquisition dates to exclude from processing (YYYY-MM-DD)',
+            },
             'reference': {
                 'dtype': PosixPath,
                 'required': False,
@@ -173,8 +174,58 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.vel_ll = None
         self.rmse = None
         self.quality_ll = {}
+        self._reference_geometry = None
         self.risk_map = None
         self.failure_flag = None
+
+    def _load_reference_area(self, path, aoi=None):
+        """Read a stable-reference polygon file and return one geometry in EPSG:4326.
+
+        All features are merged (MultiPolygon for disjoint areas). The file must
+        be in EPSG:4326 (no reprojection is done) and lie inside the processing AOI.
+        """
+        import geopandas as gpd
+
+        path = Path(path)
+        if not path.is_file():
+            raise GaiaConfigError(
+                f'Stable reference file not found: {path}', self.logger
+            )
+        reference = gpd.read_file(path)
+        if reference.empty:
+            raise GaiaConfigError(f'Stable reference {path}: no features.', self.logger)
+        if reference.crs is None or reference.crs.to_epsg() != 4326:
+            raise GaiaConfigError(
+                f'Stable reference {path}: CRS must be EPSG:4326 '
+                f'(found {reference.crs.to_string() if reference.crs else "none"}).',
+                self.logger,
+            )
+        geometry = reference.geometry
+        if (
+            geometry.isna().any()
+            or geometry.is_empty.any()
+            or not geometry.is_valid.all()
+            or not geometry.geom_type.isin(['Polygon', 'MultiPolygon']).all()
+        ):
+            raise GaiaConfigError(
+                f'Stable reference {path}: only valid nonempty polygons are allowed.',
+                self.logger,
+            )
+        polygon = geometry.union_all()
+        if not isinstance(polygon, (Polygon, MultiPolygon)) or not polygon.is_valid:
+            raise GaiaConfigError(
+                f'Stable reference {path}: merged polygons are not a valid (Multi)Polygon.',
+                self.logger,
+            )
+        if aoi is not None and not aoi.covers(polygon):
+            raise GaiaConfigError(
+                f'Stable reference {path}: polygons must lie inside the processing AOI.',
+                self.logger,
+            )
+        self.logger.info(
+            f'Stable reference area: {path} ({len(reference)} feature(s))'
+        )
+        return polygon
 
     def close(self):
         if self.client:
@@ -831,24 +882,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
-        reference = (self._config or {}).get('reference_area', '')
-        if reference:
+        # loaded and validated (EPSG:4326, inside AOI) at the start of the run
+        polygon = self._reference_geometry
+        if polygon is not None:
             from shapely import contains_xy
 
-            polygon = loads(reference)
-            if (
-                not isinstance(polygon, (Polygon, MultiPolygon))
-                or polygon.is_empty
-                or not polygon.is_valid
-            ):
-                raise ValueError(
-                    'reference_area must be a valid nonempty Polygon or MultiPolygon.'
-                )
-            aoi = (self._config or {}).get('aoi')
-            if aoi is not None and not aoi.covers(polygon):
-                raise ValueError(
-                    'Stable reference polygon must be inside the processing AOI.'
-                )
             # PyGMTSAR.geocode supports Polygon, but not MultiPolygon.
             polygons = (
                 list(polygon.geoms) if isinstance(polygon, MultiPolygon) else [polygon]
@@ -1047,7 +1085,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.disp_ll.attrs.update(
             units='mm',
             spatial_reference='stable_area'
-            if (self._config or {}).get('reference_area')
+            if self._reference_geometry is not None
             else 'unreferenced',
         )
         self.disp_ll.attrs['temporal_reference_utc'] = str(
@@ -1958,6 +1996,23 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.logger.debug(f'Dask parameters: {dask_kwargs}')
 
         start = time.time()
+
+        # fail before any expensive processing if the stable reference is unusable
+        reference_path = self._config.get('reference_stable_area')
+        if reference_path is not None:
+            self._reference_geometry = self._load_reference_area(
+                reference_path, self._config.get('aoi')
+            )
+            if self._diagnostics is not None:
+                self._diagnostics.summary['reference_area'] = {
+                    'path': str(reference_path),
+                    'wkt_epsg4326': self._reference_geometry.wkt,
+                }
+                self._diagnostics.save()
+        else:
+            self.logger.warning(
+                'No stable reference area configured: displacements are unreferenced.'
+            )
 
         step = self._run_stage
         step(self._download_orbits, self._config['datadir'])

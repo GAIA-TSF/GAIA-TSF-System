@@ -8,7 +8,11 @@ import pytest
 import rasterio
 import xarray as xr
 from pygmtsar import Stack
-from shapely.geometry import box, MultiPolygon
+from pathlib import PosixPath
+
+from shapely.geometry import box, MultiPolygon, Polygon
+
+from lib.exceptions import GaiaConfigError
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
 
@@ -48,7 +52,7 @@ def test_preserves_broad_deformation(pipeline):
 def test_stable_reference_removes_offset_not_deformation(pipeline):
     phase = phase_grid([[[3, 3, 8], [3, 3, 8]], [[7, 7, 17], [7, 7, 17]]])
     pipeline.unwrap = phase.to_dataset(name='phase')
-    pipeline._config['reference_area_wkt'] = box(-0.5, -0.5, 1.5, 1.5).wkt
+    pipeline._reference_geometry = box(-0.5, -0.5, 1.5, 1.5)
     pipeline._config['reference_min_pixels'] = 1
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
@@ -58,7 +62,7 @@ def test_stable_reference_removes_offset_not_deformation(pipeline):
 
 def test_empty_reference_fails(pipeline):
     pipeline.unwrap = phase_grid([[[1, 2], [3, 4]]]).to_dataset(name='phase')
-    pipeline._config['reference_area_wkt'] = box(20, 20, 30, 30).wkt
+    pipeline._reference_geometry = box(20, 20, 30, 30)
     pipeline.sbas.geocode.side_effect = lambda p: p
     with pytest.raises(ValueError, match='fails the quality checks for all'):
         pipeline._detrend_phase()
@@ -69,8 +73,8 @@ def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
     phase = phase.assign_coords(pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25'])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
+    pipeline._reference_geometry = box(-1, -1, 2, 2)
     pipeline._config.update(
-        reference_area_wkt=box(-1, -1, 2, 2).wkt,
         result_dir=tmp_path,
         reference_min_pixels=1,
     )
@@ -89,7 +93,7 @@ def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
 def test_all_reference_polygons_contribute(pipeline):
     pipeline.unwrap = phase_grid([[[2, 20, 6], [2, 20, 6]]]).to_dataset(name='phase')
     reference = MultiPolygon([box(-0.4, -0.4, 0.4, 1.4), box(1.6, -0.4, 2.4, 1.4)])
-    pipeline._config['reference_area_wkt'] = reference.wkt
+    pipeline._reference_geometry = reference
     pipeline._config['reference_min_pixels'] = 1
     pipeline.sbas.geocode.side_effect = lambda polygon: polygon
     pipeline._detrend_phase()
@@ -102,7 +106,8 @@ def test_reference_offset_is_coherence_weighted_median(pipeline):
     phase = phase_grid([[[1, 1, 1, 1 + 2 * np.pi, 9], [1, 1, 1, 1, 9]]])
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = xr.full_like(phase, 0.8)
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._reference_geometry = box(-0.5, -0.5, 3.5, 1.5)
+    pipeline._config.update(reference_min_pixels=1)
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=4), 8)
@@ -112,7 +117,8 @@ def test_reference_uses_dominant_component_and_masks_others(pipeline):
     phase = phase_grid([[[1, 1, 1, 50, 7], [1, 1, 1, 50, 7]]])
     comp = xr.DataArray(np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]), dims=phase.dims, coords=phase.coords)
     pipeline.unwrap = xr.Dataset({'phase': phase, 'conncomp': comp})
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 3.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._reference_geometry = box(-0.5, -0.5, 3.5, 1.5)
+    pipeline._config.update(reference_min_pixels=1)
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(x=4), 6)
@@ -125,7 +131,8 @@ def test_low_coherence_reference_pair_is_dropped(pipeline):
     corr[1] = 0.25
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = corr
-    pipeline._config.update(reference_area_wkt=box(-0.5, -0.5, 1.5, 1.5).wkt, reference_min_pixels=1)
+    pipeline._reference_geometry = box(-0.5, -0.5, 1.5, 1.5)
+    pipeline._config.update(reference_min_pixels=1)
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     np.testing.assert_allclose(pipeline.detrend.isel(pair=0, x=2), 4)
@@ -133,22 +140,76 @@ def test_low_coherence_reference_pair_is_dropped(pipeline):
 
 
 @pytest.mark.parametrize('site,count', [('cadia', 9), ('jagersfontein', 3)])
-def test_configured_site_reference_files(site, count):
+def test_configured_site_reference_files(pipeline, site, count):
     from pathlib import Path
-    from shapely.wkt import loads
     from lib.config import ProjectConfigReader
-    from subsystems.dpr.run_s1_eou_dpr import load_reference_area
     from tests.utils import TestUtils
 
     config_path = Path(TestUtils.get_project_config_path('slope_monitoring_' + site))
     config = ProjectConfigReader(config_path)
-    reference = loads(
-        load_reference_area(
-            config_path.parent / config['sentinel1']['reference_area'], config.aoi()
-        )
+    reference = pipeline._load_reference_area(
+        config_path.parent / config['sentinel1']['reference_area'], config.aoi()
     )
     assert isinstance(reference, MultiPolygon)
     assert len(reference.geoms) == count
+
+
+AOI = box(-7.2, 37.5, -7.0, 37.7)  # EPSG:4326
+
+
+def write_reference(path, geometries, crs=4326):
+    import geopandas as gpd
+
+    gpd.GeoDataFrame(geometry=geometries, crs=crs).to_file(path)
+    return path
+
+
+def test_reference_file_in_wgs84_is_loaded(pipeline, tmp_path):
+    path = write_reference(tmp_path / 'ref.gpkg', [box(-7.12, 37.60, -7.11, 37.61)])
+    polygon = pipeline._load_reference_area(path, AOI)
+    assert isinstance(polygon, Polygon)
+    np.testing.assert_allclose(polygon.bounds, (-7.12, 37.60, -7.11, 37.61))
+
+
+def test_reference_features_are_merged(pipeline, tmp_path):
+    path = write_reference(
+        tmp_path / 'ref.gpkg',
+        [box(-7.12, 37.60, -7.11, 37.61), box(-7.05, 37.60, -7.04, 37.61)],
+    )
+    polygon = pipeline._load_reference_area(path, AOI)
+    assert isinstance(polygon, MultiPolygon) and len(polygon.geoms) == 2
+
+
+def test_reference_in_other_crs_fails(pipeline, tmp_path):
+    path = write_reference(
+        tmp_path / 'ref.gpkg', [box(666100, 4163100, 666400, 4163400)], crs=32629
+    )
+    with pytest.raises(GaiaConfigError, match='EPSG:4326'):
+        pipeline._load_reference_area(path, AOI)
+
+
+def test_reference_outside_aoi_fails(pipeline, tmp_path):
+    path = write_reference(tmp_path / 'ref.gpkg', [box(-6.12, 37.60, -6.11, 37.61)])
+    with pytest.raises(GaiaConfigError, match='inside the processing AOI'):
+        pipeline._load_reference_area(path, AOI)
+
+
+def test_reference_without_crs_fails(pipeline, tmp_path):
+    path = write_reference(tmp_path / 'ref.gpkg', [box(0, 0, 1, 1)], crs=None)
+    with pytest.raises(GaiaConfigError, match='EPSG:4326'):
+        pipeline._load_reference_area(path, AOI)
+
+
+def test_missing_reference_file_fails(pipeline, tmp_path):
+    with pytest.raises(GaiaConfigError, match='not found'):
+        pipeline._load_reference_area(tmp_path / 'missing.gpkg', AOI)
+
+
+def test_reference_path_param_is_optional():
+    p = Sentinel1Pipeline()
+    params = p.metadata['params']['reference_stable_area']
+    assert params['dtype'] is PosixPath and params.get('required') is False
+    assert 'default' not in params
 
 
 def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
