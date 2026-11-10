@@ -25,6 +25,8 @@ services:
     environment:
       # timezonefinder uses Numba JIT caching - this often breaks in Docker/CI environments
       NUMBA_DISABLE_JIT: 1
+      # allow running scripts outside the repo (e.g. /data/validation/scripts)
+      PYTHONPATH: /opt/gaia_tsf
       # may be defined by .env
       GAIA_EOU_AUTH_CREDENTIALS_PASSWORD: ${GAIA_EOU_AUTH_CREDENTIALS_PASSWORD:-}
       GAIA_PROJECT_PATH: ${GAIA_PROJECT_PATH:-}
