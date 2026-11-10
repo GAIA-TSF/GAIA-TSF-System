@@ -110,11 +110,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'default': False,
                 'description': 'Export InSAR results without environmental and risk processing',
             },
-            'diagnostics_root': {
-                'dtype': PosixPath,
-                'required': False,
-                'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
-            },
             'diagnostics': {
                 'dtype': bool,
                 'default': True,
@@ -1285,8 +1280,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         om_client = openmeteo_requests.Client(session=retry_session)
 
         # Share data and pacing across sites/epochs using the same data mount.
-        site_root = Path(self._config.get('diagnostics_root') or output_dir)
-        weather_store = WeatherStore(site_root.parent / 'weather_cache')
+        weather_store = WeatherStore(Path(output_dir).parent / 'weather_cache')
 
         # Build Grid & Sample Altitudes
         lats, lons = (
@@ -1960,8 +1954,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._checkpoints = PairCheckpoints(root, self._config)
             self.logger.info(f'Per-pair checkpoints: {self._checkpoints.path}')
         if self._config.get('diagnostics', True):
-            root = self._config.get('diagnostics_root') or self._config['result_dir']
-            self._diagnostics = InSARDiagnostics(root, self._config)
+            self._diagnostics = InSARDiagnostics(self._config['result_dir'], self._config)
             self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
             if self._checkpoints is not None:
                 self._diagnostics.summary['pair_checkpoints'] = str(

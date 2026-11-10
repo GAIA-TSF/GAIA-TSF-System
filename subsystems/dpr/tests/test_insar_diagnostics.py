@@ -115,7 +115,6 @@ def test_completed_run_is_recorded(tmp_path):
     p._configure()
     p._config = {
         'result_dir': tmp_path / 'results',
-        'diagnostics_root': tmp_path / 'site',
     }
 
     def successful_stage():
@@ -123,8 +122,7 @@ def test_completed_run_is_recorded(tmp_path):
 
     p._run_processing = lambda: p._run_stage(successful_stage)
     assert p._run() == 42
-    assert p._diagnostics.path.parent == tmp_path / 'site' / 'diagnostics'
-    assert not (tmp_path / 'results' / 'diagnostics').exists()
+    assert p._diagnostics.path.parent == tmp_path / 'results' / 'diagnostics'
     summary = json.loads((p._diagnostics.path / 'summary.json').read_text())
     assert summary['status'] == 'complete'
     assert summary['stages'][0]['status'] == 'complete'
