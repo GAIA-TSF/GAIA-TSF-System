@@ -100,11 +100,6 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'default': '',
                 'description': 'Inclusive acquisition date in UTC',
             },
-            'source_safe_only': {
-                'dtype': bool,
-                'default': False,
-                'description': 'Use original SAFE scenes; ignore generated work-directory TIFFs',
-            },
             'insar_only': {
                 'dtype': bool,
                 'default': False,
@@ -238,11 +233,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f"No '.SAFE' directories found in {datadir}.", self.logger
             )
         self.logger.info('Downloading precise orbit files.')
-        s1 = (
-            self._scan_original_slcs(datadir)
-            if self._config.get('source_safe_only', False)
-            else S1.scan_slc(datadir)
-        )
+        s1 = self._scan_original_slcs(datadir)
         S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
@@ -330,21 +321,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Reset generated files before the recursive scan: workdir may be
         # inside datadir, and stale reframed scenes would become input scenes.
         self.sbas = Stack(workdir, drop_if_exists=True)
-        s1 = (
-            self._scan_original_slcs(datadir)
-            if self._config.get('source_safe_only', False)
-            else S1.scan_slc(datadir)
-        )
-        if self._config.get('source_safe_only', False):
-
-            def original_source(value):
-                paths = value if isinstance(value, (list, tuple)) else [value]
-                return all(
-                    any(part.endswith('.SAFE') for part in Path(path).parts)
-                    for path in paths
-                )
-
-            s1 = s1.loc[s1.datapath.map(original_source)].copy()
+        # only original .SAFE scenes: generated burst files under datadir (e.g. other
+        # epochs' workdirs) share basenames with the sources and would shadow them
+        s1 = self._scan_original_slcs(datadir)
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         s1 = self._filter_incomplete_dates(s1)
         self.logger.info('Stacking Sentinel-1 BURST data together.')

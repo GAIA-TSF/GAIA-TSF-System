@@ -206,7 +206,6 @@ def main():
             result_dir=run['result_dir'],
             processing_start=run['start'],
             processing_end=run['end'],
-            source_safe_only=True,
             insar_only=args.insar_only,
             excluded_dates=sentinel1.get('excluded_dates') or [],
             reference_stable_area=reference_wkt,

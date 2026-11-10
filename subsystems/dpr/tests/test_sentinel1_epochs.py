@@ -125,13 +125,12 @@ def test_too_few_complete_dates_fail():
         p._filter_incomplete_dates(scenes)
 
 
-def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
+def test_stacking_scans_only_original_safe_scenes(monkeypatch, tmp_path):
     from subsystems.dpr.preprocessing_pipelines import sentinel1
 
     p = Sentinel1Pipeline()
     p._configure()
     p._config = {
-        'source_safe_only': True,
         'excluded_dates': [],
         'processing_start': '2018-03-21',
         'processing_end': '2018-12-31',
@@ -141,13 +140,17 @@ def test_other_workdir_scenes_are_not_inputs(monkeypatch, tmp_path):
             'datapath': [
                 '/data/a.SAFE/a.tiff',
                 '/data/b.SAFE/b.tiff',
-                '/data/workdir/a.tiff',
                 '/data/c.SAFE/c.tiff',
             ]
         },
-        index=['2018-03-21', '2018-04-02', '2018-03-21', '2018-02-25'],
+        index=['2018-03-21', '2018-04-02', '2018-02-25'],
     )
     monkeypatch.setattr(p, '_scan_original_slcs', lambda path: scenes)
+
+    def plain_scan(*args, **kwargs):
+        raise AssertionError('datadir must not be scanned directly')
+
+    monkeypatch.setattr(sentinel1.S1, 'scan_slc', plain_scan)
     stack = Mock()
     stack.set_scenes.return_value = stack
     monkeypatch.setattr(sentinel1, 'Stack', lambda *a, **kw: stack)
