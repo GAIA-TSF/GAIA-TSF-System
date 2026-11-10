@@ -54,6 +54,7 @@ if __name__ == '__main__':
         result_dir=data_dir / 'results',
         crs=int(project_config.crs),
         reference=project_config.masks.tsf_mask,
+        reference_area_wkt=project_config.masks.stable_reference
     )
 
     pipeline.run()

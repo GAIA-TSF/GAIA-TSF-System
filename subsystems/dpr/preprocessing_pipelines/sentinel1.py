@@ -76,7 +76,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'default': True,
                 'description': 'Save per-run JSON/CSV statistics, SBAS graph and intermediate PNG diagnostics',
             },
-            'reference_area_wkt': {
+            'reference_area': {
                 'dtype': str,
                 'default': '',
                 'description': 'Optional stable-ground Polygon/MultiPolygon WKT in EPSG:4326, inside processing AOI',
@@ -831,7 +831,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if chunk_spec:
             phase_data = phase_data.chunk(chunk_spec)
 
-        reference = (self._config or {}).get('reference_area_wkt', '')
+        reference = (self._config or {}).get('reference_area', '')
         if reference:
             from shapely import contains_xy
 
@@ -842,7 +842,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 or not polygon.is_valid
             ):
                 raise ValueError(
-                    'reference_area_wkt must be a valid nonempty Polygon or MultiPolygon.'
+                    'reference_area must be a valid nonempty Polygon or MultiPolygon.'
                 )
             aoi = (self._config or {}).get('aoi')
             if aoi is not None and not aoi.covers(polygon):
@@ -1047,7 +1047,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.disp_ll.attrs.update(
             units='mm',
             spatial_reference='stable_area'
-            if (self._config or {}).get('reference_area_wkt')
+            if (self._config or {}).get('reference_area')
             else 'unreferenced',
         )
         self.disp_ll.attrs['temporal_reference_utc'] = str(
