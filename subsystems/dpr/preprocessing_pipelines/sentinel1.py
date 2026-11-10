@@ -535,6 +535,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         results = []
 
         self.logger.info('Finding optimal SBAS network.')
+        n_candidates = len(basedays) * len(basemeters)
+        started = time.time()
         for days in basedays:
             for meters in basemeters:
                 # Build candidate pairs
@@ -552,6 +554,12 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                         'n_comp': len(self._network_components(all_dates, pairs_df)),
                         'df': pairs_df,
                     }
+                )
+                self.logger.debug(
+                    f'SBAS network candidate {len(results)}/{n_candidates}: '
+                    f'{days} d / {meters} m -> {results[-1]["n_pairs"]} pairs, '
+                    f'{results[-1]["n_comp"]} component(s) '
+                    f'({time.time() - started:.0f} s elapsed)'
                 )
 
         candidates = [{k: v for k, v in r.items() if k != 'df'} for r in results]
