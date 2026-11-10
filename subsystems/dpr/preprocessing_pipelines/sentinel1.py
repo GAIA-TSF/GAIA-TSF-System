@@ -761,6 +761,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         self.logger.info('Computing interferograms.')
         self.intf = self.sbas.interferogram(phase_goldstein)
+        # reused by unwrapping, quality and checkpoints: compute once, avoid
+        # re-submitting the same graph (dask "different run_spec" warnings)
+        self.corr, self.intf = dask.persist(self.corr, self.intf)
 
     def _check_slc_coverage(self, data):
         """Reject empty aligned acquisitions before generating their interferograms."""
