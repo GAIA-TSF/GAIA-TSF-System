@@ -25,7 +25,7 @@ def fetch_weather_frame(client, session, url, params, timezone, logger, attempts
             start_date=start.date().isoformat(),
             end_date=stop.date().isoformat(),
         )
-        logger.info(
+        logger.debug(
             f'Weather request: {url} {chunk["start_date"]} through {chunk["end_date"]}'
         )
         for attempt in range(attempts):
@@ -147,7 +147,7 @@ class WeatherStore:
                     historical or time.time() - path.stat().st_mtime < 3600
                 )
                 if fresh:
-                    logger.info(
+                    logger.debug(
                         f'Weather cache hit: {chunk["start_date"]} through {chunk["end_date"]}'
                     )
                     frame = pd.read_csv(
