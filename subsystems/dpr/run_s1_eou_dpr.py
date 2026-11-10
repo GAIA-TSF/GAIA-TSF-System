@@ -212,7 +212,7 @@ def main():
             reference_stable_area=reference_wkt,
             diagnostics=sentinel1.get('diagnostics', True),
             retain_pair_checkpoints=sentinel1.get('retain_pair_checkpoints', True),
-            diagnostics_root=str(Path(project_config['project']['data_dir'])),
+            diagnostics_root=Path(project_config['project']['data_dir']),
         )
         pipeline.run()
 

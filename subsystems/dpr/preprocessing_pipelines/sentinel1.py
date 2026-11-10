@@ -111,8 +111,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'description': 'Export InSAR results without environmental and risk processing',
             },
             'diagnostics_root': {
-                'dtype': str,
-                'default': '',
+                'dtype': PosixPath,
+                'required': False,
                 'description': 'Site directory containing diagnostics/<run timestamp>; defaults to result_dir',
             },
             'diagnostics': {

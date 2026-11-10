@@ -115,7 +115,7 @@ def test_completed_run_is_recorded(tmp_path):
     p._configure()
     p._config = {
         'result_dir': tmp_path / 'results',
-        'diagnostics_root': str(tmp_path / 'site'),
+        'diagnostics_root': tmp_path / 'site',
     }
 
     def successful_stage():
