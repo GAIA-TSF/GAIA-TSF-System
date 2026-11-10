@@ -209,7 +209,7 @@ def main():
             source_safe_only=True,
             insar_only=args.insar_only,
             excluded_dates=sentinel1.get('excluded_dates') or [],
-            reference_area_wkt=reference_wkt,
+            reference_stable_area=reference_wkt,
             diagnostics=sentinel1.get('diagnostics', True),
             retain_pair_checkpoints=sentinel1.get('retain_pair_checkpoints', True),
             diagnostics_root=str(Path(project_config['project']['data_dir'])),

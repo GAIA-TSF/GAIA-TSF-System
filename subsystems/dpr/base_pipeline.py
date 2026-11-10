@@ -59,9 +59,10 @@ class BasePipeline(ABC, GaiaBase):
                         raise GaiaConfigError(
                             f"Parameter '{k}' not defined", self.logger
                         )
-            if self._config[k] is not None and type(self._config[k]) is not v['dtype']:
+            value = self._config.get(k)
+            if value is not None and type(value) is not v['dtype']:
                 raise GaiaConfigError(
-                    f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})",
+                    f"Paramater '{k}' (type: {type(value)}) type mismatch ({v['dtype']})",
                     self.logger,
                 )
 
