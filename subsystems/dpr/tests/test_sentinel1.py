@@ -269,7 +269,9 @@ class TestSentinel1Workflow:
 
     def test_016_environmental_database(self, pipeline, ctx):
         """Test creating environmental database."""
-        pipeline._environmental_database(ctx.aoi, ctx.result_dir)
+        pipeline._environmental_database(
+            ctx.aoi, ctx.result_dir, ctx.data_dir / 'weather_cache'
+        )
         climate_path = ctx.result_dir / 'climate_daily_db.csv'
         air_path = ctx.result_dir / 'air_quality_daily_db.csv'
         manifest_path = ctx.result_dir / 'envdb_manifest.json'

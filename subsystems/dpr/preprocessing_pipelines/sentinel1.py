@@ -1291,12 +1291,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         )
 
     def _environmental_database(
-        self, aoi, output_dir, grid_rows=3, grid_cols=3, model='era5'
+        self, aoi, output_dir, cache_dir, grid_rows=3, grid_cols=3, model='era5'
     ):
         """Extracts daily climate and air quality data for the provided AOI.
 
         :param str | BaseGeometry aoi: WKT string or Shapely Polygon representing the area of interest.
         :param Path output_dir: Directory path where final results will be saved.
+        :param Path cache_dir: Weather cache shared by all runs using it (decoded data, HTTP cache, request pacing).
         :param int grid_rows: Number of horizontal sampling points across the AOI. Defaults to 3.
         :param int grid_cols: Number of vertical sampling points across the AOI. Defaults to 3.
         :param str model: The atmospheric reanalysis model to use for historical climate data. Defaults to "era5".
@@ -1318,15 +1319,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         tf = TimezoneFinder()
         tz_name = tf.timezone_at(lng=center_lon, lat=center_lat) or 'UTC'
 
+        # Entries are keyed by coordinates, so one cache can serve many runs.
+        weather_store = WeatherStore(cache_dir)
+
         # API Client Setup
         cache_session = requests_cache.CachedSession(
-            str(output_dir / 'openmeteo_cache'), expire_after=3600
+            str(weather_store.root / 'openmeteo_http'), expire_after=3600
         )
         retry_session = retry(cache_session, retries=0, backoff_factor=0.3)
         om_client = openmeteo_requests.Client(session=retry_session)
-
-        # Share data and pacing across sites/epochs using the same data mount.
-        weather_store = WeatherStore(Path(output_dir).parent / 'weather_cache')
 
         # Build Grid & Sample Altitudes
         lats, lons = (
@@ -2098,6 +2099,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 self._environmental_database,
                 self._config['aoi'],
                 self._config['result_dir'],
+                # Shared by all epochs and full runs of the site.
+                Path(self._config['datadir']) / 'weather_cache',
             )
             step(self._compute_risk_database, self._config['result_dir'])
         if (

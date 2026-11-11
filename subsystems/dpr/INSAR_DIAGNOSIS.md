@@ -28,7 +28,9 @@ quota. The change applies to newly started processes; existing InSAR exports
 remain available if the environmental stage exhausts its retries.
 
 Weather downloads now use a shared decoded-data cache at
-`/data/gaia_tsf/weather_cache/` for the standard site runner. Each successful
+`<datadir>/weather_cache/` (e.g. `/data/gaia_tsf/<site>/sentinel1/weather_cache/`),
+shared by all epochs and full runs of a site; the short-lived HTTP cache
+`openmeteo_http.sqlite` lives there too, not in `result_dir`. Each successful
 monthly request is keyed by endpoint, parameters (including model, variables,
 timezone and dates) and coordinates rounded to eight decimal places. Duplicate
 centre/grid coordinates reuse the same data while retaining both output location
