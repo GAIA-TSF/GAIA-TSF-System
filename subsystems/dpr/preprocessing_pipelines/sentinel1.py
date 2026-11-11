@@ -233,7 +233,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f"No '.SAFE' directories found in {datadir}.", self.logger
             )
         self.logger.info('Downloading precise orbit files.')
-        s1 = self._scan_original_slcs(datadir)
+        s1 = self._scan_original_slcs(
+            datadir,
+            self._config.get('processing_start', ''),
+            self._config.get('processing_end', ''),
+        )
         S1.download_orbits(datadir, s1)
 
     def _download_dem(self, aoi, output_dem):
@@ -323,21 +327,84 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.sbas = Stack(workdir, drop_if_exists=True)
         # only original .SAFE scenes: generated burst files under datadir (e.g. other
         # epochs' workdirs) share basenames with the sources and would shadow them
-        s1 = self._scan_original_slcs(datadir)
+        s1 = self._scan_original_slcs(
+            datadir,
+            self._config.get('processing_start', ''),
+            self._config.get('processing_end', ''),
+        )
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         s1 = self._filter_incomplete_dates(s1)
         self.logger.info('Stacking Sentinel-1 BURST data together.')
         self.sbas = self.sbas.set_scenes(s1)
 
     @staticmethod
-    def _scan_original_slcs(datadir):
-        """Exclude generated basename collisions before PyGMTSAR builds its index."""
+    def _safe_acquisition_date(safe):
+        """Return the UTC acquisition date (YYYYMMDD) from a SAFE name, or None."""
+        # S1A_IW_SLC__1SDV_20260304T063532_20260304T063535_063474_07F990_26C4.SAFE
+        parts = Path(safe).name.split('_')
+        stamp = parts[5][:8] if len(parts) > 5 else ''
+        return stamp if len(stamp) == 8 and stamp.isdigit() else None
+
+    @staticmethod
+    def _safe_subswaths(safe):
+        """Return the IW subswath numbers present in a SAFE measurement folder."""
+        return {
+            int(part[2])
+            for tiff in (Path(safe) / 'measurement').glob('*.tiff')
+            for part in tiff.name.split('-')
+            if len(part) == 3 and part.startswith('iw') and part[2] in '123'
+        }
+
+    @staticmethod
+    def _scan_original_slcs(datadir, processing_start='', processing_end=''):
+        """Exclude generated basename collisions before PyGMTSAR builds its index.
+
+        Only SAFEs inside the inclusive processing window are scanned: datadir is
+        shared by epochs, which may come from different tracks/subswaths, and
+        PyGMTSAR rejects the whole directory when subswaths are not sequential.
+        """
         from tempfile import TemporaryDirectory
 
         root = Path(datadir).resolve()
         safes = sorted(path for path in root.rglob('*.SAFE') if path.is_dir())
         if not safes:
             raise ValueError(f'No original .SAFE directories found in {root}')
+        start = (
+            pd.Timestamp(processing_start).strftime('%Y%m%d')
+            if processing_start
+            else None
+        )
+        end = pd.Timestamp(processing_end).strftime('%Y%m%d') if processing_end else None
+        if start or end:
+
+            def inside(safe):
+                stamp = Sentinel1Pipeline._safe_acquisition_date(safe)
+                if stamp is None:
+                    # unknown naming: keep it, dates are filtered again after scanning
+                    return True
+                return (start is None or stamp >= start) and (end is None or stamp <= end)
+
+            safes = [safe for safe in safes if inside(safe)]
+            if not safes:
+                raise ValueError(
+                    f'No original .SAFE directories found in {root} between '
+                    f'{processing_start or "-"} and {processing_end or "-"}'
+                )
+        by_subswath = defaultdict(list)
+        for safe in safes:
+            stamp = Sentinel1Pipeline._safe_acquisition_date(safe) or '?'
+            for number in Sentinel1Pipeline._safe_subswaths(safe):
+                by_subswath[number].append(stamp)
+        if ''.join(map(str, sorted(by_subswath))) not in ('', '1', '2', '3', '12', '23', '123'):
+            summary = '; '.join(
+                f'IW{number}: {len(stamps)} SAFEs ({min(stamps)}..{max(stamps)})'
+                for number, stamps in sorted(by_subswath.items())
+            )
+            raise ValueError(
+                f'Non-adjacent Sentinel-1 subswaths in {root} for the processing '
+                f'window: {summary}. The scenes likely come from different tracks; '
+                'set sentinel1.path_number and remove the other track\'s SAFEs.'
+            )
         # scan_slc recursively indexes by basename; filtering its output is too
         # late when generated workdir files have overwritten source entries.
         with TemporaryDirectory(prefix='gaia-s1-scan-') as directory:

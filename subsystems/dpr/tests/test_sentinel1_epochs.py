@@ -145,7 +145,7 @@ def test_stacking_scans_only_original_safe_scenes(monkeypatch, tmp_path):
         },
         index=['2018-03-21', '2018-04-02', '2018-02-25'],
     )
-    monkeypatch.setattr(p, '_scan_original_slcs', lambda path: scenes)
+    monkeypatch.setattr(p, '_scan_original_slcs', lambda *args: scenes)
 
     def plain_scan(*args, **kwargs):
         raise AssertionError('datadir must not be scanned directly')
@@ -205,3 +205,56 @@ def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch
     scenes = Sentinel1Pipeline._scan_original_slcs(tmp_path)
     assert scenes.datapath.iloc[0] == str(source / 'burst.tiff')
     assert Path(scenes.orbitpath.iloc[0]).exists()
+
+
+def make_burst_safe(root, mission, stamp, subswath):
+    """Create a minimal ASF burst SAFE with one measurement/annotation pair."""
+    safe = root / f'{mission}_IW_SLC__1SDV_{stamp}T063532_{stamp}T063535_063474_07F990_26C4.SAFE'
+    name = f'{mission.lower()}-iw{subswath}-slc-vv-{stamp}t063532-{stamp}t063535-063474-07f990-001'
+    (safe / 'measurement').mkdir(parents=True)
+    (safe / 'annotation').mkdir()
+    (safe / 'measurement' / f'{name}.tiff').touch()
+    (safe / 'annotation' / f'{name}.xml').touch()
+    return safe
+
+
+def test_original_scan_limited_to_processing_window(tmp_path, monkeypatch):
+    """Epochs share datadir; another epoch's track must not reach scan_slc."""
+    from subsystems.dpr.preprocessing_pipelines import sentinel1
+
+    make_burst_safe(tmp_path, 'S1A', '20260110', 3)  # pre_failure, track 154
+    make_burst_safe(tmp_path, 'S1A', '20260215', 3)
+    inside = [
+        make_burst_safe(tmp_path, 'S1A', '20260304', 1),  # post_failure, track 52
+        make_burst_safe(tmp_path, 'S1C', '20260310', 1),
+    ]
+
+    def scan(view):
+        import glob
+
+        files = glob.glob(str(view / '**' / '*.tiff'), recursive=True)
+        return pd.DataFrame({'datapath': files, 'metapath': files})
+
+    monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
+    scenes = Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-03-01', '2026-10-29')
+    assert sorted(Path(path).parents[1] for path in scenes.datapath) == inside
+
+
+def test_original_scan_rejects_mixed_tracks_in_window(tmp_path, monkeypatch):
+    from subsystems.dpr.preprocessing_pipelines import sentinel1
+
+    make_burst_safe(tmp_path, 'S1A', '20260215', 3)
+    make_burst_safe(tmp_path, 'S1A', '20260304', 1)
+
+    def scan(view):
+        raise AssertionError('mixed subswaths must be rejected before scan_slc')
+
+    monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
+    with pytest.raises(ValueError, match=r'IW1: 1 SAFEs \(20260304\.\.20260304\).*path_number'):
+        Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-01-01', '2026-10-29')
+
+
+def test_original_scan_empty_processing_window(tmp_path):
+    make_burst_safe(tmp_path, 'S1A', '20260215', 3)
+    with pytest.raises(ValueError, match='between 2026-03-01 and 2026-10-29'):
+        Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-03-01', '2026-10-29')
