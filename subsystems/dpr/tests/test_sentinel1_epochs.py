@@ -209,7 +209,10 @@ def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch
 
 def make_burst_safe(root, mission, stamp, subswath):
     """Create a minimal ASF burst SAFE with one measurement/annotation pair."""
-    safe = root / f'{mission}_IW_SLC__1SDV_{stamp}T063532_{stamp}T063535_063474_07F990_26C4.SAFE'
+    safe = (
+        root
+        / f'{mission}_IW_SLC__1SDV_{stamp}T063532_{stamp}T063535_063474_07F990_26C4.SAFE'
+    )
     name = f'{mission.lower()}-iw{subswath}-slc-vv-{stamp}t063532-{stamp}t063535-063474-07f990-001'
     (safe / 'measurement').mkdir(parents=True)
     (safe / 'annotation').mkdir()
@@ -250,7 +253,9 @@ def test_original_scan_rejects_mixed_tracks_in_window(tmp_path, monkeypatch):
         raise AssertionError('mixed subswaths must be rejected before scan_slc')
 
     monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
-    with pytest.raises(ValueError, match=r'IW1: 1 SAFEs \(20260304\.\.20260304\).*path_number'):
+    with pytest.raises(
+        ValueError, match=r'IW1: 1 SAFEs \(20260304\.\.20260304\).*path_number'
+    ):
         Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-01-01', '2026-10-29')
 
 

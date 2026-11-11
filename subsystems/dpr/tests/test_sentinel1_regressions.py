@@ -115,7 +115,11 @@ def test_reference_offset_is_coherence_weighted_median(pipeline):
 
 def test_reference_uses_dominant_component_and_masks_others(pipeline):
     phase = phase_grid([[[1, 1, 1, 50, 7], [1, 1, 1, 50, 7]]])
-    comp = xr.DataArray(np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]), dims=phase.dims, coords=phase.coords)
+    comp = xr.DataArray(
+        np.array([[[1, 1, 1, 2, 1], [1, 1, 1, 2, 1]]]),
+        dims=phase.dims,
+        coords=phase.coords,
+    )
     pipeline.unwrap = xr.Dataset({'phase': phase, 'conncomp': comp})
     pipeline._reference_geometry = box(-0.5, -0.5, 3.5, 1.5)
     pipeline._config.update(reference_min_pixels=1)

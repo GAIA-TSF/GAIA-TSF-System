@@ -212,9 +212,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'Stable reference {path}: polygons must lie inside the processing AOI.',
                 self.logger,
             )
-        self.logger.info(
-            f'Stable reference area: {path} ({len(reference)} feature(s))'
-        )
+        self.logger.info(f'Stable reference area: {path} ({len(reference)} feature(s))')
         return polygon
 
     def close(self):
@@ -374,7 +372,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             if processing_start
             else None
         )
-        end = pd.Timestamp(processing_end).strftime('%Y%m%d') if processing_end else None
+        end = (
+            pd.Timestamp(processing_end).strftime('%Y%m%d') if processing_end else None
+        )
         if start or end:
 
             def inside(safe):
@@ -382,7 +382,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 if stamp is None:
                     # unknown naming: keep it, dates are filtered again after scanning
                     return True
-                return (start is None or stamp >= start) and (end is None or stamp <= end)
+                return (start is None or stamp >= start) and (
+                    end is None or stamp <= end
+                )
 
             safes = [safe for safe in safes if inside(safe)]
             if not safes:
@@ -395,7 +397,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             stamp = Sentinel1Pipeline._safe_acquisition_date(safe) or '?'
             for number in Sentinel1Pipeline._safe_subswaths(safe):
                 by_subswath[number].append(stamp)
-        if ''.join(map(str, sorted(by_subswath))) not in ('', '1', '2', '3', '12', '23', '123'):
+        if ''.join(map(str, sorted(by_subswath))) not in (
+            '',
+            '1',
+            '2',
+            '3',
+            '12',
+            '23',
+            '123',
+        ):
             summary = '; '.join(
                 f'IW{number}: {len(stamps)} SAFEs ({min(stamps)}..{max(stamps)})'
                 for number, stamps in sorted(by_subswath.items())
@@ -403,7 +413,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             raise ValueError(
                 f'Non-adjacent Sentinel-1 subswaths in {root} for the processing '
                 f'window: {summary}. The scenes likely come from different tracks; '
-                'set sentinel1.path_number and remove the other track\'s SAFEs.'
+                "set sentinel1.path_number and remove the other track's SAFEs."
             )
         # scan_slc recursively indexes by basename; filtering its output is too
         # late when generated workdir files have overwritten source entries.
@@ -2001,7 +2011,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._checkpoints = PairCheckpoints(root, self._config)
             self.logger.info(f'Per-pair checkpoints: {self._checkpoints.path}')
         if self._config.get('diagnostics', True):
-            self._diagnostics = InSARDiagnostics(self._config['result_dir'], self._config)
+            self._diagnostics = InSARDiagnostics(
+                self._config['result_dir'], self._config
+            )
             self.logger.info(f'Intermediate diagnostics: {self._diagnostics.path}')
             if self._checkpoints is not None:
                 self._diagnostics.summary['pair_checkpoints'] = str(
