@@ -3,7 +3,7 @@
 # Slope stability 
 # project_dir: "/Users/lukas/Work/prfuk/ownCloud/Projects/GAIA_TSF/tsf_experiments/synthetic_tsf_deformation/"
 # no_failure, gradual_acceleration, spatial_propagation, external_trigger
-# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
+project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger/'
 
 # Cadia
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/'
@@ -11,7 +11,7 @@
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia' 
 
 # Jagersfontein 
-project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagersfontein'
+# project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagersfontein'
 # project_dir: '/home/lukas/GAIA-TSF/tsf_experiments/slope_monitoring_jagersfontein'
 # Tharsis: 
 # project_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_tharsis/' 
@@ -44,7 +44,7 @@ slope_stability:
   inputs:
     los:
       directory: "inputs/los"
-      filename_pattern: "los_*.tif"
+      filename_pattern: "tsf_los_*.tif"
   static:
     tsf_mask: "static/tsf_mask.tif"
     # Optional stable area for diagnostics. DPR cumulative LOS is unchanged
@@ -162,7 +162,8 @@ slope_stability:
         - velocity
         - acceleration
       current:
-        enabled: false
+        enabled: true
+        features: [cumulative_los]
       lag:
         enabled: true
         orders: [1, 2, 3]

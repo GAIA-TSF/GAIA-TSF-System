@@ -1,8 +1,15 @@
-"""Conversion of aligned feature stacks into reproducible temporal ML datasets."""
+"""Causal forecast samples built from aligned DAG feature stacks.
+
+One sample is one pixel (series) at one forecast origin ``t``. Its predictors
+are the configured DAG stacks at acquisition ``t`` (or the ``look_back``
+acquisitions ending at ``t`` for sequence models). DAG ``*_lagK`` stacks hold
+values from ``t - K`` at row ``t``, so every predictor is known at the origin.
+Targets are the configured target stack at acquisitions ``t + 1 .. t + H``.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -10,346 +17,264 @@ from subsystems.map.dataset.feature_loader import LoadedFeatures, RasterGrid
 
 
 @dataclass(frozen=True)
-class Dataset:
-    """Flat ML samples plus enough index information to restore rasters."""
+class ForecastSamples:
+    """Origin-aligned predictors, persistence anchors, and future targets."""
 
     features: np.ndarray
+    anchors: np.ndarray
+    anchor_indices: np.ndarray
     targets: np.ndarray
-    time_indices: np.ndarray
+    origin_indices: np.ndarray
     pixel_indices: np.ndarray
     feature_names: tuple[str, ...]
     dates: tuple[str, ...]
     grid: RasterGrid
-    mask: np.ndarray
+
+    @property
+    def horizon(self) -> int:
+        return int(self.targets.shape[1])
+
+    @property
+    def changes(self) -> np.ndarray:
+        """Model targets: change from the last valid value at the origin."""
+        return self.targets - self.anchors[:, np.newaxis]
+
+    def subset(self, include: np.ndarray, target_end: int | None = None) -> 'ForecastSamples':
+        """Select rows; mask targets at or after ``target_end`` (purging)."""
+        targets = self.targets[include].copy()
+        if target_end is not None:
+            target_index = (
+                self.origin_indices[include, np.newaxis]
+                + np.arange(1, self.horizon + 1)[np.newaxis, :]
+            )
+            targets[target_index >= target_end] = np.nan
+        return replace(
+            self,
+            features=self.features[include],
+            anchors=self.anchors[include],
+            anchor_indices=self.anchor_indices[include],
+            targets=targets,
+            origin_indices=self.origin_indices[include],
+            pixel_indices=self.pixel_indices[include],
+        )
 
 
 @dataclass(frozen=True)
-class DatasetSplits:
+class SampleSplits:
     """Train, validation and test subsets."""
 
-    train: Dataset
-    validation: Dataset
-    test: Dataset
+    train: ForecastSamples
+    validation: ForecastSamples
+    test: ForecastSamples
+
+    def items(self) -> tuple[tuple[str, ForecastSamples], ...]:
+        return (
+            ('train', self.train),
+            ('validation', self.validation),
+            ('test', self.test),
+        )
 
 
-class DatasetBuilder:
-    """Build temporal samples from DAG features; feature engineering stays in DAG."""
+def build_forecast_samples(
+    loaded: LoadedFeatures,
+    feature_names: list[str],
+    target_feature: str,
+    horizon: int,
+    look_back: int | None = None,
+    origin_range: tuple[int, int] | None = None,
+) -> ForecastSamples:
+    """Build one sample per valid (origin, pixel) inside ``loaded.mask``.
 
-    def build(
-        self,
-        loaded: LoadedFeatures,
-        feature_names: list[str],
-        target_feature: str,
-        pixel_mask: np.ndarray | None = None,
-    ) -> Dataset:
-        """Build samples for all valid feature/target observations in ``pixel_mask``."""
-        if target_feature not in loaded.features:
-            raise KeyError(f'Target feature was not loaded: {target_feature}')
-        if any(name not in loaded.features for name in feature_names):
-            raise KeyError('One or more configured feature names were not loaded.')
-        selected_mask = loaded.mask if pixel_mask is None else loaded.mask & pixel_mask
-        target = loaded.features[target_feature]
-        stacks = [loaded.features[name] for name in feature_names]
-        valid = selected_mask[np.newaxis, :, :] & np.isfinite(target)
-        for stack in stacks:
-            valid &= np.isfinite(stack)
-        time_indices, rows, columns = np.where(valid)
-        pixel_indices = rows * loaded.grid.width + columns
-        feature_matrix = np.column_stack([stack[valid] for stack in stacks])
-        targets = target[valid]
-        if targets.size == 0:
+    An origin is valid when every predictor is finite (over the whole
+    ``look_back`` window for sequence models) and a target value has been
+    observed at or before the origin. Future targets may be missing (NaN).
+    """
+    if horizon < 1:
+        raise ValueError('Forecast horizon must be positive.')
+    if target_feature not in loaded.features:
+        raise KeyError(f'Target feature was not loaded: {target_feature}')
+    missing = [name for name in feature_names if name not in loaded.features]
+    if missing:
+        raise KeyError(f'Predictors were not loaded: {", ".join(missing)}')
+    rows, columns = np.nonzero(loaded.mask)
+    target = loaded.features[target_feature][:, rows, columns]
+    predictors = np.stack(
+        [loaded.features[name][:, rows, columns] for name in feature_names], axis=-1
+    )
+    time_count, pixel_count = target.shape
+
+    # Persistence anchor: last valid target at or before each origin.
+    observed_index = np.where(np.isfinite(target), np.arange(time_count)[:, None], -1)
+    anchor_index = np.maximum.accumulate(observed_index, axis=0)
+    anchors = np.where(
+        anchor_index >= 0,
+        target[np.maximum(anchor_index, 0), np.arange(pixel_count)],
+        np.nan,
+    )
+
+    finite = np.all(np.isfinite(predictors), axis=-1)
+    window = 1 if look_back is None else int(look_back)
+    if window < 1:
+        raise ValueError('look_back must be positive.')
+    invalid_count = np.cumsum(~finite, axis=0)
+    shifted = np.zeros_like(invalid_count)
+    shifted[window:] = invalid_count[:-window]
+    valid = (invalid_count - shifted == 0) & (anchor_index >= 0)
+    valid[: window - 1] = False
+    if origin_range is not None:
+        in_range = np.zeros(time_count, dtype=bool)
+        in_range[origin_range[0] : origin_range[1]] = True
+        valid &= in_range[:, None]
+
+    origin, pixel = np.nonzero(valid)
+    if origin.size == 0:
+        raise ValueError(
+            'No forecast origins have finite predictors and an observed target. '
+            'Check predictor and target coverage within the selected pixels.'
+        )
+    if look_back is None:
+        features = predictors[origin, pixel]
+    else:
+        steps = origin[:, None] - np.arange(window - 1, -1, -1)[None, :]
+        features = predictors[steps, pixel[:, None]]
+
+    leads = np.arange(1, horizon + 1)
+    target_index = origin[:, None] + leads[None, :]
+    future = np.full(target_index.shape, np.nan)
+    inside = target_index < time_count
+    future[inside] = target[target_index[inside], np.broadcast_to(pixel[:, None], target_index.shape)[inside]]
+    return ForecastSamples(
+        features=features,
+        anchors=anchors[origin, pixel],
+        anchor_indices=anchor_index[origin, pixel],
+        targets=future,
+        origin_indices=origin.astype(np.int64),
+        pixel_indices=(rows[pixel] * loaded.grid.width + columns[pixel]).astype(np.int64),
+        feature_names=tuple(feature_names),
+        dates=loaded.dates,
+        grid=loaded.grid,
+    )
+
+
+def _ratios(train: float, validation: float, test: float) -> None:
+    if not np.isclose(train + validation + test, 1.0):
+        raise ValueError('Split ratios must sum to 1.0.')
+    if min(train, validation, test) <= 0.0:
+        raise ValueError('Split ratios must all be positive.')
+
+
+def split_temporal(
+    samples: ForecastSamples,
+    start: int,
+    end: int,
+    train_ratio: float,
+    validation_ratio: float,
+    test_ratio: float,
+) -> SampleSplits:
+    """Chronological split of origins in ``[start, end)``.
+
+    Targets are purged at each subset's end, so no training target is observed
+    during validation or test and no target falls outside the window.
+    """
+    _ratios(train_ratio, validation_ratio, test_ratio)
+    if not 0 <= start < end <= len(samples.dates):
+        raise ValueError('Temporal window indices are outside the dataset range.')
+    count = end - start
+    train_end = start + int(count * train_ratio)
+    validation_end = train_end + int(count * validation_ratio)
+    if train_end <= start or validation_end <= train_end or validation_end >= end:
+        raise ValueError('Temporal split needs at least one acquisition per subset.')
+    origin = samples.origin_indices
+    return SampleSplits(
+        *(
+            _non_empty(samples.subset((origin >= a) & (origin < b), target_end=b), name)
+            for name, a, b in (
+                ('training', start, train_end),
+                ('validation', train_end, validation_end),
+                ('test', validation_end, end),
+            )
+        )
+    )
+
+
+def split_spatial(
+    samples: ForecastSamples,
+    start: int,
+    end: int,
+    train_ratio: float,
+    validation_ratio: float,
+    test_ratio: float,
+    random_seed: int,
+) -> SampleSplits:
+    """Assign whole pixel histories in ``[start, end)`` to one subset each."""
+    _ratios(train_ratio, validation_ratio, test_ratio)
+    if not 0 <= start < end <= len(samples.dates):
+        raise ValueError('Spatial window indices are outside the dataset range.')
+    in_window = (samples.origin_indices >= start) & (samples.origin_indices < end)
+    pixels = np.random.default_rng(random_seed).permutation(
+        np.unique(samples.pixel_indices[in_window])
+    )
+    train_end = int(pixels.size * train_ratio)
+    validation_end = train_end + int(pixels.size * validation_ratio)
+    if train_end < 1 or validation_end <= train_end or validation_end >= pixels.size:
+        raise ValueError('Spatial split needs at least one pixel per subset.')
+    expected = np.unique(samples.origin_indices[in_window])
+    subsets = []
+    for name, chosen in (
+        ('training', pixels[:train_end]),
+        ('validation', pixels[train_end:validation_end]),
+        ('test', pixels[validation_end:]),
+    ):
+        subset = _non_empty(
+            samples.subset(in_window & np.isin(samples.pixel_indices, chosen), end),
+            name,
+        )
+        absent = np.setdiff1d(expected, subset.origin_indices)
+        if absent.size:
+            missing_dates = ', '.join(samples.dates[int(i)] for i in absent[:5])
             raise ValueError(
-                'No finite samples remain after feature and mask filtering. '
-                'Check target and feature coverage within the selected pixels. '
-                'For stable pixels outside the TSF, regenerate DAG temporal '
-                'features with slope_stability.static.stable_reference.file '
-                'pointing to the calibration mask.'
+                f'Spatial {name} subset has no valid pixels on: {missing_dates}. '
+                'Increase the subset ratio or improve feature coverage.'
             )
-        return Dataset(
-            feature_matrix,
-            targets,
-            time_indices,
-            pixel_indices,
-            tuple(feature_names),
-            loaded.dates,
-            loaded.grid,
-            selected_mask,
+        subsets.append(subset)
+    return SampleSplits(*subsets)
+
+
+def rolling_origin_folds(
+    samples: ForecastSamples, n_folds: int
+) -> list[tuple[ForecastSamples, ForecastSamples]]:
+    """Expanding-window chronological folds over the sample origins.
+
+    The origin range is cut into ``n_folds + 1`` blocks. Fold ``k`` fits on
+    blocks ``0..k`` and validates on origins in block ``k + 1``. Fitting
+    targets are purged at the fit end. Validation targets may extend past
+    their block, but never past the end of the origin range, so every lead is
+    scored without touching data held out beyond ``samples``.
+    """
+    if n_folds < 1:
+        raise ValueError('tuning.folds must be positive.')
+    origins = samples.origin_indices
+    start, end = int(origins.min()), int(origins.max()) + 1
+    edges = np.linspace(start, end, n_folds + 2).round().astype(int)
+    if np.any(np.diff(edges) < 1):
+        raise ValueError(f'Too few forecast origins for {n_folds} tuning folds.')
+    folds = []
+    for fold in range(n_folds):
+        fit_end, validation_end = int(edges[fold + 1]), int(edges[fold + 2])
+        fit = samples.subset(origins < fit_end, target_end=fit_end)
+        validation = samples.subset(
+            (origins >= fit_end) & (origins < validation_end), target_end=end
         )
-
-    @staticmethod
-    def fixed_valid_mask(
-        target_stack: np.ndarray,
-        tsf_mask: np.ndarray,
-        start_index: int,
-        end_index: int,
-        minimum_coverage: float = 1.0,
-    ) -> np.ndarray:
-        """Return TSF pixels observed at every acquisition in a reference window.
-
-        The mask is intentionally based on observations only, never model
-        features or sequence availability. It therefore remains identical for
-        tabular and sequence-model physical monitoring.
-        """
-        if target_stack.ndim != 3 or target_stack.shape[1:] != tsf_mask.shape:
-            raise ValueError('Target stack and TSF mask are incompatible.')
-        if not 0 <= start_index < end_index <= target_stack.shape[0]:
-            raise ValueError('Fixed-support reference window is outside target stack.')
-        if not 0.0 < minimum_coverage <= 1.0:
-            raise ValueError('Fixed-support minimum coverage must be in (0, 1].')
-        reference = target_stack[start_index:end_index]
-        # Lagged targets may have an entirely unavailable warm-up acquisition.
-        # It contains no evidence about per-pixel validity and must not exclude
-        # every TSF pixel from a fixed operational support.
-        available_dates = np.any(
-            np.isfinite(reference) & tsf_mask[np.newaxis, :, :], axis=(1, 2)
-        )
-        reference = reference[available_dates]
-        if reference.size == 0:
-            raise ValueError('No target observations are available in calibration.')
-        coverage = np.mean(np.isfinite(reference), axis=0)
-        fixed = tsf_mask & (coverage >= minimum_coverage)
-        if not np.any(fixed):
-            raise ValueError('No calibration-valid pixels remain for fixed support.')
-        return fixed
-
-    def split_temporal(
-        self,
-        dataset: Dataset,
-        train_ratio: float,
-        validation_ratio: float,
-        test_ratio: float,
-    ) -> DatasetSplits:
-        """Split by acquisition time, preventing future observations entering training."""
-        if not np.isclose(train_ratio + validation_ratio + test_ratio, 1.0):
-            raise ValueError('Temporal split ratios must sum to 1.0.')
-        time_count = len(dataset.dates)
-        train_end = int(time_count * train_ratio)
-        validation_end = train_end + int(time_count * validation_ratio)
-        if train_end < 1 or validation_end <= train_end or validation_end >= time_count:
-            raise ValueError(
-                'Temporal split needs at least one acquisition per subset.'
+        folds.append(
+            (
+                _non_empty(fit, f'fold {fold + 1} fitting'),
+                _non_empty(validation, f'fold {fold + 1} validation'),
             )
-        return DatasetSplits(
-            self._subset(dataset, dataset.time_indices < train_end),
-            self._subset(
-                dataset,
-                (dataset.time_indices >= train_end)
-                & (dataset.time_indices < validation_end),
-            ),
-            self._subset(dataset, dataset.time_indices >= validation_end),
         )
+    return folds
 
-    def build_sequences(
-        self,
-        dataset: Dataset,
-        look_back: int,
-        horizon: int,
-    ) -> Dataset:
-        """Build causal, per-pixel sequences for a sequence-model plugin.
 
-        Every sequence contains ``look_back`` consecutive feature vectors. The
-        target occurs ``horizon`` acquisitions after the final input vector;
-        consequently no target-time observation can enter the model input.
-
-        Args:
-            dataset: Flat temporal samples created from DAG feature rasters.
-            look_back: Number of prior acquisitions in each input sequence.
-            horizon: Number of acquisitions between sequence end and target.
-
-        Returns:
-            A dataset whose feature matrix has shape
-            ``(samples, look_back, features)``.
-
-        Raises:
-            ValueError: If the sequence specification is invalid or produces
-                no complete per-pixel samples.
-        """
-        if look_back < 1 or horizon < 1:
-            raise ValueError('Sequence look_back and horizon must be positive.')
-        if dataset.features.ndim != 2:
-            raise ValueError('Sequence construction requires a tabular dataset.')
-
-        rows_by_time = {
-            time_index: np.flatnonzero(dataset.time_indices == time_index)
-            for time_index in np.unique(dataset.time_indices)
-        }
-        sequence_features: list[np.ndarray] = []
-        sequence_targets: list[np.ndarray] = []
-        sequence_times: list[np.ndarray] = []
-        sequence_pixels: list[np.ndarray] = []
-        first_target_time = look_back + horizon - 1
-        for target_time in range(first_target_time, len(dataset.dates)):
-            input_times = range(
-                target_time - horizon - look_back + 1,
-                target_time - horizon + 1,
-            )
-            required_times = [*input_times, target_time]
-            if any(time not in rows_by_time for time in required_times):
-                continue
-            common_pixels = dataset.pixel_indices[rows_by_time[required_times[0]]]
-            for time_index in required_times[1:]:
-                common_pixels = np.intersect1d(
-                    common_pixels,
-                    dataset.pixel_indices[rows_by_time[time_index]],
-                    assume_unique=True,
-                )
-            if common_pixels.size == 0:
-                continue
-
-            feature_steps: list[np.ndarray] = []
-            for time_index in input_times:
-                rows = rows_by_time[time_index]
-                pixel_values = dataset.pixel_indices[rows]
-                matches = np.searchsorted(pixel_values, common_pixels)
-                feature_steps.append(dataset.features[rows[matches]])
-            target_rows = rows_by_time[target_time]
-            target_pixels = dataset.pixel_indices[target_rows]
-            target_matches = np.searchsorted(target_pixels, common_pixels)
-            sequence_features.append(np.stack(feature_steps, axis=1))
-            sequence_targets.append(dataset.targets[target_rows[target_matches]])
-            sequence_times.append(
-                np.full(common_pixels.size, target_time, dtype=np.int64),
-            )
-            sequence_pixels.append(common_pixels)
-
-        if not sequence_features:
-            raise ValueError(
-                'No complete causal sequences remain for the configured '
-                'look_back and horizon.',
-            )
-        return Dataset(
-            np.concatenate(sequence_features, axis=0),
-            np.concatenate(sequence_targets),
-            np.concatenate(sequence_times),
-            np.concatenate(sequence_pixels),
-            dataset.feature_names,
-            dataset.dates,
-            dataset.grid,
-            dataset.mask,
-        )
-
-    def split_temporal_window(
-        self,
-        dataset: Dataset,
-        start_index: int,
-        end_index: int,
-        train_ratio: float,
-        validation_ratio: float,
-        test_ratio: float,
-    ) -> DatasetSplits:
-        """Chronologically split samples contained within an exclusive time range."""
-        if not 0 <= start_index < end_index <= len(dataset.dates):
-            raise ValueError('Temporal window indices are outside the dataset range.')
-        if not np.isclose(train_ratio + validation_ratio + test_ratio, 1.0):
-            raise ValueError('Temporal split ratios must sum to 1.0.')
-        time_values = np.arange(start_index, end_index)
-        train_end = int(time_values.size * train_ratio)
-        validation_end = train_end + int(time_values.size * validation_ratio)
-        if (
-            train_end < 1
-            or validation_end <= train_end
-            or validation_end >= time_values.size
-        ):
-            raise ValueError(
-                'Temporal window needs at least one acquisition per subset.'
-            )
-        return DatasetSplits(
-            self._subset(
-                dataset, np.isin(dataset.time_indices, time_values[:train_end])
-            ),
-            self._subset(
-                dataset,
-                np.isin(dataset.time_indices, time_values[train_end:validation_end]),
-            ),
-            self._subset(
-                dataset, np.isin(dataset.time_indices, time_values[validation_end:])
-            ),
-        )
-
-    def split_spatial_window(
-        self,
-        dataset: Dataset,
-        start_index: int,
-        end_index: int,
-        train_ratio: float,
-        validation_ratio: float,
-        test_ratio: float,
-        random_seed: int,
-    ) -> DatasetSplits:
-        """Split complete pixel histories within an exclusive time range.
-
-        Each pixel is assigned to exactly one subset. Consequently, validation
-        and test measure generalization to unseen locations while retaining the
-        complete calibration-period time axis in every subset.
-        """
-        if not 0 <= start_index < end_index <= len(dataset.dates):
-            raise ValueError('Spatial window indices are outside the dataset range.')
-        if not np.isclose(train_ratio + validation_ratio + test_ratio, 1.0):
-            raise ValueError('Spatial split ratios must sum to 1.0.')
-        if min(train_ratio, validation_ratio, test_ratio) <= 0.0:
-            raise ValueError('Spatial split ratios must all be positive.')
-
-        in_window = (dataset.time_indices >= start_index) & (
-            dataset.time_indices < end_index
-        )
-        pixels = np.unique(dataset.pixel_indices[in_window])
-        generator = np.random.default_rng(random_seed)
-        pixels = generator.permutation(pixels)
-        train_end = int(pixels.size * train_ratio)
-        validation_end = train_end + int(pixels.size * validation_ratio)
-        if (
-            train_end < 1
-            or validation_end <= train_end
-            or validation_end >= pixels.size
-        ):
-            raise ValueError('Spatial split needs at least one pixel per subset.')
-
-        splits = DatasetSplits(
-            self._subset(
-                dataset,
-                in_window & np.isin(dataset.pixel_indices, pixels[:train_end]),
-            ),
-            self._subset(
-                dataset,
-                in_window
-                & np.isin(
-                    dataset.pixel_indices,
-                    pixels[train_end:validation_end],
-                ),
-            ),
-            self._subset(
-                dataset,
-                in_window & np.isin(dataset.pixel_indices, pixels[validation_end:]),
-            ),
-        )
-        expected_times = np.unique(dataset.time_indices[in_window])
-        for name, subset in (
-            ('training', splits.train),
-            ('validation', splits.validation),
-            ('test', splits.test),
-        ):
-            missing = np.setdiff1d(expected_times, np.unique(subset.time_indices))
-            if missing.size:
-                missing_dates = ', '.join(
-                    dataset.dates[int(index)] for index in missing
-                )
-                raise ValueError(
-                    f'Spatial {name} subset has no valid pixels on: {missing_dates}. '
-                    'Increase the subset ratio or improve feature coverage.'
-                )
-        return splits
-
-    @staticmethod
-    def _subset(dataset: Dataset, include: np.ndarray) -> Dataset:
-        if not np.any(include):
-            raise ValueError('A dataset split contains no valid samples.')
-        return Dataset(
-            dataset.features[include],
-            dataset.targets[include],
-            dataset.time_indices[include],
-            dataset.pixel_indices[include],
-            dataset.feature_names,
-            dataset.dates,
-            dataset.grid,
-            dataset.mask,
-        )
+def _non_empty(samples: ForecastSamples, name: str) -> ForecastSamples:
+    if not np.any(np.isfinite(samples.targets)):
+        raise ValueError(f'The {name} subset contains no observed targets.')
+    return samples

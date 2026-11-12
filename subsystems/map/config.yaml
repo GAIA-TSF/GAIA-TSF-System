@@ -1,88 +1,89 @@
-# Scenario 1: slope-stability baseline behaviour modelling.
-# Paths target the configured synthetic TSF project directly.
-experiment:
-  name:  slope_lstm # slope_lstm  # slope_constant_baseline | slope_trf | slope_lstm
-  description: Stable-pixel model for synthetic TSF deformation monitoring
-  seed: 42
+# MAP: forecasting of key-variable (KV) target series from DAG features.
+# Select the dataset and model here or on the command line:
+#   run_learning.py --config config.yaml --dataset amd_dataset --model trf
+dataset: slope_dataset  # slope_dataset | amd_dataset
+model: trf              # constant | trf | lstm
+# experiment: slope_trf # model/forecast directory name; default <kv>_<model>
+seed: 42
 
-# Single root for this DAG/MAP scenario. MAP derives static inputs from
-# no_failure, gradual_acceleration, spatial_propagation, external_trigger 
-# Synthetic
-# experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger
-# Cadia
-# experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia/  
-# experiment_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_cadia' 
-# Jagersfontein
-experiment_dir: '/home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_monitoring_jagersfontein'
-# Tharsis
-
-variable: slope
-model: lstm # constant | trf | lstm
-dataset: slope_dataset
+forecast:
+  # Leads 1..horizon acquisitions after each forecast origin (1, 3, or 5).
+  horizon: 3
+  # Central prediction interval from per-lead validation residual quantiles.
+  interval_level: 0.9
+  # Spacing of "expected" target dates beyond the last acquisition.
+  # Default: median spacing of the loaded acquisitions.
+  # acquisition_interval_days: 12
 
 data:
-  # Select exact acquisition-date values; "previous" supports sparse causal data.
+  # exact: identical acquisition dates; previous: causal as-of join (meteo).
   temporal_alignment_method: exact
 
-variables:
-  slope:
-    description: Slope stability from InSAR deformation
-  amd:
-    description: Acid Mine Drainage index from Sentinel-2
-
-# Names are DAG output stems, not MAP-derived features.  The default reflects
-# slope_temporal_feature_pipeline outputs and can be changed without code edits.
+# Feature stems are DAG outputs below <experiment_dir>/results/{features,
+# temporal_features,meteo_features}. At forecast origin t, every predictor is
+# read from row t; DAG *_lagK rows hold values from t-K.
 datasets:
   slope_dataset:
+    kv: slope
+    # Synthetic: tsf_experiments/slope_synthetic_western_platinum_external_trigger
+    # Cadia: tsf_experiments/slope_monitoring_cadia
+    experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger
     mask_file: tsf_mask.tif
-    stable_file: tsf_stable.tif
-    calibration_spatial_selection:
-      # temporal_std | configured_mask | configured_mask_and_temporal_std
-      method: configured_mask # configured_mask
-      # Supported methods are:
-      # A/ temporal_std: automatic stability selection during calibration dates.
-      # B/ configured_mask: use the defined stable area directly.
-      # C/ configured_mask_and_temporal_std: apply the temporal stability threshold
-      # within the defined stable area.
+    # stable_file: tsf_stable.tif
+    # Cumulative LOS displacement (DPR input, unchanged). DAG writes it with
+    # slope_stability.results.temporal_features.current:
+    #   {enabled: true, features: [cumulative_los]}
+    target_feature: cumulative_los_current
+    target_variable: cumulative_los
+    target_units: mm
     features:
-      # - velocity_lag1
+      - velocity_lag1
       - velocity_lag2
       - velocity_lag3
       - acceleration_lag1
       - acceleration_lag2
       - acceleration_lag3
-    target_feature: velocity_lag1 # velocity_current
-    # [velocity_lag2, velocity_lag3, acceleration_lag1, acceleration_lag2, acceleration_lag3, annual_cos, annual_sin]
+    calibration_spatial_selection:
+      # configured_mask: train on stable_file (or mask_file below).
+      # temporal_std: pixels of mask_file whose std_feature std over the
+      #   calibration window is below std_threshold (std_feature units).
+      # configured_mask_and_temporal_std: both.
+      method: configured_mask
+      mask_file: tsf_mask.tif 
+      # std_feature: velocity_lag1
+      # std_threshold: 0.008
     split:
-      # temporal: chronological validation; spatial: unseen pixels over all dates.
-      method: spatial
+      # temporal: chronological origins; spatial: unseen pixels, same dates.
+      method: temporal # spatial
       random_seed: 42
-      train_ratio: 0.5
-      validation_ratio: 0.25
-      test_ratio: 0.25
+      train_ratio: 0.7
+      validation_ratio: 0.15
+      test_ratio: 0.15
     temporal_windows:
-      # Independent windows: stable-area learning and TSF monitoring may overlap.
       calibration:
-        full_period: true
+        start_date: '2017-01-01'
+        end_date: '2018-12-22'       # end is exclusive: last origin is 2018-12-10, before the rainfall
       monitoring:
-        # full_period: true
-        # Synthetic 
-        # start_date: '2018-01-01'
-        # end_date: '2020-12-31'
-        # Cadia 
-        # start_date: '2016-01-01'
-        # end_date: '2018-12-31'
-        # Jagesfontein
-        start_date: "2017-01-01"
-        end_date: "2022-08-10"
-       
+        start_date: '2018-12-22'
+        end_date: '2020-12-23'
+
   amd_dataset:
-    mask_file: tsf_mask.tif
-    features: [amd_lag1]
-    target_feature: amd
+    kv: amd
+    experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022
+    mask_file: amd_mask.tif
+    # DAG amd_features base stack; the DAG formula (difference B04 - B02,
+    # scale 1, offset 0) and SCL/consistency quality filtering apply.
+    target_feature: amd_difference
+    target_variable: amd_difference
+    target_units: unconfirmed  # DAG records no unit for the band difference
+    features: [lag1, lag2, lag3, amd_diff1, roll_mean, roll_std, annual_sin, annual_cos]
+    calibration_spatial_selection:
+      # Normal data selected by the calibration time window over the AMD mask.
+      method: configured_mask
+      mask_file: amd_mask.tif
     split:
       method: temporal
-      train_ratio: 0.90
+      train_ratio: 0.70
       validation_ratio: 0.15
       test_ratio: 0.15
     temporal_windows:
@@ -93,170 +94,57 @@ datasets:
         start_date: '2020-02-08'
         end_date: '2020-12-28'
 
-baseline_model:
-  # Native m/day standard deviation, not the display unit used by plots.
-  stable_pixel_std_threshold: 0.008
-
 models:
-  constant: # constant model 
-    statistic: mean
-  trf:      # temporal Random Forest model 
+  constant: {}  # persistence: last valid target value at the origin
+  trf:          # one scikit-learn RandomForestRegressor per lead
     n_estimators: 200
     max_depth: 20
     random_state: 42
-    # Keep one RF prediction worker per xAI worker to prevent oversubscription.
     n_jobs: 7
-  gbr:      # Gradient Boosting model to be implemented 
-    n_estimators: 100
-    learning_rate: 0.1
-    max_depth: 3
-  lstm:     # recurrent network 
+  lstm:
     hidden_size: 64
     num_layers: 2
     dropout: 0.2
-    bidirectional: false
-    look_back: 12 # it uses the prior 12 acquisitions
-    horizon: 1    # to predict the next acquisition
+    look_back: 6 # 12  # acquisitions ending at the forecast origin
     device: cpu
     optimizer:
       lr: 0.001
     training:
       batch_size: 256
       epochs: 10
-  tcn: {}   # Temporal CNN model to be implemented 
-  ensemble: [] # Ensemble of above defined models 
 
-# Modelling results
-# results/models/
-# ├── slope_constant_baseline/
-# │   ├── model.pkl
-# │   ├── metrics.json
-# │   └── experiment.json
-# └── slope_trf/
-#     ├── model.pkl
-#     ├── metrics.json
-#     └── experiment.json
+# run_tuning.py: search the values below on rolling-origin chronological folds
+# of the reference data (test split excluded), keep the lowest mean MAE, and
+# retrain. Unlisted settings come from models.<model>; nested keys are dotted.
+tuning:
+  folds: 3            # expanding-window folds
+  max_candidates: 12  # random subset of the grid when it is larger
+  search:
+    trf:
+      max_depth: [10, 20, null]
+      min_samples_leaf: [1, 5, 20]
+      max_features: [1.0, 0.5]
+    lstm:
+      look_back: [6, 12]
+      hidden_size: [32, 64]
+      dropout: [0.0, 0.2]
+      optimizer.lr: [0.001, 0.003]
 
-training:
-  random_seed: 42
+# Model diagnostics only: observed-vs-predicted, error by lead, learning curve.
+plotting:
+  enabled: false
 
+# TRF SHAP and grouped permutation importance per lead (needs shap).
 explainability:
-  enabled: false # true # false
+  enabled: false
   parallel:
-    # Parallel workers for independent grouped-permutation feature groups.
     n_jobs: 4
   shap:
-    # Stratified across validation acquisition dates; values are samples, not rows per date.
-    sample_size: 1000 # 12000
-    dependence_features:
-      - velocity_lag2
-      - acceleration_lag1
-      # - precipitation
-      # - precip_30d
-      # - temperature_mean
-
+    sample_size: 1000
+    dependence_features: [velocity_lag2, acceleration_lag1]
   grouped_permutation:
-    # Evaluated across all held-out temporal validation samples.
-    n_repeats: 5 # 10
+    n_repeats: 5
     groups:
-      velocity_history:
-        - velocity_lag2
-        - velocity_lag3
-      acceleration_history:
-        - acceleration_lag1
-        - acceleration_lag2
-        - acceleration_lag3
-      annual_seasonality:
-        - annual_sin
-        - annual_cos
-      # meteorological_conditions:
-      #   - precipitation
-      #   - precip_7d
-      #   - precip_14d
-      #   - precip_30d
-      #   - precip_60d
-      #   - temperature_mean
-
-plotting:
-  # MAP rasters and model outputs are stored in native mm per day for InSAR LOS products.
-  native_deformation_rate_unit: mm/day
-  deformation_unit: mm/day
-  value_scale: 1.0
-  cumulative_displacement_unit: mm
-  fallback_interval_days: 30.0
-  cumulative_observation_max_points: 100000
-  observation_window_size: 3
-  latest_residual_colormap: RdBu # _r
-  latest_residual_percentile: 98.0
-  latest_residual_window: 10
-  mean_residual_colormap: RdBu # _r
-  mean_residual_percentile: 98.0
-  persistent_residual_colormap: magma
-  persistent_fraction_display_max: 0.25
-  persistent_fraction_gamma: 1.0
-  # Named monitoring points are read from this vector layer and reprojected to
-  # the configured slope_dataset.mask_file CRS. Invalid features are logged and
-  # skipped, rather than aborting inference.
-  observation_points_file: observation_points.gpkg
-  observation_points_layer: observation_points
-  observation_points_name_field: label
-
-anomaly_detection:
-  # Native mm/day: threshold for persistent deformation anomalies
-  residual_threshold: 0.1
-  zscore_threshold: 1.5
-  direction: negative
-  persistence: 3
-
-monitoring:
-  # Keep prediction generation and operational interpretation independently
-  # reproducible. Set true only for a single-command batch workflow.
-  run_after_inference: false
-  animation:
-    # Relative paths are resolved below <experiment_dir>/results.
-    # Exported by run_monitoring.py from persisted inference products.
-    enabled: true
-    output_directory: monitoring/animation
-    filename: tsf_monitoring.mp4
-  dashboard:
-    enabled: true
-    filename: slope_stability_dashboard.png
-    spatial_support:
-      # One physical observation population, independent of model sequences.
-      population: fixed_calibration_valid
-      # Lagged targets may miss isolated acquisitions; retain pixels observed
-      # on at least 95% of usable calibration dates.
-      minimum_observation_coverage: 0.95
-    spatial_coherence:
-      # Coherence-qualified products supplement raw anomaly products.
-      enabled: true
-      minimum_area_pixels: 25
-      persistence: 3
-      minimum_overlap: 0.30
-      connectivity: 8
-    # Native mm/day threshold for anomaly magnitude plot
-    anomaly_magnitude_threshold: 0.1
-    cusum:
-      # Negative: increasingly negative LOS deformation is instability.
-      instability_direction: negative
-      # Use physical deformation acceleration, not fluctuating model residuals.
-      signal: observed_velocity
-      # Primary operational CUSUM uses directional tail mean to avoid diluting
-      # localized failure sector deformation across the entire TSF.
-      spatial_aggregation: directional_tail_mean
-      spatial_quantile: 0.05
-      reference_value: 0.5
-      decision_threshold: 3.0
-      # Past-only local-linear acceleration estimate; five 12-day acquisitions
-      # suppress single-acquisition noise without obscuring gradual change.
-      derivative_window: 3
-      smoothing_span: 3
-      persistence_window: 10
-      persistence_threshold: 0.25
-    regime:
-      # Compare observed acceleration to the modelled baseline acceleration,
-      # so recurring seasonal curvature is not interpreted as a regime shift.
-      signal: unexpected_acceleration
-      smoothing_span: 3
-      medium_risk_threshold: 0.4
-      high_risk_threshold: 0.7
+      velocity_history: [velocity_lag1, velocity_lag2, velocity_lag3]
+      acceleration_history: [acceleration_lag1, acceleration_lag2, acceleration_lag3]
+      annual_seasonality: [annual_sin, annual_cos]
