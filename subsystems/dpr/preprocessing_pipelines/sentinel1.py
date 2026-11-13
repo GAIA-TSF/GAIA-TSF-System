@@ -1048,6 +1048,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     f'Dropping {int(rejected.sum())} of {len(report)} pairs with an unreliable '
                     f'stable reference: {report.index[rejected].astype(str).tolist()}'
                 )
+                self._check_reference_network(report, rejected)
             ok = xr.DataArray(
                 ~rejected.to_numpy(), dims='pair', coords={'pair': phase_data.pair}
             )
@@ -1060,6 +1061,60 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
         # Trigger computation
         _ = float(self.detrend.isel(pair=0).mean().compute())
+
+    def _check_reference_network(self, report, rejected, max_listed=10):
+        """Fail when rejected reference pairs disconnect the SBAS network.
+
+        Displacements are solved relative to the first acquisition; dates the
+        accepted pairs no longer connect to it would be nodata at every pixel.
+
+        :param pandas.DataFrame report: Per-pair reference diagnostics indexed by pair.
+        :param pandas.Series rejected: Boolean rejection flag per pair.
+        :param int max_listed: Maximum number of bridging pairs listed in the error.
+        :return: None
+        """
+        if {'ref', 'rep'} <= set(report.columns):
+            pairs = report[['ref', 'rep']].reset_index(drop=True)
+        else:
+            try:
+                parts = report.index.astype(str).str.split(' ', expand=True)
+                pairs = pd.DataFrame(
+                    {
+                        'ref': pd.to_datetime(parts.get_level_values(0)),
+                        'rep': pd.to_datetime(parts.get_level_values(1)),
+                    }
+                )
+            except (IndexError, TypeError, ValueError):
+                return  # pair labels carry no dates
+        pairs['ref'] = pd.to_datetime(pairs['ref']).dt.normalize()
+        pairs['rep'] = pd.to_datetime(pairs['rep']).dt.normalize()
+        dates = sorted(set(pairs['ref']) | set(pairs['rep']))
+        accepted = pairs[~rejected.to_numpy()]
+        components = sorted(self._network_components(dates, accepted), key=min)
+        if len(components) == 1:
+            return
+        group = {d: i for i, c in enumerate(components) for d in c}
+        bridging = [
+            f'{r.ref.date()} {r.rep.date()}'
+            for r in pairs[rejected.to_numpy()].itertuples()
+            if group[r.ref] != group[r.rep]
+        ]
+        groups = '; '.join(
+            f'{min(c).date()}..{max(c).date()} ({len(c)} dates)' for c in components
+        )
+        listed = ', '.join(bridging[:max_listed]) + (
+            f', ... ({len(bridging)} in total)' if len(bridging) > max_listed else ''
+        )
+        raise GaiaDataError(
+            f'Rejecting {int(rejected.sum())} pairs with an unreliable stable reference '
+            f'splits the SBAS network into {len(components)} disconnected groups: '
+            f'{groups}. Rejected pairs that would connect them: {listed}. '
+            'Dates outside the first group cannot be referenced to the first '
+            'acquisition. See quality/reference_phase_diagnostics.csv when '
+            'result_dir is configured; consider other stable reference polygons '
+            'or unwrapping settings.',
+            self.logger,
+        )
 
     @staticmethod
     def _reference_offset(phase, corr, comp, mask):

@@ -12,7 +12,7 @@ from pathlib import PosixPath
 
 from shapely.geometry import box, MultiPolygon, Polygon
 
-from lib.exceptions import GaiaConfigError
+from lib.exceptions import GaiaConfigError, GaiaDataError
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
 
@@ -69,8 +69,13 @@ def test_empty_reference_fails(pipeline):
 
 
 def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
-    phase = phase_grid([[[np.nan, np.nan], [np.nan, np.nan]], [[1, 1], [1, 1]]])
-    phase = phase.assign_coords(pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25'])
+    phase = phase_grid(
+        [[[np.nan, np.nan], [np.nan, np.nan]], [[1, 1], [1, 1]], [[1, 1], [1, 1]]]
+    )
+    # The third pair keeps the network connected without the dropped one.
+    phase = phase.assign_coords(
+        pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25', '2020-01-01 2020-01-25']
+    )
     pipeline.unwrap = phase.to_dataset(name='phase')
     pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
     pipeline._reference_geometry = box(-1, -1, 2, 2)
@@ -81,13 +86,70 @@ def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
     pipeline.sbas.geocode.side_effect = lambda p: p
     pipeline._detrend_phase()
     report = pd.read_csv(tmp_path / 'quality/reference_phase_diagnostics.csv')
-    assert report.reference_mask_pixels.tolist() == [4, 4]
-    assert report.reference_coherent_pixels.tolist() == [4, 4]
-    assert report.reference_valid_phase_pixels.tolist() == [0, 4]
-    assert report.all_valid_phase_pixels.tolist() == [0, 4]
-    assert report.reference_ok.tolist() == [False, True]
+    assert report.reference_mask_pixels.tolist() == [4, 4, 4]
+    assert report.reference_coherent_pixels.tolist() == [4, 4, 4]
+    assert report.reference_valid_phase_pixels.tolist() == [0, 4, 4]
+    assert report.all_valid_phase_pixels.tolist() == [0, 4, 4]
+    assert report.reference_ok.tolist() == [False, True, True]
     assert pipeline.detrend.isel(pair=0).isnull().all()
-    np.testing.assert_allclose(pipeline.detrend.isel(pair=1), 0)
+    np.testing.assert_allclose(pipeline.detrend.isel(pair=[1, 2]), 0)
+
+
+def _reference_pipeline(pipeline, tmp_path, pairs, valid):
+    """Pairs whose reference area has phase (valid) or none (rejected)."""
+    phase = phase_grid(
+        [np.ones((2, 2)) if v else np.full((2, 2), np.nan) for v in valid]
+    )
+    dates = [p.split() for p in pairs]
+    phase = phase.assign_coords(
+        pair=pairs,
+        ref=('pair', pd.to_datetime([d[0] for d in dates])),
+        rep=('pair', pd.to_datetime([d[1] for d in dates])),
+    )
+    pipeline.unwrap = phase.to_dataset(name='phase')
+    pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
+    pipeline._reference_geometry = box(-1, -1, 2, 2)
+    pipeline._config.update(result_dir=tmp_path, reference_min_pixels=1)
+    pipeline.sbas.geocode.side_effect = lambda p: p
+    return pipeline
+
+
+def test_rejected_pairs_disconnecting_network_fail(pipeline, tmp_path):
+    # Cadia pre_failure: every pair bridging late 2016 into 2017 was rejected,
+    # leaving later dates unreferenced and the displacement empty (cropna crash).
+    pairs = [
+        '2016-10-09 2016-10-21',
+        '2016-10-21 2016-11-02',
+        '2016-10-21 2016-12-20',
+        '2016-11-02 2016-12-20',
+        '2016-12-20 2017-01-01',
+    ]
+    _reference_pipeline(pipeline, tmp_path, pairs, [1, 1, 0, 0, 1])
+    with pytest.raises(GaiaDataError, match='2 disconnected groups') as err:
+        pipeline._detrend_phase()
+    message = str(err.value)
+    assert (
+        '2016-10-09..2016-11-02 (3 dates); 2016-12-20..2017-01-01 (2 dates)' in message
+    )
+    assert '2016-10-21 2016-12-20, 2016-11-02 2016-12-20' in message
+    # Diagnostics are written before failing.
+    assert (tmp_path / 'quality/reference_phase_diagnostics.csv').exists()
+
+
+def test_rejected_only_pair_of_first_date_fails(pipeline, tmp_path):
+    # Cadia pre_failure: the only pair of the first acquisition was rejected.
+    pairs = ['2015-03-01 2015-04-30', '2015-04-30 2015-05-24']
+    _reference_pipeline(pipeline, tmp_path, pairs, [0, 1])
+    with pytest.raises(GaiaDataError, match=r'2015-03-01\.\.2015-03-01 \(1 dates\)'):
+        pipeline._detrend_phase()
+
+
+def test_rejected_pair_with_connected_network_is_dropped(pipeline, tmp_path):
+    pairs = ['2015-03-01 2015-04-30', '2015-04-30 2015-05-24', '2015-03-01 2015-05-24']
+    _reference_pipeline(pipeline, tmp_path, pairs, [1, 0, 1])
+    pipeline._detrend_phase()
+    assert pipeline.detrend.isel(pair=1).isnull().all()
+    np.testing.assert_allclose(pipeline.detrend.isel(pair=[0, 2]), 0)
 
 
 def test_all_reference_polygons_contribute(pipeline):
