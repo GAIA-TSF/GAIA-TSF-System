@@ -10,7 +10,7 @@ class DataAcquisitionGateway(GaiaBase):
     ingestion engine for the sub-system.
     """
 
-    def __init__(self, backend: str = 'eodag'):
+    def __init__(self, backend: str = 'eodag', project_path: Path = None):
         """Initialize Data Acquisition Gateway.
 
         Currently supported backends:
@@ -18,8 +18,9 @@ class DataAcquisitionGateway(GaiaBase):
         - ASF
 
         :param str backend: backend to be used for searching and downloading data
+        :param Path project_path: path to project confiuguration file or None
         """
-        super().__init__(SubsystemId.EOU)
+        super().__init__(SubsystemId.EOU, project_path)
 
         if backend == 'eodag':
             from subsystems.eou.data_acquisition_gateway.eodag_backend import (
@@ -34,7 +35,10 @@ class DataAcquisitionGateway(GaiaBase):
                 f'Unsupported data acquisition backend: {backend}', self.logger
             )
 
-        self.backend = DataAcquisitionBackend(
-            data_dir=Path(self.settings['storage']['data_dir']), logger=self.logger
+        data_dir = (
+            Path(self.settings['storage']['data_dir'])
+            if self.project_config is None
+            else self.project_config.data_dir()
         )
+        self.backend = DataAcquisitionBackend(data_dir=data_dir, logger=self.logger)
         self.backend.set_config(self.settings['eou'][backend])
