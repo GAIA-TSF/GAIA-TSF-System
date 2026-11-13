@@ -1105,6 +1105,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Matching shapes alone does not establish matching pixel coordinates.
         phase_ra, corr_ra = xr.align(self.detrend, corr_ra, join='exact')
         corr_ra = corr_ra.where(np.isfinite(phase_ra))
+        phase_ra, corr_ra = self._drop_unobserved_pairs(phase_ra, corr_ra)
 
         with ProgressBar():
             sol = self.sbas.lstsq(phase_ra, corr_ra)
@@ -1142,7 +1143,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Geocoding & Coordinate Transformation
         self.sbas.compute_geocode(float(target_m))
         self.logger.info('Computing displacements.')
-        self.disp_ll = self.sbas.cropna(self._ra2ll(disp_ra))
+        disp_ll = self._ra2ll(disp_ra)
+        if not bool(np.isfinite(disp_ll).any()):
+            raise GaiaDataError(
+                'No pixel has a displacement connected to the first acquisition '
+                f'({pd.to_datetime(dates[0]).date()}); check the SBAS network and '
+                'quality/reference_phase_diagnostics.csv.',
+                self.logger,
+            )
+        self.disp_ll = self.sbas.cropna(disp_ll)
         self.vel_ll = self.sbas.cropna(self._ra2ll(vel_ra))
         self.disp_ll.attrs.update(
             units='mm',
@@ -1156,7 +1165,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.vel_ll.attrs['units'] = 'mm/year'
 
         # RMSE Calculation
-        disp_pairs_ra = self.sbas.los_displacement_mm(self.detrend).persist()
+        disp_pairs_ra = self.sbas.los_displacement_mm(phase_ra).persist()
         # PyGMTSAR.rmse wraps residuals to [-pi, pi]; that is unsuitable for mm.
         rep_disp = disp_ra.sel(date=phase_ra.rep).drop_vars('date')
         ref_disp = disp_ra.sel(date=phase_ra.ref).drop_vars('date')
@@ -1181,6 +1190,51 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         }
         if self._diagnostics is not None:
             self._diagnostics.displacement(self.disp_ll)
+
+    def _drop_unobserved_pairs(self, phase, corr):
+        """Remove pairs without a single valid pixel before the SBAS inversion.
+
+        Pairs rejected by the stable-reference check are masked to NaN, not
+        removed. Keeping them leaves their dates in the network; when such a
+        date is the first acquisition, it is isolated at every pixel and the
+        whole time series becomes nodata. Dropping these pairs also drops
+        dates that no remaining pair observes, so the time series starts at
+        the first date that is actually observed.
+
+        :param xarray.DataArray phase: Unwrapped phase with a pair dimension.
+        :param xarray.DataArray corr: Correlation aligned with phase.
+        :return: tuple of (phase, corr) restricted to observed pairs
+        """
+        valid = np.isfinite(phase) & np.isfinite(corr) & (corr > 0)
+        observed = valid.any([d for d in valid.dims if d != 'pair']).compute()
+        if not bool(observed.any()):
+            raise GaiaDataError(
+                'No interferogram pair has a valid pixel for the SBAS inversion.',
+                self.logger,
+            )
+        if bool(observed.all()):
+            return phase, corr
+        before = self._pair_dates(phase)
+        phase = phase.sel(pair=observed.values)
+        corr = corr.sel(pair=observed.values)
+        after = self._pair_dates(phase)
+        lost = [str(d.date()) for d in before.difference(after)]
+        self.logger.warning(
+            f'Excluding {int((~observed).sum())} pairs without valid pixels from the '
+            f'SBAS inversion; acquisition dates left without pairs: {lost or "none"}'
+        )
+        if len(after) < 2:
+            raise GaiaDataError(
+                'At least two acquisition dates with valid pairs are required for '
+                'the SBAS inversion.',
+                self.logger,
+            )
+        return phase, corr
+
+    def _pair_dates(self, phase):
+        """Acquisition dates referenced by the pairs of a phase stack."""
+        _, dates = self.sbas.get_pairs(phase, dates=True)
+        return pd.DatetimeIndex(pd.to_datetime(dates))
 
     @staticmethod
     def _reference_connected(valid, refs, reps, n_dates):

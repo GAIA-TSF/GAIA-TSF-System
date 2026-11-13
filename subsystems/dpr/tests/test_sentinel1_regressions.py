@@ -12,7 +12,7 @@ from pathlib import PosixPath
 
 from shapely.geometry import box, MultiPolygon, Polygon
 
-from lib.exceptions import GaiaConfigError
+from lib.exceptions import GaiaConfigError, GaiaDataError
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
 
@@ -403,3 +403,54 @@ def test_coordinate_mismatch_fails_before_inversion(pipeline):
     with pytest.raises(ValueError, match='align'):
         pipeline._compute_displacement()
     pipeline.sbas.lstsq.assert_not_called()
+
+
+def _solver_pipeline(pipeline, phase, dates):
+    """Wire the installed PyGMTSAR solver into a mocked pipeline (Cadia layout)."""
+    stack = object.__new__(Stack)
+    phase = phase.assign_coords(ref=('pair', dates[:-1]), rep=('pair', dates[1:]))
+    pipeline.detrend = phase.chunk()
+    pipeline.corr = pipeline.corr_unwrap = (xr.ones_like(phase) * 0.8).chunk()
+    pipeline.sbas.lstsq.side_effect = stack.lstsq
+    pipeline.sbas.get_pairs.side_effect = stack.get_pairs
+    pipeline.sbas.los_displacement_mm.side_effect = lambda a: -4.4 * a
+    pipeline.sbas.velocity.side_effect = stack.velocity
+    pipeline.sbas.ra2ll.side_effect = lambda a: a.rename({'y': 'lat', 'x': 'lon'})
+    pipeline.sbas.cropna.side_effect = lambda a: a
+    return pipeline
+
+
+def test_rejected_pair_of_first_date_starts_series_at_next_date(pipeline):
+    # Cadia pre_failure: the only pair of the first acquisition was rejected by
+    # the stable-reference check (masked to NaN), which left the first date
+    # isolated at every pixel and the whole time series empty.
+    dates = pd.to_datetime(['2015-03-01', '2015-04-30', '2015-05-24', '2015-06-17'])
+    phase = phase_grid([np.full((2, 2), np.nan), np.ones((2, 2)), np.ones((2, 2)) * 2])
+    _solver_pipeline(pipeline, phase, dates)
+    pipeline._compute_displacement()
+    np.testing.assert_array_equal(pipeline.disp_ll.date.values, dates[1:].values)
+    np.testing.assert_allclose(pipeline.disp_ll[:, 0, 0], [0, -4.4, -13.2], atol=1e-5)
+    assert pipeline.disp_ll.attrs['temporal_reference_utc'].startswith('2015-04-30')
+    assert pipeline.rmse.sizes == {'y': 2, 'x': 2}
+    assert pipeline.pair_products_ll['coherence'].sizes['pair'] == 2
+
+
+def test_all_pairs_without_valid_pixels_fail_before_inversion(pipeline):
+    dates = pd.to_datetime(['2015-03-01', '2015-04-30', '2015-05-24'])
+    phase = phase_grid(np.full((2, 2, 2), np.nan))
+    _solver_pipeline(pipeline, phase, dates)
+    with pytest.raises(GaiaDataError, match='No interferogram pair'):
+        pipeline._compute_displacement()
+    pipeline.sbas.lstsq.assert_not_called()
+
+
+def test_empty_geocoded_displacement_fails_clearly(pipeline):
+    dates = pd.to_datetime(['2015-03-01', '2015-04-30', '2015-05-24'])
+    phase = phase_grid([np.ones((2, 2)), np.ones((2, 2))])
+    _solver_pipeline(pipeline, phase, dates)
+    pipeline.sbas.ra2ll.side_effect = lambda a: (a * np.nan).rename(
+        {'y': 'lat', 'x': 'lon'}
+    )
+    with pytest.raises(GaiaDataError, match='connected to the first acquisition'):
+        pipeline._compute_displacement()
+    pipeline.sbas.cropna.assert_not_called()
