@@ -43,7 +43,7 @@ class ProjectContext:
     work_dir: Path
     result_dir: Path
     crs: int
-    reference: Path
+    tsf_polygon: Path
 
 
 @pytest.fixture(scope='class')
@@ -59,7 +59,7 @@ def ctx(config, glob_config):
         work_dir=data_dir / 'workdir',
         result_dir=data_dir / 'results',
         crs=config.crs,
-        reference=config.masks.tsf_mask,
+        tsf_polygon=config.masks.tsf_mask,
     )
 
 
@@ -339,7 +339,9 @@ class TestSentinel1Workflow:
 
     def test_019_reproject_raster(self, pipeline, ctx):
         """Test reprojecting raster outputs."""
-        pipeline._reproject_raster(ctx.result_dir, ctx.reference, ctx.crs)
+        pipeline._config['result_dir'] = ctx.result_dir
+        pipeline._rasterize_tsf_mask(ctx.tsf_polygon, ctx.crs)
+        pipeline._reproject_raster(ctx.result_dir, ctx.crs)
         utm_dir = ctx.result_dir / 'displacements_utm'
         assert utm_dir.is_dir()
         utm_files = [f for f in os.listdir(utm_dir) if f.endswith('.tif')]
