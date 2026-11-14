@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
+from lib.exceptions import GaiaDataError
 
 
 def all_pairs(baselines):
@@ -63,7 +64,7 @@ def test_unbridgeable_date_is_dropped_within_limit():
 
 def test_too_many_dropped_dates_fail():
     full = all_pairs(BASELINES)
-    with pytest.raises(RuntimeError, match='cannot be bridged'):
+    with pytest.raises(GaiaDataError, match='cannot be bridged'):
         Sentinel1Pipeline._repair_network(
             list(BASELINES), limited(full, 36, 80), full, 80, 180, 150.0, 0.1
         )

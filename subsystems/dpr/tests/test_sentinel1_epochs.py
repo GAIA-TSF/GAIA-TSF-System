@@ -34,7 +34,7 @@ def test_single_date_fails_even_with_multiple_bursts():
     p = Sentinel1Pipeline()
     p._configure()
     p._config = {'processing_start': '2018-02-25', 'processing_end': '2018-02-25'}
-    with pytest.raises(ValueError, match='two acquisition'):
+    with pytest.raises(GaiaDataError, match='two acquisition'):
         p._filter_processing_dates(pd.DataFrame(index=['2018-02-25', '2018-02-25']))
 
 
@@ -78,7 +78,7 @@ def test_too_few_complete_dates_fail():
         {'datetime': ['t1', 't2', 't3'], 'subswath': [2, 2, 2]},
         index=['2026-03-04', '2026-03-04', '2026-04-15'],
     )
-    with pytest.raises(ValueError, match='complete burst coverage'):
+    with pytest.raises(GaiaDataError, match='complete burst coverage'):
         p._filter_incomplete_dates(scenes)
 
 
@@ -102,7 +102,7 @@ def test_stacking_scans_only_original_safe_scenes(monkeypatch, tmp_path):
         },
         index=['2018-03-21', '2018-04-02', '2018-02-25'],
     )
-    monkeypatch.setattr(p, '_scan_original_slcs', lambda *args: scenes)
+    monkeypatch.setattr(p, '_scan_original_slcs', lambda *args, **kwargs: scenes)
 
     def plain_scan(*args, **kwargs):
         raise AssertionError('datadir must not be scanned directly')
@@ -190,12 +190,12 @@ def test_original_scan_rejects_mixed_tracks_in_window(tmp_path, monkeypatch):
 
     monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
     with pytest.raises(
-        ValueError, match=r'IW1: 1 SAFEs \(20260304\.\.20260304\).*path_number'
+        GaiaDataError, match=r'IW1: 1 SAFEs \(20260304\.\.20260304\).*path_number'
     ):
         Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-01-01', '2026-10-29')
 
 
 def test_original_scan_empty_processing_window(tmp_path):
     make_burst_safe(tmp_path, 'S1A', '20260215', 3)
-    with pytest.raises(ValueError, match='between 2026-03-01 and 2026-10-29'):
+    with pytest.raises(GaiaDataError, match='between 2026-03-01 and 2026-10-29'):
         Sentinel1Pipeline._scan_original_slcs(tmp_path, '2026-03-01', '2026-10-29')

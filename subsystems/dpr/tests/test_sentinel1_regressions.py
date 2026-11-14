@@ -63,7 +63,7 @@ def test_empty_reference_fails(pipeline):
     pipeline.unwrap = phase_grid([[[1, 2], [3, 4]]]).to_dataset(name='phase')
     pipeline._reference_geometry = box(20, 20, 30, 30)
     pipeline.sbas.geocode.side_effect = lambda p: p
-    with pytest.raises(ValueError, match='fails the quality checks for all'):
+    with pytest.raises(GaiaDataError, match='fails the quality checks for all'):
         pipeline._detrend_phase()
 
 
@@ -289,7 +289,7 @@ def test_unwrap_checkpoints_preserve_inputs_and_component_labels(pipeline, tmp_p
 
 
 def test_coherence_requires_matching_kernels(pipeline):
-    with pytest.raises(ValueError, match='same averaging kernel'):
+    with pytest.raises(GaiaConfigError, match='same averaging kernel'):
         pipeline._compute_interferograms(intensity_wavelength=20, phase_wavelength=30)
 
 
@@ -301,7 +301,7 @@ def test_empty_slc_is_identified_before_interferograms(pipeline, tmp_path, empty
         coords={'date': pd.to_datetime(['2017-09-22', '2017-10-04'])},
     )
     pipeline._config['result_dir'] = tmp_path
-    with pytest.raises(ValueError, match='2017-10-04'):
+    with pytest.raises(GaiaDataError, match='2017-10-04'):
         pipeline._check_slc_coverage(data)
     report = pd.read_csv(tmp_path / 'quality/slc_coverage.csv')
     assert report.valid_slc_pixels.tolist() == [2, 0]
@@ -420,6 +420,6 @@ def test_coordinate_mismatch_fails_before_inversion(pipeline):
     pipeline.detrend = phase_grid([[[1, 2], [3, 4]]])
     pipeline.corr = xr.ones_like(pipeline.detrend)
     pipeline.corr_unwrap = pipeline.corr.assign_coords(x=[10, 11])
-    with pytest.raises(ValueError, match='align'):
+    with pytest.raises(GaiaDataError, match='align'):
         pipeline._compute_displacement()
     pipeline.sbas.lstsq.assert_not_called()

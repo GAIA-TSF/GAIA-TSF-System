@@ -235,6 +235,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             datadir,
             self._config.get('processing_start', ''),
             self._config.get('processing_end', ''),
+            logger=self.logger,
         )
         S1.download_orbits(datadir, s1)
 
@@ -329,6 +330,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             datadir,
             self._config.get('processing_start', ''),
             self._config.get('processing_end', ''),
+            logger=self.logger,
         )
         s1 = self._filter_processing_dates(self._filter_excluded_dates(s1))
         s1 = self._filter_incomplete_dates(s1)
@@ -354,7 +356,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         }
 
     @staticmethod
-    def _scan_original_slcs(datadir, processing_start='', processing_end=''):
+    def _scan_original_slcs(
+        datadir, processing_start='', processing_end='', logger=None
+    ):
         """Exclude generated basename collisions before PyGMTSAR builds its index.
 
         Only SAFEs inside the inclusive processing window are scanned: datadir is
@@ -366,7 +370,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         root = Path(datadir).resolve()
         safes = sorted(path for path in root.rglob('*.SAFE') if path.is_dir())
         if not safes:
-            raise ValueError(f'No original .SAFE directories found in {root}')
+            raise GaiaDataError(
+                f'No original .SAFE directories found in {root}', logger
+            )
         start = (
             pd.Timestamp(processing_start).strftime('%Y%m%d')
             if processing_start
@@ -388,9 +394,10 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
 
             safes = [safe for safe in safes if inside(safe)]
             if not safes:
-                raise ValueError(
+                raise GaiaDataError(
                     f'No original .SAFE directories found in {root} between '
-                    f'{processing_start or "-"} and {processing_end or "-"}'
+                    f'{processing_start or "-"} and {processing_end or "-"}',
+                    logger,
                 )
         by_subswath = defaultdict(list)
         for safe in safes:
@@ -410,10 +417,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 f'IW{number}: {len(stamps)} SAFEs ({min(stamps)}..{max(stamps)})'
                 for number, stamps in sorted(by_subswath.items())
             )
-            raise ValueError(
+            raise GaiaDataError(
                 f'Non-adjacent Sentinel-1 subswaths in {root} for the processing '
                 f'window: {summary}. The scenes likely come from different tracks; '
-                "set sentinel1.path_number and remove the other track's SAFEs."
+                "set sentinel1.path_number and remove the other track's SAFEs.",
+                logger,
             )
         # scan_slc recursively indexes by basename; filtering its output is too
         # late when generated workdir files have overwritten source entries.
@@ -452,9 +460,13 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         start = pd.to_datetime(start, utc=True).normalize() if start else None
         end = pd.to_datetime(end, utc=True).normalize() if end else None
         if (start is not None and pd.isna(start)) or (end is not None and pd.isna(end)):
-            raise ValueError('Processing bounds must be valid UTC dates.')
+            raise GaiaConfigError(
+                'Processing bounds must be valid UTC dates.', self.logger
+            )
         if start is not None and end is not None and start > end:
-            raise ValueError('processing_start must not be after processing_end')
+            raise GaiaConfigError(
+                'processing_start must not be after processing_end', self.logger
+            )
         dates = pd.to_datetime(scenes.index, utc=True).normalize()
         keep = np.ones(len(scenes), dtype=bool)
         if start is not None:
@@ -466,8 +478,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             pd.to_datetime(filtered.index, utc=True).normalize().unique().sort_values()
         )
         if len(selected) < 2:
-            raise ValueError(
-                'At least two acquisition dates are required within the processing period.'
+            raise GaiaDataError(
+                'At least two acquisition dates are required within the processing period.',
+                self.logger,
             )
         self.logger.info(
             f'Processing {len(selected)} acquisition dates: {selected[0]} to {selected[-1]}'
@@ -484,7 +497,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self._config.get('excluded_dates', []), errors='raise'
         ).normalize()
         if excluded.isna().any():
-            raise ValueError('excluded_dates contains an empty or invalid date')
+            raise GaiaConfigError(
+                'excluded_dates contains an empty or invalid date', self.logger
+            )
         mask = pd.to_datetime(scenes.index).normalize().isin(excluded)
         if mask.any():
             removed = sorted(
@@ -493,8 +508,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             self.logger.info(f'Excluding {int(mask.sum())} scenes on dates: {removed}')
         filtered = scenes.loc[~mask].copy()
         if filtered.empty:
-            raise ValueError(
-                'No Sentinel-1 scenes remain after applying excluded_dates'
+            raise GaiaDataError(
+                'No Sentinel-1 scenes remain after applying excluded_dates',
+                self.logger,
             )
         return filtered
 
@@ -530,8 +546,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
         filtered = scenes.loc[~dates.isin(incomplete)].copy()
         if len(filtered.index.unique()) < 2:
-            raise ValueError(
-                'At least two acquisition dates with complete burst coverage are required.'
+            raise GaiaDataError(
+                'At least two acquisition dates with complete burst coverage are required.',
+                self.logger,
             )
         return filtered
 
@@ -642,8 +659,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     max(basemeters),
                     float(self._config.get('max_bridge_meters', 400.0)),
                     float(self._config.get('max_dropped_dates_fraction', 0.1)),
+                    logger=self.logger,
                 )
-            except RuntimeError:
+            except GaiaDataError:
                 if self._diagnostics is not None:
                     self._diagnostics.network(None, candidates)
                 raise
@@ -703,6 +721,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         max_meters,
         max_bridge_meters,
         max_dropped_fraction,
+        logger=None,
     ):
         """Connect a fragmented SBAS network by adding the cheapest bridging pairs.
 
@@ -750,10 +769,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             keep = max(groups.values(), key=len)
             dropped = sorted(date for date in owner if date not in keep)
             if len(dropped) > max_dropped_fraction * len(owner):
-                raise RuntimeError(
+                raise GaiaDataError(
                     f'No connected SBAS network: {len(dropped)} of {len(owner)} dates cannot be bridged within '
                     f'{max_bridge_meters} m (limit {max_dropped_fraction:.0%}). '
-                    'Increase max_bridge_meters or exclude the dates.'
+                    'Increase max_bridge_meters or exclude the dates.',
+                    logger,
                 )
             ref = pd.to_datetime(pairs['ref']).dt.normalize()
             rep = pd.to_datetime(pairs['rep']).dt.normalize()
@@ -788,8 +808,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         if intensity_wavelength != phase_wavelength:
-            raise ValueError(
-                'Intensity and phase must use the same averaging kernel for coherence.'
+            raise GaiaConfigError(
+                'Intensity and phase must use the same averaging kernel for coherence.',
+                self.logger,
             )
         if self._checkpoints is not None:
             self._checkpoints.manifest['interferograms'] = {
@@ -838,10 +859,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         empty = report.index[report.valid_slc_pixels == 0]
         if len(empty):
             dates = ', '.join(pd.to_datetime(empty).strftime('%Y-%m-%d'))
-            raise ValueError(
+            raise GaiaDataError(
                 f'Aligned SLC has no valid samples in the processing AOI on: {dates}. '
                 'Check burst completeness and alignment, or explicitly exclude the affected dates. '
-                'See quality/slc_coverage.csv when result_dir is configured.'
+                'See quality/slc_coverage.csv when result_dir is configured.',
+                self.logger,
             )
 
     def _unwrap_phase(self, corr_limit=0.20, unwrap_m=10.0):
@@ -924,7 +946,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if self._diagnostics is not None:
             self._diagnostics.pairs(self.unwrap.phase, corr_mask, 'unwrapped_phase')
         if not bool(np.isfinite(self.unwrap.phase).any()):
-            raise RuntimeError('SNAPHU returned no valid unwrapped phase.')
+            raise GaiaDataError(
+                'SNAPHU returned no valid unwrapped phase.', self.logger
+            )
 
     def _detrend_phase(self, chunksize=256):
         """Preserve deformation and optionally subtract a stable-area pair offset.
@@ -971,7 +995,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 }
             )
             if self.corr_unwrap is not None:
-                _, corr = xr.align(phase_data, self.corr_unwrap, join='exact')
+                _, corr = self._align_exact(phase_data, self.corr_unwrap)
                 diagnostics['reference_coherent_pixels'] = corr.where(mask).count(
                     ('y', 'x')
                 )
@@ -1038,10 +1062,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 quality_dir.mkdir(parents=True, exist_ok=True)
                 report.to_csv(quality_dir / 'reference_phase_diagnostics.csv')
             if rejected.all():
-                raise ValueError(
+                raise GaiaDataError(
                     f'Stable reference area fails the quality checks for all {len(report)} pairs; '
                     f'reference mask has {int(reference_pixels.sum())} pixels. '
-                    'See quality/reference_phase_diagnostics.csv when result_dir is configured.'
+                    'See quality/reference_phase_diagnostics.csv when result_dir is configured.',
+                    self.logger,
                 )
             if rejected.any():
                 self.logger.warning(
@@ -1142,6 +1167,15 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             offset = values[i]
         return offset, label, int(use.sum()), float(np.median(weights))
 
+    def _align_exact(self, phase, corr):
+        """Require phase and coherence grids to share identical pixel coordinates."""
+        try:
+            return xr.align(phase, corr, join='exact')
+        except ValueError as e:
+            raise GaiaDataError(
+                f'Phase and coherence grids do not align: {e}', self.logger
+            ) from e
+
     def _compute_displacement(self, target_m=10.0):
         """Compute cumulative LOS displacement and error metrics.
 
@@ -1158,7 +1192,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         if corr_ra is None:
             corr_ra = self.sbas.decimator(float(target_m))(self.corr).persist()
         # Matching shapes alone does not establish matching pixel coordinates.
-        phase_ra, corr_ra = xr.align(self.detrend, corr_ra, join='exact')
+        phase_ra, corr_ra = self._align_exact(self.detrend, corr_ra)
         corr_ra = corr_ra.where(np.isfinite(phase_ra))
 
         with ProgressBar():
@@ -1790,8 +1824,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             num_dates = len(data_to_export[t_dim])
             dates = pd.to_datetime(data_to_export[t_dim].values)
             if dates.isna().any() or np.any(np.diff(dates.asi8) <= 0):
-                raise ValueError(
-                    'LOS acquisition dates must be valid and strictly increasing.'
+                raise GaiaDataError(
+                    'LOS acquisition dates must be valid and strictly increasing.',
+                    self.logger,
                 )
             for name in ('los_cumulative', 'los_incremental', 'velocity_interval'):
                 (base_path / name).mkdir(parents=True, exist_ok=True)
@@ -1848,26 +1883,38 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         # Open the GeoPackage
         vector_ds = ogr.Open(tsf_mask_gpkg, 0)
         if vector_ds is None:
-            raise RuntimeError(f'Cannot open GeoPackage: {tsf_mask_gpkg}')
+            raise GaiaConfigError(
+                f'Cannot open TSF mask GeoPackage: {tsf_mask_gpkg}', self.logger
+            )
 
         layer = vector_ds.GetLayer(0)
         if layer is None:
-            raise RuntimeError('No layer found in the GeoPackage.')
+            raise GaiaConfigError(
+                f'No layer found in the TSF mask GeoPackage: {tsf_mask_gpkg}',
+                self.logger,
+            )
 
         # Get the spatial reference
         spatial_ref = layer.GetSpatialRef()
         if spatial_ref is None:
-            raise RuntimeError('The input layer has no defined CRS.')
+            raise GaiaConfigError(
+                f'The TSF mask layer has no defined CRS: {tsf_mask_gpkg}', self.logger
+            )
 
         # Require a projected CRS in meters
         if not spatial_ref.IsProjected():
-            raise ValueError(
-                'The CRS of input TSF mask must be projected and use meters.'
+            raise GaiaConfigError(
+                'The CRS of input TSF mask must be projected and use meters.',
+                self.logger,
             )
         spatial_ref.AutoIdentifyEPSG()
         epsg_code = spatial_ref.GetAuthorityCode(None)
         if int(epsg_code) != int(target_crs):
-            raise ValueError('The CRS of input TSF mask differs from config CRS.')
+            raise GaiaConfigError(
+                f'The CRS of input TSF mask (EPSG:{epsg_code}) differs from config CRS '
+                f'(EPSG:{target_crs}).',
+                self.logger,
+            )
 
         # Get polygon bounds: minX, maxX, minY, maxY
         minx, maxx, miny, maxy = layer.GetExtent()
@@ -1889,7 +1936,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         )
 
         if raster_ds is None:
-            raise RuntimeError(f'Cannot create output raster: {output_tif}')
+            raise GaiaDataError(
+                f'Cannot create output raster: {output_tif}', self.logger
+            )
 
         # Set georeferencing
         raster_ds.SetGeoTransform(
@@ -1928,7 +1977,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         ]
         with rasterio.open(reference_path) as reference:
             if reference.crs is None:
-                raise ValueError(f'Reference raster has no CRS: {reference_path}')
+                raise GaiaDataError(
+                    f'Reference raster has no CRS: {reference_path}', self.logger
+                )
             if reference.crs == target_crs:
                 transform = reference.transform
                 width = reference.width
@@ -1948,7 +1999,9 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             # Process each input directory.
         for input_dir in input_dirs:
             if not input_dir.is_dir():
-                raise FileNotFoundError(f'Input directory does not exist: {input_dir}')
+                raise GaiaDataError(
+                    f'Input directory does not exist: {input_dir}', self.logger
+                )
 
             output_subdir = input_dir.with_name(f'{input_dir.name}_utm')
             output_subdir.mkdir(parents=True, exist_ok=True)
@@ -1967,17 +2020,23 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 dst_path = output_subdir / src_path.name
 
                 if src_path.resolve() == dst_path.resolve():
-                    raise ValueError('Input and output raster paths must differ.')
+                    raise GaiaDataError(
+                        f'Input and output raster paths must differ: {src_path}',
+                        self.logger,
+                    )
 
                 with rasterio.open(src_path) as src:
                     if src.crs != CRS.from_epsg(4326):
-                        raise ValueError(
+                        raise GaiaDataError(
                             f'Expected WGS-84 (EPSG:4326) input: '
-                            f'{src_path}; got {src.crs}'
+                            f'{src_path}; got {src.crs}',
+                            self.logger,
                         )
 
                     if src.count != 1:
-                        raise ValueError(f'Expected a single LOS band: {src_path}')
+                        raise GaiaDataError(
+                            f'Expected a single LOS band: {src_path}', self.logger
+                        )
 
                     source = src.read(1, masked=True).astype('float32').filled(np.nan)
                     source[~np.isfinite(source)] = np.nan
