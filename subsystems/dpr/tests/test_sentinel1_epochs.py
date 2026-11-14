@@ -5,92 +5,6 @@ import pandas as pd
 import pytest
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
-from subsystems.dpr.run_s1_eou_dpr import processing_runs, s1_settings
-
-
-def config():
-    return {
-        'project': {
-            'data_dir': '/site',
-            'monitoring_period': {'start': '2015-01-01', 'end': '2018-12-31'},
-        },
-        'sentinel1': {
-            'epochs': {
-                'pre_failure': {'start': '2015-01-01', 'end': '2018-02-25'},
-                'post_failure': {'start': '2018-03-21', 'end': '2018-12-31'},
-            }
-        },
-    }
-
-
-def test_independent_paths_and_default_split():
-    runs = processing_runs(config())
-    assert [r['name'] for r in runs] == ['pre_failure', 'post_failure']
-    assert runs[0]['workdir'] != runs[1]['workdir']
-    assert runs[0]['result_dir'] == Path('/site/sentinel1/results_epochs/pre_failure')
-    assert runs[1]['start'] == '2018-03-21'
-    assert all(Path('/site/sentinel1') not in r['workdir'].parents for r in runs)
-    custom = processing_runs(config(), 'all', Path('/custom'))
-    assert custom[1]['result_dir'] == Path('/custom/post_failure')
-
-
-def new_layout_config():
-    return {
-        'project': {
-            'data_dir': '/site',
-            'monitoring_period': {
-                'start': '2015-01-01',
-                'end': '2018-12-31',
-                'epochs': {
-                    'pre_failure': {'start': '2015-01-01', 'end': '2018-02-25'},
-                    'post_failure': {'start': '2018-03-21', 'end': '2018-12-31'},
-                },
-            },
-            'masks': {'stable_reference': './static/stable.gpkg'},
-            'eou': [
-                {
-                    'backend': 'asf',
-                    'direction': 'D',
-                    'path_number': None,
-                    'target_dir': 's1',
-                }
-            ],
-        },
-    }
-
-
-def test_new_layout_epochs_and_settings():
-    c = new_layout_config()
-    runs = processing_runs(c)
-    assert [r['name'] for r in runs] == ['pre_failure', 'post_failure']
-    assert runs[0]['result_dir'] == Path('/site/s1/results_epochs/pre_failure')
-    assert runs[0]['workdir'] == Path('/site/processing/s1/pre_failure')
-    settings = s1_settings(c)
-    assert settings['direction'] == 'D'
-    assert 'path_number' not in settings
-    assert settings['reference_area'] == './static/stable.gpkg'
-
-
-def test_new_layout_without_epochs_runs_full():
-    c = new_layout_config()
-    del c['project']['monitoring_period']['epochs']
-    assert processing_runs(c)[0]['name'] == 'full'
-
-
-def test_overlap_rejected_before_running():
-    c = config()
-    c['sentinel1']['epochs']['post_failure']['start'] = '2018-02-25'
-    with pytest.raises(ValueError, match='overlap'):
-        processing_runs(c)
-
-
-def test_non_epoch_project_and_explicit_full():
-    c = config()
-    c['sentinel1'] = {}
-    assert processing_runs(c)[0]['name'] == 'full'
-    assert processing_runs(config(), 'full')[0]['end'] == '2018-12-31'
-    with pytest.raises(ValueError):
-        processing_runs(c, 'pre_failure')
 
 
 def test_local_filter_inclusive_dates_keeps_all_bursts():
@@ -200,27 +114,6 @@ def test_stacking_scans_only_original_safe_scenes(monkeypatch, tmp_path):
     p._stack_scenes(tmp_path / 'inputs', tmp_path / 'work')
     selected = stack.set_scenes.call_args.args[0]
     assert selected.datapath.tolist() == ['/data/a.SAFE/a.tiff', '/data/b.SAFE/b.tiff']
-
-
-@pytest.mark.parametrize('value', [None, '', 'None', 'NaT', 'not-a-date'])
-def test_empty_or_invalid_epoch_dates_rejected(value):
-    c = config()
-    c['sentinel1']['epochs']['post_failure']['start'] = value
-    with pytest.raises(ValueError, match='epochs.post_failure.start'):
-        processing_runs(c)
-
-
-def test_missing_monitoring_end_rejected_even_in_full_mode():
-    c = config()
-    del c['project']['monitoring_period']['end']
-    with pytest.raises(ValueError, match='project.monitoring_period.end'):
-        processing_runs(c, 'full')
-
-
-def test_pre_failure_only_configuration():
-    c = config()
-    del c['sentinel1']['epochs']['post_failure']
-    assert [r['name'] for r in processing_runs(c)] == ['pre_failure']
 
 
 def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch):

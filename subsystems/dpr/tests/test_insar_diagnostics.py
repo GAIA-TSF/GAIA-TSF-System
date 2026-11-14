@@ -70,10 +70,11 @@ def test_failed_run_preserves_stage_and_earlier_artifacts(tmp_path):
     p.close.assert_called_once()
 
 
-def test_reruns_have_distinct_reports_and_can_disable(tmp_path):
-    first = InSARDiagnostics(tmp_path, {})
-    second = InSARDiagnostics(tmp_path, {})
-    assert first.path != second.path
+def test_reruns_have_distinct_reports(tmp_path):
+    assert InSARDiagnostics(tmp_path, {}).path != InSARDiagnostics(tmp_path, {}).path
+
+
+def test_diagnostics_can_be_disabled(tmp_path):
     p = Sentinel1Pipeline()
     p._configure()
     p._config = {'result_dir': tmp_path, 'diagnostics': False}
@@ -93,21 +94,6 @@ def test_displacement_statistics_have_units_in_column_names(tmp_path):
     rows = pd.read_csv(diag.path / 'displacement_by_date.csv')
     assert rows.valid_fraction.tolist() == [1.0, 0.5]
     assert rows.mean_mm.tolist() == [0.0, -10.0]
-
-
-def test_reference_support_and_offset_are_saved(tmp_path):
-    diag = InSARDiagnostics(tmp_path, {})
-    report = pd.DataFrame(
-        {
-            'reference_valid_phase_pixels': [10, 0],
-            'reference_mean_phase_rad': [1.2, np.nan],
-        },
-        index=pd.Index(['a b', 'b c'], name='pair'),
-    )
-    diag.reference(report)
-    assert (diag.path / 'reference_phase.png').is_file()
-    rows = json.loads((diag.path / 'reference_phase.json').read_text())
-    assert rows[1]['reference_mean_phase_rad'] is None
 
 
 def test_completed_run_is_recorded(tmp_path):

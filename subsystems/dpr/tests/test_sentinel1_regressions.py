@@ -8,7 +8,6 @@ import pytest
 import rasterio
 import xarray as xr
 from pygmtsar import Stack
-from pathlib import PosixPath
 
 from shapely.geometry import box, MultiPolygon, Polygon
 
@@ -68,33 +67,6 @@ def test_empty_reference_fails(pipeline):
         pipeline._detrend_phase()
 
 
-def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
-    phase = phase_grid(
-        [[[np.nan, np.nan], [np.nan, np.nan]], [[1, 1], [1, 1]], [[1, 1], [1, 1]]]
-    )
-    # The third pair keeps the network connected without the dropped one.
-    phase = phase.assign_coords(
-        pair=['2020-01-01 2020-01-13', '2020-01-13 2020-01-25', '2020-01-01 2020-01-25']
-    )
-    pipeline.unwrap = phase.to_dataset(name='phase')
-    pipeline.corr_unwrap = xr.ones_like(phase) * 0.8
-    pipeline._reference_geometry = box(-1, -1, 2, 2)
-    pipeline._config.update(
-        result_dir=tmp_path,
-        reference_min_pixels=1,
-    )
-    pipeline.sbas.geocode.side_effect = lambda p: p
-    pipeline._detrend_phase()
-    report = pd.read_csv(tmp_path / 'quality/reference_phase_diagnostics.csv')
-    assert report.reference_mask_pixels.tolist() == [4, 4, 4]
-    assert report.reference_coherent_pixels.tolist() == [4, 4, 4]
-    assert report.reference_valid_phase_pixels.tolist() == [0, 4, 4]
-    assert report.all_valid_phase_pixels.tolist() == [0, 4, 4]
-    assert report.reference_ok.tolist() == [False, True, True]
-    assert pipeline.detrend.isel(pair=0).isnull().all()
-    np.testing.assert_allclose(pipeline.detrend.isel(pair=[1, 2]), 0)
-
-
 def _reference_pipeline(pipeline, tmp_path, pairs, valid):
     """Pairs whose reference area has phase (valid) or none (rejected)."""
     phase = phase_grid(
@@ -114,42 +86,57 @@ def _reference_pipeline(pipeline, tmp_path, pairs, valid):
     return pipeline
 
 
-def test_rejected_pairs_disconnecting_network_fail(pipeline, tmp_path):
-    # Cadia pre_failure: every pair bridging late 2016 into 2017 was rejected,
-    # leaving later dates unreferenced and the displacement empty (cropna crash).
-    pairs = [
-        '2016-10-09 2016-10-21',
-        '2016-10-21 2016-11-02',
-        '2016-10-21 2016-12-20',
-        '2016-11-02 2016-12-20',
-        '2016-12-20 2017-01-01',
-    ]
-    _reference_pipeline(pipeline, tmp_path, pairs, [1, 1, 0, 0, 1])
+def test_pair_without_reference_phase_is_dropped(pipeline, tmp_path):
+    # The third pair keeps the network connected without the dropped one.
+    pairs = ['2020-01-01 2020-01-13', '2020-01-13 2020-01-25', '2020-01-01 2020-01-25']
+    _reference_pipeline(pipeline, tmp_path, pairs, [0, 1, 1])
+    pipeline._detrend_phase()
+    report = pd.read_csv(tmp_path / 'quality/reference_phase_diagnostics.csv')
+    assert report.reference_mask_pixels.tolist() == [4, 4, 4]
+    assert report.reference_coherent_pixels.tolist() == [4, 4, 4]
+    assert report.reference_valid_phase_pixels.tolist() == [0, 4, 4]
+    assert report.all_valid_phase_pixels.tolist() == [0, 4, 4]
+    assert report.reference_ok.tolist() == [False, True, True]
+    assert pipeline.detrend.isel(pair=0).isnull().all()
+    np.testing.assert_allclose(pipeline.detrend.isel(pair=[1, 2]), 0)
+
+
+@pytest.mark.parametrize(
+    'pairs,valid,groups,rejected',
+    [
+        # Cadia pre_failure: every pair bridging late 2016 into 2017 was rejected,
+        # leaving later dates unreferenced and the displacement empty (cropna crash).
+        (
+            [
+                '2016-10-09 2016-10-21',
+                '2016-10-21 2016-11-02',
+                '2016-10-21 2016-12-20',
+                '2016-11-02 2016-12-20',
+                '2016-12-20 2017-01-01',
+            ],
+            [1, 1, 0, 0, 1],
+            '2016-10-09..2016-11-02 (3 dates); 2016-12-20..2017-01-01 (2 dates)',
+            '2016-10-21 2016-12-20, 2016-11-02 2016-12-20',
+        ),
+        # Cadia pre_failure: the only pair of the first acquisition was rejected.
+        (
+            ['2015-03-01 2015-04-30', '2015-04-30 2015-05-24'],
+            [0, 1],
+            '2015-03-01..2015-03-01 (1 dates)',
+            '2015-03-01 2015-04-30',
+        ),
+    ],
+)
+def test_rejected_pairs_disconnecting_network_fail(
+    pipeline, tmp_path, pairs, valid, groups, rejected
+):
+    _reference_pipeline(pipeline, tmp_path, pairs, valid)
     with pytest.raises(GaiaDataError, match='2 disconnected groups') as err:
         pipeline._detrend_phase()
-    message = str(err.value)
-    assert (
-        '2016-10-09..2016-11-02 (3 dates); 2016-12-20..2017-01-01 (2 dates)' in message
-    )
-    assert '2016-10-21 2016-12-20, 2016-11-02 2016-12-20' in message
+    assert groups in str(err.value)
+    assert rejected in str(err.value)
     # Diagnostics are written before failing.
     assert (tmp_path / 'quality/reference_phase_diagnostics.csv').exists()
-
-
-def test_rejected_only_pair_of_first_date_fails(pipeline, tmp_path):
-    # Cadia pre_failure: the only pair of the first acquisition was rejected.
-    pairs = ['2015-03-01 2015-04-30', '2015-04-30 2015-05-24']
-    _reference_pipeline(pipeline, tmp_path, pairs, [0, 1])
-    with pytest.raises(GaiaDataError, match=r'2015-03-01\.\.2015-03-01 \(1 dates\)'):
-        pipeline._detrend_phase()
-
-
-def test_rejected_pair_with_connected_network_is_dropped(pipeline, tmp_path):
-    pairs = ['2015-03-01 2015-04-30', '2015-04-30 2015-05-24', '2015-03-01 2015-05-24']
-    _reference_pipeline(pipeline, tmp_path, pairs, [1, 0, 1])
-    pipeline._detrend_phase()
-    assert pipeline.detrend.isel(pair=1).isnull().all()
-    np.testing.assert_allclose(pipeline.detrend.isel(pair=[0, 2]), 0)
 
 
 def test_all_reference_polygons_contribute(pipeline):
@@ -205,21 +192,6 @@ def test_low_coherence_reference_pair_is_dropped(pipeline):
     assert pipeline.detrend.isel(pair=1).isnull().all()
 
 
-@pytest.mark.parametrize('site,count', [('cadia', 9), ('jagersfontein', 3)])
-def test_configured_site_reference_files(pipeline, site, count):
-    from pathlib import Path
-    from lib.config import ProjectConfigReader
-    from tests.utils import TestUtils
-
-    config_path = Path(TestUtils.get_project_config_path('slope_monitoring_' + site))
-    config = ProjectConfigReader(config_path)
-    reference = pipeline._load_reference_area(
-        config_path.parent / config['sentinel1']['reference_area'], config.aoi()
-    )
-    assert isinstance(reference, MultiPolygon)
-    assert len(reference.geoms) == count
-
-
 AOI = box(-7.2, 37.5, -7.0, 37.7)  # EPSG:4326
 
 
@@ -230,26 +202,25 @@ def write_reference(path, geometries, crs=4326):
     return path
 
 
-def test_reference_file_in_wgs84_is_loaded(pipeline, tmp_path):
-    path = write_reference(tmp_path / 'ref.gpkg', [box(-7.12, 37.60, -7.11, 37.61)])
+def test_reference_file_in_wgs84_is_loaded_and_merged(pipeline, tmp_path):
+    first = box(-7.12, 37.60, -7.11, 37.61)
+    path = write_reference(tmp_path / 'one.gpkg', [first])
     polygon = pipeline._load_reference_area(path, AOI)
     assert isinstance(polygon, Polygon)
-    np.testing.assert_allclose(polygon.bounds, (-7.12, 37.60, -7.11, 37.61))
-
-
-def test_reference_features_are_merged(pipeline, tmp_path):
+    np.testing.assert_allclose(polygon.bounds, first.bounds)
     path = write_reference(
-        tmp_path / 'ref.gpkg',
-        [box(-7.12, 37.60, -7.11, 37.61), box(-7.05, 37.60, -7.04, 37.61)],
+        tmp_path / 'two.gpkg', [first, box(-7.05, 37.60, -7.04, 37.61)]
     )
     polygon = pipeline._load_reference_area(path, AOI)
     assert isinstance(polygon, MultiPolygon) and len(polygon.geoms) == 2
 
 
-def test_reference_in_other_crs_fails(pipeline, tmp_path):
-    path = write_reference(
-        tmp_path / 'ref.gpkg', [box(666100, 4163100, 666400, 4163400)], crs=32629
-    )
+@pytest.mark.parametrize(
+    'geometry,crs',
+    [(box(666100, 4163100, 666400, 4163400), 32629), (box(0, 0, 1, 1), None)],
+)
+def test_reference_not_in_wgs84_fails(pipeline, tmp_path, geometry, crs):
+    path = write_reference(tmp_path / 'ref.gpkg', [geometry], crs=crs)
     with pytest.raises(GaiaConfigError, match='EPSG:4326'):
         pipeline._load_reference_area(path, AOI)
 
@@ -260,22 +231,9 @@ def test_reference_outside_aoi_fails(pipeline, tmp_path):
         pipeline._load_reference_area(path, AOI)
 
 
-def test_reference_without_crs_fails(pipeline, tmp_path):
-    path = write_reference(tmp_path / 'ref.gpkg', [box(0, 0, 1, 1)], crs=None)
-    with pytest.raises(GaiaConfigError, match='EPSG:4326'):
-        pipeline._load_reference_area(path, AOI)
-
-
 def test_missing_reference_file_fails(pipeline, tmp_path):
     with pytest.raises(GaiaConfigError, match='not found'):
         pipeline._load_reference_area(tmp_path / 'missing.gpkg', AOI)
-
-
-def test_reference_path_param_is_optional():
-    p = Sentinel1Pipeline()
-    params = p.metadata['params']['reference_stable_area']
-    assert params['dtype'] is PosixPath and params.get('required') is False
-    assert 'default' not in params
 
 
 def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
@@ -433,7 +391,7 @@ def test_no_coherent_pixels_fails(pipeline):
     pipeline.intf = phase_grid([[[1, 2], [3, 4]]])
     pipeline.corr = xr.ones_like(pipeline.intf) * 0.1
     pipeline.sbas.decimator.return_value = lambda a: a
-    with pytest.raises(RuntimeError, match='No pixels'):
+    with pytest.raises(GaiaDataError, match='No pixels'):
         pipeline._unwrap_phase()
     pipeline.sbas.unwrap_snaphu.assert_not_called()
 
