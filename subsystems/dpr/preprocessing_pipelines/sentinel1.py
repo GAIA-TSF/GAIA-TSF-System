@@ -1444,6 +1444,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         self.logger.info('Creating environmental database.')
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
         # Temporal & Spatial Setup
         stack_df = self.sbas.to_dataframe()
         dt_index = pd.to_datetime(stack_df.index)
