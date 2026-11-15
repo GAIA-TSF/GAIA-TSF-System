@@ -24,6 +24,7 @@ class BulkUploadScheduler(GaiaBase):
         self.lookback_days = bulk_import_settings.get('lookback_days', 3)
         self.quicklook = False
         self.scheduler = Scheduler(interval_seconds=self.interval, logger=self.logger)
+        self.project_path = project_path
 
     def start(self) -> None:
         """Starts the periodic background scanning thread."""
@@ -68,7 +69,9 @@ class BulkUploadScheduler(GaiaBase):
                 target_dir = current_filter.pop('target_dir')
                 backend = current_filter.pop('backend')
 
-                gateway = DataAcquisitionGateway(backend=backend)
+                gateway = DataAcquisitionGateway(
+                    backend=backend, project_path=self.project_path
+                )
 
                 # Query remote catalog metadata using the live dates
                 results = gateway.backend.search(geom=aoi_geom, **current_filter)
