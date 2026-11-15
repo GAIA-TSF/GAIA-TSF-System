@@ -399,6 +399,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                     f'{processing_start or "-"} and {processing_end or "-"}',
                     logger,
                 )
+        if len(safes) < 2:
+            raise GaiaDataError(
+                f'At least two Sentinel-1 scenes are required for InSAR processing, '
+                f'found {len(safes)} in {root} between '
+                f'{processing_start or "-"} and {processing_end or "-"}: '
+                f'{", ".join(safe.name for safe in safes)}',
+                logger,
+            )
         by_subswath = defaultdict(list)
         for safe in safes:
             stamp = Sentinel1Pipeline._safe_acquisition_date(safe) or '?'
@@ -437,7 +445,14 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 parent = orbit_dir / str(index)
                 parent.mkdir()
                 (parent / orbit.name).symlink_to(orbit.resolve())
-            scenes = S1.scan_slc(view)
+            try:
+                scenes = S1.scan_slc(view)
+            except ValueError as e:
+                raise GaiaDataError(
+                    f'Unable to scan Sentinel-1 scenes in {root} between '
+                    f'{processing_start or "-"} and {processing_end or "-"}: {e}',
+                    logger,
+                ) from e
             for column in (
                 'datapath',
                 'metapath',
