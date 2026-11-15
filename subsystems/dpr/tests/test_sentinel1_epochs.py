@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from subsystems.dpr.preprocessing_pipelines.sentinel1 import Sentinel1Pipeline
-
+from lib.exceptions import GaiaDataError
 
 def test_local_filter_inclusive_dates_keeps_all_bursts():
     p = Sentinel1Pipeline()
