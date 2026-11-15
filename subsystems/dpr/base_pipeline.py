@@ -50,6 +50,14 @@ class BasePipeline(ABC, GaiaBase):
                 'Pipeline is not configured. Call configure() method', self.logger
             )
 
+        unknown = sorted(set(self._config) - set(self.metadata['params']))
+        if unknown:
+            raise GaiaConfigError(
+                f'Unknown parameter(s): {", ".join(unknown)}; '
+                f'supported: {", ".join(sorted(self.metadata["params"]))}',
+                self.logger,
+            )
+
         for k, v in self.metadata['params'].items():
             if self._config.get(k, None) is None:
                 if v.get('default', None) is not None:
