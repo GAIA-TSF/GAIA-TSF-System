@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 import dask
-from dask.distributed import Client
+from dask.distributed import Client, futures_of, wait
 from dask.diagnostics import ProgressBar
 from pygmtsar import S1, Tiles, Stack
 import numpy as np
@@ -820,9 +820,17 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 'goldstein_patch': goldstein_patch,
             }
             self._checkpoints.save()
+        self.logger.info(
+            f'Computing interferograms ({len(self.baseline_pairs)} pairs).'
+        )
         topo = self.sbas.get_topo()
         data = self.sbas.open_data()
+        started = time.monotonic()
         self._check_slc_coverage(data)
+        self.logger.debug(
+            f'SLC coverage checked ({data.sizes.get("date", 0)} scenes, '
+            f'{time.monotonic() - started:.0f} s elapsed)'
+        )
 
         # Process Intensity (for correlation weights)
         intensity = self.sbas.multilooking(
@@ -839,11 +847,44 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         self.corr = self.sbas.correlation(phase, intensity)
         phase_goldstein = self.sbas.goldstein(phase, self.corr, goldstein_patch)
 
-        self.logger.info('Computing interferograms.')
         self.intf = self.sbas.interferogram(phase_goldstein)
         # reused by unwrapping, quality and checkpoints: compute once, avoid
         # re-submitting the same graph (dask "different run_spec" warnings)
         self.corr, self.intf = dask.persist(self.corr, self.intf)
+        self._wait_with_progress((self.corr, self.intf), 'Interferograms')
+
+    def _wait_with_progress(self, collections, label, interval=60):
+        """Block until persisted collections are computed, logging progress.
+
+        On dask.distributed ``persist`` returns immediately and the work would
+        otherwise be silently attributed to the next stage. With a local
+        scheduler the collections are already computed and this is a no-op.
+
+        :param collections: Persisted dask collection(s).
+        :param str label: Name used in the progress messages.
+        :param float interval: Seconds between progress messages. Defaults to 60.
+        :return: None
+        """
+        futures = futures_of(collections)
+        if not futures:
+            return
+        started = time.monotonic()
+        while True:
+            try:
+                wait(futures, timeout=interval)
+            except TimeoutError:
+                n_done = sum(f.done() for f in futures)
+                self.logger.debug(
+                    f'{label}: {n_done}/{len(futures)} chunks computed '
+                    f'({n_done / len(futures):.0%}, '
+                    f'{time.monotonic() - started:.0f} s elapsed)'
+                )
+            else:
+                break
+        self.logger.debug(
+            f'{label}: {len(futures)} chunks computed '
+            f'({time.monotonic() - started:.0f} s elapsed)'
+        )
 
     def _check_slc_coverage(self, data):
         """Reject empty aligned acquisitions before generating their interferograms."""
