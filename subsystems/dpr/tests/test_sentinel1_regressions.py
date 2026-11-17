@@ -243,9 +243,10 @@ def test_coherence_mask_is_boolean_and_survives_unwrap(pipeline):
 
     def unwrap(phase, weight, conncomp=False):
         assert conncomp
-        assert np.isnan(phase.values[0, 0, 1])
-        assert np.isnan(phase.values[0, 1, 0])
-        return phase.fillna(123).to_dataset(name='phase')
+        # low-coherence pixels are unwrapped (coherence-weighted), not holes
+        assert phase.notnull().all()
+        assert weight.values[0, 0, 1] == pytest.approx(0.1)
+        return phase.to_dataset(name='phase')
 
     pipeline.sbas.unwrap_snaphu.side_effect = unwrap
     pipeline._unwrap_phase()
