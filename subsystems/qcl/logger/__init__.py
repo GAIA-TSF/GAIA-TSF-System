@@ -37,7 +37,15 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         return self._db_handler().next_task_id()
 
     def __log_task(
-        self, level: int, obj, *, task_id=None, msg_suffix=None, persist=False, **kwargs
+        self,
+        level: int,
+        obj,
+        *,
+        task_id=None,
+        msg_suffix=None,
+        persist=False,
+        clear=False,
+        **kwargs,
     ):
         """Internal helper to log task-related events and avoid duplication.
 
@@ -46,6 +54,8 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         - task_id: optional task id to attach; if None, tries adapter.extra
         - msg_suffix: string appended to class name (e.g. 'started')
         - persist: if True, store task_id in adapter.extra for future logs
+        - clear: if True, remove persisted task_id from adapter.extra after
+          logging (so subsequent logs are not attributed to the closed task)
         """
         name = obj.__class__.__name__
         msg = f'{name} {msg_suffix}' if msg_suffix else name
@@ -65,6 +75,10 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
             self.extra['task_id'] = resolved_task_id
 
         self.log(level, msg, extra=extra, **kwargs)
+
+        if clear and self.extra.get('task_id') == resolved_task_id:
+            self.extra.pop('task_id', None)
+
         return resolved_task_id
 
     def task_started(self, obj, **kwargs):
@@ -80,17 +94,33 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         )
 
     def task_finished(self, obj, **kwargs):
-        """Log a task finished event using either provided or persisted task_id."""
+        """Log a task finished event using either provided or persisted task_id.
+
+        The persisted task_id is cleared afterwards.
+        """
         task_id = kwargs.pop('task_id', None)
         return self.__log_task(
-            TASK_FINISHED, obj, task_id=task_id, msg_suffix='finished', **kwargs
+            TASK_FINISHED,
+            obj,
+            task_id=task_id,
+            msg_suffix='finished',
+            clear=True,
+            **kwargs,
         )
 
     def task_failed(self, obj, **kwargs):
-        """Log a task failed event using either provided or persisted task_id."""
+        """Log a task failed event using either provided or persisted task_id.
+
+        The persisted task_id is cleared afterwards.
+        """
         task_id = kwargs.pop('task_id', None)
         return self.__log_task(
-            TASK_FAILED, obj, task_id=task_id, msg_suffix='failed', **kwargs
+            TASK_FAILED,
+            obj,
+            task_id=task_id,
+            msg_suffix='failed',
+            clear=True,
+            **kwargs,
         )
 
 
