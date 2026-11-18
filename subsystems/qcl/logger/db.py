@@ -4,7 +4,7 @@ import os
 import logging
 from datetime import datetime
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, select, text, Sequence
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.exc import OperationalError
@@ -13,6 +13,10 @@ from sqlalchemy_utils import database_exists, create_database
 from lib.base import SubsystemId
 
 Base = declarative_base()
+
+# Sequence used to generate unique task IDs. Postgres nextval() is atomic
+# across sessions/processes, unlike computing max(task_id) + 1.
+task_id_seq = Sequence('log_task_id_seq', metadata=Base.metadata)
 
 
 class DbConnectionError(Exception):
@@ -125,6 +129,7 @@ class DbLogger(logging.Handler):
         # create tables
         try:
             Base.metadata.create_all(Base.metadata.bind)
+            self._sync_task_id_seq()
         except OperationalError as e:
             self._close_all()
             raise DbConnectionError('{}'.format(e))
@@ -211,6 +216,29 @@ class DbLogger(logging.Handler):
         self._session.add_all(subsystems)
         self._session.commit()
 
-    def next_task_id(self):
+    def _sync_task_id_seq(self):
+        """Initialize task ID sequence from already logged task IDs.
+
+        Only applied when the sequence has not been used yet (e.g. sequence
+        newly created on DB with existing task IDs), so that new task IDs do
+        not collide with existing ones.
+        """
+        is_called = self._session.execute(
+            text(f'SELECT is_called FROM {task_id_seq.name}')
+        ).scalar()
+        if is_called:
+            return
+
         max_id = self._session.query(func.max(DbRecord.task_id)).scalar()
-        return (max_id or 0) + 1
+        if max_id:
+            self._session.execute(
+                text('SELECT setval(:seq, :value)'),
+                {'seq': task_id_seq.name, 'value': max_id},
+            )
+            self._session.commit()
+
+    def next_task_id(self):
+        """Return a new unique task ID (taken from DB sequence)."""
+        task_id = self._session.execute(select(task_id_seq.next_value())).scalar()
+        self._session.commit()
+        return task_id
