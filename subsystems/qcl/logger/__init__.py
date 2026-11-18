@@ -25,6 +25,22 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
     create and attach a task_id stored in the DB-backed handler.
     """
 
+    def process(self, msg, kwargs):
+        """Merge adapter context with per-call extra.
+
+        Standard LoggerAdapter replaces per-call ``extra`` by adapter context
+        (unless ``merge_extra`` is set). Here both are merged, per-call values
+        take precedence (e.g. explicit ``task_id``).
+
+        Note: this method is not called explicitly. It is a hook invoked
+        automatically by ``logging.LoggerAdapter.log()`` for every logging
+        call made through the adapter (``info()``, ``debug()``, ...,
+        including ``task_*()`` methods which call ``self.log()``). It is
+        skipped only when the level is not enabled (``isEnabledFor()``).
+        """
+        kwargs['extra'] = {**(self.extra or {}), **kwargs.get('extra', {})}
+        return msg, kwargs
+
     def _db_handler(self):
         """Return DbLogger handler instance or raise if not configured."""
         for handler in getattr(self.logger, 'handlers', []):
