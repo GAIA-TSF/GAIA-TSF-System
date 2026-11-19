@@ -120,7 +120,12 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         return resolved_task_id
 
     def task_started(self, obj, **kwargs):
-        """Create new task id, persist it in adapter context and log start."""
+        """Create new task id, persist it in adapter context and log start.
+
+        Only one active task per adapter is supported (no nesting). Starting
+        a new task replaces the persisted task id of the previous (still
+        active) task.
+        """
         task_id = self._next_task_id()
         return self.__log_task(
             TASK_STARTED,
@@ -168,6 +173,10 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         Calls ``task_started()`` on enter, ``task_finished()`` on normal exit
         and ``task_failed()`` when an exception is raised (the exception is
         re-raised). Yields the task id.
+
+        Nested tasks are not supported (see ``task_started()``). Start/finish
+        records are logged with correct task ids, but records of an outer
+        task logged after an inner task is finished carry no task id.
 
         Example::
 
