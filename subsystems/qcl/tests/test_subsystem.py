@@ -247,6 +247,42 @@ class TestLoggerTasks:
         ]
         assert self._last_log_task_id(qc, 'Test task: after failed') is None
 
+    @pytest.mark.parametrize(
+        'failure, exception',
+        [
+            # real failure raised by QC layer (unsupported data type)
+            (
+                lambda qc: qc.check('unknown_type', None, {}, 'TEST_TASK_FAIL'),
+                GaiaConfigError,
+            ),
+            # unexpected (non-GAIA) failure
+            (lambda qc: 1 / 0, ZeroDivisionError),
+        ],
+        ids=['gaia_error', 'unexpected_error'],
+    )
+    def test_task_ended_by_failure(self, failure, exception):
+        """Simulated failure ends the task by task_failed (not task_finished)."""
+        qc = QCLayer()
+
+        with pytest.raises(exception):
+            with qc.logger.task(qc) as task_id:
+                qc.logger.info('Test task: before failure')
+                failure(qc)
+                qc.logger.info('Test task: not reached')
+
+        # task row marked as failed
+        _, _, _, status, finished = self._task(qc, task_id)
+        assert status == 'TASK_FAILED'
+        assert finished is not None
+
+        # task ended by TASK_FAILED record, no TASK_FINISHED record logged
+        levels = [level for level, _ in self._task_log(qc, task_id)]
+        assert levels[0] == 'TASK_STARTED'
+        assert levels[-1] == 'TASK_FAILED'
+        assert levels.count('TASK_FAILED') == 1
+        assert 'TASK_FINISHED' not in levels
+        assert ('INFO', 'Test task: not reached') not in self._task_log(qc, task_id)
+
     def test_task_explicit_calls(self):
         """Task defined by explicit calls, explicit task_id is respected."""
         qc = QCLayer()
