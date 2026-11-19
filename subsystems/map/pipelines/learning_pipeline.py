@@ -186,6 +186,9 @@ class LearningPipeline:
             'metrics': metrics,
             'explainability': explainability,
         }
+        if hasattr(model, 'training_summary'):
+            # Epoch selection (LSTM early stopping) for reproducibility.
+            metadata['training'] = model.training_summary()
         write_json(model_dir / 'experiment.json', metadata)
         LOGGER.info('MAP learning completed: %s', model_path)
         return metadata

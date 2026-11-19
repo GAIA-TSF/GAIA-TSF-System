@@ -13,7 +13,6 @@ from subsystems.map.plugins.models.lstm import LSTMModel  # noqa: E402
 def _config(**early_stopping) -> dict:
     return {
         'look_back': 3,
-        'horizon': 1,
         'hidden_size': 8,
         'num_layers': 1,
         'dropout': 0.0,
@@ -31,7 +30,7 @@ def _data(seed: int, size: int) -> tuple[np.ndarray, np.ndarray]:
     rng = np.random.default_rng(seed)
     features = rng.normal(size=(size, 3, 2))
     targets = features[:, -1, 0] + 0.1 * rng.normal(size=size)
-    return features, targets
+    return features, targets[:, np.newaxis]  # (samples, horizon=1)
 
 
 def _trained(**early_stopping) -> LSTMModel:
@@ -41,7 +40,7 @@ def _trained(**early_stopping) -> LSTMModel:
     # early, so training must stop well before the 60-epoch limit.
     validation_features, _ = _data(2, 64)
     model.set_validation_data(
-        validation_features, np.random.default_rng(3).normal(size=64)
+        validation_features, np.random.default_rng(3).normal(size=(64, 1))
     )
     model.train(*_data(1, 256))
     return model
@@ -56,7 +55,7 @@ def test_early_stopping_stops_and_restores_best_epoch() -> None:
     assert model.best_epoch == int(np.argmin(history)) + 1
     assert model.stopped_epoch - model.best_epoch == 3
     # Restored weights reproduce the best epoch's validation loss.
-    criterion = model._nn.MSELoss()
+    criterion = model._masked_mse
     restored = model._validation_loss(
         criterion, model._normalized_validation_tensors()
     )
@@ -78,7 +77,7 @@ def test_training_summary_and_persistence(tmp_path) -> None:
     )
     features, _ = _data(4, 8)
     np.testing.assert_allclose(
-        loaded.predict(features).y_pred, model.predict(features).y_pred, rtol=1e-6
+        loaded.predict(features), model.predict(features), rtol=1e-6
     )
 
 

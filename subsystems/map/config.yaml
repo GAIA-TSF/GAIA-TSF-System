@@ -111,7 +111,16 @@ models:
       lr: 0.001
     training:
       batch_size: 256
-      epochs: 10
+      epochs: 100   # upper bound; early stopping selects the epoch
+      # Stop when the validation loss (held-out validation samples) has not
+      # improved by more than min_delta for `patience` epochs, then restore the
+      # weights of the best epoch. Test samples are never used. Tuning folds
+      # have no validation set and train all epochs.
+      early_stopping:
+        enabled: true
+        patience: 10
+        min_delta: 0.0
+        restore_best_weights: true
 
 # run_tuning.py: search the values below on rolling-origin chronological folds
 # of the reference data (test split excluded), keep the lowest mean MAE, and

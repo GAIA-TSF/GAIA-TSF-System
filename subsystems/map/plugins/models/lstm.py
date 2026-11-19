@@ -47,6 +47,7 @@ class LSTMModel(PredictiveModel):
         optimizer = self._mapping('optimizer')
         self.batch_size = self._positive_integer_from(training, 'batch_size')
         self.epochs = self._positive_integer_from(training, 'epochs')
+        self.early_stopping = self._early_stopping(training)
         self.learning_rate = self._positive_float_from(optimizer, 'lr')
         self.device = self._device(str(self.config.get('device', 'cpu')))
         self._network: Any | None = None
@@ -56,6 +57,9 @@ class LSTMModel(PredictiveModel):
         self._target_std: np.ndarray | None = None
         self.training_history: list[float] = []
         self.validation_history: list[float] = []
+        # 1-based epochs; None when early stopping did not select weights.
+        self.best_epoch: int | None = None
+        self.stopped_epoch: int | None = None
         self._validation_data: tuple[np.ndarray, np.ndarray] | None = None
 
     def look_back(self) -> int:
@@ -105,6 +109,17 @@ class LSTMModel(PredictiveModel):
         generator.manual_seed(self._seed_value())
         self.training_history = []
         self.validation_history = []
+        self.best_epoch = self.stopped_epoch = None
+        stopping = self.early_stopping
+        if stopping['enabled'] and validation_tensors is None:
+            LOGGER.warning(
+                'LSTM early stopping is enabled but no validation data were set; '
+                'training all %d epochs.',
+                self.epochs,
+            )
+        best_loss = float('inf')
+        best_state: dict[str, Any] | None = None
+        stale_epochs = 0
         for epoch in range(self.epochs):
             self._network.train()
             total_loss = 0.0
@@ -140,6 +155,30 @@ class LSTMModel(PredictiveModel):
                     self.epochs,
                     epoch_loss,
                 )
+            if not stopping['enabled'] or validation_loss is None:
+                continue
+            if validation_loss < best_loss - stopping['min_delta']:
+                best_loss, stale_epochs = validation_loss, 0
+                self.best_epoch = epoch + 1
+                best_state = {
+                    name: value.detach().clone()
+                    for name, value in self._network.state_dict().items()
+                }
+            else:
+                stale_epochs += 1
+            if stale_epochs >= stopping['patience']:
+                self.stopped_epoch = epoch + 1
+                LOGGER.info(
+                    'LSTM early stopping at epoch %d: no validation improvement '
+                    'for %d epochs; best epoch %d (validation_loss=%.6f).',
+                    self.stopped_epoch,
+                    stopping['patience'],
+                    self.best_epoch,
+                    best_loss,
+                )
+                break
+        if best_state is not None and stopping['restore_best_weights']:
+            self._network.load_state_dict(best_state)
 
     def predict(self, features: np.ndarray) -> np.ndarray:
         """Predict changes shaped ``(samples, horizon)`` for causal sequences."""
@@ -184,6 +223,8 @@ class LSTMModel(PredictiveModel):
                 'state_dict': self._network.state_dict(),
                 'training_history': self.training_history,
                 'validation_history': self.validation_history,
+                'best_epoch': self.best_epoch,
+                'stopped_epoch': self.stopped_epoch,
             },
             path,
         )
@@ -214,7 +255,24 @@ class LSTMModel(PredictiveModel):
         model.validation_history = [
             float(value) for value in payload.get('validation_history', [])
         ]
+        model.best_epoch = payload.get('best_epoch')
+        model.stopped_epoch = payload.get('stopped_epoch')
         return model
+
+    def training_summary(self) -> dict[str, Any]:
+        """Epoch selection details recorded in experiment metadata."""
+        return {
+            'epochs_configured': self.epochs,
+            'epochs_run': len(self.training_history),
+            'early_stopping': dict(self.early_stopping),
+            'best_epoch': self.best_epoch,
+            'stopped_epoch': self.stopped_epoch,
+            'best_validation_loss': (
+                None
+                if self.best_epoch is None
+                else self.validation_history[self.best_epoch - 1]
+            ),
+        }
 
     def _normalized_validation_tensors(self) -> tuple[Any, Any] | None:
         """Normalize stored validation data with training-only statistics."""
@@ -313,6 +371,24 @@ class LSTMModel(PredictiveModel):
         if not np.all(np.isfinite(sequences)):
             raise ValueError('LSTM features must be finite.')
         return sequences
+
+    def _early_stopping(self, training: dict[str, Any]) -> dict[str, Any]:
+        """Validation-loss early stopping; restores the best epoch's weights."""
+        settings = training.get('early_stopping', {}) or {}
+        if not isinstance(settings, dict):
+            raise ValueError('lstm.training.early_stopping must be a mapping.')
+        patience = int(settings.get('patience', 10))
+        min_delta = float(settings.get('min_delta', 0.0))
+        if patience < 1:
+            raise ValueError('lstm.training.early_stopping.patience must be >= 1.')
+        if not np.isfinite(min_delta) or min_delta < 0:
+            raise ValueError('lstm.training.early_stopping.min_delta must be >= 0.')
+        return {
+            'enabled': bool(settings.get('enabled', False)),
+            'patience': patience,
+            'min_delta': min_delta,
+            'restore_best_weights': bool(settings.get('restore_best_weights', True)),
+        }
 
     def _seed_torch(self) -> None:
         """Seed PyTorch and request deterministic operators where available."""
