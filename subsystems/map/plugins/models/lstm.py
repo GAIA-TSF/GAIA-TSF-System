@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from subsystems.map.core.interfaces import PredictionResult, PredictiveModel
+from subsystems.map.core.interfaces import PredictiveModel
 from subsystems.map.core.registry import register_model
 
 
@@ -19,14 +19,14 @@ LOGGER = logging.getLogger(__name__)
 class LSTMModel(PredictiveModel):
     """LSTM forecaster over causal per-pixel sequences of DAG features.
 
-    The plugin learns normal one-step-ahead deformation behaviour. Temporal
-    windows are assembled by :class:`DatasetBuilder`; this model neither
-    derives nor modifies engineered features.
+    Each sequence ends at the forecast origin and a linear head predicts every
+    lead at once. Sequences are assembled by :class:`DatasetBuilder`; this
+    model neither derives nor modifies engineered features.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None, horizon: int = 1) -> None:
         """Initialize configuration and import the optional PyTorch backend."""
-        super().__init__(config)
+        super().__init__(config, horizon)
         try:
             import torch
             import torch.nn as nn
@@ -36,10 +36,7 @@ class LSTMModel(PredictiveModel):
             ) from exc
         self._torch = torch
         self._nn = nn
-        self.look_back = self._positive_integer('look_back')
-        self.horizon = self._positive_integer('horizon')
-        if self.horizon != 1:
-            raise ValueError('LSTMModel currently supports horizon: 1 only.')
+        self.sequence_length = self._positive_integer('look_back')
         self.hidden_size = self._positive_integer('hidden_size')
         self.num_layers = self._positive_integer('num_layers')
         self.dropout = self._unit_interval('dropout')
@@ -55,15 +52,15 @@ class LSTMModel(PredictiveModel):
         self._network: Any | None = None
         self._feature_mean: np.ndarray | None = None
         self._feature_std: np.ndarray | None = None
-        self._target_mean: float | None = None
-        self._target_std: float | None = None
+        self._target_mean: np.ndarray | None = None
+        self._target_std: np.ndarray | None = None
         self.training_history: list[float] = []
         self.validation_history: list[float] = []
         self._validation_data: tuple[np.ndarray, np.ndarray] | None = None
 
-    def sequence_spec(self) -> tuple[int, int]:
-        """Return the causal temporal-window specification for this model."""
-        return self.look_back, self.horizon
+    def look_back(self) -> int:
+        """Return the number of acquisitions ending at the forecast origin."""
+        return self.sequence_length
 
     def set_validation_data(
         self,
@@ -71,27 +68,22 @@ class LSTMModel(PredictiveModel):
         targets: np.ndarray,
     ) -> None:
         """Store held-out causal sequences for epoch-level validation loss."""
-        sequences = self._validate_sequences(features)
-        observed = np.asarray(targets, dtype=np.float64)
-        if observed.ndim != 1 or observed.size != sequences.shape[0]:
-            raise ValueError('LSTM validation targets must match input sequences.')
-        if not np.all(np.isfinite(observed)):
-            raise ValueError('LSTM validation targets must be finite.')
-        self._validation_data = (sequences, observed)
+        self._validation_data = self._validate_training_data(features, targets)
 
     def train(self, features: np.ndarray, targets: np.ndarray) -> None:
         """Fit the LSTM using normalized causal sequences.
 
         Args:
             features: Array shaped ``(samples, look_back, features)``.
-            targets: One observed target per sequence.
+            targets: Changes shaped ``(samples, horizon)``; NaN is unobserved.
         """
         sequences, observed = self._validate_training_data(features, targets)
         self._seed_torch()
+        # Normalization statistics come from training data only.
         self._feature_mean = np.mean(sequences, axis=(0, 1))
         self._feature_std = self._safe_std(np.std(sequences, axis=(0, 1)))
-        self._target_mean = float(np.mean(observed))
-        self._target_std = float(self._safe_std(np.asarray(np.std(observed))))
+        self._target_mean = np.nan_to_num(np.nanmean(observed, axis=0))
+        self._target_std = self._safe_std(np.nan_to_num(np.nanstd(observed, axis=0)))
         normalized_features = (sequences - self._feature_mean) / self._feature_std
         normalized_targets = (observed - self._target_mean) / self._target_std
         self._network = self._build_network(normalized_features.shape[-1]).to(
@@ -101,7 +93,7 @@ class LSTMModel(PredictiveModel):
             self._network.parameters(),
             lr=self.learning_rate,
         )
-        criterion = self._nn.MSELoss()
+        criterion = self._masked_mse
         feature_tensor = self._torch.as_tensor(
             normalized_features, dtype=self._torch.float32
         )
@@ -123,7 +115,7 @@ class LSTMModel(PredictiveModel):
                 inputs = feature_tensor[batch_index].to(self.device)
                 batch_targets = target_tensor[batch_index].to(self.device)
                 optimizer.zero_grad()
-                output = self._network(inputs).squeeze(-1)
+                output = self._network(inputs)
                 loss = criterion(output, batch_targets)
                 loss.backward()
                 optimizer.step()
@@ -149,8 +141,8 @@ class LSTMModel(PredictiveModel):
                     epoch_loss,
                 )
 
-    def predict(self, features: np.ndarray) -> PredictionResult:
-        """Predict target deformation for causal input sequences."""
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        """Predict changes shaped ``(samples, horizon)`` for causal sequences."""
         if (
             self._network is None
             or self._feature_mean is None
@@ -159,6 +151,8 @@ class LSTMModel(PredictiveModel):
             raise RuntimeError('LSTMModel must be trained or loaded before prediction.')
         if self._target_mean is None or self._target_std is None:
             raise RuntimeError('LSTM target normalization is unavailable.')
+        if len(features) == 0:
+            return np.empty((0, self.horizon))
         sequences = self._validate_sequences(features)
         if sequences.shape[-1] != self._feature_mean.size:
             raise ValueError('LSTM input feature count differs from the trained model.')
@@ -169,9 +163,9 @@ class LSTMModel(PredictiveModel):
                 self._torch.as_tensor(normalized, dtype=self._torch.float32).to(
                     self.device
                 ),
-            ).squeeze(-1)
-        predictions = output.detach().cpu().numpy()
-        return PredictionResult(predictions * self._target_std + self._target_mean)
+            )
+        predictions = output.detach().cpu().numpy().astype(np.float64)
+        return predictions * self._target_std + self._target_mean
 
     def save(self, path: Path) -> None:
         """Persist architecture, normalization and learned network parameters."""
@@ -181,6 +175,7 @@ class LSTMModel(PredictiveModel):
         self._torch.save(
             {
                 'config': self.config,
+                'horizon': self.horizon,
                 'feature_mean': self._feature_mean,
                 'feature_std': self._feature_std,
                 'target_mean': self._target_mean,
@@ -205,14 +200,14 @@ class LSTMModel(PredictiveModel):
         payload = torch.load(path, map_location='cpu', weights_only=False)
         if not isinstance(payload, dict) or 'config' not in payload:
             raise TypeError(f'Invalid LSTM model artifact: {path}')
-        model = cls(payload['config'])
+        model = cls(payload['config'], int(payload['horizon']))
         input_size = int(payload['input_size'])
         model._network = model._build_network(input_size).to(model.device)
         model._network.load_state_dict(payload['state_dict'])
         model._feature_mean = np.asarray(payload['feature_mean'], dtype=np.float64)
         model._feature_std = np.asarray(payload['feature_std'], dtype=np.float64)
-        model._target_mean = float(payload['target_mean'])
-        model._target_std = float(payload['target_std'])
+        model._target_mean = np.asarray(payload['target_mean'], dtype=np.float64)
+        model._target_std = np.asarray(payload['target_std'], dtype=np.float64)
         model.training_history = [
             float(value) for value in payload.get('training_history', [])
         ]
@@ -252,8 +247,15 @@ class LSTMModel(PredictiveModel):
         features, targets = validation_tensors
         self._network.eval()
         with self._torch.no_grad():
-            loss = criterion(self._network(features).squeeze(-1), targets)
+            loss = criterion(self._network(features), targets)
         return float(loss.detach().cpu())
+
+    def _masked_mse(self, output: Any, targets: Any) -> Any:
+        """Mean squared error over observed (non-NaN) target leads only."""
+        observed = ~self._torch.isnan(targets)
+        if not bool(observed.any()):
+            return (output * 0.0).sum()
+        return self._torch.mean((output[observed] - targets[observed]) ** 2)
 
     def _build_network(self, input_size: int) -> Any:
         """Create the causal forecasting network from this plugin's settings."""
@@ -261,9 +263,10 @@ class LSTMModel(PredictiveModel):
         hidden_size = self.hidden_size
         num_layers = self.num_layers
         dropout = self.dropout
+        horizon = self.horizon
 
         class Network(nn.Module):
-            """One-step LSTM forecaster with a linear output head."""
+            """Multi-lead LSTM forecaster with a linear output head."""
 
             def __init__(self) -> None:
                 super().__init__()
@@ -275,10 +278,10 @@ class LSTMModel(PredictiveModel):
                     batch_first=True,
                 )
                 self.dropout = nn.Dropout(dropout)
-                self.head = nn.Linear(hidden_size, 1)
+                self.head = nn.Linear(hidden_size, horizon)
 
             def forward(self, inputs: Any) -> Any:
-                """Forecast one target from the final causal hidden state."""
+                """Forecast every lead from the hidden state at the origin."""
                 outputs, _ = self.lstm(inputs)
                 return self.head(self.dropout(outputs[:, -1, :]))
 
@@ -289,13 +292,13 @@ class LSTMModel(PredictiveModel):
         features: np.ndarray,
         targets: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Validate finite, aligned training sequences and targets."""
+        """Validate finite sequences and aligned, partly observed targets."""
         sequences = self._validate_sequences(features)
         observed = np.asarray(targets, dtype=np.float64)
-        if observed.ndim != 1 or observed.size != sequences.shape[0]:
-            raise ValueError('LSTM targets must be one value per input sequence.')
-        if not np.all(np.isfinite(observed)):
-            raise ValueError('LSTM targets must be finite.')
+        if observed.shape != (sequences.shape[0], self.horizon):
+            raise ValueError('LSTM targets must have shape (samples, horizon).')
+        if not np.any(np.isfinite(observed)):
+            raise ValueError('LSTM targets contain no observed values.')
         return sequences, observed
 
     def _validate_sequences(self, features: np.ndarray) -> np.ndarray:
@@ -305,7 +308,7 @@ class LSTMModel(PredictiveModel):
             raise ValueError(
                 'LSTM features must have shape (samples, look_back, features).',
             )
-        if sequences.shape[0] == 0 or sequences.shape[1] != self.look_back:
+        if sequences.shape[0] == 0 or sequences.shape[1] != self.sequence_length:
             raise ValueError('LSTM input has an invalid sample count or look_back.')
         if not np.all(np.isfinite(sequences)):
             raise ValueError('LSTM features must be finite.')
@@ -321,7 +324,7 @@ class LSTMModel(PredictiveModel):
 
     def _seed_value(self) -> int:
         """Return the pipeline seed, falling back to the plugin configuration."""
-        return int(getattr(self, '_random_seed', self.config.get('random_seed', 42)))
+        return int(self._random_seed)
 
     def _device(self, configured: str) -> Any:
         """Validate and return a configured torch device."""

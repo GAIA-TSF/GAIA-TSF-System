@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 import numpy as np
 
-from subsystems.map.dataset.dataset_builder import Dataset
-from subsystems.map.utils.artifacts import regression_metrics, write_json
+from subsystems.map.utils.artifacts import regression_metrics
+from subsystems.map.utils.forecasts import write_json
 
 
 LOGGER = logging.getLogger(__name__)
@@ -25,8 +25,11 @@ class _Regressor(Protocol):
 
 def write_tree_explainability(
     output_dir: Path,
-    model: object,
-    validation_dataset: Dataset,
+    estimator: object,
+    features: np.ndarray,
+    targets: np.ndarray,
+    time_indices: np.ndarray,
+    feature_names: list[str],
     config: dict[str, Any],
     random_seed: int,
     target_unit: str,
@@ -39,9 +42,12 @@ def write_tree_explainability(
     the within-group structure while testing each group's incremental value.
 
     Args:
-        output_dir: Experiment model-artifact directory.
-        model: MAP predictive-model plugin containing a fitted tree estimator.
-        validation_dataset: Held-out temporal validation samples.
+        output_dir: Directory for this lead's explainability artifacts.
+        estimator: Fitted tree ensemble for one forecast lead.
+        features: Held-out validation feature rows.
+        targets: Held-out validation targets for the same lead.
+        time_indices: Forecast-origin index of each row.
+        feature_names: Column names of ``features``.
         config: Top-level MAP explainability configuration.
         random_seed: Seed used for sampling and permutations.
         target_unit: Unit used on explanatory SHAP axes.
@@ -59,8 +65,7 @@ def write_tree_explainability(
     if target_value_scale <= 0:
         raise ValueError('Explainability target_value_scale must be positive.')
 
-    estimator = getattr(model, 'model', None)
-    if estimator is None or not hasattr(estimator, 'estimators_'):
+    if not hasattr(estimator, 'estimators_'):
         metadata = {
             'status': 'not_supported',
             'reason': 'The selected model is not a fitted tree ensemble.',
@@ -83,15 +88,15 @@ def write_tree_explainability(
     groups = _feature_groups(permutation_config)
 
     sample_indices = temporal_stratified_sample_indices(
-        validation_dataset.time_indices,
+        time_indices,
         sample_size,
         random_seed,
     )
-    sampled_features = validation_dataset.features[sample_indices]
-    sampled_time_indices = validation_dataset.time_indices[sample_indices]
-    feature_names = list(validation_dataset.feature_names)
+    sampled_features = features[sample_indices]
+    sampled_time_indices = time_indices[sample_indices]
+    feature_names = list(feature_names)
     active_dependence_features = [
-        name for name in dependence_features if name in validation_dataset.feature_names
+        name for name in dependence_features if name in feature_names
     ]
     missing_dependence_features = sorted(
         set(dependence_features) - set(active_dependence_features),
@@ -132,8 +137,8 @@ def write_tree_explainability(
 
     importance, skipped_groups = grouped_permutation_importance(
         estimator,
-        validation_dataset.features,
-        validation_dataset.targets,
+        features,
+        targets,
         feature_names,
         groups,
         repeat_count,
