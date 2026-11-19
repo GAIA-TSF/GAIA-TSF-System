@@ -123,6 +123,10 @@ def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch
     source = tmp_path / 'original.SAFE' / 'measurement'
     source.mkdir(parents=True)
     (source / 'burst.tiff').touch()
+    # InSAR needs at least two scenes
+    other = tmp_path / 'other.SAFE' / 'measurement'
+    other.mkdir(parents=True)
+    (other / 'other.tiff').touch()
     generated = tmp_path / 'old_workdir'
     generated.mkdir()
     (generated / 'burst.tiff').touch()
@@ -132,16 +136,24 @@ def test_original_scan_hides_generated_basename_collisions(tmp_path, monkeypatch
     def scan(view):
         import glob
 
-        files = glob.glob(str(view / '**' / '*.tiff'), recursive=True)
-        assert len(files) == 1
-        assert Path(files[0]).resolve() == source / 'burst.tiff'
+        files = sorted(glob.glob(str(view / '**' / '*.tiff'), recursive=True))
+        assert {Path(f).resolve() for f in files} == {
+            source / 'burst.tiff',
+            other / 'other.tiff',
+        }
         orbits = glob.glob(str(view / '**' / '*.EOF'), recursive=True)
-        return pd.DataFrame({'datapath': files, 'metapath': files, 'orbitpath': orbits})
+        assert len(orbits) == 1
+        return pd.DataFrame(
+            {'datapath': files, 'metapath': files, 'orbitpath': orbits * len(files)}
+        )
 
     monkeypatch.setattr(sentinel1.S1, 'scan_slc', scan)
     scenes = Sentinel1Pipeline._scan_original_slcs(tmp_path)
-    assert scenes.datapath.iloc[0] == str(source / 'burst.tiff')
-    assert Path(scenes.orbitpath.iloc[0]).exists()
+    assert set(scenes.datapath) == {
+        str(source / 'burst.tiff'),
+        str(other / 'other.tiff'),
+    }
+    assert all(Path(path).exists() for path in scenes.orbitpath)
 
 
 def make_burst_safe(root, mission, stamp, subswath):
