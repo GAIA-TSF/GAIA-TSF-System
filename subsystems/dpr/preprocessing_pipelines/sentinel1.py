@@ -950,8 +950,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
                 {
                     'wrapped_phase': intf_u,
                     'coherence': corr_u,
-                    'snaphu_phase': intf_u,
-                    'snaphu_coherence': corr_u,
+                    'snaphu_phase': intf_u.where(valid),
+                    'snaphu_coherence': corr_mask,
                     'valid_mask': valid.astype('uint8'),
                 }
             )
@@ -982,9 +982,7 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
             )
 
         # Load the inputs once; SNAPHU is an external process (see _local_threads).
-        # Low-coherence pixels stay in the SNAPHU input, down-weighted by coherence:
-        # masking them splits the connected components; they are masked afterwards.
-        phase_in, corr_in = dask.compute(intf_u, corr_u)
+        phase_in, corr_in = dask.compute(intf_u.where(valid), corr_mask)
         self.logger.info(f'Unwrapping phases ({len(phase_in)} pairs).')
         with self._local_threads():
             self.unwrap = self.sbas.unwrap_snaphu(
