@@ -30,6 +30,8 @@ services:
       # container may run as a host UID without passwd entry (HOME=/), so
       # matplotlib cannot create ~/.config/matplotlib; use a writable dir
       MPLCONFIGDIR: /tmp/matplotlib
+      # same for eodag (~/.config/eodag)
+      EODAG_CFG_DIR: /tmp/eodag
       # may be defined by .env
       GAIA_EOU_AUTH_CREDENTIALS_PASSWORD: ${GAIA_EOU_AUTH_CREDENTIALS_PASSWORD:-}
       GAIA_PROJECT_PATH: ${GAIA_PROJECT_PATH:-}
