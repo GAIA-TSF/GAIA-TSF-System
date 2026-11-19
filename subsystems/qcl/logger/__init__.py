@@ -3,6 +3,7 @@ from typing import Dict
 import sys
 import logging
 import itertools
+from contextlib import contextmanager
 
 from subsystems.qcl.logger.db import DbLogger
 
@@ -159,6 +160,27 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
             clear=True,
             **kwargs,
         )
+
+    @contextmanager
+    def task(self, obj):
+        """Context manager wrapping a block of code as a logged task.
+
+        Calls ``task_started()`` on enter, ``task_finished()`` on normal exit
+        and ``task_failed()`` when an exception is raised (the exception is
+        re-raised). Yields the task id.
+
+        Example::
+
+            with self.logger.task(self) as task_id:
+                ...
+        """
+        task_id = self.task_started(obj)
+        try:
+            yield task_id
+        except BaseException:
+            self.task_failed(obj, task_id=task_id)
+            raise
+        self.task_finished(obj, task_id=task_id)
 
 
 class Logger:
