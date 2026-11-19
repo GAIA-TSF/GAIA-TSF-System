@@ -2,6 +2,7 @@ from typing import Dict
 
 import sys
 import logging
+import itertools
 
 from subsystems.qcl.logger.db import DbLogger
 
@@ -41,16 +42,36 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         kwargs['extra'] = {**(self.extra or {}), **kwargs.get('extra', {})}
         return msg, kwargs
 
+    # fallback task id counter (process-local) used when DB logging is not
+    # configured; shared by all adapter instances
+    _local_task_id = itertools.count(1)
+    _local_task_id_warned = False
+
     def _db_handler(self):
-        """Return DbLogger handler instance or raise if not configured."""
+        """Return DbLogger handler instance or None if not configured."""
         for handler in getattr(self.logger, 'handlers', []):
             if isinstance(handler, DbLogger):
                 return handler
-        raise Exception('DbLogger not found')
+        return None
 
     def _next_task_id(self):
-        """Obtain the next task id from the DbLogger."""
-        return self._db_handler().next_task_id()
+        """Obtain the next task id.
+
+        The id is taken from DbLogger (unique across processes). If DB logging
+        is not configured (e.g. ``db_config`` is None), a process-local counter
+        is used instead, such ids are unique only within the current process.
+        """
+        handler = self._db_handler()
+        if handler is not None:
+            return handler.next_task_id()
+
+        if not CustomLoggerAdapter._local_task_id_warned:
+            CustomLoggerAdapter._local_task_id_warned = True
+            self.warning(
+                'DB logging not configured, task IDs are unique only within '
+                'the current process'
+            )
+        return next(CustomLoggerAdapter._local_task_id)
 
     def __log_task(
         self,
