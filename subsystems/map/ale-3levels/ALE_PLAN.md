@@ -254,7 +254,14 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
   - This replaces the spec's `min_pixels`/`min_fraction`/`persistence_acquisitions`.
     Pixel counts per level per sector are still reported.
 
-## 9. Remaining open points (need a yes/no)
+- **P1 (done):** `map-dev` merged into `ale-dev` (`cd39c03`); prototype snapshot committed (`37f7e2b`).
+- **P2:** golden capture and MAP inference run on a **scratch copy** of the synthetic site.
+  The ownCloud experiment directory is not written.
+- **P3:** engine B calibration on the synthetic site uses a **pooled σ** with a
+  `short_calibration` warning. `split == calibration` covers only 10 dates (8 test
+  dates + 2 gap dates between the train/validation/test blocks).
+
+## 9. Open points as of revision 2 (now resolved; kept for the record)
 
 **P1 — Branch operation.** OK to merge `map-dev` into `ale-dev` and commit the prototype
 snapshot from the stash, limited to `subsystems/map/monitoring/` plus its tests and
