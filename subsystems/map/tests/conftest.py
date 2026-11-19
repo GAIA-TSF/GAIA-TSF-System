@@ -22,7 +22,7 @@ MAP_CONFIG = Path(__file__).resolve().parents[1] / 'config.yaml'
 # It was written against the pre-forecast-contract MAP (``Dataset``,
 # ``experiment_paths``) and cannot be imported here. Its behaviour is pinned by
 # golden files produced at the prototype state; these tests are re-enabled when
-# the code moves to ale-3levels (step B1 in ale-3levels/ALE_PLAN.md).
+# the code moves to subsystems/ale (step B1 in subsystems/ale/ALE_PLAN.md).
 collect_ignore = [
     'test_level1_anomalies.py',
     'test_level2_cusum.py',

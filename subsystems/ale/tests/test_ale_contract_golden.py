@@ -1,12 +1,14 @@
-"""The contract reproduces the golden prototype inputs bit for bit (slow, local).
+"""Golden prototype set: integrity (fast) and contract equivalence (slow, local).
 
-Set ``ALE_SYNTHETIC_TABLE`` to the synthetic site's MAP
+The slow test checks that the contract reproduces the golden prototype inputs
+bit for bit. Set ``ALE_SYNTHETIC_TABLE`` to the synthetic site's MAP
 ``results/forecasts/slope_trf/residuals.npz`` and ``ALE_SYNTHETIC_MASK`` to its
 ``static/tsf_mask.tif``. Skipped when the data is not available.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -19,15 +21,23 @@ GOLDEN = Path(__file__).resolve().parent / 'golden' / 'synthetic_crop'
 TABLE = os.environ.get('ALE_SYNTHETIC_TABLE')
 MASK = os.environ.get('ALE_SYNTHETIC_MASK')
 
-pytestmark = [
-    pytest.mark.slow,
-    pytest.mark.skipif(
-        not (TABLE and MASK and Path(TABLE).is_file() and Path(MASK).is_file()),
-        reason='synthetic site data not available (set ALE_SYNTHETIC_TABLE/MASK)',
-    ),
-]
+HAVE_DATA = bool(TABLE and MASK and Path(TABLE).is_file() and Path(MASK).is_file())
 
 
+def test_golden_set_is_intact():
+    manifest = json.loads((GOLDEN / 'manifest.json').read_text())
+    for name in manifest['files']:
+        assert (GOLDEN / name).is_file(), name
+    digest = hashlib.sha256((GOLDEN / 'inputs.npz').read_bytes()).hexdigest()
+    assert digest == manifest['input_sha256']
+    assert manifest['source_unit'] == 'm' and manifest['lead'] == 1
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not HAVE_DATA,
+    reason='synthetic site data not available (set ALE_SYNTHETIC_TABLE/MASK)',
+)
 def test_contract_matches_golden_prototype_inputs():
     manifest = json.loads((GOLDEN / 'manifest.json').read_text())
     r0, r1, c0, c1 = manifest['crop_rows_cols']

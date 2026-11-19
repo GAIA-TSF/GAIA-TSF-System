@@ -37,7 +37,7 @@ Two capture runs gave byte-identical numbers.
 ```bash
 git worktree add --detach <proto> f11c5f2 && git -C <proto> stash apply stash@{0}
 git show 950702d:subsystems/map/monitoring/anomaly_detection.py > <legacy.py>
-python3 subsystems/map/ale-3levels/tests/golden/make_golden.py \
+python3 subsystems/ale/tests/golden/make_golden.py \
   --residuals <site>/results/forecasts/slope_trf/residuals.npz \
   --mask <site>/static/tsf_mask.tif --source-unit m \
   --prototype <proto> --legacy-anomaly-detection <legacy.py> \

@@ -3,10 +3,10 @@
 Status: **draft for review. No code has been changed.**
 Branch: `ale-dev`. Date: 2026-11-19.
 
-The spec's `map/ale-3levels/` is `subsystems/map/ale-3levels/` here (package
-`ale_3levels`). The three-level prototype to move is in
-**`subsystems/map/monitoring/`** (confirmed). It will later move to
-`subsystems/ale/`, which today holds only a placeholder README.
+The spec's `map/ale-3levels/` was first created as `subsystems/map/ale-3levels/`
+and then, at the user's request (2026-11-19), moved to its final home
+**`subsystems/ale/`** (package `ale_3levels`). The three-level prototype to move
+is in **`subsystems/map/monitoring/`** (confirmed).
 
 **What changed since revision 1:** `map-dev` already has a MAP forecast contract.
 It writes a long-format forecast/residual table with `period` and `sample_role`
@@ -37,7 +37,7 @@ and after), not correctness.
    `subsystems/map/monitoring/`, their tests and the visualisation scripts, as a
    frozen snapshot. The stash's DAG edits and other MAP edits are **not** taken.
    The stash itself is left as it is.
-3. B1 then moves the snapshot into `ale-3levels/engines/three_level/` and
+3. B1 then moves the snapshot into `subsystems/ale/ale_3levels/engines/three_level/` and
    deletes it from `subsystems/map/`.
 
 ---
@@ -168,7 +168,7 @@ Immutability: MAP writes tables with exclusive creation, named by
 ## 6. Target layout
 
 ```
-subsystems/map/ale-3levels/
+subsystems/ale/                # was subsystems/map/ale-3levels/
   pyproject.toml           # ale_3levels; numpy, pyyaml, rasterio, shapely; matplotlib optional (plots)
   ALE_PLAN.md, README.md, CHANGELOG.md
   config/ale.yaml          # engine, I/O, spatial (SpatialCoherenceDetector params), sectors
