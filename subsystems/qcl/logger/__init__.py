@@ -5,15 +5,17 @@ import logging
 import itertools
 from contextlib import contextmanager
 
-from subsystems.qcl.logger.db import DbLogger
+from subsystems.qcl.logger.db import (
+    DbLogger,
+    TASK_STARTED,
+    TASK_FINISHED,
+    TASK_FAILED,
+)
 
 from lib.config import SettingsReader
 
 
-# define custom level
-TASK_STARTED = 101
-TASK_FINISHED = 102
-TASK_FAILED = 103
+# register custom levels (defined in db module)
 logging.addLevelName(TASK_STARTED, 'TASK_STARTED')
 logging.addLevelName(TASK_FINISHED, 'TASK_FINISHED')
 logging.addLevelName(TASK_FAILED, 'TASK_FAILED')
@@ -55,16 +57,25 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
                 return handler
         return None
 
-    def _next_task_id(self):
+    def _next_task_id(self, obj):
         """Obtain the next task id.
 
-        The id is taken from DbLogger (unique across processes). If DB logging
-        is not configured (e.g. ``db_config`` is None), a process-local counter
-        is used instead, such ids are unique only within the current process.
+        A new task is registered in DbLogger (``task`` table), the id is unique
+        across processes. If DB logging is not configured (e.g. ``db_config``
+        is None), a process-local counter is used instead, such ids are unique
+        only within the current process.
+
+        :param obj: related object (class name used as task name)
         """
         handler = self._db_handler()
         if handler is not None:
-            return handler.next_task_id()
+            extra = self.extra or {}
+            return handler.start_task(
+                name=obj.__class__.__name__,
+                subsystem=extra.get('subsystem'),
+                site_id=extra.get('site_id'),
+                project_name=extra.get('project_name'),
+            )
 
         if not CustomLoggerAdapter._local_task_id_warned:
             CustomLoggerAdapter._local_task_id_warned = True
@@ -126,7 +137,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         a new task replaces the persisted task id of the previous (still
         active) task.
         """
-        task_id = self._next_task_id()
+        task_id = self._next_task_id(obj)
         return self.__log_task(
             TASK_STARTED,
             obj,
