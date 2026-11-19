@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ale_3levels"
+version = "0.1.0"
+description = "GAIA ALE prototype: alert engines over MAP forecast residuals"
+requires-python = ">=3.12"
+# Kept to what the repository already uses; no dependency on MAP.
+dependencies = [
+    "numpy",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+spatial = ["rasterio", "shapely"]
+plots = ["matplotlib"]
+test = ["pytest"]
+
+[project.scripts]
+ale-3levels = "ale_3levels.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["ale_3levels*"]

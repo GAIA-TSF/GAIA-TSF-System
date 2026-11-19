@@ -1,0 +1,68 @@
+# Engine B: three-level residual monitoring (moved from the MAP prototype,
+# subsystems/map/monitoring at f11c5f2 + stash@{0}). Values are the prototype's.
+
+# Residual quantity from the contract: mm_per_day (prototype design) | mm.
+residual_quantity: mm_per_day
+
+# legacy_global: z = (r - mean(all r)) / std(all r)   (950702d, uses monitoring data)
+# frozen_sigma : z = r / sigma_cal, no demeaning      (prototype, f11c5f2 + stash)
+zscore_formula: frozen_sigma
+
+level1:
+  zscore_threshold: 1.5
+  direction: negative             # both | positive | negative
+  persistence: 3
+  residual_threshold: 0.1         # legacy_global only (mm/day)
+  combination_operator: or        # legacy_global only
+
+level2:
+  reference_value: 0.5            # k, sigma units
+  decision_threshold: 5.0         # h
+  direction: null                 # null = level1.direction
+  bias_warning_ratio: 0.25
+
+acceleration_cusum:               # supporting evidence (prototype dashboard CUSUM)
+  instability_direction: negative
+  signal: observed_velocity
+  spatial_aggregation: directional_tail_mean
+  spatial_quantile: 0.05
+  reference_value: 0.5
+  decision_threshold: 3.0
+  derivative_window: 3
+  smoothing_span: 3
+  persistence_window: 10
+  persistence_threshold: 0.25
+
+regime:
+  signal: unexpected_acceleration
+  smoothing_span: 3
+
+level3:
+  watch_threshold: 0.4
+  alert_threshold: 0.7
+  consecutive_acquisitions: 2
+
+spatial_coherence:                # used inside L2/L3 (regional evidence)
+  enabled: true
+  minimum_area_pixels: 25
+  persistence: 3
+  minimum_overlap: 0.30
+  connectivity: 8
+
+spatial_support:
+  population: fixed_calibration_valid
+  minimum_observation_coverage: 0.95
+
+anomaly_magnitude_threshold: 0.1
+
+quality:
+  minimum_coverage: 0.5
+  minimum_calibration_samples: 20
+
+calibration:
+  # per_pixel | pooled. Pooled is the default: the synthetic site has only
+  # 10 independent calibration dates (plan P3).
+  mode: pooled
+  # Which records estimate mu/sigma (B2.2): prototype = every pre-monitoring
+  # record; independent = split == calibration only.
+  population: prototype

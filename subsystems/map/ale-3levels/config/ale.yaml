@@ -1,0 +1,49 @@
+# ALE run configuration: engine selection, MAP input, spatial aggregation.
+# Changing anything here (or in the engine files) requires only an ALE re-run.
+
+engines:
+  # fixed_gates | three_level | both
+  selected: both
+  fixed_gates: fixed_gates.yaml     # relative to this file
+  three_level: three_level.yaml
+
+input:
+  # MAP forecast-residual table (schema 2.0): <dir>/residuals.npz + residuals.json.
+  # The CLI --input overrides this path.
+  residuals: null
+  # Lead (acquisitions after the forecast origin) that drives alerts.
+  lead: 1
+  # Which MAP model drives alerts: trf | lstm. Must match the table sidecar.
+  model_id: trf
+  # Unit of MAP's target values. null = trust the sidecar's target_units.
+  # The synthetic generators write metres although MAP declares mm; set 'm'
+  # for those sites until MAP records the unit from the LOS inputs.
+  source_units_override: null
+  # Optional TSF mask GeoTIFF on the table grid. null = pixels present in the table.
+  mask_file: null
+
+site:
+  site_id: null                     # null = derived from the table path
+  # Negative LOS = motion away from the satellite (settlement).
+  los_sign_convention: negative_away_from_satellite
+  # Date at which cumulative LOS is zero. null = first acquisition in the table.
+  reference_date: null
+  # 'stable_area' | 'unreferenced' | 'pixel:<row>,<col>' | null (unknown)
+  reference_point: null
+
+spatial:
+  # Sector polygons (GeoPackage/GeoJSON in the grid CRS). null = whole grid.
+  sectors_file: null
+  sector_id_field: sector_id
+  # SpatialCoherenceDetector parameters, applied per severity level.
+  coherence:
+    minimum_area_pixels: 25
+    persistence: 3
+    minimum_overlap: 0.30
+    connectivity: 8
+
+outputs:
+  # Plots and animations read saved results only; disabling them never
+  # changes numerical outputs.
+  plots: false
+  animations: false

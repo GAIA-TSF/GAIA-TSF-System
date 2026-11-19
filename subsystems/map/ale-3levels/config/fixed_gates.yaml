@@ -1,0 +1,49 @@
+# Engine A: fixed risk gates on the 30-day LOS movement.
+# Thresholds are on the directional magnitude in mm. Boundaries:
+#   WHITE  : m <  white_below
+#   GREEN  : white_below <= m <  green_below
+#   YELLOW : green_below <= m <= yellow_max
+#   RED    : m >  yellow_max, or velocity doubling (below)
+
+window_days: 30
+# Maximum distance (days) between t - window_days and the acquisition before it.
+# Without an acquisition within this tolerance the result is NO_DATA.
+interpolation_tolerance_days: 24
+
+# observed: raw cumulative LOS movement. residual: 30-day integral of the MAP
+# rate residual (sum of residual_mm_per_day * interval), also in mm.
+gate_input: observed
+# abs | negative | positive (negative = motion away from the satellite).
+direction: abs
+
+gates:
+  white_below: 1.0
+  green_below: 4.0
+  yellow_max: 10.0
+
+velocity_doubling:
+  enabled: true
+  ratio: 2.0
+  # Applied only when the current rate is at least this (mm per window).
+  min_rate_mm: 4.0
+  # ...and the previous window's rate is at least this, so a near-zero
+  # previous rate cannot make any jump a doubling.
+  min_prev_rate_mm: 1.0
+
+# Advisory text only. The engine never executes any action.
+recommended_actions:
+  WHITE:
+    - Archive; mark sector stable; wait for the next pass.
+  GREEN:
+    - "Desktop cross-reference: rainfall and water-table data."
+    - Filter atmospheric phase noise and vegetation decorrelation.
+    - No field deployment.
+  YELLOW:
+    - Site visit within 48 h for crack inspection.
+    - Cross-check GNSS, inclinometers and total stations.
+    - Prepare mitigation (e.g. drainage).
+  RED:
+    - Halt heavy operations on the affected slope.
+    - Evacuate the local zone.
+    - Prioritise the next 6-day Sentinel-1 interferogram.
+  NO_DATA: []
