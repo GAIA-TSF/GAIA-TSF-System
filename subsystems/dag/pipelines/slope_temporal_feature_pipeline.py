@@ -252,7 +252,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
         """Retain calibration pixels as well as TSF pixels in engineered features."""
         config = static_config.get('stable_reference', {})
         if not isinstance(config, dict):
-            raise TypeError('slope_stability.static.stable_reference must be a mapping.')
+            raise TypeError(
+                'slope_stability.static.stable_reference must be a mapping.'
+            )
         filename = str(config.get('file', 'tsf_stable.tif'))
         path = self._resolve_path(f'static/{filename}')
         if not path.exists():
@@ -261,7 +263,9 @@ class SlopeTemporalFeaturePipeline(Pipeline):
             grid = (source.height, source.width, source.transform, source.crs)
             expected = (profile.height, profile.width, profile.transform, profile.crs)
             if grid != expected:
-                raise ValueError('Stable reference mask grid does not match LOS rasters.')
+                raise ValueError(
+                    'Stable reference mask grid does not match LOS rasters.'
+                )
             values = source.read(1, masked=True).filled(0)
         if not np.all(np.isin(values, [0, 1])):
             raise ValueError('Stable reference mask must be binary (0/1).')

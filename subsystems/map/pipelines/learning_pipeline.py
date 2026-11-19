@@ -45,7 +45,11 @@ from subsystems.map.utils.temporal_windows import resolve_temporal_window
 
 
 LOGGER = logging.getLogger(__name__)
-SELECTION_METHODS = ('temporal_std', 'configured_mask', 'configured_mask_and_temporal_std')
+SELECTION_METHODS = (
+    'temporal_std',
+    'configured_mask',
+    'configured_mask_and_temporal_std',
+)
 
 
 def load_kv_features(ctx: MapContext, extra: tuple[str, ...] = ()) -> LoadedFeatures:
@@ -58,9 +62,13 @@ def load_kv_features(ctx: MapContext, extra: tuple[str, ...] = ()) -> LoadedFeat
     ).load(names, reference_feature=ctx.target_feature)
 
 
-def resolve_windows(ctx: MapContext, dates: tuple[str, ...]) -> dict[str, tuple[int, int]]:
+def resolve_windows(
+    ctx: MapContext, dates: tuple[str, ...]
+) -> dict[str, tuple[int, int]]:
     """Calibration (exclusive end) and monitoring index windows."""
-    calibration = resolve_temporal_window(dates, ctx.dataset, 'calibration', end_inclusive=False)
+    calibration = resolve_temporal_window(
+        dates, ctx.dataset, 'calibration', end_inclusive=False
+    )
     monitoring = resolve_temporal_window(dates, ctx.dataset, 'monitoring')
     return {
         'calibration': (calibration.start_index, calibration.end_index),
@@ -68,7 +76,9 @@ def resolve_windows(ctx: MapContext, dates: tuple[str, ...]) -> dict[str, tuple[
     }
 
 
-def predict_values(model: PredictiveModel, samples: ForecastSamples, chunk: int = 100000) -> np.ndarray:
+def predict_values(
+    model: PredictiveModel, samples: ForecastSamples, chunk: int = 100000
+) -> np.ndarray:
     """Absolute forecasts: persistence anchor plus the predicted change."""
     changes = [
         model.predict(samples.features[start : start + chunk])
@@ -100,16 +110,16 @@ class LearningPipeline:
         model.set_validation_data(splits.validation.features, splits.validation.changes)
         model.train(splits.train.features, splits.train.changes)
 
-        predicted = {name: predict_values(model, subset) for name, subset in splits.items()}
+        predicted = {
+            name: predict_values(model, subset) for name, subset in splits.items()
+        }
         uncertainty = interval_offsets(
             splits.validation.targets, predicted['validation'], ctx.interval_level
         )
         model_dir = ctx.model_dir
         model_path = model_dir / 'model.pkl'
         model.save(model_path)
-        model_version = (
-            f'{ctx.experiment_name}@{hashlib.sha256(model_path.read_bytes()).hexdigest()[:12]}'
-        )
+        model_version = f'{ctx.experiment_name}@{hashlib.sha256(model_path.read_bytes()).hexdigest()[:12]}'
         identity = {**ctx.identity(), 'model_version': model_version}
 
         metrics: dict[str, list[dict[str, Any]]] = {}
@@ -118,13 +128,20 @@ class LearningPipeline:
             lower, upper = apply_interval(predicted[name], uncertainty)
             metrics[name] = lead_metrics(subset, predicted[name], lower, upper)
             columns = forecast_columns(
-                subset, predicted[name], lower, upper, windows, ctx.acquisition_interval_days
+                subset,
+                predicted[name],
+                lower,
+                upper,
+                windows,
+                ctx.acquisition_interval_days,
             )
             columns['sample_role'][:] = name
             columns['observed_value'] = subset.targets.ravel()
             columns['residual'] = columns['observed_value'] - columns['predicted_value']
             observed = np.isfinite(columns['observed_value'])
-            reference_tables.append({key: value[observed] for key, value in columns.items()})
+            reference_tables.append(
+                {key: value[observed] for key, value in columns.items()}
+            )
         reference = {
             key: np.concatenate([table[key] for table in reference_tables])
             for key in reference_tables[0]
@@ -154,10 +171,15 @@ class LearningPipeline:
                 list(getattr(model, 'validation_history', [])),
             )
             write_observed_vs_predicted(
-                model_dir, splits.validation.targets, predicted['validation'],
-                ctx.dataset['target_units'], label,
+                model_dir,
+                splits.validation.targets,
+                predicted['validation'],
+                ctx.dataset['target_units'],
+                label,
             )
-            write_error_by_lead(model_dir, metrics['validation'], ctx.dataset['target_units'], label)
+            write_error_by_lead(
+                model_dir, metrics['validation'], ctx.dataset['target_units'], label
+            )
         explainability = self._explainability(model, splits.validation)
 
         metadata = {
@@ -190,7 +212,9 @@ class LearningPipeline:
         LOGGER.info('MAP learning completed: %s', model_path)
         return metadata
 
-    def load_reference(self) -> tuple[LoadedFeatures, dict[str, tuple[int, int]], np.ndarray, dict[str, Any]]:
+    def load_reference(
+        self,
+    ) -> tuple[LoadedFeatures, dict[str, tuple[int, int]], np.ndarray, dict[str, Any]]:
         """Load features, resolve windows, and select the reference population."""
         selection = self._selection()
         extra = (selection['std_feature'],) if selection['uses_std'] else ()
@@ -220,7 +244,10 @@ class LearningPipeline:
         )
         split = ctx.dataset.get('split', {})
         method = str(split.get('method', 'temporal'))
-        ratios = tuple(float(split[key]) for key in ('train_ratio', 'validation_ratio', 'test_ratio'))
+        ratios = tuple(
+            float(split[key])
+            for key in ('train_ratio', 'validation_ratio', 'test_ratio')
+        )
         if method == 'temporal':
             splits = split_temporal(samples, start, end, *ratios)
         elif method == 'spatial':
@@ -244,13 +271,19 @@ class LearningPipeline:
             )
         uses_std = method != 'configured_mask'
         if uses_std and selection.get('std_threshold') is None:
-            raise KeyError(f'{method} requires calibration_spatial_selection.std_threshold.')
+            raise KeyError(
+                f'{method} requires calibration_spatial_selection.std_threshold.'
+            )
         return {
             'method': method,
             'uses_std': uses_std,
             'std_feature': str(selection.get('std_feature', self.ctx.target_feature)),
-            'std_threshold': None if not uses_std else float(selection['std_threshold']),
-            'mask_file': selection.get('mask_file', self.ctx.dataset.get('stable_file')),
+            'std_threshold': None
+            if not uses_std
+            else float(selection['std_threshold']),
+            'mask_file': selection.get(
+                'mask_file', self.ctx.dataset.get('stable_file')
+            ),
         }
 
     def _calibration_mask(
@@ -295,9 +328,16 @@ class LearningPipeline:
         with rasterio.open(path) as source:
             values = source.read(1, masked=True).filled(0)
             grid = (source.height, source.width, source.transform, source.crs)
-        expected = (loaded.grid.height, loaded.grid.width, loaded.grid.transform, loaded.grid.crs)
+        expected = (
+            loaded.grid.height,
+            loaded.grid.width,
+            loaded.grid.transform,
+            loaded.grid.crs,
+        )
         if grid != expected:
-            raise ValueError(f'Calibration stable mask grid does not match feature grid: {path}')
+            raise ValueError(
+                f'Calibration stable mask grid does not match feature grid: {path}'
+            )
         if not np.all(np.isin(values, [0, 1])):
             raise ValueError('Calibration stable mask must be binary (0/1).')
         mask = values == 1
@@ -305,7 +345,9 @@ class LearningPipeline:
             raise ValueError('Calibration stable mask contains no selected pixels.')
         return mask
 
-    def _explainability(self, model: PredictiveModel, validation: ForecastSamples) -> dict[str, Any]:
+    def _explainability(
+        self, model: PredictiveModel, validation: ForecastSamples
+    ) -> dict[str, Any]:
         """Tree explainability per lead for TRF, when enabled."""
         config = self.ctx.config.get('explainability', {})
         if not config.get('enabled', False):
@@ -335,7 +377,14 @@ class LearningPipeline:
         path: Path, identity: dict[str, Any], metrics: dict[str, list[dict[str, Any]]]
     ) -> None:
         """Errors by KV, target, model, split, and lead in one flat table."""
-        keys = ('kv', 'target_variable', 'target_units', 'model', 'experiment', 'model_version')
+        keys = (
+            'kv',
+            'target_variable',
+            'target_units',
+            'model',
+            'experiment',
+            'model_version',
+        )
         rows = [
             {**{key: identity[key] for key in keys}, 'split': split, **row}
             for split, values in metrics.items()

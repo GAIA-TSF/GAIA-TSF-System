@@ -11,7 +11,11 @@ import yaml
 
 from conftest import project_config
 from subsystems.map.dataset import build_forecast_samples, rolling_origin_folds
-from subsystems.map.pipelines.tuning_pipeline import apply_params, candidate_grid, run_tuning
+from subsystems.map.pipelines.tuning_pipeline import (
+    apply_params,
+    candidate_grid,
+    run_tuning,
+)
 from test_forecasting import _loaded
 
 
@@ -36,7 +40,9 @@ def test_candidate_grid_and_dotted_params() -> None:
     assert candidate_grid({'a': [1, 2], 'b': [3, 4, 5]}, 4, 0) == candidate_grid(
         {'a': [1, 2], 'b': [3, 4, 5]}, 4, 0
     )
-    merged = apply_params({'optimizer': {'lr': 0.1}, 'look_back': 3}, {'optimizer.lr': 0.5})
+    merged = apply_params(
+        {'optimizer': {'lr': 0.1}, 'look_back': 3}, {'optimizer.lr': 0.5}
+    )
     assert merged == {'optimizer': {'lr': 0.5}, 'look_back': 3}
 
 
@@ -59,12 +65,16 @@ def test_tuning_selects_best_and_retrains(slope_project: Path, model: str) -> No
     best = json.loads((output / 'best_params.json').read_text())
     assert best['candidate_count'] == (3 if model == 'trf' else 2)
     rows = (output / 'tuning_results.csv').read_text().splitlines()
-    assert len(rows) - 1 == best['candidate_count'] * 2 * 3  # candidates x folds x leads
+    assert (
+        len(rows) - 1 == best['candidate_count'] * 2 * 3
+    )  # candidates x folds x leads
     tuned = yaml.safe_load((output / 'tuned_config.yaml').read_text())['models'][model]
     for key, value in best['best_params'].items():
         assert tuned[key] == value
     experiment = json.loads(
-        (slope_project / 'results' / 'models' / f'slope_{model}' / 'experiment.json').read_text()
+        (
+            slope_project / 'results' / 'models' / f'slope_{model}' / 'experiment.json'
+        ).read_text()
     )
     assert experiment['model_config'] == tuned  # retrained with the selected settings
     assert 'test' in summary['learning']

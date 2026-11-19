@@ -39,7 +39,9 @@ def write_learning_curve(
     figure, axis = plt.subplots(figsize=(8, 4))
     axis.plot(np.arange(1, len(training) + 1), training, label='Training loss')
     if validation:
-        axis.plot(np.arange(1, len(validation) + 1), validation, label='Validation loss')
+        axis.plot(
+            np.arange(1, len(validation) + 1), validation, label='Validation loss'
+        )
     axis.set(xlabel='Epoch', ylabel='MSE (normalized change)', title='Learning curve')
     axis.grid(alpha=0.25)
     axis.legend()
@@ -62,7 +64,9 @@ def write_observed_vs_predicted(
     figure, axes = plt.subplots(1, horizon, figsize=(4 * horizon, 4), squeeze=False)
     rng = np.random.default_rng(0)
     for lead, axis in enumerate(axes[0]):
-        valid = np.flatnonzero(np.isfinite(observed[:, lead]) & np.isfinite(predicted[:, lead]))
+        valid = np.flatnonzero(
+            np.isfinite(observed[:, lead]) & np.isfinite(predicted[:, lead])
+        )
         if valid.size > max_points:
             valid = rng.choice(valid, max_points, replace=False)
         x, y = predicted[valid, lead], observed[valid, lead]
@@ -77,7 +81,9 @@ def write_observed_vs_predicted(
         )
     figure.suptitle(label)
     output_dir.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_dir / 'observed_vs_predicted.png', dpi=150, bbox_inches='tight')
+    figure.savefig(
+        output_dir / 'observed_vs_predicted.png', dpi=150, bbox_inches='tight'
+    )
     plt.close(figure)
 
 
@@ -89,7 +95,9 @@ def write_error_by_lead(
     leads = [row['lead'] for row in metrics]
     figure, axis = plt.subplots(figsize=(6, 4))
     for key, style in (('mae', '-o'), ('rmse', '-s')):
-        axis.plot(leads, [row[key] for row in metrics], style, label=f'model {key.upper()}')
+        axis.plot(
+            leads, [row[key] for row in metrics], style, label=f'model {key.upper()}'
+        )
         axis.plot(
             leads,
             [row[f'constant_{key}'] for row in metrics],
@@ -97,7 +105,12 @@ def write_error_by_lead(
             alpha=0.5,
             label=f'constant {key.upper()}',
         )
-    axis.set(xlabel='Lead [acquisitions]', ylabel=f'Error [{units}]', title=label, xticks=leads)
+    axis.set(
+        xlabel='Lead [acquisitions]',
+        ylabel=f'Error [{units}]',
+        title=label,
+        xticks=leads,
+    )
     axis.grid(alpha=0.25)
     axis.legend()
     output_dir.mkdir(parents=True, exist_ok=True)

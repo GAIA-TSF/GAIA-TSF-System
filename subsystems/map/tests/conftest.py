@@ -18,7 +18,9 @@ from subsystems.map.utils.config_loader import load_config
 
 MAP_CONFIG = Path(__file__).resolve().parents[1] / 'config.yaml'
 HEIGHT, WIDTH, TIMES = 4, 5, 40
-DATES = tuple((date(2020, 1, 1) + timedelta(days=12 * i)).isoformat() for i in range(TIMES))
+DATES = tuple(
+    (date(2020, 1, 1) + timedelta(days=12 * i)).isoformat() for i in range(TIMES)
+)
 TRANSFORM = from_origin(500000, 7000000, 10, 10)
 
 
@@ -29,8 +31,16 @@ def write_stack(path: Path, values: np.ndarray, dates: tuple[str, ...] = DATES) 
     if values.ndim == 2:
         values = values[np.newaxis]
     with rasterio.open(
-        path, 'w', driver='GTiff', width=WIDTH, height=HEIGHT, count=values.shape[0],
-        dtype='float32', crs='EPSG:32633', transform=TRANSFORM, nodata=np.nan,
+        path,
+        'w',
+        driver='GTiff',
+        width=WIDTH,
+        height=HEIGHT,
+        count=values.shape[0],
+        dtype='float32',
+        crs='EPSG:32633',
+        transform=TRANSFORM,
+        nodata=np.nan,
     ) as target:
         target.write(values)
         if values.shape[0] == len(dates):
@@ -75,23 +85,35 @@ def amd_stacks(seed: int = 1) -> dict[str, np.ndarray]:
     return {'amd_difference': data, **features}
 
 
-def write_project(root: Path, kv: str, stacks: dict[str, np.ndarray] | None = None) -> Path:
+def write_project(
+    root: Path, kv: str, stacks: dict[str, np.ndarray] | None = None
+) -> Path:
     """Write ``static`` masks and DAG feature stacks below ``root``."""
     stacks = stacks or (slope_stacks() if kv == 'slope' else amd_stacks())
     mask = np.ones((HEIGHT, WIDTH))
     mask[0, 0] = 0
     stable = np.zeros((HEIGHT, WIDTH))
     stable[2:, :] = 1
-    names = ('tsf_mask.tif', 'tsf_stable.tif') if kv == 'slope' else ('amd_mask.tif', None)
+    names = (
+        ('tsf_mask.tif', 'tsf_stable.tif') if kv == 'slope' else ('amd_mask.tif', None)
+    )
     write_stack(root / 'static' / names[0], mask, ())
     if names[1]:
         write_stack(root / 'static' / names[1], stable, ())
-    directory = root / 'results' / ('temporal_features' if kv == 'slope' else 'features')
+    directory = (
+        root / 'results' / ('temporal_features' if kv == 'slope' else 'features')
+    )
     for name, values in stacks.items():
-        target_dir = directory if kv == 'slope' or name == 'amd_difference' else root / 'results' / 'temporal_features'
+        target_dir = (
+            directory
+            if kv == 'slope' or name == 'amd_difference'
+            else root / 'results' / 'temporal_features'
+        )
         write_stack(target_dir / f'{name}.tif', values)
     for folder in {directory, root / 'results' / 'temporal_features'}:
-        (folder / 'metadata.json').write_text(json.dumps({'acquisition_dates': list(DATES)}))
+        (folder / 'metadata.json').write_text(
+            json.dumps({'acquisition_dates': list(DATES)})
+        )
     return root
 
 

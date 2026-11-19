@@ -22,11 +22,17 @@ def main() -> None:
         description='Tune TRF or LSTM by rolling-origin cross-validation.'
     )
     parser.add_argument('--config', type=Path, required=True, help='MAP config.yaml')
-    parser.add_argument('--dataset', help='datasets.<name> to use (default: config dataset)')
-    parser.add_argument('--model', choices=('trf', 'lstm'), help='override config model')
+    parser.add_argument(
+        '--dataset', help='datasets.<name> to use (default: config dataset)'
+    )
+    parser.add_argument(
+        '--model', choices=('trf', 'lstm'), help='override config model'
+    )
     parser.add_argument('--experiment', help='experiment name (default: <kv>_<model>)')
     parser.add_argument(
-        '--no-retrain', action='store_true', help='only search; do not retrain the best model'
+        '--no-retrain',
+        action='store_true',
+        help='only search; do not retrain the best model',
     )
     args = parser.parse_args()
     logging.basicConfig(

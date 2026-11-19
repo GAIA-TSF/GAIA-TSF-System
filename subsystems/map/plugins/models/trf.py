@@ -36,7 +36,9 @@ class TemporalRandomForestModel(PredictiveModel):
         for lead, model in enumerate(self.models):
             observed = np.isfinite(targets[:, lead])
             if not np.any(observed):
-                raise ValueError(f'No training targets are available for lead {lead + 1}.')
+                raise ValueError(
+                    f'No training targets are available for lead {lead + 1}.'
+                )
             model.fit(features[observed], targets[observed, lead])
 
     def predict(self, features: np.ndarray) -> np.ndarray:

@@ -16,8 +16,16 @@ from subsystems.map.pipelines.learning_pipeline import LearningPipeline, run_lea
 def _write_mask(path: Path, values: np.ndarray) -> RasterGrid:
     transform = from_origin(0, 20, 10, 10)
     with rasterio.open(
-        path, 'w', driver='GTiff', width=2, height=2, count=1, dtype='uint8',
-        crs='EPSG:32633', transform=transform, nodata=0,
+        path,
+        'w',
+        driver='GTiff',
+        width=2,
+        height=2,
+        count=1,
+        dtype='uint8',
+        crs='EPSG:32633',
+        transform=transform,
+        nodata=0,
     ) as target:
         target.write(values.astype('uint8'), 1)
     return RasterGrid(rasterio.crs.CRS.from_epsg(32633), transform, 2, 2, 0)
