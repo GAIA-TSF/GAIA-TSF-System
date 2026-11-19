@@ -17,6 +17,20 @@ from subsystems.map.utils.config_loader import load_config
 
 
 MAP_CONFIG = Path(__file__).resolve().parents[1] / 'config.yaml'
+
+# Frozen three-level alert prototype (subsystems/map/monitoring/ and its tests).
+# It was written against the pre-forecast-contract MAP (``Dataset``,
+# ``experiment_paths``) and cannot be imported here. Its behaviour is pinned by
+# golden files produced at the prototype state; these tests are re-enabled when
+# the code moves to ale-3levels (step B1 in ale-3levels/ALE_PLAN.md).
+collect_ignore = [
+    'test_level1_anomalies.py',
+    'test_level2_cusum.py',
+    'test_level3.py',
+    'test_simulated_monitoring_animation.py',
+    'test_spatial_coherence.py',
+    'test_temporal_monitoring.py',
+]
 HEIGHT, WIDTH, TIMES = 4, 5, 40
 DATES = tuple((date(2020, 1, 1) + timedelta(days=12 * i)).isoformat() for i in range(TIMES))
 TRANSFORM = from_origin(500000, 7000000, 10, 10)
