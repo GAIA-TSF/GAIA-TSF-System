@@ -14,7 +14,7 @@ class SpatialCoherenceResult:
 
     binary_stack: np.ndarray
     summary: dict[str, Any]
-    regions: tuple['SpatialCoherenceRegion', ...]
+    regions: tuple[SpatialCoherenceRegion, ...]
 
 
 @dataclass(frozen=True)

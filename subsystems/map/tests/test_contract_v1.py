@@ -1,4 +1,8 @@
-"""Tests for MAP contract v1.0 clauses: predictors, run mode, quality, exports."""
+"""Tests for MAP contract v1.0 clauses: predictors, run mode, timing, DAG reference.
+
+The quality-state and series-export tests moved to subsystems/ale with the
+three-level prototype (test_ale_three_level_quality_series.py).
+"""
 
 from __future__ import annotations
 
@@ -12,12 +16,6 @@ from subsystems.dag.utils.missing_values import handle_missing_values
 from subsystems.dag.utils.normalization import normalize_features
 from subsystems.dag.utils.outliers import transform_outliers
 from subsystems.map.dataset.dataset_builder import validate_predictors
-from subsystems.map.monitoring.quality import (
-    QualityParameters,
-    acquisition_quality,
-    run_quality_flags,
-)
-from subsystems.map.monitoring.series_export import build_records, write_series
 from subsystems.map.utils.contract import (
     compatible_schema,
     file_sha256,
@@ -86,66 +84,6 @@ def test_forecast_timing_reports_lead_time() -> None:
     assert timing['lead_time'] == {
         'acquisitions': {'min': 2, 'max': 2}, 'days': {'min': 24, 'max': 24},
     }
-
-
-def test_quality_states_follow_contract_order() -> None:
-    mask = np.ones((2, 2), dtype=bool)
-    observed = np.ones((5, 2, 2))
-    predicted = np.ones((5, 2, 2))
-    predicted[1] = np.nan                 # warm_up
-    observed[2] = np.nan                  # missing_acquisition
-    observed[3, 0, :] = np.nan
-    observed[3, 1, 0] = np.nan            # 25 % coverage
-
-    states, coverage = acquisition_quality(
-        observed, predicted, mask, (1, 5), QualityParameters()
-    )
-
-    assert states.tolist() == [
-        'not_monitored', 'warm_up', 'missing_acquisition',
-        'insufficient_coverage', 'ok',
-    ]
-    assert coverage[3] == pytest.approx(0.25)
-
-
-def test_short_calibration_is_flagged_and_warned(caplog) -> None:
-    flags = run_quality_flags(
-        run_mode='retrospective',
-        l2_bias_warning=False,
-        calibration_dates={'l1': 14, 'l2': 14, 'l3': 30},
-        calibrations_reused=[],
-        parameters=QualityParameters(),
-    )
-
-    names = [flag['flag'] for flag in flags]
-    assert names == ['retrospective_training', 'short_calibration']
-    assert flags[1]['calibration_dates'] == {'l1': 14, 'l2': 14}
-    assert 'short_calibration' in caplog.text
-
-
-def test_series_export_uses_canonical_names_and_nulls(tmp_path) -> None:
-    records = build_records(
-        {
-            'date': ['2020-01-01', '2020-01-13'],
-            'observed_mean_los_velocity': np.array([np.nan, -0.5]),
-            'l2_alarm': np.array([False, True]),
-            'l3_level': np.array(['not_evaluated', 'watch']),
-        },
-        range(2),
-    )
-    json_path, csv_path = write_series(
-        tmp_path / 'monitoring_series', records, rate_unit='mm/day', metadata={}
-    )
-
-    payload = json.loads(json_path.read_text())
-    assert payload['contract_version'] == '1.0'
-    assert payload['series'][0]['observed_mean_los_velocity'] is None
-    assert payload['units']['observed_mean_los_velocity'] == 'mm/day'
-    assert csv_path.read_text().splitlines()[0] == (
-        'date,observed_mean_los_velocity,l2_alarm,l3_level'
-    )
-    with pytest.raises(KeyError, match='prediction_uncertainty'):
-        build_records({'prediction_uncertainty': [1.0]}, range(1))
 
 
 def test_dag_preprocessing_uses_reference_and_keeps_targets() -> None:

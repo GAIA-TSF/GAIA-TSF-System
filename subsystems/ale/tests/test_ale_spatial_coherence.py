@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceDetector
+from ale_3levels.spatial import SpatialCoherenceDetector
 
 
 def test_coherence_requires_area_and_temporal_overlap() -> None:

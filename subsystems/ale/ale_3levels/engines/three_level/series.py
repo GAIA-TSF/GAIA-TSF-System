@@ -13,8 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.utils.contract import CONTRACT_VERSION, SCHEMA_VERSION
+from ale_3levels.engines.three_level.calibration import CONTRACT_VERSION, SCHEMA_VERSION
 
 RATE = 'rate'
 ACCELERATION = 'acceleration'
@@ -79,9 +78,7 @@ def build_records(
     if unknown:
         raise KeyError(f'Non-canonical monitoring series fields: {unknown}')
     names = [name for name in FIELDS if name in columns]
-    return [
-        {name: _value(columns[name][index]) for name in names} for index in indices
-    ]
+    return [{name: _value(columns[name][index]) for name in names} for index in indices]
 
 
 def write_series(

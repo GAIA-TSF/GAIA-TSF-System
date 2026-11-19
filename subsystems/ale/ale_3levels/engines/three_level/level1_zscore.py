@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.utils.contract import SCHEMA_VERSION, compatible_schema
+from ale_3levels.engines.three_level.calibration import (
+    SCHEMA_VERSION,
+    compatible_schema,
+)
 
 FORMULA = 'z = (observed - forecast) / sigma'
 

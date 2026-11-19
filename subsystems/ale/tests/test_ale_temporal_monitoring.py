@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import numpy as np
-
-from subsystems.map.monitoring.temporal_monitoring import TemporalResidualMonitor
-from subsystems.map.monitoring.dashboard import _cusum_status
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
-from subsystems.map.dataset.dataset_builder import DatasetBuilder
+from ale_3levels.engines.three_level.temporal_monitoring import TemporalResidualMonitor
+from ale_3levels.spatial import SpatialCoherenceRegion
 
 
 def test_observed_velocity_cusum_detects_negative_acceleration() -> None:
@@ -41,7 +38,10 @@ def test_observed_velocity_cusum_detects_negative_acceleration() -> None:
     )
 
     assert np.allclose(result.residual_mean, 0.0)
-    assert result.acceleration_cusum_instability[-1] > result.acceleration_cusum_recovery[-1]
+    assert (
+        result.acceleration_cusum_instability[-1]
+        > result.acceleration_cusum_recovery[-1]
+    )
     assert result.acceleration_cusum_instability[-1] > 2.0
 
 
@@ -205,7 +205,10 @@ def test_monitoring_signals_do_not_change_when_future_data_arrives() -> None:
         replay.acceleration_cusum_recovery[current_index]
         == full.acceleration_cusum_recovery[current_index]
     )
-    assert replay.regime_change_score[current_index] == full.regime_change_score[current_index]
+    assert (
+        replay.regime_change_score[current_index]
+        == full.regime_change_score[current_index]
+    )
 
 
 def test_directional_tail_cusum_detects_local_negative_acceleration() -> None:
@@ -246,20 +249,13 @@ def test_directional_tail_cusum_detects_local_negative_acceleration() -> None:
         monitoring_window=(4, 8),
     )
 
-    assert result.acceleration_cusum_instability[-1] > result.acceleration_cusum_recovery[-1]
+    assert (
+        result.acceleration_cusum_instability[-1]
+        > result.acceleration_cusum_recovery[-1]
+    )
     assert result.acceleration_cusum_instability[-1] > 2.0
-    assert _cusum_status(result, -1) == 'Acceleration alarm'
-
-
-def test_fixed_valid_support_is_based_on_observations_not_model_features() -> None:
-    """A missing model feature must not alter the physical support mask."""
-    target = np.ones((3, 2, 2), dtype=float)
-    target[1, 0, 1] = np.nan
-    mask = np.ones((2, 2), dtype=bool)
-
-    support = DatasetBuilder.fixed_valid_mask(target, mask, 0, 3)
-
-    assert np.array_equal(support, np.array([[True, False], [True, True]]))
+    # The prototype dashboard labels this state 'Acceleration alarm'.
+    assert result.dynamics[-1] == 'accelerating'
 
 
 def test_shared_support_aligns_observed_and_predicted_spatial_means() -> None:
@@ -345,5 +341,9 @@ def test_observed_velocity_cusum_is_independent_of_prediction_stack() -> None:
         monitoring_window=(4, 7),
     )
 
-    assert np.allclose(first.acceleration_cusum_instability, second.acceleration_cusum_instability)
-    assert np.allclose(first.acceleration_cusum_recovery, second.acceleration_cusum_recovery)
+    assert np.allclose(
+        first.acceleration_cusum_instability, second.acceleration_cusum_instability
+    )
+    assert np.allclose(
+        first.acceleration_cusum_recovery, second.acceleration_cusum_recovery
+    )

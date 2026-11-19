@@ -6,8 +6,7 @@ import json
 
 import numpy as np
 import pytest
-
-from subsystems.map.monitoring.level2 import (
+from ale_3levels.engines.three_level.level2_cusum import (
     Level2Parameters,
     aggregate_residual,
     calibration_replay,
@@ -18,7 +17,7 @@ from subsystems.map.monitoring.level2 import (
     pixel_level2,
     residual_cusum,
 )
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
+from ale_3levels.spatial import SpatialCoherenceRegion
 
 PARAMETERS = Level2Parameters(
     reference_value=0.5, decision_threshold=5.0, direction='negative'
@@ -120,8 +119,15 @@ def test_aggregate_uses_fixed_support_not_per_date_tail() -> None:
 
 def _calibrated(tmp_path, stack, dates, mask, calibration=(0, 10), start=10):
     return frozen_level2_calibration(
-        tmp_path / 'l2.json', stack, dates, calibration, start, mask,
-        unit='mm/day', target_feature='velocity', parameters=PARAMETERS,
+        tmp_path / 'l2.json',
+        stack,
+        dates,
+        calibration,
+        start,
+        mask,
+        unit='mm/day',
+        target_feature='velocity',
+        parameters=PARAMETERS,
     )
 
 

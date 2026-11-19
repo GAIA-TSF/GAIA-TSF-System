@@ -1,19 +1,27 @@
-# Engine B: three-level residual monitoring (moved from the MAP prototype,
-# subsystems/map/monitoring at f11c5f2 + stash@{0}). Values are the prototype's.
+# Engine B: three-level residual monitoring, moved from the MAP prototype
+# (subsystems/map/monitoring at f11c5f2 + stash@{0}). Values are the prototype's.
+# The golden regression test checks that these sections equal the prototype's
+# configuration (tests/golden/synthetic_crop/config.yaml).
 
 # Residual quantity from the contract: mm_per_day (prototype design) | mm.
 residual_quantity: mm_per_day
 
-# legacy_global: z = (r - mean(all r)) / std(all r)   (950702d, uses monitoring data)
 # frozen_sigma : z = r / sigma_cal, no demeaning      (prototype, f11c5f2 + stash)
+# legacy_global: z = (r - mean(all r)) / std(all r)   (950702d; uses monitoring
+#                data, so earlier z change when acquisitions are appended)
 zscore_formula: frozen_sigma
 
-level1:
+level1:                           # prototype anomaly_detection
   zscore_threshold: 1.5
   direction: negative             # both | positive | negative
   persistence: 3
-  residual_threshold: 0.1         # legacy_global only (mm/day)
-  combination_operator: or        # legacy_global only
+
+legacy_global:                    # 950702d anomaly_detection (zscore_formula: legacy_global)
+  residual_threshold: 0.1         # mm/day
+  zscore_threshold: 1.5
+  direction: negative
+  persistence: 3
+  combination_operator: or
 
 level2:
   reference_value: 0.5            # k, sigma units
@@ -21,7 +29,25 @@ level2:
   direction: null                 # null = level1.direction
   bias_warning_ratio: 0.25
 
-acceleration_cusum:               # supporting evidence (prototype dashboard CUSUM)
+level3:
+  watch_threshold: 0.4
+  alert_threshold: 0.7
+  consecutive_acquisitions: 2
+
+quality:
+  minimum_coverage: 0.5
+  minimum_calibration_samples: 20
+
+spatial_coherence:                # regional evidence inside L1/L2/L3
+  enabled: true
+  minimum_area_pixels: 25
+  persistence: 3
+  minimum_overlap: 0.30
+  connectivity: 8
+
+anomaly_magnitude_threshold: 0.1  # mm/day
+
+acceleration_cusum:               # supporting evidence (velocity acceleration)
   instability_direction: negative
   signal: observed_velocity
   spatial_aggregation: directional_tail_mean
@@ -37,32 +63,10 @@ regime:
   signal: unexpected_acceleration
   smoothing_span: 3
 
-level3:
-  watch_threshold: 0.4
-  alert_threshold: 0.7
-  consecutive_acquisitions: 2
-
-spatial_coherence:                # used inside L2/L3 (regional evidence)
-  enabled: true
-  minimum_area_pixels: 25
-  persistence: 3
-  minimum_overlap: 0.30
-  connectivity: 8
-
-spatial_support:
-  population: fixed_calibration_valid
-  minimum_observation_coverage: 0.95
-
-anomaly_magnitude_threshold: 0.1
-
-quality:
-  minimum_coverage: 0.5
-  minimum_calibration_samples: 20
-
 calibration:
   # per_pixel | pooled. Pooled is the default: the synthetic site has only
-  # 10 independent calibration dates (plan P3).
+  # 10 independent calibration dates (plan P3). Used from B2.2 on.
   mode: pooled
-  # Which records estimate mu/sigma (B2.2): prototype = every pre-monitoring
-  # record; independent = split == calibration only.
+  # Which records estimate mu/sigma: prototype = every pre-monitoring record
+  # (includes model-training dates); independent = split == calibration (B2.2).
   population: prototype

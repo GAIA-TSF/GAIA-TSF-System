@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.utils.contract import RETROSPECTIVE
+from ale_3levels.engines.three_level.calibration import RETROSPECTIVE
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ class QualityParameters:
     def from_config(cls, config: dict[str, Any]) -> QualityParameters:
         settings = config.get('quality', {})
         if not isinstance(settings, dict):
-            raise ValueError('quality must be a mapping.')
+            raise ValueError('quality must be a mapping.')  # noqa: TRY004 (prototype)
         defaults = cls()
         return cls(
             minimum_coverage=float(

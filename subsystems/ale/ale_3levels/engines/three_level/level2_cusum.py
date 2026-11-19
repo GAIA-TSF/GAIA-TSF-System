@@ -30,10 +30,15 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.monitoring.level1 import positive_finite, residual_scale
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
-from subsystems.map.utils.contract import SCHEMA_VERSION, compatible_schema
+from ale_3levels.engines.three_level.calibration import (
+    SCHEMA_VERSION,
+    compatible_schema,
+)
+from ale_3levels.engines.three_level.level1_zscore import (
+    positive_finite,
+    residual_scale,
+)
+from ale_3levels.spatial import SpatialCoherenceRegion
 
 LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +75,7 @@ class Level2Parameters:
         """Read ``level2`` with direction defaulting to the L1 direction."""
         settings = config.get('level2', {})
         if not isinstance(settings, dict):
-            raise ValueError('level2 must be a mapping.')
+            raise ValueError('level2 must be a mapping.')  # noqa: TRY004 (prototype)
         direction = settings.get(
             'direction', config.get('anomaly_detection', {}).get('direction')
         )
@@ -187,7 +192,10 @@ def calibration_replay(
     )
     alarm, _ = level2_alarms(instability, parameters.decision_threshold)
     episodes = int(np.sum(alarm[1:] & ~alarm[:-1]) + (alarm[0] if alarm.size else 0))
-    return {'samples': int(np.sum(np.isfinite(z_calibration))), 'alarm_episodes': episodes}
+    return {
+        'samples': int(np.sum(np.isfinite(z_calibration))),
+        'alarm_episodes': episodes,
+    }
 
 
 def frozen_level2_calibration(
@@ -208,7 +216,9 @@ def frozen_level2_calibration(
     cutoff, unit/target checks and a fingerprint of the calibration history.
     """
     if residual_stack.shape != (len(dates), *mask.shape):
-        raise ValueError('L2 residual stack, dates and mask must share a grid/time axis.')
+        raise ValueError(
+            'L2 residual stack, dates and mask must share a grid/time axis.'
+        )
     parsed = tuple(date.fromisoformat(value) for value in dates)
     if any(right <= left for left, right in pairwise(parsed)):
         raise ValueError('L2 acquisition dates must be unique and chronological.')
@@ -240,7 +250,10 @@ def frozen_level2_calibration(
                 'Frozen L2 calibration has an incompatible method, unit or target.'
             )
         positive_finite(payload['sigma'], 'Frozen L2 calibration sigma')
-        if not payload.get('last_date') or payload['last_date'] >= dates[monitoring_start]:
+        if (
+            not payload.get('last_date')
+            or payload['last_date'] >= dates[monitoring_start]
+        ):
             raise ValueError('Frozen L2 calibration must end before monitoring starts.')
         if fingerprint is not None and payload.get('input_fingerprint') != fingerprint:
             raise ValueError(
@@ -360,7 +373,10 @@ def compute_level2(
         if start >= monitoring_end:
             continue
         positive, negative = residual_cusum(
-            series / region_sigma, parameters.reference_value, parameters.direction, start
+            series / region_sigma,
+            parameters.reference_value,
+            parameters.direction,
+            start,
         )
         active = np.zeros(time_count, dtype=bool)
         active[start:monitoring_end] = True

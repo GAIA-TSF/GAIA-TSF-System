@@ -32,11 +32,13 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.monitoring.level1 import positive_finite
-from subsystems.map.monitoring.level2 import Level2Result
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
-from subsystems.map.utils.contract import SCHEMA_VERSION, compatible_schema
+from ale_3levels.engines.three_level.calibration import (
+    SCHEMA_VERSION,
+    compatible_schema,
+)
+from ale_3levels.engines.three_level.level1_zscore import positive_finite
+from ale_3levels.engines.three_level.level2_cusum import Level2Result
+from ale_3levels.spatial import SpatialCoherenceRegion
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,14 +84,16 @@ class Level3Parameters:
         if int(self.consecutive_acquisitions) != self.consecutive_acquisitions or (
             self.consecutive_acquisitions < 1
         ):
-            raise ValueError('level3.consecutive_acquisitions must be a positive integer.')
+            raise ValueError(
+                'level3.consecutive_acquisitions must be a positive integer.'
+            )
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> Level3Parameters:
         """Read ``level3``; fall back to deprecated dashboard regime thresholds."""
         settings = config.get('level3', {})
         if not isinstance(settings, dict):
-            raise ValueError('level3 must be a mapping.')
+            raise ValueError('level3 must be a mapping.')  # noqa: TRY004 (prototype)
         settings = dict(settings)
         regime = config.get('monitoring', {}).get('dashboard', {}).get('regime', {})
         for old, new in DEPRECATED_KEYS.items():
@@ -109,7 +113,9 @@ class Level3Parameters:
                 settings.get('alert_threshold', defaults.alert_threshold)
             ),
             consecutive_acquisitions=int(
-                settings.get('consecutive_acquisitions', defaults.consecutive_acquisitions)
+                settings.get(
+                    'consecutive_acquisitions', defaults.consecutive_acquisitions
+                )
             ),
         )
 

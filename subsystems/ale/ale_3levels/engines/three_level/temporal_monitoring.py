@@ -10,15 +10,13 @@ probability. Its baseline is fitted on pre-monitoring dates only.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date
-import logging
 from typing import Any
 
 import numpy as np
-
-from subsystems.map.monitoring.spatial_coherence import SpatialCoherenceRegion
-
+from ale_3levels.spatial import SpatialCoherenceRegion
 
 LOGGER = logging.getLogger(__name__)
 
@@ -420,9 +418,7 @@ class TemporalResidualMonitor:
             raise ValueError(
                 'Too few valid acceleration CUSUM baseline samples precede monitoring.'
             )
-        baseline_std = max(
-            float(np.std(baseline, ddof=1)), np.finfo(np.float64).eps
-        )
+        baseline_std = max(float(np.std(baseline, ddof=1)), np.finfo(np.float64).eps)
         directional_trend = trend * self.instability_direction
         directional_baseline = directional_trend[calibration_start:calibration_end]
         directional_baseline = directional_baseline[np.isfinite(directional_baseline)]
@@ -957,7 +953,7 @@ class TemporalResidualMonitor:
         """Return a required monitoring configuration subsection."""
         value = config.get(name)
         if not isinstance(value, dict):
-            raise ValueError(f'monitoring.dashboard.{name} must be a mapping.')
+            raise ValueError(f'monitoring.dashboard.{name} must be a mapping.')  # noqa: TRY004
         return value
 
     @staticmethod
