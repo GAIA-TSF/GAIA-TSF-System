@@ -5,7 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from subsystems.map.dataset import LoadedFeatures, RasterGrid, build_forecast_samples, split_spatial
+from subsystems.map.dataset import (
+    LoadedFeatures,
+    RasterGrid,
+    build_forecast_samples,
+    split_spatial,
+)
 
 
 def _loaded(time_count: int = 6, pixel_count: int = 12) -> LoadedFeatures:
@@ -26,7 +31,10 @@ def test_samples_use_only_origin_and_earlier_acquisitions() -> None:
     origin, pixel = samples.origin_indices, samples.pixel_indices
     np.testing.assert_array_equal(samples.features[:, -1, 0], origin * 10 + pixel)
     np.testing.assert_array_equal(samples.features[:, 0, 0], (origin - 2) * 10 + pixel)
-    np.testing.assert_array_equal(samples.targets[:, 0], np.where(origin + 1 < 6, (origin + 1) * 10 + pixel, np.nan))
+    np.testing.assert_array_equal(
+        samples.targets[:, 0],
+        np.where(origin + 1 < 6, (origin + 1) * 10 + pixel, np.nan),
+    )
     assert origin.min() == 2
 
 

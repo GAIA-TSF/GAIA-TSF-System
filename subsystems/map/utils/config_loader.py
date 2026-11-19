@@ -17,7 +17,13 @@ HORIZONS = (1, 3, 5)
 _SAFE_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
 _LAGGED = re.compile(r'(^|_)lag\d+$')
 # Alert-era keys that MAP no longer reads; fail loudly instead of ignoring them.
-_REMOVED_KEYS = ('anomaly_detection', 'monitoring', 'baseline_model', 'variable', 'variables')
+_REMOVED_KEYS = (
+    'anomaly_detection',
+    'monitoring',
+    'baseline_model',
+    'variable',
+    'variables',
+)
 
 
 def load_config(
@@ -33,7 +39,11 @@ def load_config(
     if not isinstance(config, dict):
         raise ValueError('MAP configuration must contain a YAML mapping.')
     config['_config_path'] = str(config_path)
-    for key, value in (('dataset', dataset), ('model', model), ('experiment', experiment)):
+    for key, value in (
+        ('dataset', dataset),
+        ('model', model),
+        ('experiment', experiment),
+    ):
         if value is not None:
             config[key] = value
     LOGGER.info('Loaded MAP configuration from %s', config_path)
@@ -63,21 +73,32 @@ class MapContext:
         dataset = config.get('datasets', {}).get(dataset_name)
         if not isinstance(dataset, dict):
             raise KeyError(f'Missing configuration: datasets.{dataset_name}')
-        for key in ('kv', 'experiment_dir', 'mask_file', 'target_feature',
-                    'target_variable', 'target_units', 'features'):
+        for key in (
+            'kv',
+            'experiment_dir',
+            'mask_file',
+            'target_feature',
+            'target_variable',
+            'target_units',
+            'features',
+        ):
             if dataset.get(key) in (None, '', []):
                 raise KeyError(f'datasets.{dataset_name}.{key} is required.')
         if _LAGGED.search(str(dataset['target_feature'])):
             raise ValueError(
-                f"Target {dataset['target_feature']!r} is a lagged stack. Forecast the "
+                f'Target {dataset["target_feature"]!r} is a lagged stack. Forecast the '
                 'unlagged target; lagged stacks may only be predictors.'
             )
         model_name = _string(config, 'model')
         if model_name not in MODELS:
             raise ValueError(f'model must be one of: {", ".join(MODELS)}')
-        experiment_name = str(config.get('experiment') or f"{dataset['kv']}_{model_name}")
+        experiment_name = str(
+            config.get('experiment') or f'{dataset["kv"]}_{model_name}'
+        )
         if not _SAFE_NAME.fullmatch(experiment_name):
-            raise ValueError('experiment must contain only letters, digits, ".", "_", "-".')
+            raise ValueError(
+                'experiment must contain only letters, digits, ".", "_", "-".'
+            )
         horizon = config.get('forecast', {}).get('horizon')
         if horizon not in HORIZONS:
             raise ValueError(f'forecast.horizon must be one of {HORIZONS}.')
@@ -132,7 +153,9 @@ class MapContext:
 
     @property
     def temporal_alignment_method(self) -> str:
-        return str(self.config.get('data', {}).get('temporal_alignment_method', 'exact'))
+        return str(
+            self.config.get('data', {}).get('temporal_alignment_method', 'exact')
+        )
 
     @property
     def results_dir(self) -> Path:
@@ -149,7 +172,10 @@ class MapContext:
     @property
     def feature_dirs(self) -> list[Path]:
         """Conventional DAG output directories searched for feature stems."""
-        return [self.results_dir / name for name in ('features', 'temporal_features', 'meteo_features')]
+        return [
+            self.results_dir / name
+            for name in ('features', 'temporal_features', 'meteo_features')
+        ]
 
     def static_file(self, filename: object) -> Path:
         """Resolve a file name relative to ``<experiment_dir>/static``."""

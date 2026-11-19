@@ -29,22 +29,30 @@ LOGGER = logging.getLogger(__name__)
 TUNABLE = ('trf', 'lstm')
 
 
-def candidate_grid(space: dict[str, list[Any]], limit: int, seed: int) -> list[dict[str, Any]]:
+def candidate_grid(
+    space: dict[str, list[Any]], limit: int, seed: int
+) -> list[dict[str, Any]]:
     """Full grid of ``space``; a reproducible random subset above ``limit``."""
     if not space:
         raise ValueError('tuning.search for this model is empty.')
     for name, values in space.items():
         if not isinstance(values, list) or not values:
-            raise ValueError(f'tuning.search value list for {name!r} must be non-empty.')
+            raise ValueError(
+                f'tuning.search value list for {name!r} must be non-empty.'
+            )
     names = list(space)
     grid = [dict(zip(names, values)) for values in itertools.product(*space.values())]
     if len(grid) > limit:
-        chosen = np.random.default_rng(seed).choice(len(grid), size=limit, replace=False)
+        chosen = np.random.default_rng(seed).choice(
+            len(grid), size=limit, replace=False
+        )
         grid = [grid[index] for index in sorted(chosen)]
     return grid
 
 
-def apply_params(model_config: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+def apply_params(
+    model_config: dict[str, Any], params: dict[str, Any]
+) -> dict[str, Any]:
     """Return ``model_config`` with dotted keys (``optimizer.lr``) overridden."""
     merged = copy.deepcopy(model_config)
     for dotted, value in params.items():
@@ -72,18 +80,24 @@ class TuningPipeline:
 
         ctx = self.ctx
         if ctx.model_name not in TUNABLE:
-            raise ValueError(f'Tuning supports {", ".join(TUNABLE)}, not {ctx.model_name}.')
+            raise ValueError(
+                f'Tuning supports {", ".join(TUNABLE)}, not {ctx.model_name}.'
+            )
         settings = ctx.config.get('tuning') or {}
         folds_count = int(settings.get('folds', 3))
         space = (settings.get('search') or {}).get(ctx.model_name) or {}
-        candidates = candidate_grid(space, int(settings.get('max_candidates', 20)), ctx.seed)
+        candidates = candidate_grid(
+            space, int(settings.get('max_candidates', 20)), ctx.seed
+        )
 
         loaded, windows, reference_mask, _ = self.learning.load_reference()
         folds_by_look_back: dict[int | None, list] = {}
         results = []
         for number, params in enumerate(candidates, start=1):
             model_config = apply_params(ctx.model_config, params)
-            look_back = MODEL_REGISTRY[ctx.model_name](model_config, ctx.horizon).look_back()
+            look_back = MODEL_REGISTRY[ctx.model_name](
+                model_config, ctx.horizon
+            ).look_back()
             if look_back not in folds_by_look_back:
                 samples, splits, _ = self.learning.build_splits(
                     loaded, reference_mask, windows, look_back
@@ -92,20 +106,43 @@ class TuningPipeline:
                     self._without_test(samples, splits.test), folds_count
                 )
             fold_rows = []
-            for fold, (fit, validation) in enumerate(folds_by_look_back[look_back], start=1):
+            for fold, (fit, validation) in enumerate(
+                folds_by_look_back[look_back], start=1
+            ):
                 model = MODEL_REGISTRY[ctx.model_name](model_config, ctx.horizon)
                 model.set_random_seed(ctx.seed)
                 model.train(fit.features, fit.changes)
                 for row in lead_metrics(validation, predict_values(model, validation)):
                     fold_rows.append({'fold': fold, **row})
-            score = float(np.mean([row['mae'] for row in fold_rows if row['mae'] is not None]))
-            baseline = float(
-                np.mean([row['constant_mae'] for row in fold_rows if row['constant_mae'] is not None])
+            score = float(
+                np.mean([row['mae'] for row in fold_rows if row['mae'] is not None])
             )
-            results.append({'candidate': number, 'params': params, 'mean_mae': score,
-                            'constant_mean_mae': baseline, 'folds': fold_rows})
-            LOGGER.info('Candidate %d/%d %s: mean MAE %.6g (constant %.6g)',
-                        number, len(candidates), params, score, baseline)
+            baseline = float(
+                np.mean(
+                    [
+                        row['constant_mae']
+                        for row in fold_rows
+                        if row['constant_mae'] is not None
+                    ]
+                )
+            )
+            results.append(
+                {
+                    'candidate': number,
+                    'params': params,
+                    'mean_mae': score,
+                    'constant_mean_mae': baseline,
+                    'folds': fold_rows,
+                }
+            )
+            LOGGER.info(
+                'Candidate %d/%d %s: mean MAE %.6g (constant %.6g)',
+                number,
+                len(candidates),
+                params,
+                score,
+                baseline,
+            )
 
         best = min(results, key=lambda result: result['mean_mae'])
         best_config = apply_params(ctx.model_config, best['params'])
@@ -125,7 +162,9 @@ class TuningPipeline:
         write_json(output / 'best_params.json', summary)
         (output / 'tuned_config.yaml').write_text(
             '# Paste into subsystems/map/config.yaml to keep the tuned settings.\n'
-            + yaml.safe_dump({'models': {ctx.model_name: best_config}}, sort_keys=False),
+            + yaml.safe_dump(
+                {'models': {ctx.model_name: best_config}}, sort_keys=False
+            ),
             encoding='utf-8',
         )
         LOGGER.info('Best %s settings: %s', ctx.model_name, best['params'])
@@ -136,11 +175,13 @@ class TuningPipeline:
         return summary
 
     @staticmethod
-    def _without_test(samples: ForecastSamples, test: ForecastSamples) -> ForecastSamples:
+    def _without_test(
+        samples: ForecastSamples, test: ForecastSamples
+    ) -> ForecastSamples:
         """Drop the configured test rows (test origins x test pixels)."""
-        held_out = np.isin(samples.origin_indices, np.unique(test.origin_indices)) & np.isin(
-            samples.pixel_indices, np.unique(test.pixel_indices)
-        )
+        held_out = np.isin(
+            samples.origin_indices, np.unique(test.origin_indices)
+        ) & np.isin(samples.pixel_indices, np.unique(test.pixel_indices))
         return samples.subset(~held_out)
 
     def _write_results(self, output: Any, results: list[dict[str, Any]]) -> None:
@@ -161,7 +202,9 @@ class TuningPipeline:
             for row in result['folds']
         ]
         output.mkdir(parents=True, exist_ok=True)
-        with (output / 'tuning_results.csv').open('w', encoding='utf-8', newline='') as stream:
+        with (output / 'tuning_results.csv').open(
+            'w', encoding='utf-8', newline=''
+        ) as stream:
             writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
             writer.writeheader()
             writer.writerows(rows)

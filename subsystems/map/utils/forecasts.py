@@ -44,7 +44,9 @@ FIELDS: dict[str, str] = {
     'observed_value': 'target',
     'residual': 'target',
 }
-FORECAST_FIELDS = tuple(name for name in FIELDS if name not in {'observed_value', 'residual'})
+FORECAST_FIELDS = tuple(
+    name for name in FIELDS if name not in {'observed_value', 'residual'}
+)
 
 
 def target_dates(
@@ -61,7 +63,9 @@ def target_dates(
     """
     axis = np.asarray(dates, dtype='datetime64[D]')
     if interval_days is None:
-        interval_days = float(np.median(np.diff(axis).astype(float))) if axis.size > 1 else 1.0
+        interval_days = (
+            float(np.median(np.diff(axis).astype(float))) if axis.size > 1 else 1.0
+        )
     index = origin_indices[:, None] + np.arange(1, horizon + 1)[None, :]
     acquired = index < axis.size
     beyond = np.maximum(index - (axis.size - 1), 0)
@@ -94,14 +98,22 @@ def interval_offsets(
     }
 
 
-def apply_interval(predicted: np.ndarray, uncertainty: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+def apply_interval(
+    predicted: np.ndarray, uncertainty: dict[str, Any]
+) -> tuple[np.ndarray, np.ndarray]:
     """Add the per-lead residual quantiles to absolute predictions."""
-    lower = np.asarray([np.nan if v is None else v for v in uncertainty['residual_lower']])
-    upper = np.asarray([np.nan if v is None else v for v in uncertainty['residual_upper']])
+    lower = np.asarray(
+        [np.nan if v is None else v for v in uncertainty['residual_lower']]
+    )
+    upper = np.asarray(
+        [np.nan if v is None else v for v in uncertainty['residual_upper']]
+    )
     return predicted + lower[None, :], predicted + upper[None, :]
 
 
-def error_metrics(observed: np.ndarray, predicted: np.ndarray) -> dict[str, float | int | None]:
+def error_metrics(
+    observed: np.ndarray, predicted: np.ndarray
+) -> dict[str, float | int | None]:
     """MAE, RMSE, mean signed error (observed - predicted), valid count."""
     residual = (observed - predicted)[np.isfinite(observed) & np.isfinite(predicted)]
     if residual.size == 0:
@@ -128,7 +140,13 @@ def lead_metrics(
         model = error_metrics(observed, predicted[:, lead])
         baseline = error_metrics(observed, persistence[:, lead])
         row = {'lead': lead + 1, **model}
-        row.update({f'constant_{key}': value for key, value in baseline.items() if key != 'valid_count'})
+        row.update(
+            {
+                f'constant_{key}': value
+                for key, value in baseline.items()
+                if key != 'valid_count'
+            }
+        )
         row['mae_skill_vs_constant'] = (
             None
             if not model['valid_count'] or not baseline['mae']
@@ -137,7 +155,12 @@ def lead_metrics(
         if lower is not None and upper is not None:
             valid = np.isfinite(observed) & np.isfinite(lower[:, lead])
             row['interval_coverage'] = (
-                float(np.mean((observed[valid] >= lower[valid, lead]) & (observed[valid] <= upper[valid, lead])))
+                float(
+                    np.mean(
+                        (observed[valid] >= lower[valid, lead])
+                        & (observed[valid] <= upper[valid, lead])
+                    )
+                )
                 if np.any(valid)
                 else None
             )
@@ -203,11 +226,15 @@ def match_observations(
     dropped from the returned residual table.
     """
     position = {value: index for index, value in enumerate(dates)}
-    time_index = np.asarray([position.get(value, -1) for value in forecasts['target_date']])
+    time_index = np.asarray(
+        [position.get(value, -1) for value in forecasts['target_date']]
+    )
     rows, cols = np.divmod(forecasts['series_id'], width)
     observed = np.full(time_index.size, np.nan)
     on_axis = time_index >= 0
-    observed[on_axis] = observed_stack[time_index[on_axis], rows[on_axis], cols[on_axis]]
+    observed[on_axis] = observed_stack[
+        time_index[on_axis], rows[on_axis], cols[on_axis]
+    ]
     keep = np.isfinite(observed)
     matched = {name: values[keep] for name, values in forecasts.items()}
     matched['observed_value'] = observed[keep]
@@ -255,17 +282,23 @@ def compare_residual_tables(
             position = order[np.searchsorted(keys[order], lead_keys)]
             observed = table['observed_value'][position]
             if index == 0:
-                entry['constant'] = error_metrics(observed, table['persistence_value'][position])
+                entry['constant'] = error_metrics(
+                    observed, table['persistence_value'][position]
+                )
             entry[name] = error_metrics(observed, table['predicted_value'][position])
         rows.append(entry)
     return rows
 
 
-def write_table(path: Path, columns: dict[str, np.ndarray], metadata: dict[str, Any]) -> Path:
+def write_table(
+    path: Path, columns: dict[str, np.ndarray], metadata: dict[str, Any]
+) -> Path:
     """Write ``<path>.npz`` columns and a ``<path>.json`` schema sidecar."""
     path.parent.mkdir(parents=True, exist_ok=True)
     names = [name for name in FIELDS if name in columns]
-    np.savez_compressed(path.with_suffix('.npz'), **{name: columns[name] for name in names})
+    np.savez_compressed(
+        path.with_suffix('.npz'), **{name: columns[name] for name in names}
+    )
     units = {
         name: (metadata['target_units'] if FIELDS[name] == 'target' else FIELDS[name])
         for name in names

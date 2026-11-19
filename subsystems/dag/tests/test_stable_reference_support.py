@@ -21,28 +21,46 @@ class StableReferenceSupportTests(unittest.TestCase):
             (root / 'static').mkdir()
             transform = from_origin(0, 20, 10, 10)
             profile = RasterProfile(
-                rasterio.crs.CRS.from_epsg(32633), transform, 2, 2, 'float32', None,
+                rasterio.crs.CRS.from_epsg(32633),
+                transform,
+                2,
+                2,
+                'float32',
+                None,
             )
             path = root / 'static/tsf_stable.tif'
             with rasterio.open(
-                path, 'w', driver='GTiff', width=2, height=2, count=1,
-                dtype='uint8', crs=profile.crs, transform=transform, nodata=0,
+                path,
+                'w',
+                driver='GTiff',
+                width=2,
+                height=2,
+                count=1,
+                dtype='uint8',
+                crs=profile.crs,
+                transform=transform,
+                nodata=0,
             ) as dst:
                 dst.write(np.array([[0, 1], [0, 0]], dtype='uint8'), 1)
-            pipeline = SlopeTemporalFeaturePipeline.__new__(SlopeTemporalFeaturePipeline)
+            pipeline = SlopeTemporalFeaturePipeline.__new__(
+                SlopeTemporalFeaturePipeline
+            )
             pipeline._resolve_path = lambda filename: root / filename
             tsf = np.array([[1, 0], [0, 0]], dtype=bool)
             support = pipeline._include_stable_reference(tsf, {}, profile)
             np.testing.assert_array_equal(support, [[True, True], [False, False]])
-            data = apply_mask(np.array([[[5., 2.], [7., 9.]]]), support)
+            data = apply_mask(np.array([[[5.0, 2.0], [7.0, 9.0]]]), support)
             diagnostics, corrected = pipeline._stable_reference(
-                data, {'stable_reference': {'common_mode_correction': True}},
+                data,
+                {'stable_reference': {'common_mode_correction': True}},
             )
             assert diagnostics['per_date_median'] == [2.0]
-            np.testing.assert_allclose(corrected[0, 0], [3., 0.])
+            np.testing.assert_allclose(corrected[0, 0], [3.0, 0.0])
             assert np.isnan(corrected[0, 1]).all()
             np.testing.assert_array_equal(tsf, [[True, False], [False, False]])
-            shifted = RasterProfile(profile.crs, from_origin(1, 20, 10, 10), 2, 2, 'float32', None)
+            shifted = RasterProfile(
+                profile.crs, from_origin(1, 20, 10, 10), 2, 2, 'float32', None
+            )
             with self.assertRaisesRegex(ValueError, 'grid does not match'):
                 pipeline._include_stable_reference(tsf, {}, shifted)
 

@@ -16,7 +16,10 @@ from subsystems.map.pipelines.learning_pipeline import (
     predict_values,
     resolve_windows,
 )
-from subsystems.map.utils.artifacts import write_error_by_lead, write_observed_vs_predicted
+from subsystems.map.utils.artifacts import (
+    write_error_by_lead,
+    write_observed_vs_predicted,
+)
 from subsystems.map.utils.config_loader import MapContext
 from subsystems.map.utils.forecasts import (
     apply_interval,
@@ -49,7 +52,11 @@ class InferencePipeline:
         windows = resolve_windows(ctx, loaded.dates)
         model = MODEL_REGISTRY[ctx.model_name].load(ctx.model_dir / 'model.pkl')
         samples = build_forecast_samples(
-            loaded, ctx.feature_names, ctx.target_feature, ctx.horizon, model.look_back()
+            loaded,
+            ctx.feature_names,
+            ctx.target_feature,
+            ctx.horizon,
+            model.look_back(),
         )
         predicted = predict_values(model, samples)
         lower, upper = apply_interval(predicted, experiment['uncertainty'])
@@ -62,8 +69,14 @@ class InferencePipeline:
             **ctx.identity(),
             'model_version': experiment['model_version'],
             'interval_level': experiment['uncertainty']['level'],
-            'calibration_window': [loaded.dates[windows['calibration'][0]], loaded.dates[windows['calibration'][1] - 1]],
-            'monitoring_window': [loaded.dates[windows['monitoring'][0]], loaded.dates[windows['monitoring'][1] - 1]],
+            'calibration_window': [
+                loaded.dates[windows['calibration'][0]],
+                loaded.dates[windows['calibration'][1] - 1],
+            ],
+            'monitoring_window': [
+                loaded.dates[windows['monitoring'][0]],
+                loaded.dates[windows['monitoring'][1] - 1],
+            ],
             'latest_acquisition_date': loaded.dates[-1],
             **grid_metadata(samples),
         }
@@ -72,10 +85,15 @@ class InferencePipeline:
             output / 'forecasts', forecasts, {**metadata, 'product': 'map_forecasts'}
         )
         residuals = match_observations(
-            forecasts, loaded.features[ctx.target_feature], loaded.dates, loaded.grid.width
+            forecasts,
+            loaded.features[ctx.target_feature],
+            loaded.dates,
+            loaded.grid.width,
         )
         residual_path = write_table(
-            output / 'residuals', residuals, {**metadata, 'product': 'map_forecast_residuals'}
+            output / 'residuals',
+            residuals,
+            {**metadata, 'product': 'map_forecast_residuals'},
         )
         summary = self._error_summary(residuals)
         self._write_summary_csv(output / 'forecast_errors.csv', metadata, summary)
@@ -86,7 +104,9 @@ class InferencePipeline:
             'forecast_table': str(forecast_path),
             'residual_table': str(residual_path),
             'forecast_rows': int(forecasts['lead'].size),
-            'expected_target_rows': int(np.count_nonzero(forecasts['target_date_status'] == 'expected')),
+            'expected_target_rows': int(
+                np.count_nonzero(forecasts['target_date_status'] == 'expected')
+            ),
             'matched_rows': int(residuals['lead'].size),
             'errors': summary,
         }
@@ -103,11 +123,14 @@ class InferencePipeline:
             )
         experiment = json.loads(path.read_text(encoding='utf-8'))
         expected = {**self.ctx.identity(), 'feature_names': self.ctx.feature_names}
-        differing = [key for key, value in expected.items() if experiment.get(key) != value]
+        differing = [
+            key for key, value in expected.items() if experiment.get(key) != value
+        ]
         if differing:
             raise ValueError(
                 'Configuration differs from the trained model in: '
-                + ', '.join(differing) + '. Re-run learning.'
+                + ', '.join(differing)
+                + '. Re-run learning.'
             )
         return experiment
 
@@ -147,12 +170,18 @@ class InferencePipeline:
                         'period': period,
                         'lead': lead,
                         **model,
-                        **{f'constant_{k}': v for k, v in baseline.items() if k != 'valid_count'},
+                        **{
+                            f'constant_{k}': v
+                            for k, v in baseline.items()
+                            if k != 'valid_count'
+                        },
                     }
                 )
         return summary
 
-    def _plots(self, residuals: dict[str, np.ndarray], summary: list[dict[str, Any]]) -> None:
+    def _plots(
+        self, residuals: dict[str, np.ndarray], summary: list[dict[str, Any]]
+    ) -> None:
         """Monitoring-period observed-vs-predicted and error-by-lead diagnostics."""
         horizon = self.ctx.horizon
         units = str(self.ctx.dataset['target_units'])
@@ -163,20 +192,33 @@ class InferencePipeline:
         observed[np.arange(lead.size), lead] = residuals['observed_value'][monitoring]
         predicted[np.arange(lead.size), lead] = residuals['predicted_value'][monitoring]
         label = f'{self.ctx.experiment_name}: monitoring period'
-        write_observed_vs_predicted(self.ctx.forecast_dir, observed, predicted, units, label)
+        write_observed_vs_predicted(
+            self.ctx.forecast_dir, observed, predicted, units, label
+        )
         rows = [row for row in summary if row['period'] == 'monitoring']
         if rows:
             write_error_by_lead(self.ctx.forecast_dir, rows, units, label)
 
     @staticmethod
-    def _write_summary_csv(path: Any, metadata: dict[str, Any], summary: list[dict[str, Any]]) -> None:
-        keys = ('kv', 'target_variable', 'target_units', 'model', 'experiment', 'model_version')
+    def _write_summary_csv(
+        path: Any, metadata: dict[str, Any], summary: list[dict[str, Any]]
+    ) -> None:
+        keys = (
+            'kv',
+            'target_variable',
+            'target_units',
+            'model',
+            'experiment',
+            'model_version',
+        )
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open('w', encoding='utf-8', newline='') as stream:
             fields = [*keys, *(summary[0] if summary else ['period', 'lead'])]
             writer = csv.DictWriter(stream, fieldnames=fields)
             writer.writeheader()
-            writer.writerows({**{k: metadata[k] for k in keys}, **row} for row in summary)
+            writer.writerows(
+                {**{k: metadata[k] for k in keys}, **row} for row in summary
+            )
 
 
 def run_inference(config: dict[str, Any]) -> dict[str, Any]:

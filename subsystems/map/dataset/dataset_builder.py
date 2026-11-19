@@ -39,7 +39,9 @@ class ForecastSamples:
         """Model targets: change from the last valid value at the origin."""
         return self.targets - self.anchors[:, np.newaxis]
 
-    def subset(self, include: np.ndarray, target_end: int | None = None) -> 'ForecastSamples':
+    def subset(
+        self, include: np.ndarray, target_end: int | None = None
+    ) -> 'ForecastSamples':
         """Select rows; mask targets at or after ``target_end`` (purging)."""
         targets = self.targets[include].copy()
         if target_end is not None:
@@ -142,14 +144,19 @@ def build_forecast_samples(
     target_index = origin[:, None] + leads[None, :]
     future = np.full(target_index.shape, np.nan)
     inside = target_index < time_count
-    future[inside] = target[target_index[inside], np.broadcast_to(pixel[:, None], target_index.shape)[inside]]
+    future[inside] = target[
+        target_index[inside],
+        np.broadcast_to(pixel[:, None], target_index.shape)[inside],
+    ]
     return ForecastSamples(
         features=features,
         anchors=anchors[origin, pixel],
         anchor_indices=anchor_index[origin, pixel],
         targets=future,
         origin_indices=origin.astype(np.int64),
-        pixel_indices=(rows[pixel] * loaded.grid.width + columns[pixel]).astype(np.int64),
+        pixel_indices=(rows[pixel] * loaded.grid.width + columns[pixel]).astype(
+            np.int64
+        ),
         feature_names=tuple(feature_names),
         dates=loaded.dates,
         grid=loaded.grid,
