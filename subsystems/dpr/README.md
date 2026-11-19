@@ -71,3 +71,27 @@ data analysis pipeline `Sentinel2WaterMaskingPipeline` is executed.
 See
 [dpr_sentinel2_workflow.py](../../examples/dpr_sentinel2_workflow.py)
 for complete Sentinel-2 workflow.
+# Sentinel-1 LOS and quality exports
+
+Sentinel-1 processing writes these directories under its result directory:
+
+| Directory | Contents | Units |
+| --- | --- | --- |
+| `los_cumulative` | `los_YYYYMMDD.tif`, displacement relative to the first epoch | mm |
+| `los_incremental` | `los_YYYYMMDD.tif`, later minus preceding cumulative acquisition | mm |
+| `velocity_interval` | `velocity_YYYYMMDD.tif`, signed increment divided by elapsed days | mm/day |
+| `coherence` | `coherence_REF_REP.tif`, aligned pair coherence used by the solver | 1 |
+| `valid_coverage` | `valid_coverage_REF_REP.tif`, valid phase and positive finite weight indicator | 0 or 1 |
+| `pair_residuals` | `pair_residuals_REF_REP.tif`, observed pair LOS minus fitted pair LOS | mm |
+
+Interval outputs omit the first epoch, preserve invalid endpoints as NoData,
+and include `interval_start`, `interval_end`, and `interval_days` metadata.
+Pair products describe the selected interferogram network, whose intervals
+need not be consecutive acquisitions. Coverage is a geocoded validity
+indicator; interpolation during geocoding can produce fractional edge values.
+Coherence is dimensionless, and residuals retain their sign.
+
+The existing `displacements`, `velocity`, and `quality` exports remain
+available. Cumulative LOS is exported explicitly to `los_cumulative`; DPR
+does not create a `los` directory.
+Point DAG at the appropriate LOS directory explicitly when choosing inputs.

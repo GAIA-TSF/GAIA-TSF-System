@@ -50,6 +50,14 @@ class BasePipeline(ABC, GaiaBase):
                 'Pipeline is not configured. Call configure() method', self.logger
             )
 
+        unknown = sorted(set(self._config) - set(self.metadata['params']))
+        if unknown:
+            raise GaiaConfigError(
+                f'Unknown parameter(s): {", ".join(unknown)}; '
+                f'supported: {", ".join(sorted(self.metadata["params"]))}',
+                self.logger,
+            )
+
         for k, v in self.metadata['params'].items():
             if self._config.get(k, None) is None:
                 if v.get('default', None) is not None:
@@ -59,9 +67,10 @@ class BasePipeline(ABC, GaiaBase):
                         raise GaiaConfigError(
                             f"Parameter '{k}' not defined", self.logger
                         )
-            if self._config[k] is not None and type(self._config[k]) is not v['dtype']:
+            value = self._config.get(k)
+            if value is not None and type(value) is not v['dtype']:
                 raise GaiaConfigError(
-                    f"Paramater '{k}' (type: {type(self._config[k])}) type mismatch ({v['dtype']})",
+                    f"Paramater '{k}' (type: {type(value)}) type mismatch ({v['dtype']})",
                     self.logger,
                 )
 
