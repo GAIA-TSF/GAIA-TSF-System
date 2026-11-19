@@ -69,13 +69,7 @@ class CustomLoggerAdapter(logging.LoggerAdapter):
         """
         handler = self._db_handler()
         if handler is not None:
-            extra = self.extra or {}
-            return handler.start_task(
-                name=obj.__class__.__name__,
-                subsystem=extra.get('subsystem'),
-                site_id=extra.get('site_id'),
-                project_name=extra.get('project_name'),
-            )
+            return handler.start_task(name=obj.__class__.__name__)
 
         if not CustomLoggerAdapter._local_task_id_warned:
             CustomLoggerAdapter._local_task_id_warned = True

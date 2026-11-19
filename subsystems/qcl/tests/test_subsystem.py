@@ -12,6 +12,7 @@ from lib.base import SubsystemId
 from tests.utils import TestUtils
 from lib.config import ProjectConfigReader
 from lib.exceptions import GaiaConfigError, GaiaDataError
+from subsystems.qcl.logger import TASK_STARTED
 
 
 class TestSubsystem:
@@ -171,12 +172,16 @@ class TestLoggerTasks:
                 return cur.fetchall()
 
     def _task(self, qc, task_id):
-        """Return (name, subsystem_id, pid, status, finished) of the task."""
+        """Return (name, subsystem_id, pid, status, finished) of the task.
+
+        Subsystem and pid are taken from the TASK_STARTED log record.
+        """
         rows = self._fetch(
             qc,
-            'SELECT t.name,t.subsystem_id,t.pid,lv.name,t.finished FROM task t '
+            'SELECT t.name,l.subsystem_id,l.pid,lv.name,t.finished FROM task t '
+            'JOIN log l ON l.task_id=t.id AND l.level_id=%s '
             'JOIN log_level lv ON t.status_id=lv.id WHERE t.id=%s',
-            (task_id,),
+            (TASK_STARTED, task_id),
         )
         assert len(rows) == 1
         return rows[0]
