@@ -28,4 +28,5 @@ rbeast~=0.1.25  # map temporal decomposition
 scikit-learn~=1.9.1  # map predictive model plugins
 shap~=0.54.1  # map tree-model explainability
 torch~=2.15.0  # map LSTM sequence-model plugin
-matplotlib~=3.11.2  # dag & map diagnostic products
+matplotlib~=3.11.2  # dpr, dag & map diagnostic products
+scipy~=1.18.1  # dpr, dag
