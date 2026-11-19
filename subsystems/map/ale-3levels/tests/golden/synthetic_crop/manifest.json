@@ -1,0 +1,41 @@
+{
+  "description": "Golden outputs of the three-level alert prototype (ALE plan step 2).",
+  "prototype": "f11c5f2 + stash@{0}",
+  "prototype_head": "f11c5f2e9cb085190f072ac082e098d120444373",
+  "legacy_za_source": "950702d:subsystems/map/monitoring/anomaly_detection.py",
+  "map_table": "residuals.npz",
+  "map_table_sha256": "f4c8b0a03e88aa4e63a7f2417fbac8e01ccbf06314f95f833d9c85d82ac73ddb",
+  "map_model_version": "slope_trf@51fd24bbbf12",
+  "map_target_feature": "cumulative_los_current",
+  "source_unit": "m",
+  "crop_rows_cols": [
+    80,
+    112,
+    64,
+    96
+  ],
+  "lead": 1,
+  "calibration_window_rule": "all dates before the table monitoring_window start",
+  "input_sha256": "36325fd3b03c981b654ac2a256eb65347e3773b7c1bd2fdaf2451c54eaef5a7f",
+  "legacy_za_config": {
+    "residual_threshold": 0.1,
+    "zscore_threshold": 1.5,
+    "direction": "negative",
+    "persistence": 3
+  },
+  "files": [
+    "anomaly_summary.json",
+    "config.yaml",
+    "inputs.npz",
+    "l1_calibration.json",
+    "l2_calibration.json",
+    "l3_calibration.json",
+    "legacy_za.npz",
+    "legacy_za_summary.json",
+    "monitoring_metadata.json",
+    "monitoring_series.json",
+    "rasters.npz",
+    "spatial_coherence_summary.json"
+  ],
+  "note": "Absolute paths inside monitoring_metadata.json refer to the capture run directory and are not part of the comparison."
+}

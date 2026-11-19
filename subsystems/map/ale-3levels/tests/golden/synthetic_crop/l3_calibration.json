@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "method": "pre_monitoring_regime_signal_mean_sample_std_ddof1",
+  "formula": "u = direction * (EMA(d observed/dt) - EMA(d forecast/dt)); z = (u - mean_calibration) / sigma_calibration; score = EMA((1 - exp(-max(0, z))) * sign_persistence(z))",
+  "signal": "unexpected_acceleration",
+  "population": "tsf_mean_on_fixed_support",
+  "unit": "mm/day",
+  "signal_unit": "mm/day/day",
+  "target_feature": "cumulative_los_current_rate_mm_per_day",
+  "mean": -5.366124222677713e-05,
+  "sigma": 0.0007863317982128077,
+  "sample_count": 53,
+  "first_date": "2017-03-26",
+  "last_date": "2018-12-10",
+  "input_fingerprint": "fba0c77c64d33e19469949593054093f598c68caf72392a74952786682796620"
+}
