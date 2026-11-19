@@ -116,3 +116,55 @@ The example can be executed as follows:
 cd docker/
 docker compose exec -u $(id -u):$(id -g) gaiatesting python3 -m examples.eou_sentinel2_download
 ```
+
+## Running with System-Validation
+
+The [System-Validation](https://github.com/GAIA-TSF/System-Validation)
+repository provides additional projects (configurations and data) used
+for validating the GAIA-TSF System. When using Docker, it is mounted
+into the `gaiatesting` container as `/data/validation` (see
+[#494](https://github.com/GAIA-TSF/GAIA-TSF-System/pull/494)).
+
+Clone both Git repositories into the same parent directory:
+
+```sh
+git clone git@github.com:GAIA-TSF/GAIA-TSF-System.git
+git clone git@github.com:GAIA-TSF/System-Validation.git
+```
+
+resulting in:
+
+```
+.
+├── GAIA-TSF-System
+└── System-Validation
+```
+
+If System-Validation is located elsewhere, set the
+`HOST_VALIDATION_DIR` environment variable (e.g. in `docker/.env`) to
+its path.
+
+Recreate the containers and restart the services:
+
+```sh
+cd GAIA-TSF-System/docker
+docker compose down
+docker compose up -d
+```
+
+Quick test that the validation data are available in the container:
+
+```sh
+docker compose exec -u $(id -u):$(id -g) gaiatesting ls /data/validation
+```
+
+Example of how to access a validation project:
+
+```python
+from lib.config import ProjectConfigReader
+
+project_name = 'slope_monitoring_tharsis'
+project_config = ProjectConfigReader(
+    f'/data/validation/projects/{project_name}/config.yaml'
+)
+```

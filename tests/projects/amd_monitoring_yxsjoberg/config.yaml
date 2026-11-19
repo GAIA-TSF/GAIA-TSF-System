@@ -10,10 +10,10 @@ project:
   risk_indicator: 'amd_index' # derived indicator (e.g. B4/B2 ratio)
 
   # SPATIAL DATA
-  aoi: 'static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
+  aoi: './static/aoi.gpkg'      # area of interest polygon (./GAIA-TSF-System/tests/projects/)
 
   masks:
-    tsf_mask: null            # Tailings Storage Facility mask (must-have)
+    tsf_mask: './static/aoi.gpkg'            # Tailings Storage Facility mask (must-have)
     tsf_water: null           # Tailings Storage Facility water mask (optional)
     stable_reference: null    # clean/stable area mask (baseline reference)
 
@@ -32,7 +32,15 @@ project:
   monitoring_seasons: '05-01/10-31' # May–October (snow-free season)
 
   # DATA SOURCES
-  sensors: ['Sentinel-2']      # 'PlanetScope' optinal replacement 
+  eou:
+    - backend: eodag
+      provider: cop_dataspace
+      productType: S2_MSI_L2A
+      target_dir: sentinel2
+
+    - backend: asf
+      direction: A
+      target_dir: sentinel1
 
   meteo_data:
     source: 'meteostat'        # Python package
@@ -44,7 +52,7 @@ project:
   # IN-SITU DATA 
   in_situ:
     file_name: null           # path to CSV / database (if available)
-    metadata_file: null       # meatadata of the measured vairables 
+    metadata_file: null       # metadata of the measured vairables
 
   # REFERENCE DATA (FOR CLASSIFICATION / EVALUATION)
     polygons:

@@ -4,6 +4,8 @@ import re
 import pandas as pd
 import io
 
+from lib.exceptions import GaiaDataError
+
 
 class BaseParser(ABC):
     """
@@ -33,8 +35,8 @@ class BaseParser(ABC):
                 return df, enc
             except (UnicodeDecodeError, pd.errors.ParserError) as e:
                 last_err = e
-        raise ValueError(
-            f'Could not decode CSV with any supported encoding: {last_err}'
+        raise GaiaDataError(
+            f'Could not decode CSV with any supported encoding: {last_err}', self.logger
         )
 
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -193,7 +195,7 @@ class BaseParser(ABC):
             return df
 
         except (KeyError, ValueError) as e:
-            self.logger.error(f'Timestamp standardization failed: {str(e)}')
-            raise ValueError(
-                f"Failed to standardize timestamp column '{target_col}': {str(e)}"
+            raise GaiaDataError(
+                f"Failed to standardize timestamp column '{target_col}': {str(e)}",
+                self.logger,
             )

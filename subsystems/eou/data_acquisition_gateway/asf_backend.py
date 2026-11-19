@@ -11,7 +11,9 @@ from geopandas import GeoDataFrame
 from shapely.wkt import loads
 from shapely.geometry.base import BaseGeometry
 from pygmtsar import ASF
+
 from subsystems.eou.data_acquisition_gateway.base_backend import DataAcquisitionBackend
+from lib.exceptions import GaiaDataError
 
 
 class ASFDataAcquisitionBackend(DataAcquisitionBackend):
@@ -38,11 +40,22 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             try:
                 geom = loads(geom)
             except Exception as e:
-                raise ValueError(f'Failed to parse AOI WKT string: {e}')
+                raise GaiaDataError(f'Failed to parse AOI WKT string: {e}', self.logger)
 
-        all_results = ASF.search(
-            geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
-        )
+        try:
+            all_results = ASF.search(
+                geom, startTime=start, stopTime=end, flightDirection=direction, **kwargs
+            )
+        except ValueError as e:
+            # Handle pygmtsar empty result GeoDataFrame initialization failure
+            if 'without a geometry column is not supported' in str(e):
+                return GeoDataFrame()
+            raise e
+
+        # Return early if no products were found
+        if all_results.empty:
+            return all_results
+
         if path_number is None:
             best_orbit = all_results['pathNumber'].value_counts().idxmax()
             return all_results[all_results['pathNumber'] == best_orbit]
@@ -97,7 +110,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
         :type target_dir: str or pathlib.Path
         :return: List of resolved SAFE directory paths
         :rtype: list[pathlib.Path]
-        :raises FileNotFoundError: If no matching SAFE directory is found
         """
         target_dir = Path(target_dir)
         safe_dirs = list(target_dir.glob('*.SAFE'))
@@ -121,6 +133,6 @@ class ASFDataAcquisitionBackend(DataAcquisitionBackend):
             if match:
                 resolved.append(match)
             else:
-                raise RuntimeError(f'SAFE not found for {fid}')
+                raise GaiaDataError(f'SAFE not found for {fid}', self.logger)
 
         return resolved
