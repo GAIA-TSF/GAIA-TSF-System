@@ -70,8 +70,6 @@ class RasterDataset(BaseDataset):
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
     :param str path: Path to the raster data source
-
-    :raises RuntimeError: If the file cannot be opened.
     """
 
     MIME_LOOKUP: Dict[str, str] = {
@@ -244,8 +242,6 @@ class SentinelCDSEDataset(BaseDataset, ABC):
     GDAL dataset wrapper for extracting spatial and raster metadata.
 
     :param str path: Path to the raster data source
-
-    :raises RuntimeError: If the file cannot be opened.
     """
 
     def get_stac_item(self) -> Dict[str, Any]:

@@ -7,9 +7,14 @@ if TYPE_CHECKING:
 import pystac
 import requests
 import json
+import jsonschema
+from datetime import datetime
+from pathlib import Path
 
 from lib.base import GaiaBase, SubsystemId
 from lib.config import SettingsReader
+
+_INSITU_SCHEMA_PATH = Path(__file__).parent / 'schemas' / 'insitu.json'
 
 
 class MetadataValidator(GaiaBase):
@@ -20,6 +25,71 @@ class MetadataValidator(GaiaBase):
     def __init__(self):
         """Initialize metadata validator."""
         super().__init__(SubsystemId.DPR)
+
+    @staticmethod
+    def _is_insitu(item: pystac.Item) -> bool:
+        """
+        Determine whether a STAC Item represents in-situ (CSV-based) data.
+
+        :param pystac.Item item: the STAC Item to inspect
+        :return: True if the item belongs to the 'insitu' collection, or its
+            'data' asset has media type 'text/csv'
+        :rtype: bool
+        """
+        data_asset = item.assets.get('data')
+        return item.collection_id == 'insitu' or (
+            data_asset is not None and data_asset.media_type == 'text/csv'
+        )
+
+    def _validate_insitu(self, item: pystac.Item, result: dict) -> None:
+        """
+        Validate an in-situ STAC Item against the in-situ JSON schema and
+        against additional rules that cannot be expressed in JSON Schema
+        (start/end datetime ordering, bbox within WGS-84 bounds).
+
+        :param pystac.Item item: the in-situ STAC Item to validate
+        :param dict result: validation result dict, mutated in place;
+            'valid' is set to False and a message is appended to 'errors'
+            for each rule violation found
+        :return: None, ``result`` is updated in place
+        :rtype: None
+        """
+        with open(_INSITU_SCHEMA_PATH) as f:
+            schema = json.load(f)
+
+        try:
+            jsonschema.validate(instance=item.to_dict(), schema=schema)
+        except jsonschema.ValidationError as e:
+            result['valid'] = False
+            result['errors'].append(f'In-situ schema validation failed: {e.message}')
+
+        # start < end cannot be expressed in JSON Schema
+        props = item.properties
+        start = props.get('start_datetime')
+        end = props.get('end_datetime')
+        if start and end:
+            try:
+                if datetime.fromisoformat(start) >= datetime.fromisoformat(end):
+                    result['valid'] = False
+                    result['errors'].append(
+                        f"'start_datetime' must be before 'end_datetime' "
+                        f'(got {start} >= {end}).'
+                    )
+            except ValueError as e:
+                result['valid'] = False
+                result['errors'].append(f'Invalid datetime format in time range: {e}')
+
+        # bbox range check cannot be expressed in JSON Schema
+        if item.bbox:
+            min_lon, min_lat, max_lon, max_lat = item.bbox
+            if not (
+                -180 <= min_lon <= max_lon <= 180 and -90 <= min_lat <= max_lat <= 90
+            ):
+                result['valid'] = False
+                result['errors'].append(
+                    f'bbox {item.bbox} is outside valid WGS-84 bounds '
+                    f'(lon: -180..180, lat: -90..90).'
+                )
 
     def validate(self, metadata_path: Path):
         """
@@ -72,6 +142,9 @@ class MetadataValidator(GaiaBase):
 
             # read input metadata file
             obj = pystac.read_file(metadata_path)
+
+            if self._is_insitu(obj):
+                self._validate_insitu(obj, result)
 
             # if it's an Item, create a Catalog to hold it
             catalog = pystac.Catalog(

@@ -15,6 +15,7 @@ search_filter = {
     'productType': 'S2_MSI_L2A',
 }
 
+
 # search & download is logged as a single task (TASK_STARTED ... TASK_FINISHED,
 # or TASK_FAILED when an exception is raised)
 with dag_module.logger.task(dag_module):
@@ -23,5 +24,5 @@ with dag_module.logger.task(dag_module):
         **search_filter,
     )
     data_path = dag_module.backend.download_all(
-        results, target_dir='sentinel2', quicklook=False
+        results, target_dir=project_config.data_dir() / 'sentinel2', quicklook=False
     )

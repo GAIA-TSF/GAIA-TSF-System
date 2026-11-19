@@ -4,6 +4,8 @@ import re
 import pandas as pd
 import io
 
+from lib.exceptions import GaiaDataError
+
 
 class BaseParser(ABC):
     """
@@ -12,10 +14,17 @@ class BaseParser(ABC):
 
     _ENCODINGS_TO_TRY = ['utf-8', 'gbk', 'gb18030', 'latin-1']
 
-    def __init__(self, logger, encodings=None):
+    def __init__(self, logger, encodings=None, keyword_overrides=None):
         self.logger = logger
         if encodings:
             self._ENCODINGS_TO_TRY = encodings
+        # Config-driven detect() keyword lists (config.yaml: isu.parsers.<name>).
+        # Falls back to each parser's hardcoded defaults when absent, so
+        # parsers keep working when instantiated without settings (e.g. tests).
+        self._keyword_overrides = keyword_overrides or {}
+
+    def _keywords(self, key: str, default: List[str]) -> List[str]:
+        return self._keyword_overrides.get(key) or default
 
     def _read_csv_bytes(self, content: bytes, **kwargs) -> Tuple[pd.DataFrame, str]:
         """Try common encodings in order; return (DataFrame, encoding_used)."""
@@ -26,8 +35,8 @@ class BaseParser(ABC):
                 return df, enc
             except (UnicodeDecodeError, pd.errors.ParserError) as e:
                 last_err = e
-        raise ValueError(
-            f'Could not decode CSV with any supported encoding: {last_err}'
+        raise GaiaDataError(
+            f'Could not decode CSV with any supported encoding: {last_err}', self.logger
         )
 
     def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -154,11 +163,22 @@ class BaseParser(ABC):
             return df
 
         try:
-            # Convert to datetime (coerce errors, dayfirst for EU format)
+            # Year-first strings (ISO-8601 "YYYY-MM-DD..." / "YYYY/MM/DD...")
+            # are unambiguous. Forcing dayfirst=True on them anyway makes
+            # pandas' batch format inference mis-swap month/day, which turns
+            # any row whose day-of-month is > 12 into an invalid date (e.g.
+            # "2018-01-13" gets read as month=13) and silently drops it.
+            # Only apply the dayfirst heuristic to genuinely ambiguous
+            # (non year-first, e.g. EU DD/MM/YYYY) formats.
+            sample = df[target_col].dropna().astype(str)
+            year_first = (
+                sample.str.match(r'^\d{4}[-/]').all() if not sample.empty else False
+            )
+
             df['iso_timestamp'] = pd.to_datetime(
                 df[target_col],
                 errors='coerce',
-                dayfirst=True,
+                dayfirst=not year_first,
             )
 
             # QC: Drop invalid timestamps
@@ -175,7 +195,7 @@ class BaseParser(ABC):
             return df
 
         except (KeyError, ValueError) as e:
-            self.logger.error(f'Timestamp standardization failed: {str(e)}')
-            raise ValueError(
-                f"Failed to standardize timestamp column '{target_col}': {str(e)}"
+            raise GaiaDataError(
+                f"Failed to standardize timestamp column '{target_col}': {str(e)}",
+                self.logger,
             )

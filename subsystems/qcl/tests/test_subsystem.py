@@ -11,6 +11,7 @@ from subsystems.qcl.asset_checker import AssetChecker
 from lib.base import SubsystemId
 from tests.utils import TestUtils
 from lib.config import ProjectConfigReader
+from lib.exceptions import GaiaConfigError, GaiaDataError
 
 
 class TestSubsystem:
@@ -113,11 +114,11 @@ class TestSubsystem:
 
     # 3. Exception Handling Tests
     def test_invalid_data_type(self):
-        """Test passing an unsupported data type: Should raise a ValueError."""
+        """Test passing an unsupported data type: Should raise a GaiaConfigError."""
         qc = QCLayer()
 
         # Standard pytest way to check if an exception is raised
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(GaiaConfigError) as exc_info:
             qc.check('unknown_type', None, {}, 'TEST_ERR_001')
 
         assert 'No QC Controller found for unknown_type' in str(exc_info.value)
@@ -232,9 +233,9 @@ class TestAssetChecker:
         assert result['result'] == {}
 
     def test_AC_006_unknown_key_variable_raises(self):
-        """Unrecognised key_variable must raise ValueError."""
+        """Unrecognised key_variable must raise GaiaDataError."""
         checker = AssetChecker()
-        with pytest.raises(ValueError, match='Unknown key_variable'):
+        with pytest.raises(GaiaDataError, match='Unknown key_variable'):
             checker.analyze_assets(
                 [_S2_ASSET], key_variable='unknown_task', verbose=False
             )

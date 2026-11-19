@@ -14,12 +14,16 @@ services:
     volumes:
       - ..:/opt/gaia_tsf
       - data:/data/gaia_tsf
+      - ${HOST_VALIDATION_DIR:-../../System-Validation}:/data/validation
     networks:
       - gaia_net
     command: tail -f /dev/null
     environment:
       # timezonefinder uses Numba JIT caching - this often breaks in Docker/CI environments
       NUMBA_DISABLE_JIT: 1
+      # container may run as a host UID without passwd entry (HOME=/), so
+      # matplotlib cannot create ~/.config/matplotlib; use a writable dir
+      MPLCONFIGDIR: /tmp/matplotlib
       # may be defined by .env
       GAIA_EOU_AUTH_CREDENTIALS_PASSWORD: ${GAIA_EOU_AUTH_CREDENTIALS_PASSWORD:-}
       GAIA_PROJECT_PATH: ${GAIA_PROJECT_PATH:-}
