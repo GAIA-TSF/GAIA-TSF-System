@@ -15,10 +15,14 @@ search_filter = {
     'productType': 'S2_MSI_L2A',
 }
 
-results = dag_module.backend.search(
-    geom=project_config.aoi(),
-    **search_filter,
-)
-data_path = dag_module.backend.download_all(
-    results, target_dir=project_config.data_dir() / 'sentinel2', quicklook=False
-)
+
+# search & download is logged as a single task (TASK_STARTED ... TASK_FINISHED,
+# or TASK_FAILED when an exception is raised)
+with dag_module.logger.task(dag_module):
+    results = dag_module.backend.search(
+        geom=project_config.aoi(),
+        **search_filter,
+    )
+    data_path = dag_module.backend.download_all(
+        results, target_dir=project_config.data_dir() / 'sentinel2', quicklook=False
+    )

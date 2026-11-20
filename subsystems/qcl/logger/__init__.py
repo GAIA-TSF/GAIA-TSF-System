@@ -2,10 +2,199 @@ from typing import Dict
 
 import sys
 import logging
+import itertools
+from contextlib import contextmanager
 
-from subsystems.qcl.logger.db import DbLogger
+from subsystems.qcl.logger.db import (
+    DbLogger,
+    TASK_STARTED,
+    TASK_FINISHED,
+    TASK_FAILED,
+)
 
 from lib.config import SettingsReader
+
+
+# register custom levels (defined in db module)
+logging.addLevelName(TASK_STARTED, 'TASK_STARTED')
+logging.addLevelName(TASK_FINISHED, 'TASK_FINISHED')
+logging.addLevelName(TASK_FAILED, 'TASK_FAILED')
+
+
+class CustomLoggerAdapter(logging.LoggerAdapter):
+    """LoggerAdapter subclass that exposes DB-related task helpers.
+
+    This adapter keeps the standard LoggerAdapter behavior (injecting the
+    provided context into each record) and adds convenience methods to
+    create and attach a task_id stored in the DB-backed handler.
+    """
+
+    def process(self, msg, kwargs):
+        """Merge adapter context with per-call extra.
+
+        Standard LoggerAdapter replaces per-call ``extra`` by adapter context
+        (unless ``merge_extra`` is set). Here both are merged, per-call values
+        take precedence (e.g. explicit ``task_id``).
+
+        Note: this method is not called explicitly. It is a hook invoked
+        automatically by ``logging.LoggerAdapter.log()`` for every logging
+        call made through the adapter (``info()``, ``debug()``, ...,
+        including ``task_*()`` methods which call ``self.log()``). It is
+        skipped only when the level is not enabled (``isEnabledFor()``).
+        """
+        kwargs['extra'] = {**(self.extra or {}), **kwargs.get('extra', {})}
+        return msg, kwargs
+
+    # fallback task id counter (process-local) used when DB logging is not
+    # configured; shared by all adapter instances
+    _local_task_id = itertools.count(1)
+    _local_task_id_warned = False
+
+    def _db_handler(self):
+        """Return DbLogger handler instance or None if not configured."""
+        for handler in getattr(self.logger, 'handlers', []):
+            if isinstance(handler, DbLogger):
+                return handler
+        return None
+
+    def _next_task_id(self, obj):
+        """Obtain the next task id.
+
+        A new task is registered in DbLogger (``task`` table), the id is unique
+        across processes. If DB logging is not configured (e.g. ``db_config``
+        is None), a process-local counter is used instead, such ids are unique
+        only within the current process.
+
+        :param obj: related object (class name used as task name)
+        """
+        handler = self._db_handler()
+        if handler is not None:
+            return handler.start_task(name=obj.__class__.__name__)
+
+        if not CustomLoggerAdapter._local_task_id_warned:
+            CustomLoggerAdapter._local_task_id_warned = True
+            self.warning(
+                'DB logging not configured, task IDs are unique only within '
+                'the current process'
+            )
+        return next(CustomLoggerAdapter._local_task_id)
+
+    def __log_task(
+        self,
+        level: int,
+        obj,
+        *,
+        task_id=None,
+        msg_suffix=None,
+        persist=False,
+        clear=False,
+        **kwargs,
+    ):
+        """Internal helper to log task-related events and avoid duplication.
+
+        - level: numeric logging level
+        - obj: related object (used for class name in message)
+        - task_id: optional task id to attach; if None, tries adapter.extra
+        - msg_suffix: string appended to class name (e.g. 'started')
+        - persist: if True, store task_id in adapter.extra for future logs
+        - clear: if True, remove persisted task_id from adapter.extra after
+          logging (so subsequent logs are not attributed to the closed task)
+        """
+        name = obj.__class__.__name__
+        msg = f'{name} {msg_suffix}' if msg_suffix else name
+
+        # ensure adapter extra is a mutable dict
+        if not isinstance(self.extra, dict):
+            self.extra = dict(self.extra or {})
+
+        extra = kwargs.pop('extra', {})
+
+        # resolve task_id: explicit param -> adapter extra -> None
+        resolved_task_id = task_id if task_id is not None else self.extra.get('task_id')
+        if resolved_task_id is not None:
+            extra.update({'task_id': resolved_task_id})
+
+        if persist and resolved_task_id is not None:
+            self.extra['task_id'] = resolved_task_id
+
+        self.log(level, msg, extra=extra, **kwargs)
+
+        if clear and self.extra.get('task_id') == resolved_task_id:
+            self.extra.pop('task_id', None)
+
+        return resolved_task_id
+
+    def task_started(self, obj, **kwargs):
+        """Create new task id, persist it in adapter context and log start.
+
+        Only one active task per adapter is supported (no nesting). Starting
+        a new task replaces the persisted task id of the previous (still
+        active) task.
+        """
+        task_id = self._next_task_id(obj)
+        return self.__log_task(
+            TASK_STARTED,
+            obj,
+            task_id=task_id,
+            msg_suffix='started',
+            persist=True,
+            **kwargs,
+        )
+
+    def task_finished(self, obj, **kwargs):
+        """Log a task finished event using either provided or persisted task_id.
+
+        The persisted task_id is cleared afterwards.
+        """
+        task_id = kwargs.pop('task_id', None)
+        return self.__log_task(
+            TASK_FINISHED,
+            obj,
+            task_id=task_id,
+            msg_suffix='finished',
+            clear=True,
+            **kwargs,
+        )
+
+    def task_failed(self, obj, **kwargs):
+        """Log a task failed event using either provided or persisted task_id.
+
+        The persisted task_id is cleared afterwards.
+        """
+        task_id = kwargs.pop('task_id', None)
+        return self.__log_task(
+            TASK_FAILED,
+            obj,
+            task_id=task_id,
+            msg_suffix='failed',
+            clear=True,
+            **kwargs,
+        )
+
+    @contextmanager
+    def task(self, obj):
+        """Context manager wrapping a block of code as a logged task.
+
+        Calls ``task_started()`` on enter, ``task_finished()`` on normal exit
+        and ``task_failed()`` when an exception is raised (the exception is
+        re-raised). Yields the task id.
+
+        Nested tasks are not supported (see ``task_started()``). Start/finish
+        records are logged with correct task ids, but records of an outer
+        task logged after an inner task is finished carry no task id.
+
+        Example::
+
+            with self.logger.task(self) as task_id:
+                ...
+        """
+        task_id = self.task_started(obj)
+        try:
+            yield task_id
+        except BaseException:
+            self.task_failed(obj, task_id=task_id)
+            raise
+        self.task_finished(obj, task_id=task_id)
 
 
 class Logger:
@@ -34,6 +223,14 @@ class Logger:
 
         :return: Configured instance of ``logging.Logger``.
         :rtype: logging.Logger
+
+        :raises Exception:
+            May raise exceptions depending on logging handler initialization
+            (e.g. database connection errors).
+
+        Returns a CustomLoggerAdapter so task_* helpers are available on the
+        returned object (previously the factory returned a plain
+        logging.LoggerAdapter which lacked those methods).
         """
         base_logger = logging.getLogger(name)
 
@@ -61,4 +258,5 @@ class Logger:
 
             cls._configured = True
 
-        return logging.LoggerAdapter(base_logger, context)
+        # Return the custom adapter so callers can use task_started()/task_finished()
+        return CustomLoggerAdapter(base_logger, context)
