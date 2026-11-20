@@ -1,0 +1,150 @@
+# MAP: forecasting of key-variable (KV) target series from DAG features.
+# Select the dataset and model here or on the command line:
+#   run_learning.py --config config.yaml --dataset amd_dataset --model trf
+dataset: slope_dataset  # slope_dataset | amd_dataset
+model: trf              # constant | trf | lstm
+# experiment: slope_trf # model/forecast directory name; default <kv>_<model>
+seed: 42
+
+forecast:
+  # Leads 1..horizon acquisitions after each forecast origin (1, 3, or 5).
+  horizon: 3
+  # Central prediction interval from per-lead validation residual quantiles.
+  interval_level: 0.9
+  # Spacing of "expected" target dates beyond the last acquisition.
+  # Default: median spacing of the loaded acquisitions.
+  # acquisition_interval_days: 12
+
+data:
+  # exact: identical acquisition dates; previous: causal as-of join (meteo).
+  temporal_alignment_method: exact
+
+# Feature stems are DAG outputs below <experiment_dir>/results/{features,
+# temporal_features,meteo_features}. At forecast origin t, every predictor is
+# read from row t; DAG *_lagK rows hold values from t-K.
+datasets:
+  slope_dataset:
+    kv: slope
+    # Synthetic: tsf_experiments/slope_synthetic_western_platinum_external_trigger
+    # Cadia: tsf_experiments/slope_monitoring_cadia
+    experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger
+    mask_file: tsf_mask.tif
+    # stable_file: tsf_stable.tif
+    # Cumulative LOS displacement (DPR input, unchanged). DAG writes it with
+    # slope_stability.results.temporal_features.current:
+    #   {enabled: true, features: [cumulative_los]}
+    target_feature: cumulative_los_current
+    target_variable: cumulative_los
+    target_units: mm
+    features:
+      - velocity_lag1
+      - velocity_lag2
+      - velocity_lag3
+      - acceleration_lag1
+      - acceleration_lag2
+      - acceleration_lag3
+    calibration_spatial_selection:
+      # configured_mask: train on stable_file (or mask_file below).
+      # temporal_std: pixels of mask_file whose std_feature std over the
+      #   calibration window is below std_threshold (std_feature units).
+      # configured_mask_and_temporal_std: both.
+      method: configured_mask
+      mask_file: tsf_mask.tif 
+      # std_feature: velocity_lag1
+      # std_threshold: 0.008
+    split:
+      # temporal: chronological origins; spatial: unseen pixels, same dates.
+      method: temporal # spatial
+      random_seed: 42
+      train_ratio: 0.7
+      validation_ratio: 0.15
+      test_ratio: 0.15
+    temporal_windows:
+      calibration:
+        start_date: '2017-01-01'
+        end_date: '2018-12-22'       # end is exclusive: last origin is 2018-12-10, before the rainfall
+      monitoring:
+        start_date: '2018-12-22'
+        end_date: '2020-12-23'
+
+  amd_dataset:
+    kv: amd
+    experiment_dir: /home/lukas/ownCloud/Projects/GAIA_TSF/tsf_experiments/amd_yxsjoberg_2018_2022
+    mask_file: amd_mask.tif
+    # DAG amd_features base stack; the DAG formula (difference B04 - B02,
+    # scale 1, offset 0) and SCL/consistency quality filtering apply.
+    target_feature: amd_difference
+    target_variable: amd_difference
+    target_units: unconfirmed  # DAG records no unit for the band difference
+    features: [lag1, lag2, lag3, amd_diff1, roll_mean, roll_std, annual_sin, annual_cos]
+    calibration_spatial_selection:
+      # Normal data selected by the calibration time window over the AMD mask.
+      method: configured_mask
+      mask_file: amd_mask.tif
+    split:
+      method: temporal
+      train_ratio: 0.70
+      validation_ratio: 0.15
+      test_ratio: 0.15
+    temporal_windows:
+      calibration:
+        start_date: '2018-01-01'
+        end_date: '2020-01-27'
+      monitoring:
+        start_date: '2020-02-08'
+        end_date: '2020-12-28'
+
+models:
+  constant: {}  # persistence: last valid target value at the origin
+  trf:          # one scikit-learn RandomForestRegressor per lead
+    n_estimators: 200
+    max_depth: 20
+    random_state: 42
+    n_jobs: 7
+  lstm:
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    look_back: 6 # 12  # acquisitions ending at the forecast origin
+    device: cpu
+    optimizer:
+      lr: 0.001
+    training:
+      batch_size: 256
+      epochs: 10
+
+# run_tuning.py: search the values below on rolling-origin chronological folds
+# of the reference data (test split excluded), keep the lowest mean MAE, and
+# retrain. Unlisted settings come from models.<model>; nested keys are dotted.
+tuning:
+  folds: 3            # expanding-window folds
+  max_candidates: 12  # random subset of the grid when it is larger
+  search:
+    trf:
+      max_depth: [10, 20, null]
+      min_samples_leaf: [1, 5, 20]
+      max_features: [1.0, 0.5]
+    lstm:
+      look_back: [6, 12]
+      hidden_size: [32, 64]
+      dropout: [0.0, 0.2]
+      optimizer.lr: [0.001, 0.003]
+
+# Model diagnostics only: observed-vs-predicted, error by lead, learning curve.
+plotting:
+  enabled: false
+
+# TRF SHAP and grouped permutation importance per lead (needs shap).
+explainability:
+  enabled: false
+  parallel:
+    n_jobs: 4
+  shap:
+    sample_size: 1000
+    dependence_features: [velocity_lag2, acceleration_lag1]
+  grouped_permutation:
+    n_repeats: 5
+    groups:
+      velocity_history: [velocity_lag1, velocity_lag2, velocity_lag3]
+      acceleration_history: [acceleration_lag1, acceleration_lag2, acceleration_lag3]
+      annual_seasonality: [annual_sin, annual_cos]

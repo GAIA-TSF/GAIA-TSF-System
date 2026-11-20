@@ -1,77 +1,67 @@
 # Data Aggregation (DAG) Sub-system
 
-The **Data Aggregation** sub-system serves as the critical
-processing bridge that transforms harmonised data stored within the
-Spatial Data Infrastructure (SDI) into structured inputs suitable for
-machine learning analysis. Its primary function is to prepare data in
-structures that are harmonised and ready for downstream consumption,
-adhering to the principle that "garbage in, garbage out" dictates
-model performance. The sub-system ingests multi-temporal satellite
-image stacks (e.g., Sentinel-2) and co-located in-situ measurements
-(e.g., pH, pore pressure) to produce model-ready feature tensors.
+DAG prepares input data for machine learning. It reads Sentinel-1 LOS
+displacement, Sentinel-2 imagery, meteorological data and the DEM from an
+experiment directory and writes feature rasters to `<project_dir>/results/`.
+Each feature is a GeoTIFF with one band per acquisition date and a
+`metadata.json` listing the dates. MAP uses these features to train
+forecasting models.
 
-![Data Agregation Architecture](../../images/dag_subsystem.png)
+![Data Aggregation Architecture](../../images/dag_subsystem.png)
 
-## Key Capabilities
+## Configure
 
-- Multi-temporal EO data ingestion (Sentinel-1, Sentinel-2)
-- Spatial harmonization (resampling to common grid)
-- Feature engineering:
-  - Slope stability: displacement → velocity → acceleration
-  - AMD: spectral indices and AMD index
-- Masking (AOI, water mask)
-- Data preprocessing:
-  - normalization (min-max, z-score)
-  - missing value handling
-  - outlier handling / log transform
-- Validation and consistency checks
-- Tensorization into ML-ready formats `(T, H, W, C)`
+Edit `subsystems/dag/config.yaml`:
 
-## Inputs
+- `project_dir`: the experiment directory, which contains `inputs/` and `static/`.
+- `slope_stability.inputs.los.filename_pattern`: the LOS file names, for
+  example `los_*.tif` or `tsf_los_*.tif` for synthetic scenarios.
+- `slope_stability.static`: the TSF mask and an optional stable reference
+  mask, both in `static/`.
+- `slope_stability.results.temporal_features.current`: set
+  `enabled: true, features: [cumulative_los]` so that DAG writes the MAP
+  target `cumulative_los_current`.
+- `amd.feature_engineering`: the two Sentinel-2 bands and the method
+  (`ratio` or `difference`).
 
-- **Slope Stability (KV1)**
-  - Sentinel-1 LOS displacement time series
-  - AOI polygon
+Normalization, missing-value filling and outlier handling are under
+`preprocessing`. All three are disabled by default.
 
-- **AMD (KV2)**
-  - Sentinel-2 multispectral time series
-  - AOI polygon
-  - Water mask
+## Run
 
-## Outputs
+Every pipeline uses the same command:
 
-- ML-ready tensors:
-  - `(T, H, W, C)` spatiotemporal feature cubes
-- Derived features:
-  - velocity, acceleration (slope stability)
-  - AMD index and spectral features
-- Ready for probabilistic anomaly detection (MAP subsystem)
-
-## Architecture
-
-See: `./docs/coding_notes.md` 
-
-**Workflow:** Raw EO Data -> Ingestion -> Harmonization (spatial / temporal) -> Masking (AOI, water) -> Feature Engineering -> Preprocessing -> Validation -> Tensorization -> ML-ready dataset 
-
-
-## Run the pipeline 
-
-Run AMD pipeline 
-```
-python3 subsystems/dag/debug_run.py --config config.yaml --pipeline amd
+```bash
+python3 subsystems/dag/run_pipeline.py --pipeline <name> --config subsystems/dag/config.yaml
 ```
 
-Run slope stability pipeline 
+Slope stability (InSAR):
+
+```bash
+python3 subsystems/dag/run_pipeline.py --pipeline slope_eda               --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline slope_features          --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline slope_temporal_features --config subsystems/dag/config.yaml   # features for MAP
 ```
-python3 subsystems/dag/debug_run.py --config config.yaml --pipeline slope 
+
+AMD (Sentinel-2), run in this order:
+
+```bash
+python3 subsystems/dag/run_pipeline.py --pipeline amd_index             --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline amd_eda               --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline amd_features          --config subsystems/dag/config.yaml   # target for MAP
+python3 subsystems/dag/run_pipeline.py --pipeline amd_temporal_features --config subsystems/dag/config.yaml   # features for MAP
+python3 subsystems/dag/run_pipeline.py --pipeline amd_meteo_features    --config subsystems/dag/config.yaml
 ```
 
+Contextual features:
 
-## Testing 
-
+```bash
+python3 subsystems/dag/run_pipeline.py --pipeline meteo_features       --config subsystems/dag/config.yaml
+python3 subsystems/dag/run_pipeline.py --pipeline topographic_features --config subsystems/dag/config.yaml
 ```
-python3 -m pytest subsystems/dag/tests/test_amd_pipeline.py 
 
-python3 -m pytest subsystems/dag/tests/test_slope_pipeline.py  
+## Test
 
+```bash
+PYTHONPATH=. pytest subsystems/dag/tests
 ```
