@@ -1,10 +1,7 @@
-from pathlib import Path
-
 from subsystems.eou.data_acquisition_gateway import DataAcquisitionGateway
-from lib.config import ProjectConfigReader, SettingsReader
+from lib.config import ProjectConfigReader
 from tests.utils import TestUtils
 from subsystems.dpr.preprocessing_pipelines import Sentinel2SafeProcessor
-from subsystems.dpr.preprocessing_pipelines import Sentinel2CloudCoverPipeline
 from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 
 #
@@ -13,6 +10,7 @@ from subsystems.dpr.data_analysis_pipelines import Sentinel2WaterMaskingPipeline
 project_config = ProjectConfigReader(
     TestUtils.get_project_config_path('amd_monitoring_yxsjoberg')
 )
+data_dir = project_config.data_dir()
 
 dag_module = DataAcquisitionGateway(backend='eodag')
 
@@ -28,7 +26,7 @@ results = dag_module.backend.search(
     **search_filter,
 )
 safe_list = dag_module.backend.download_all(
-    results, target_dir='sentinel2', quicklook=False
+    results, target_dir=data_dir / 'sentinel2', quicklook=False
 )
 
 #
@@ -36,11 +34,7 @@ safe_list = dag_module.backend.download_all(
 #
 
 # Set output folder:
-s2_processed_folder = (
-    Path(SettingsReader()['storage']['data_dir'])
-    / 'sentinel2'
-    / 'output_safe_processor'
-)
+s2_processed_folder = data_dir / 'sentinel2' / 'output_safe_processor'
 
 # Set output resolution in meters
 res = (10, 10)
@@ -62,36 +56,21 @@ for safe_path in safe_list:
     pipeline.run()
 
 #
-# PART 3 - RETRIEVING CLOUD COVER PERCENTAGE FROM CLIPPED SCENES
-#
-
-# Retrieve all JSON files from the folder
-meta_list = s2_processed_folder.glob('*.json')
-
-# Run the pipeline
-pipeline = Sentinel2CloudCoverPipeline()
-for meta_path in meta_list:
-    pipeline.configure(metadata_path=meta_path, path_key='source_paths')
-    pipeline.run()
-
-#
-# PART 4 - CREATION OF WATER MASKS
+# PART 3 - CREATION OF WATER MASKS
 #
 
 # Set path to the vector file containing the water bodies
 input_water_mask = TestUtils.get_data_path('dpr') / 'yxsjoberg_lakes.gpkg'
 
 # Set path to output folder (delete pre-existing folder)
-output_folder = (
-    Path(SettingsReader()['storage']['data_dir']) / 'sentinel2' / 'output_water_masks'
-)
+output_folder = data_dir / 'sentinel2' / 'output_water_masks'
 
 # OPTION 1: Run the pipeline in default mode (without user input file, input_water_mask=None)
 pipeline = Sentinel2WaterMaskingPipeline()
 pipeline.configure(
     input_folder=s2_processed_folder,
     output_folder=output_folder,
-    max_cloud_snow_dark=0.1,
+    max_cloud_snow_dark=10,
     input_months=[4, 5, 6, 7, 8, 9, 10],
     start_date=project_config.monitoring_period.start,
     end_date=project_config.monitoring_period.end,
@@ -113,7 +92,7 @@ pipeline.configure(
     input_folder=s2_processed_folder,
     output_folder=output_folder,
     input_water_mask=input_water_mask,
-    max_cloud_snow_dark=0.1,
+    max_cloud_snow_dark=10,
     input_months=[4, 5, 6, 7, 8, 9, 10],
     start_date=project_config.monitoring_period.start,
     end_date=project_config.monitoring_period.end,

@@ -2,7 +2,9 @@ from typing import Dict, Any
 import pandas as pd
 import io
 import os
+
 from .base import BaseParser
+from lib.exceptions import GaiaConfigError, GaiaDataError
 
 
 class WaterQualityParser(BaseParser):
@@ -22,16 +24,19 @@ class WaterQualityParser(BaseParser):
         content = signature.get('content', b'')
         score = 0.0
 
-        # 1. Filename Indicators
-        filename_indicators = [
-            'water',
-            'quality',
-            'sonde',
-            'hydro',
-            'chem',
-            'lab',
-            'sample',
-        ]
+        # 1. Filename Indicators (config.yaml: isu.parsers.water.filename_indicators)
+        filename_indicators = self._keywords(
+            'filename_indicators',
+            [
+                'water',
+                'quality',
+                'sonde',
+                'hydro',
+                'chem',
+                'lab',
+                'sample',
+            ],
+        )
         if any(x in filename.lower() for x in filename_indicators):
             score += 0.2
 
@@ -41,27 +46,34 @@ class WaterQualityParser(BaseParser):
         if df is not None:
             headers = [str(c).lower().strip() for c in df.columns]
 
-            strong_indicators = {
-                'ph',
-                'conductivity',
-                'ec',
-                'turbidity',
-                'do',
-                'orp',
-                'sulfate',
-                'iron',
-                'fe',
-                'tds',
-                'nitrate',
-                'mg/l',
-            }
+            # config.yaml: isu.parsers.water.strong_indicators
+            strong_indicators = self._keywords(
+                'strong_indicators',
+                [
+                    'ph',
+                    'conductivity',
+                    'ec',
+                    'turbidity',
+                    'do',
+                    'orp',
+                    'sulfate',
+                    'iron',
+                    'fe',
+                    'tds',
+                    'nitrate',
+                    'mg/l',
+                ],
+            )
 
             matches = [h for h in headers if any(ind in h for ind in strong_indicators)]
             if matches:
                 score += 0.4 + (0.15 * len(matches))
 
             # 3. Negative Indicators
-            negative_indicators = {'displacement', 'velocity', 'inclinometer', 'gnss'}
+            negative_indicators = self._keywords(
+                'negative_indicators',
+                ['displacement', 'velocity', 'inclinometer', 'gnss'],
+            )
             if any(neg in h for h in headers for neg in negative_indicators):
                 score -= 0.6
 
@@ -76,7 +88,7 @@ class WaterQualityParser(BaseParser):
             elif ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(io.BytesIO(content))
             else:
-                raise ValueError(f'Unsupported format: {ext}')
+                raise GaiaConfigError(f'Unsupported format: {ext}', self.logger)
 
             df.columns = [str(c).strip().lower() for c in df.columns]
 
@@ -88,4 +100,4 @@ class WaterQualityParser(BaseParser):
             return df
 
         except (pd.errors.ParserError, ValueError) as e:
-            raise ValueError(f'Water Quality parser failed: {str(e)}')
+            raise GaiaDataError(f'Water Quality parser failed: {str(e)}', self.logger)

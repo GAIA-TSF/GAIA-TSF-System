@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent / 'lambda'))
 
 from proxy.handler import sign_url, validate_user, s3_parse_s3_url
+from lib.exceptions import GaiaSdiError
 
 
 class TestProxyHandler:
@@ -58,8 +59,8 @@ class TestProxyHandler:
         assert bucket == 'mybucket'
         assert key == ''
 
-        # Invalid URL should raise ValueError
-        with pytest.raises(ValueError):
+        # Invalid URL should raise GaiaSdiError
+        with pytest.raises(GaiaSdiError):
             s3_parse_s3_url('http://mybucket/file.txt')
 
     # ---------------------------------

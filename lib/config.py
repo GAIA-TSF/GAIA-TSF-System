@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+from logging import LoggerAdapter
 
 import yaml
 import tempfile
@@ -11,6 +12,8 @@ from shapely.geometry import box
 from osgeo import gdal, osr
 
 gdal.UseExceptions()
+
+from lib.exceptions import GaiaConfigError
 
 
 class ConfigReader(dict):
@@ -42,12 +45,20 @@ class ConfigReader(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
-            value = self[item] if self._root is None else self[self._root][item]
+            if self._root is None:
+                value = self[item]
+            else:
+                # if requesting the root node itself (e.g. cfg.project) return
+                # the root mapping; otherwise return the key inside the root.
+                if item == self._root:
+                    value = self[self._root]
+                else:
+                    value = self[self._root][item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item, None)
 
         return self._wrap(value)
 
@@ -67,7 +78,9 @@ class ConfigReader(dict):
         :rtype: Any
         """
         if isinstance(value, dict):
-            return ConfigNode(value)
+            # pass directory of the YAML config so ConfigNode can resolve
+            # relative filesystem references (e.g. './...') when accessed.
+            return ConfigNode(value, base_path=self.config_path.parent)
         if isinstance(value, list):
             return [self._wrap(v) for v in value]
         return value
@@ -89,6 +102,10 @@ class ConfigNode(dict):
         cfg.database.host  # returns "localhost"
     """
 
+    def __init__(self, *args, base_path: Path | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._base_path = base_path
+
     def __getattr__(self, item: str):
         """
         Return a configuration value using attribute-style access.
@@ -103,17 +120,27 @@ class ConfigNode(dict):
         :returns: Configuration value associated with ``item``.
         :rtype: Any
 
-        :raises AttributeError: If the requested key does not exist.
+        :raises GaiaConfigError: If the requested key does not exist.
         """
         try:
             value = self[item]
         except KeyError:
-            raise AttributeError(item)
+            raise GaiaConfigError(item, None)
+
+        if isinstance(value, str) and self._base_path is not None:
+            path = Path(value)
+            if not path.is_absolute():
+                resolved_path = (self._base_path / path).resolve()
+                if value.startswith('./') or resolved_path.exists():
+                    return resolved_path
 
         if isinstance(value, dict):
-            return ConfigNode(value)
+            return ConfigNode(value, base_path=self._base_path)
         if isinstance(value, list):
-            return [ConfigNode(v) if isinstance(v, dict) else v for v in value]
+            return [
+                ConfigNode(v, base_path=self._base_path) if isinstance(v, dict) else v
+                for v in value
+            ]
         return value
 
 
@@ -225,17 +252,23 @@ class YamlValidator:
 
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
-    def __init__(self, config_path: str | Path):
+    def __init__(self, config_path: str | Path, logger: LoggerAdapter | None = None):
         """Initialize project config reader.
 
-        Validity may be checked by is_valid() method.
+        Raise GaiaConfigError when project definition is not valid.
 
         :param str config_path: path to config file
+        :param LoggerAdapter logger: logger to be used or None
         """
         ConfigReader.__init__(self, config_path)
+        self._logger = logger
         YamlValidator.__init__(self, {'project': {'name': None, 'aoi': None}})
 
         self.validate(dict(self))
+        if self.is_valid() is False:
+            raise GaiaConfigError(
+                f'{config_path}: {";".join(self.errors)}', self._logger
+            )
 
         self._root = 'project'  # used by __getattr__
 
@@ -263,7 +296,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         layer = ds.GetLayer(0)
 
         if layer.GetFeatureCount() > 1:
-            raise RuntimeError('AOI: Only one feature expected')
+            raise GaiaConfigError('AOI: Only one feature expected', self._logger)
 
         srs = layer.GetSpatialRef()
         target_srs = osr.SpatialReference()
@@ -278,7 +311,7 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
         feature = layer.GetNextFeature()
         if feature is None:
             ds = None
-            raise RuntimeError('No features found')
+            raise GaiaConfigError('No features found', self._logger)
 
         geom = feature.GetGeometryRef().Clone()
         if transform is not None:
@@ -292,12 +325,33 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
 
         return aoi_geom
 
+    def data_dir(self):
+        """
+        Get the data directory for the project.
 
-class SettingsReader(ConfigReader):
+        The directory is created if it does not already exist.
+
+        :return: Path to the project data directory.
+        :rtype: pathlib.Path
+        """
+        root_dir = SettingsReader()['storage']['data_dir']
+
+        project_dir = Path(root_dir, self.site_id)
+        if not project_dir.exists():
+            project_dir.mkdir()
+
+        return project_dir
+
+
+class SettingsReader(ConfigReader, YamlValidator):
     """Get internal system settings."""
 
     def __init__(self):
         super().__init__(Path(__file__).parent.parent / 'config.yaml')
+        ConfigReader.__init__(self, Path(__file__).parent.parent / 'config.yaml')
+        YamlValidator.__init__(self, {'storage': {'data_dir': None}})
+
+        self.validate(dict(self))
 
     def temp_file(self, extension: str | None = None) -> Path:
         """
