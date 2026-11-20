@@ -82,6 +82,31 @@ is no need to catch errors in order to mark the task as failed, raising
 `GaiaError` (or any other exception) inside the block triggers `task_failed`
 automatically.
 
+The task ID is yielded by the context manager:
+
+```python
+import pandas as pd
+from subsystems.qcl import QCLayer
+
+qc_layer = QCLayer()
+df = pd.DataFrame({'ph': [7.2, 6.8, 8.1]}, index=[101, 102, 103])
+
+with qc_layer.logger.task(qc_layer) as task_id:
+    qc_layer.logger.info(f'Checking batch (task_id={task_id})')
+    result = qc_layer.check('in_situ', df, {}, 'TEST_BATCH_001')
+
+# task_id is still available after the block, e.g. to query its log records
+print(f'QC finished with {result["final_status"]}, see logs of task {task_id}')
+```
+
+The ID of the active task can also be read from the logger context. This is
+useful deeper in the code, where the context manager variable is not
+available. It is `None` when no task is active:
+
+```python
+task_id = self.logger.extra.get('task_id')
+```
+
 Notes:
 
 * Log records emitted between task start and end carry the `task_id`,
