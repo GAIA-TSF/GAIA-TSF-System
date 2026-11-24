@@ -252,6 +252,10 @@ class YamlValidator:
 
 
 class ProjectConfigReader(ConfigReader, YamlValidator):
+    # path of the first project configuration read in this process,
+    # used by GaiaBase as a fallback when no project path is given
+    _default_path: Path | None = None
+
     def __init__(self, config_path: str | Path, logger: LoggerAdapter | None = None):
         """Initialize project config reader.
 
@@ -271,6 +275,23 @@ class ProjectConfigReader(ConfigReader, YamlValidator):
             )
 
         self._root = 'project'  # used by __getattr__
+
+        if ProjectConfigReader._default_path is None:
+            ProjectConfigReader._default_path = self.config_path.resolve()
+
+    @classmethod
+    def default_path(cls) -> Path | None:
+        """Get path of the first project configuration read in this process.
+
+        :return: path to project configuration file or None
+        :rtype: pathlib.Path
+        """
+        return ProjectConfigReader._default_path
+
+    @classmethod
+    def reset_default_path(cls):
+        """Forget the default project configuration path."""
+        ProjectConfigReader._default_path = None
 
     def aoi(self, target_epsg: int = 4326, roi: bool = False) -> BaseGeometry:
         """

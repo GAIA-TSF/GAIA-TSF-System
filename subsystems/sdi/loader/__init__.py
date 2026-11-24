@@ -671,7 +671,8 @@ class EarthObservationDataLoader(SdiLoader):
         :param input_file: Input GeoTIFF path
         :param output_file: Output COG path
         :param compression: Compression (DEFLATE, JPEG, ZSTD)
-        :param overview_levels: Overview pyramid levels
+        :param overview_levels: Overview pyramid levels (COG driver always
+            uses factors of 2, so only the number of levels is used)
         :param blocksize: Internal tile size
         :param target_epsg: Target EPSG code (e.g., 3857 for Web Mercator), None = keep original
         :param resampling: Resampling method for reprojection (BILINEAR, CUBIC, LANCZOS, etc.)
@@ -728,11 +729,11 @@ class EarthObservationDataLoader(SdiLoader):
                 '-co',
                 f'BLOCKSIZE={blocksize}',
                 '-co',
-                'TILED=YES',
-                '-co',
                 'NUM_THREADS=ALL_CPUS',
+                # COG driver always builds factor-2 pyramids; only the
+                # number of levels is configurable
                 '-co',
-                f'OVERVIEWS={",".join(map(str, overview_levels))}',
+                f'OVERVIEW_COUNT={len(overview_levels)}',
                 '-co',
                 'BIGTIFF=IF_SAFER',
             ]

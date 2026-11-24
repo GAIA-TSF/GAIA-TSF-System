@@ -12,6 +12,7 @@ from lib.base import SubsystemId
 from tests.utils import TestUtils
 from lib.config import ProjectConfigReader
 from lib.exceptions import GaiaConfigError, GaiaDataError
+from subsystems.qcl.logger import TASK_STARTED
 
 
 class TestSubsystem:
@@ -123,6 +124,10 @@ class TestSubsystem:
 
         assert 'No QC Controller found for unknown_type' in str(exc_info.value)
 
+
+class TestLoggerTasks:
+    """Logger: DB logging and logging tasks (task_started/task_finished/task_failed, task())."""
+
     def test_db_logging(self):
         """Verify that the logger persists logs to the database"""
         import psycopg
@@ -156,6 +161,163 @@ class TestSubsystem:
                 assert row[4] == project_config['project']['site_id']
                 # project_name
                 assert row[5] == project_config['project']['name']
+
+    @staticmethod
+    def _fetch(qc, query, params):
+        import psycopg
+
+        with psycopg.connect(**qc.settings['qcl']['logger']['db']) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                return cur.fetchall()
+
+    def _task(self, qc, task_id):
+        """Return (name, subsystem_id, pid, status, finished) of the task.
+
+        Subsystem and pid are taken from the TASK_STARTED log record.
+        """
+        rows = self._fetch(
+            qc,
+            'SELECT t.name,l.subsystem_id,l.pid,lv.name,t.finished FROM task t '
+            'JOIN log l ON l.task_id=t.id AND l.level_id=%s '
+            'JOIN log_level lv ON t.status_id=lv.id WHERE t.id=%s',
+            (TASK_STARTED, task_id),
+        )
+        assert len(rows) == 1
+        return rows[0]
+
+    def _task_log(self, qc, task_id):
+        """Return (level, message) of all log records of the task."""
+        return self._fetch(
+            qc,
+            'SELECT lv.name,l.message FROM log l '
+            'JOIN log_level lv ON l.level_id=lv.id WHERE l.task_id=%s ORDER BY l.id',
+            (task_id,),
+        )
+
+    def _last_log_task_id(self, qc, message):
+        rows = self._fetch(
+            qc,
+            'SELECT task_id FROM log WHERE message=%s ORDER BY id DESC LIMIT 1',
+            (message,),
+        )
+        return rows[0][0]
+
+    def test_task_finished(self):
+        """Task defined by context manager: task row and log records."""
+        qc = QCLayer()
+
+        with qc.logger.task(qc) as task_id:
+            qc.logger.info('Test task: inside')
+        qc.logger.info('Test task: after finished')
+
+        assert isinstance(task_id, int)
+        name, subsystem_id, pid, status, finished = self._task(qc, task_id)
+        assert name == qc.__class__.__name__
+        assert subsystem_id == SubsystemId.QCL.name
+        assert pid == os.getpid()
+        assert status == 'TASK_FINISHED'
+        assert finished is not None
+
+        assert self._task_log(qc, task_id) == [
+            ('TASK_STARTED', f'{name} started'),
+            ('INFO', 'Test task: inside'),
+            ('TASK_FINISHED', f'{name} finished'),
+        ]
+        # records after the task is finished are not attributed to the task
+        assert self._last_log_task_id(qc, 'Test task: after finished') is None
+
+    def test_task_failed(self):
+        """Exception raised in context manager marks the task as failed."""
+        qc = QCLayer()
+
+        with pytest.raises(GaiaDataError):
+            with qc.logger.task(qc) as task_id:
+                raise GaiaDataError('Test task: error', qc.logger)
+        qc.logger.info('Test task: after failed')
+
+        name, _, _, status, finished = self._task(qc, task_id)
+        assert status == 'TASK_FAILED'
+        assert finished is not None
+
+        assert self._task_log(qc, task_id) == [
+            ('TASK_STARTED', f'{name} started'),
+            ('ERROR', 'Test task: error'),
+            ('TASK_FAILED', f'{name} failed'),
+        ]
+        assert self._last_log_task_id(qc, 'Test task: after failed') is None
+
+    @pytest.mark.parametrize(
+        'failure, exception',
+        [
+            # real failure raised by QC layer (unsupported data type)
+            (
+                lambda qc: qc.check('unknown_type', None, {}, 'TEST_TASK_FAIL'),
+                GaiaConfigError,
+            ),
+            # unexpected (non-GAIA) failure
+            (lambda qc: 1 / 0, ZeroDivisionError),
+        ],
+        ids=['gaia_error', 'unexpected_error'],
+    )
+    def test_task_ended_by_failure(self, failure, exception):
+        """Simulated failure ends the task by task_failed (not task_finished)."""
+        qc = QCLayer()
+
+        with pytest.raises(exception):
+            with qc.logger.task(qc) as task_id:
+                qc.logger.info('Test task: before failure')
+                failure(qc)
+                qc.logger.info('Test task: not reached')
+
+        # task row marked as failed
+        _, _, _, status, finished = self._task(qc, task_id)
+        assert status == 'TASK_FAILED'
+        assert finished is not None
+
+        # task ended by TASK_FAILED record, no TASK_FINISHED record logged
+        levels = [level for level, _ in self._task_log(qc, task_id)]
+        assert levels[0] == 'TASK_STARTED'
+        assert levels[-1] == 'TASK_FAILED'
+        assert levels.count('TASK_FAILED') == 1
+        assert 'TASK_FINISHED' not in levels
+        assert ('INFO', 'Test task: not reached') not in self._task_log(qc, task_id)
+
+    def test_task_explicit_calls(self):
+        """Task defined by explicit calls, explicit task_id is respected."""
+        qc = QCLayer()
+
+        task_a = qc.logger.task_started(qc)
+        task_b = qc.logger.task_started(qc)
+        assert task_a != task_b
+
+        # finishing task A by explicit task_id keeps task B active
+        assert qc.logger.task_finished(qc, task_id=task_a) == task_a
+        qc.logger.info('Test task: still in task B')
+        assert self._last_log_task_id(qc, 'Test task: still in task B') == task_b
+
+        assert qc.logger.task_failed(qc) == task_b
+
+        assert self._task(qc, task_a)[3] == 'TASK_FINISHED'
+        assert self._task(qc, task_b)[3] == 'TASK_FAILED'
+
+    def test_task_no_db(self):
+        """Without DB logging, process-local task ids are used."""
+        import logging
+        from subsystems.qcl.logger import CustomLoggerAdapter
+
+        base_logger = logging.getLogger('GAIA-TSF-test-no-db')
+        base_logger.propagate = False
+        logger = CustomLoggerAdapter(base_logger, {'subsystem': SubsystemId.QCL.name})
+
+        with logger.task(self) as task_a:
+            pass
+        with logger.task(self) as task_b:
+            pass
+
+        assert isinstance(task_a, int)
+        assert task_b > task_a
+        assert 'task_id' not in logger.extra
 
 
 _S2_ASSET = {

@@ -21,13 +21,17 @@ search_filter = {
     'productType': 'S2_MSI_L2A',
 }
 
-results = dag_module.backend.search(
-    geom=project_config.aoi(),
-    **search_filter,
-)
-safe_list = dag_module.backend.download_all(
-    results, target_dir=data_dir / 'sentinel2', quicklook=False
-)
+# search & download is logged as a single task (TASK_STARTED ... TASK_FINISHED,
+# or TASK_FAILED when an exception is raised)
+with dag_module.logger.task(dag_module):
+    results = dag_module.backend.search(
+        geom=project_config.aoi(),
+        **search_filter,
+    )
+    safe_list = dag_module.backend.download_all(
+        results, target_dir=data_dir / 'sentinel2', quicklook=False
+    )
+
 
 #
 # PART 2 - SENTINEL-2 CLIPPING AND RESAMPLING
@@ -42,18 +46,19 @@ res = (10, 10)
 # Set resampling algorithm
 r_alg = 'bilinear'
 
-# Run the pipeline
+# Run the pipeline (processing of all SAFE products logged as a single task)
 pipeline = Sentinel2SafeProcessor()
-for safe_path in safe_list:
-    pipeline.configure(
-        input_safe=safe_path,
-        output_folder=s2_processed_folder,
-        roi=project_config.aoi(roi=True).wkt,
-        target_res=res,
-        resampling_alg=r_alg,
-        overwrite=True,
-    )
-    pipeline.run()
+with pipeline.logger.task(pipeline):
+    for safe_path in safe_list:
+        pipeline.configure(
+            input_safe=safe_path,
+            output_folder=s2_processed_folder,
+            roi=project_config.aoi(roi=True).wkt,
+            target_res=res,
+            resampling_alg=r_alg,
+            overwrite=True,
+        )
+        pipeline.run()
 
 #
 # PART 3 - CREATION OF WATER MASKS
@@ -84,7 +89,8 @@ pipeline.configure(
         'swir reflectance': 1000,
     },
 )
-pipeline.run()
+with pipeline.logger.task(pipeline):
+    pipeline.run()
 
 # OPTION 2: Run the pipeline with vector file as input (input_water_mask provided)
 pipeline = Sentinel2WaterMaskingPipeline()
@@ -105,4 +111,5 @@ pipeline.configure(
         'swir reflectance': 1000,
     },
 )
-pipeline.run()
+with pipeline.logger.task(pipeline):
+    pipeline.run()

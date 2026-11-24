@@ -10,15 +10,16 @@ project_config = ProjectConfigReader(
 data_dir = project_config.data_dir() / 'sentinel1'
 
 if __name__ == '__main__':
-    # download input data
+    # download input data (logged as a single task)
     dag_module = DataAcquisitionGateway(backend='asf')
-    results = dag_module.backend.search(
-        geom=project_config.aoi(),
-        start='2022-01-01',
-        end='2022-01-31',
-        direction='A',
-    )
-    dag_module.backend.download_all(results, target_dir=data_dir)
+    with dag_module.logger.task(dag_module):
+        results = dag_module.backend.search(
+            geom=project_config.aoi(),
+            start='2022-01-01',
+            end='2022-01-31',
+            direction='A',
+        )
+        dag_module.backend.download_all(results, target_dir=data_dir)
 
     # configure & run the pipeline
     pipeline = PreprocessingPipelines().pipelines['sentinel1']
@@ -34,4 +35,6 @@ if __name__ == '__main__':
         reference=project_config.masks.tsf_mask,
     )
 
-    pipeline.run()
+    # run the pipeline (logged as a single task)
+    with pipeline.logger.task(pipeline):
+        pipeline.run()
