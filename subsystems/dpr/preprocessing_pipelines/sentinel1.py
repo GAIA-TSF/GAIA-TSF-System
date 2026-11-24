@@ -275,7 +275,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
     def _local_threads(self):
         """Dask config context running computations on a local thread pool.
 
-        PyGMTSAR's stack-wide operations (unwrap_snaphu, ra2ll) build one
+        PyGMTSAR's stack-wide operations (unwrap_snaphu, ra2ll,
+        compute_trans_inv) build one
         delayed task per slice whose closure holds the whole input stack; on
         dask.distributed every task pickles it and re-submits nested graphs,
         stalling the worker for thousands of slices. Inputs must already be in
@@ -604,7 +605,11 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         :return: None
         """
         self.logger.info('Geocoding Sentinel-1 data.')
-        self.sbas.compute_geocode(coarsen=coarsen)
+        # compute_trans_inv runs a nested .compute() of the 'trans' grid inside
+        # every block task; on dask.distributed those nested graphs deadlock the
+        # worker (see _local_threads). The transform grids are small.
+        with self._local_threads():
+            self.sbas.compute_geocode(coarsen=coarsen)
 
     def _find_optimal_network(self, basedays, basemeters):
         """Analyzes all possible scene combinations to find the optimal fully connected SBAS network.
@@ -1285,7 +1290,8 @@ class Sentinel1Pipeline(PreprocessingBasePipeline):
         vel_ra = self.sbas.velocity(disp_ra).persist()
 
         # Geocoding & Coordinate Transformation
-        self.sbas.compute_geocode(float(target_m))
+        with self._local_threads():  # see _geocoding_transform
+            self.sbas.compute_geocode(float(target_m))
         self.logger.info('Computing displacements.')
         self.disp_ll = self.sbas.cropna(self._ra2ll(disp_ra))
         self.vel_ll = self.sbas.cropna(self._ra2ll(vel_ra))
