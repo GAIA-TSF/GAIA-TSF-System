@@ -49,10 +49,12 @@ class GaiaBase:
         # initialize internal settings
         self.settings = SettingsReader()
 
+        # project path resolution order: project_path argument,
+        # GAIA_PROJECT_PATH variable, first project config read in this process
         _project_path = (
             project_path
-            if project_path is not None
-            else os.environ.get('GAIA_PROJECT_PATH')
+            or os.environ.get('GAIA_PROJECT_PATH')
+            or ProjectConfigReader.default_path()
         )
 
         # read project configuration
