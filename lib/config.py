@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 from logging import LoggerAdapter
 
 import yaml
+import tempfile
 from pathlib import Path
 
 from shapely import wkt
@@ -367,7 +368,28 @@ class SettingsReader(ConfigReader, YamlValidator):
     """Get internal system settings."""
 
     def __init__(self):
+        super().__init__(Path(__file__).parent.parent / 'config.yaml')
         ConfigReader.__init__(self, Path(__file__).parent.parent / 'config.yaml')
         YamlValidator.__init__(self, {'storage': {'data_dir': None}})
 
         self.validate(dict(self))
+
+    def temp_file(self, extension: str | None = None) -> Path:
+        """
+        Create a temporary file in the configured temporary directory.
+
+        The file is created under the ``tmp`` subdirectory of the configured
+        data storage location. The returned path includes the requested file
+        extension.
+
+        :param extension: File extension including the leading dot
+        (e.g. ``'.json'`` or ``'.tif'``) or ``None``.
+        :type extension: str
+
+        :returns: Path to the temporary file.
+        :rtype: Path
+        """
+        temp_dir = Path(SettingsReader()['storage']['data_dir']) / 'tmp'
+        if not temp_dir.exists():
+            temp_dir.mkdir()
+        return Path(tempfile.NamedTemporaryFile(dir=temp_dir, suffix=extension).name)
