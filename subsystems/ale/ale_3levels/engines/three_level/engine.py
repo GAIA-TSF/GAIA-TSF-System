@@ -12,9 +12,11 @@ any engine-B number. Level per pixel and acquisition (monitoring dates only):
   the coherence-qualified regions active at that date. The prototype keeps
   one combined regional series (any region alarming), so every active region
   inherits it.
-* ``L3`` (region scope, ``region_id`` 0): L3 ``alert``. The prototype decides
-  L3 once for the whole TSF (score = max of TSF and regional scores; alert
-  requires that some coherent region exists), so every TSF pixel inherits it.
+* ``L3`` (region scope, ``region_id`` k): L3 ``alert``, for pixels of the
+  coherence-qualified regions active at that date. The prototype decides L3
+  once for the whole TSF (score = max of TSF and regional scores; alert
+  requires that some coherent region exists); ALE attributes it to those
+  regions (decision 2026-11-25). Other TSF pixels keep their lower level.
 * ``NONE`` otherwise; ``NO_DATA`` before monitoring, outside the TSF mask or
   where the pixel has no residual.
 
@@ -157,12 +159,17 @@ def to_alert_result(
     for flags, level, reason in (
         (l3_watch_score, L2, 'l2:regime_watch_score'),
         (tsf_alarm, L2, 'l2:tsf_cusum'),
-        (l3_alert, L3, 'l3:alert'),
     ):
         cells = series(flags) & mask & (level >= region_level)
         region_level[cells] = level
         region_reason[cells] = TRIGGER_REASONS.index(reason)
         region_id[cells] = TSF_REGION
+    # L3 is attributed to the coherence-qualified regions active at the date
+    # (an L3 alert requires one); the rest of the TSF keeps its lower level.
+    cells = series(l3_alert) & mask & in_region
+    region_level[cells] = L3
+    region_reason[cells] = TRIGGER_REASONS.index('l3:alert')
+    region_id[cells] = region_map[cells]
 
     level = np.full(shape, NONE, dtype=np.int8)
     reason = np.full(shape, TRIGGER_REASONS.index('none'), dtype=np.int16)
@@ -242,7 +249,8 @@ def to_alert_result(
             ],
             'level_rule': (
                 'L1 pixel z; L2 TSF alarm or L3 watch score (region 0) or '
-                'regional alarm (active coherent regions); L3 alert (region 0)'
+                'regional alarm (active coherent regions); L3 alert (active '
+                'coherent regions only)'
             ),
             'first_l2_alarm_date': run.metadata['level2']['first_alarm_date'],
             'first_l3_alert_date': run.metadata['level3']['first_alert_date'],

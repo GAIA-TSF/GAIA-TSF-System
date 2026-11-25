@@ -99,9 +99,19 @@ def test_levels_follow_the_documented_rule(golden):
     level3 = run.details['level3']
     alert_dates = np.flatnonzero(level3.level == 'alert')
     assert alert_dates.size > 0
+    regions = run.details['coherence'].regions
+    assert regions
     for t in alert_dates:
-        assert np.all(labels[t][mask] == 'L3')
-        assert np.all(result.region_id[t][mask] == 0)
+        active = np.zeros_like(mask)
+        for region in regions:
+            if region.activation_index <= t:
+                active |= region.support
+        assert active.any()
+        assert np.all(labels[t][mask & active] == 'L3')
+        assert np.all(result.region_id[t][mask & active] >= 1)
+        assert not np.any(labels[t][mask & ~active] == 'L3')
+    not_alert = np.setdiff1d(np.arange(labels.shape[0]), alert_dates)
+    assert not np.any(labels[not_alert] == 'L3')
     first_alert = run.metadata['level3']['first_alert_date']
     assert result.attrs['first_l3_alert_date'] == first_alert
     l1_only = labels == 'L1'

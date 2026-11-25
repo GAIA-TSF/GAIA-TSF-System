@@ -273,6 +273,11 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
   `short_calibration` warning. `split == calibration` covers only 10 dates (8 test
   dates + 2 gap dates between the train/validation/test blocks).
 
+- **Engine B L3 attribution (2026-11-25):** L3 alerts are attributed to the
+  coherence-qualified regions active at the date, not to the whole TSF.
+- **Engine A doubling floor (2026-11-25):** kept: velocity doubling is tested
+  only when the previous window's rate is >= `min_prev_rate_mm` (1.0 mm).
+
 ## 9. Open points as of revision 2 (now resolved; kept for the record)
 
 **P1 — Branch operation.** OK to merge `map-dev` into `ale-dev` and commit the prototype

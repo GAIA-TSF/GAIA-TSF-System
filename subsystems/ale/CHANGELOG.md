@@ -5,6 +5,16 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- Engine B: L3 attributed to the coherence-qualified regions active at the
+  alert date (region_id k), no longer to the whole TSF (decision
+  2026-11-25). Engine-B numbers unchanged; only per-pixel levels move.
+  Expected: L3 disappears outside the coherent regions (those pixels fall to
+  L2 via the TSF-wide L2 alarm); L3 stays on the failure area where a region
+  forms. Observed on the synthetic site (monitoring pixel-dates): failure
+  area L3 59.7 % -> 20.5 % (L2 29.0 % -> 68.2 %); rest of the TSF L3
+  59.6 % -> 0.0 % (L2 29.0 % -> 88.6 %); all L3 now in region 1 (132 px,
+  from 2019-06-08). Area level: failure area L3 unchanged (first 2019-12-05,
+  33 dates); control area L3 false alerts 33 -> 0 dates. Engine A unchanged.
 - Common output schema and `run` command; sector aggregation. Pixel results
   of both engines unchanged (format only). Engine B no longer writes the
   prototype files (series, pixel_stacks.npz, metadata) during `run`; the
