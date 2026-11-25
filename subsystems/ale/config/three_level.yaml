@@ -6,10 +6,12 @@
 # Residual quantity from the contract: mm_per_day (prototype design) | mm.
 residual_quantity: mm_per_day
 
-# frozen_sigma : z = r / sigma_cal, no demeaning      (prototype, f11c5f2 + stash)
-# legacy_global: z = (r - mean(all r)) / std(all r)   (950702d; uses monitoring
-#                data, so earlier z change when acquisitions are appended)
-zscore_formula: frozen_sigma
+# unified      : z = (e - mu_cal) / sigma_cal for every residual z (L1, pixel
+#                CUSUM, TSF and regional L2), mu/sigma frozen before monitoring (B2.1)
+# frozen_sigma : z = e / sigma_cal, no centring  (prototype, f11c5f2 + stash)
+# legacy_global: frozen_sigma levels plus z = (e - mean(all e)) / std(all e)
+#                (950702d; uses monitoring data) as extra output, for comparison
+zscore_formula: unified
 
 level1:                           # prototype anomaly_detection
   zscore_threshold: 1.5

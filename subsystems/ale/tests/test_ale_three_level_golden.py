@@ -30,6 +30,7 @@ def _three_level(**overrides):
     config = load_config()['engine_configs']['three_level']
     legacy = {
         **config,
+        'zscore_formula': 'frozen_sigma',
         'calibration': {**config['calibration'], 'population': 'prototype'},
     }
     return {**legacy, **overrides}

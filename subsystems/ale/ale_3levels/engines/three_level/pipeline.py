@@ -68,7 +68,11 @@ from ale_3levels.spatial import SpatialCoherenceDetector
 LOGGER = logging.getLogger(__name__)
 
 RATE_UNIT = 'mm/day'
-ZSCORE_FORMULAS = ('frozen_sigma', 'legacy_global')
+# unified (B2.1): z = (e - mu_cal) / sigma_cal, frozen before monitoring.
+# frozen_sigma: the prototype's z = e / sigma_cal (no centring).
+# legacy_global: frozen_sigma levels plus the 950702d global z for comparison.
+ZSCORE_FORMULAS = ('unified', 'frozen_sigma', 'legacy_global')
+UNIFIED_FORMULA = 'z = (e - mu_cal) / sigma_cal'
 # prototype: every pre-monitoring record (includes model-training dates);
 # independent (B2.2): only records with split == calibration.
 CALIBRATION_POPULATIONS = ('prototype', 'independent')
@@ -198,7 +202,7 @@ class ThreeLevelPipeline:
         *,
         write_legacy: bool = True,
     ) -> None:
-        formula = str(three_level.get('zscore_formula', 'frozen_sigma'))
+        formula = str(three_level.get('zscore_formula', 'unified'))
         if formula not in ZSCORE_FORMULAS:
             raise ValueError(f'zscore_formula must be one of {ZSCORE_FORMULAS}.')
         self.zscore_formula = formula
@@ -253,13 +257,20 @@ class ThreeLevelPipeline:
             target_feature=dataset.target_feature,
             population=population,
         )
+        unified = self.zscore_formula == 'unified'
+        # B2.1: centre every residual z on its frozen calibration mean.
+        l1_center = (
+            float(l1_calibration['mean_residual_diagnostic']) if unified else 0.0
+        )
         level1 = {
-            'formula': FORMULA,
+            'formula': UNIFIED_FORMULA if unified else FORMULA,
             'threshold': detector.zscore_threshold,
             'direction': detector.direction,
             'comparison': 'strict',
             'calibration': l1_calibration,
         }
+        if unified:
+            level1['center'] = l1_center
         level2_parameters = Level2Parameters.from_config(self.config)
         l2_calibration_path = self._results_path(CALIBRATION_FILES['l2'])
         l2_calibration = frozen_level2_calibration(
@@ -280,6 +291,7 @@ class ThreeLevelPipeline:
             persistence_start_time_index=monitoring[0],
             persistence_end_time_index=monitoring[1],
             calibration=l1_calibration,
+            center=l1_center,
         )
         legacy = None
         if self.zscore_formula == 'legacy_global':
@@ -300,6 +312,8 @@ class ThreeLevelPipeline:
             level2_parameters,
             coherence.regions,
             calibration_dates=calibration_dates,
+            center=float(l2_calibration['mean_residual']) if unified else 0.0,
+            center_regions=unified,
         )
         level2_summary = level2_metadata(level2, dataset.dates)
         pixel_l2_maximum, pixel_l2_first_alarm = pixel_level2(
@@ -308,6 +322,7 @@ class ThreeLevelPipeline:
             dataset.mask,
             monitoring,
             level2_parameters,
+            center=l1_center,
         )
 
         dashboard_config = self._dashboard_config()
@@ -523,6 +538,7 @@ class ThreeLevelPipeline:
             'level2_parameters': level2_parameters,
             'level3': level3,
             'l1_sigma': float(l1_calibration['sigma']),
+            'l1_center': l1_center,
             'calibration_population': self.calibration_population,
             'n_calibration': self._n_calibration(
                 calibration_dates, calibration, monitoring

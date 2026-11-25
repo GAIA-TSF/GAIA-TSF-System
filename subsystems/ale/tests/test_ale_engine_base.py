@@ -64,7 +64,7 @@ def test_default_config_loads_all_engine_files():
         4.0,
         10.0,
     )
-    assert config['engine_configs']['three_level']['zscore_formula'] == 'frozen_sigma'
+    assert config['engine_configs']['three_level']['zscore_formula'] == 'unified'
 
 
 def test_config_hash_is_order_independent_and_sensitive():

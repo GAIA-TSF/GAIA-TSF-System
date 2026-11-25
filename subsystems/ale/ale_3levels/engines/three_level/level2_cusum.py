@@ -333,6 +333,8 @@ def compute_level2(
     parameters: Level2Parameters,
     regions: tuple[SpatialCoherenceRegion, ...] = (),
     calibration_dates: np.ndarray | None = None,
+    center: float = 0.0,
+    center_regions: bool = False,
 ) -> Level2Result:
     """Calculate TSF-wide and coherence-qualified regional L2 series.
 
@@ -347,7 +349,8 @@ def compute_level2(
     if not 0 <= monitoring_start < monitoring_end <= time_count:
         raise ValueError('L2 monitoring window is outside the acquisition range.')
     sigma = positive_finite(calibration['sigma'], 'L2 sigma')
-    z = aggregate_residual(residual_stack, mask) / sigma
+    # B2.1: ``center`` is the frozen calibration mean (0 = prototype).
+    z = (aggregate_residual(residual_stack, mask) - center) / sigma
     z[monitoring_end:] = np.nan
     instability, overforecast = residual_cusum(
         z, parameters.reference_value, parameters.direction, monitoring_start
@@ -377,6 +380,7 @@ def compute_level2(
             )
             continue
         diagnostics = calibration_diagnostics(baseline, region_sigma)
+        region_center = diagnostics['mean_residual'] if center_regions else 0.0
         warn_on_bias(diagnostics, parameters, f'Region@{region.activation_index}')
         regional_sigmas.append(
             {
@@ -391,7 +395,7 @@ def compute_level2(
         if start >= monitoring_end:
             continue
         positive, negative = residual_cusum(
-            series / region_sigma,
+            (series - region_center) / region_sigma,
             parameters.reference_value,
             parameters.direction,
             start,
@@ -431,6 +435,7 @@ def pixel_level2(
     mask: np.ndarray,
     monitoring_window: tuple[int, int],
     parameters: Level2Parameters,
+    center: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-pixel L2: CUSUM of L1 z, using the frozen per-pixel L1 sigma.
 
@@ -444,7 +449,7 @@ def pixel_level2(
     first_alarm = np.full(mask.shape, np.nan, dtype=np.float64)
     observed = np.zeros(mask.shape, dtype=bool)
     for index in range(start, end):
-        evidence = parameters.sign * residual_stack[index] / sigma
+        evidence = parameters.sign * (residual_stack[index] - center) / sigma
         finite = np.isfinite(evidence)
         observed |= finite
         upper = np.where(
@@ -465,6 +470,7 @@ def pixel_level2_series(
     mask: np.ndarray,
     monitoring_window: tuple[int, int],
     parameters: Level2Parameters,
+    center: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-date per-pixel instability and over-forecast CUSUM (ALE addition).
 
@@ -479,7 +485,7 @@ def pixel_level2_series(
     instability = np.full(residual_stack.shape, np.nan, dtype=np.float64)
     overforecast = np.full(residual_stack.shape, np.nan, dtype=np.float64)
     for index in range(start, end):
-        evidence = parameters.sign * residual_stack[index] / sigma
+        evidence = parameters.sign * (residual_stack[index] - center) / sigma
         finite = np.isfinite(evidence)
         upper = np.where(
             finite,

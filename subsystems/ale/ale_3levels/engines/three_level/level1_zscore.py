@@ -41,14 +41,19 @@ def level1_scores(
     threshold: float = 3.0,
     direction: str = 'both',
     monitoring_mask: np.ndarray | None = None,
+    center: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Instantaneous L1: strict directional z exceedance, without persistence."""
+    """Instantaneous L1: strict directional z exceedance, without persistence.
+
+    ``z = (residual - center) / sigma``. ``center = 0`` is the prototype's
+    ``residual / sigma``; B2.1 passes the frozen calibration mean.
+    """
     sigma = positive_finite(sigma, 'Residual sigma')
     threshold = positive_finite(threshold, 'Z-score threshold')
     if direction not in {'both', 'positive', 'negative'}:
         raise ValueError('L1 direction must be both, positive, or negative.')
     residuals = np.asarray(residuals, dtype=np.float64)
-    z = np.where(np.isfinite(residuals), residuals / sigma, np.nan)
+    z = np.where(np.isfinite(residuals), (residuals - center) / sigma, np.nan)
     evidence = (
         -z if direction == 'negative' else z if direction == 'positive' else np.abs(z)
     )

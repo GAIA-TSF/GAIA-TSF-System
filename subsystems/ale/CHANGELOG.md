@@ -5,6 +5,19 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.1 Unified z-score** (`zscore_formula: unified`, new default):
+  `z = (e - mu_cal) / sigma_cal` for every engine-B residual z (L1, pixel
+  CUSUM, TSF-wide L2, regional L2), each with the frozen calibration mean and
+  sigma of its own series (fitted before monitoring; with B2.2 on
+  independent records). `frozen_sigma` keeps the prototype's `e / sigma_cal`
+  and pins the golden test; `legacy_global` adds the 950702d global z for
+  comparison. The L3 regime score and the acceleration CUSUM were already
+  centred. Expected: small changes, in the direction of the removed bias.
+  Observed on the synthetic site (vs B2.2): L1 mu/sigma = -0.004, L2 bias
+  ratio -0.121 (now removed); negative L1 exceedances 81,160 -> 80,620
+  pixel-dates (-0.7 %); first L2 (2019-03-28) and first L3 (2019-06-20)
+  unchanged; area-level ground-truth results unchanged; pixel shares
+  failure area L2 65.5 % -> 65.6 %, L3 21.6 % -> 21.5 %. Engine A unchanged.
 - **B2.2 Independent calibration** (`calibration.population: independent`,
   new default; `prototype` keeps the old behaviour and pins the golden test).
   Every engine-B baseline (L1 and L2 sigma, regional L2 sigma, L3 regime

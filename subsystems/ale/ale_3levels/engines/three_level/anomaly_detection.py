@@ -69,6 +69,7 @@ class StatisticalAnomalyDetector:
         persistence_end_time_index: int | None = None,
         *,
         calibration: dict[str, Any] | None = None,
+        center: float = 0.0,
     ) -> AnomalyResult:
         """Return scores and persistent binary rasters for monitored pixels.
 
@@ -108,6 +109,7 @@ class StatisticalAnomalyDetector:
             self.zscore_threshold,
             self.direction,
             eligible,
+            center=center,
         )
         binary = self._persistent(initial)
         directional_z = (

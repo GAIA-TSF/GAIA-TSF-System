@@ -200,6 +200,7 @@ def to_alert_result(
         contract.mask,
         (start, end),
         details['level2_parameters'],
+        center=details['l1_center'],
     )
     tsf = np.where(mask, 1.0, np.nan)
     regional_cells = np.where(in_region, 1.0, np.nan)
@@ -239,6 +240,7 @@ def to_alert_result(
             'monitoring_window': [int(start), int(end)],
             'calibration_window': list(details['calibration_window']),
             'l1_sigma': details['l1_sigma'],
+            'l1_center': details['l1_center'],
             'calibration_population': details['calibration_population'],
             'n_calibration': details['n_calibration'],
             'regions': [
