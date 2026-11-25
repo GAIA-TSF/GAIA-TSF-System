@@ -220,7 +220,15 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
 | MAP: LSTM early stopping port | done (`95823f6`) |
 | MAP: `validate_predictors` port | done, adapted to origin-based samples: blocks only features using later acquisitions (`236cba3`) |
 | 4. B1 move + golden test; remove from MAP | done (`2bafd43`, `40698f8`) |
-| 5-9 | to do |
+| Step 0: restore script (`prepare_synthetic.sh`), data outside the repo | done (`b3c0007`, `7d452ad`) |
+| 4.1 Engine A `fixed_gates` | done (`32904b6`) |
+| 4.2 Engine B in the common schema; L3 on coherent regions | done (`a880e24`, `0cc6e1c`) |
+| 4.3 Output writer, sectors, `run` | done (`86cf556`) |
+| 4.4 Comparison report | done (`c878bea`) |
+| B2.2 independent calibration / B2.1 unified z | done (`b8f9274`, `66c9469`) |
+| B2.3 version guard / B2.4 rename / B2.5 model selection / B2.6 state | done (`0e1b6fd`, `fd092f6`, `e819df3`, `1e35776`) |
+| 5.1 Cross-engine tests | done (`290c74d`, plots-off in `49b7e0a`) |
+| 6 calibrate / run_pipeline.py / plots / README | done (`26ab201`, `e201ccc`, `49b7e0a`, `22dbb78`) |
 
 ## 8. Decisions (2026-11-19)
 

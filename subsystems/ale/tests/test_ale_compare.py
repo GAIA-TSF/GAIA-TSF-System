@@ -74,7 +74,10 @@ def test_report_and_tables_are_written(report):
         assert heading in text
     summary = json.loads(paths['summary'].read_text())
     assert summary['input']['model_version'] == 'slope_trf@long'
-    assert summary['engine_b_calibration']['calibration_dates'] > 0
+    calibration = summary['engine_b_calibration']
+    assert calibration['calibration_population'] == 'independent'
+    # Independent calibration dates, not the length of the calibration window.
+    assert calibration['calibration_dates'] == calibration['n_calibration'] > 0
     assert set(summary['engines']) == {'fixed_gates', 'three_level'}
     for engine in summary['engines'].values():
         assert len(engine['config_hash']) == 64

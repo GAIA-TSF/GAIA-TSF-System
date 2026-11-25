@@ -259,9 +259,16 @@ def compare(
 def _b_calibration(meta: dict[str, Any]) -> dict[str, Any]:
     attrs = meta.get('engine_attrs', {})
     window = attrs.get('calibration_window') or [0, 0]
+    n_calibration = attrs.get('n_calibration')
     return {
         'zscore_formula': attrs.get('zscore_formula'),
-        'calibration_dates': int(window[1] - window[0]),
+        # Dates that actually estimated the baselines (B2.2); outputs written
+        # before n_calibration existed fall back to the calibration window.
+        'calibration_dates': (
+            int(n_calibration)
+            if n_calibration is not None
+            else int(window[1] - window[0])
+        ),
         'n_calibration': attrs.get('n_calibration'),
         'l1_sigma': attrs.get('l1_sigma'),
         'calibration_population': attrs.get(
