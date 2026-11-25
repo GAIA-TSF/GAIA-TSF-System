@@ -297,6 +297,9 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
     the forecast table; the correct `target_units` for the synthetic site
     (metres, currently labelled `mm`); porting LSTM early stopping and
     `validate_predictors` to `map-dev`.
+  - Later (not started): a live demo that simulates one MAP acquisition per
+    interval (e.g. 1 s), runs engine A in full and engine B with `--state`,
+    and shows both alert maps and the L2/L3 curves updating; GIF at the end.
 
 ## 9. Open points as of revision 2 (now resolved; kept for the record)
 
