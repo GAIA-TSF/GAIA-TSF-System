@@ -8,6 +8,7 @@ import logging
 import sys
 from pathlib import Path
 
+from ale_3levels.compare import compare as compare_engines
 from ale_3levels.config import DEFAULT_CONFIG, load_config
 from ale_3levels.contract import ContractError, summary
 from ale_3levels.run import load_input
@@ -53,6 +54,10 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument('--a', type=Path, required=True)
     compare.add_argument('--b', type=Path, required=True)
     compare.add_argument('--out', type=Path, required=True)
+    compare.add_argument(
+        '--truth', type=Path, help='ground-truth failure mask (report only)'
+    )
+    compare.add_argument('--title', default='ALE engine comparison')
 
     args = parser.parse_args(argv)
     logging.basicConfig(
@@ -72,7 +77,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == 'calibrate':
             return _not_yet('step 8')
-        return _not_yet('step 9')
+        paths = compare_engines(
+            args.a, args.b, args.out, truth=args.truth, title=args.title
+        )
+        print(paths['report'])
+        return 0
     except ContractError as error:
         print(f'Contract error: {error}', file=sys.stderr)
         return 1
