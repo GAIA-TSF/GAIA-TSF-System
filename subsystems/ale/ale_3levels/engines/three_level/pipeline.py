@@ -177,7 +177,7 @@ class ThreeLevelRun:
 
     metadata: dict[str, Any]
     arrays: dict[str, np.ndarray]
-    series_paths: tuple[Path, Path]
+    series_paths: tuple[Path, Path] | None
     # In-memory results (level objects, regions, windows) for the AlertResult
     # adapter; not written and not part of the prototype outputs.
     details: dict[str, Any] = field(default_factory=dict)
@@ -186,7 +186,13 @@ class ThreeLevelRun:
 class ThreeLevelPipeline:
     """Run L1, L2 and L3 over one set of inputs and write the results."""
 
-    def __init__(self, three_level: dict[str, Any], output_dir: Path) -> None:
+    def __init__(
+        self,
+        three_level: dict[str, Any],
+        output_dir: Path,
+        *,
+        write_legacy: bool = True,
+    ) -> None:
         formula = str(three_level.get('zscore_formula', 'frozen_sigma'))
         if formula not in ZSCORE_FORMULAS:
             raise ValueError(f'zscore_formula must be one of {ZSCORE_FORMULAS}.')
@@ -194,6 +200,10 @@ class ThreeLevelPipeline:
         self.three_level = three_level
         self.config = prototype_config(three_level)
         self.output_root = Path(output_dir)
+        # Prototype-format files (series JSON/CSV, pixel_stacks.npz, metadata).
+        # The ALE run writes the common schema instead; the golden test keeps
+        # them. Calibration artifacts are always written (engine state).
+        self.write_legacy = write_legacy
 
     def run(self, inputs: dict[str, Any]) -> ThreeLevelRun:
         """Run the prototype's monitoring computation on ``inputs``."""
@@ -339,51 +349,56 @@ class ThreeLevelPipeline:
             parameters=quality_parameters,
         )
         timing = self._timing_columns(inputs, dataset.dates)
-        series_paths = write_series(
-            self.output_root / 'monitoring_series',
-            build_records(
-                {
-                    **timing,
-                    'phase': phases(len(dataset.dates), calibration, monitoring),
-                    'quality_state': quality_states,
-                    'observed_tsf_coverage': coverage,
-                    **self._temporal_columns(temporal),
-                    'l1_anomalous_pixels': self._pixel_counts(
-                        anomalies.instantaneous_stack, len(dataset.dates)
-                    ),
-                    'l1_persistent_anomalous_pixels': self._pixel_counts(
-                        anomalies.binary_stack, len(dataset.dates)
-                    ),
-                    'l1_coherent_anomalous_pixels': self._pixel_counts(
-                        coherence.binary_stack, len(dataset.dates)
-                    ),
-                    'l2_z': level2.z,
-                    'l2_instability_cusum': level2.instability_cusum,
-                    'l2_overforecast_cusum': level2.overforecast_cusum,
-                    'l2_alarm': level2.alarm,
-                    'coherent_region_available': level2.regional_available,
-                    'coherent_region_l2_instability_cusum': (
-                        level2.regional_instability_cusum
-                    ),
-                    'coherent_region_l2_overforecast_cusum': (
-                        level2.regional_overforecast_cusum
-                    ),
-                    'coherent_region_l2_alarm': level2.regional_alarm,
-                    'regime_change_score': level3.score,
-                    'coherent_region_regime_change_score': level3.regional_score,
-                    'l3_level': level3.level,
-                    **{f'l3_{name}': flags for name, flags in level3.criteria.items()},
+        series_paths = None
+        if self.write_legacy:
+            series_paths = write_series(
+                self.output_root / 'monitoring_series',
+                build_records(
+                    {
+                        **timing,
+                        'phase': phases(len(dataset.dates), calibration, monitoring),
+                        'quality_state': quality_states,
+                        'observed_tsf_coverage': coverage,
+                        **self._temporal_columns(temporal),
+                        'l1_anomalous_pixels': self._pixel_counts(
+                            anomalies.instantaneous_stack, len(dataset.dates)
+                        ),
+                        'l1_persistent_anomalous_pixels': self._pixel_counts(
+                            anomalies.binary_stack, len(dataset.dates)
+                        ),
+                        'l1_coherent_anomalous_pixels': self._pixel_counts(
+                            coherence.binary_stack, len(dataset.dates)
+                        ),
+                        'l2_z': level2.z,
+                        'l2_instability_cusum': level2.instability_cusum,
+                        'l2_overforecast_cusum': level2.overforecast_cusum,
+                        'l2_alarm': level2.alarm,
+                        'coherent_region_available': level2.regional_available,
+                        'coherent_region_l2_instability_cusum': (
+                            level2.regional_instability_cusum
+                        ),
+                        'coherent_region_l2_overforecast_cusum': (
+                            level2.regional_overforecast_cusum
+                        ),
+                        'coherent_region_l2_alarm': level2.regional_alarm,
+                        'regime_change_score': level3.score,
+                        'coherent_region_regime_change_score': level3.regional_score,
+                        'l3_level': level3.level,
+                        **{
+                            f'l3_{name}': flags
+                            for name, flags in level3.criteria.items()
+                        },
+                    },
+                    range(len(dataset.dates)),
+                ),
+                rate_unit=RATE_UNIT,
+                metadata={
+                    'run_mode': run_mode,
+                    'target_feature': dataset.target_feature,
+                    'calibration_window': list(calibration),
+                    'monitoring_window': list(monitoring),
                 },
-                range(len(dataset.dates)),
-            ),
-            rate_unit=RATE_UNIT,
-            metadata={
-                'run_mode': run_mode,
-                'target_feature': dataset.target_feature,
-                'calibration_window': list(calibration),
-                'monitoring_window': list(monitoring),
-            },
-        )
+            )
 
         arrays = {
             'residual_z': anomalies.zscore_stack,
@@ -399,7 +414,9 @@ class ThreeLevelPipeline:
             arrays['legacy_global_score'] = legacy.score_stack
             arrays['legacy_global_binary'] = legacy.binary_stack
         arrays_path = self.output_root / 'pixel_stacks.npz'
-        np.savez_compressed(arrays_path, dates=np.asarray(dataset.dates), **arrays)
+        if self.write_legacy:
+            self.output_root.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(arrays_path, dates=np.asarray(dataset.dates), **arrays)
 
         result = {
             'schema_version': SCHEMA_VERSION,
@@ -437,9 +454,13 @@ class ThreeLevelPipeline:
                 },
                 'run_quality_flags': quality_flags,
             },
-            'monitoring_series_path': str(series_paths[0]),
-            'monitoring_series_csv_path': str(series_paths[1]),
-            'pixel_stacks_path': str(arrays_path),
+            'monitoring_series_path': None
+            if series_paths is None
+            else str(series_paths[0]),
+            'monitoring_series_csv_path': (
+                None if series_paths is None else str(series_paths[1])
+            ),
+            'pixel_stacks_path': str(arrays_path) if self.write_legacy else None,
             'forecast_timing_schema_version': inputs.get(
                 'forecast_timing_schema_version', 'legacy_unknown'
             ),
@@ -456,7 +477,8 @@ class ThreeLevelPipeline:
             'acquisition_dates': list(dataset.dates),
             'spatial_coherence_summary': coherence.summary,
         }
-        write_json(self.output_root / 'monitoring_metadata.json', result)
+        if self.write_legacy:
+            write_json(self.output_root / 'monitoring_metadata.json', result)
         LOGGER.info('Engine three_level completed in %s', self.output_root)
         details = {
             'anomalies': anomalies,

@@ -162,3 +162,122 @@ class SpatialCoherenceDetector:
         if value < 1:
             raise ValueError(f'spatial_coherence.{key} must be at least one.')
         return value
+
+
+# --- Sector aggregation (shared by both engines) ---------------------------
+
+
+@dataclass(frozen=True)
+class SectorSummary:
+    """Per-sector, per-acquisition aggregated severity and pixel counts.
+
+    ``severity`` is ``(time, sector)``: the highest ordinal level 0-3 reached
+    by a coherence-qualified group of pixels in the sector (see
+    :func:`aggregate_sectors`), -1 when the sector has no valid pixel.
+    ``pixel_counts`` is ``(time, sector, 5)``: raw pixels per severity
+    NO_DATA/0/1/2/3. ``coherent_counts`` is ``(time, sector, 3)``: coherent
+    pixels at severity >= 1, >= 2, >= 3.
+    """
+
+    sector_ids: tuple[str, ...]
+    severity: np.ndarray
+    valid_pixels: np.ndarray
+    pixel_counts: np.ndarray
+    coherent_counts: np.ndarray
+    rule: dict[str, Any]
+
+
+def whole_grid_sectors(mask: np.ndarray) -> dict[str, np.ndarray]:
+    """One sector covering the TSF mask (used when no polygons are configured)."""
+    return {'tsf': np.asarray(mask, dtype=bool)}
+
+
+def read_sectors(
+    path: str,
+    id_field: str,
+    shape: tuple[int, int],
+    transform: tuple[float, ...],
+    crs: str,
+    mask: np.ndarray,
+) -> dict[str, np.ndarray]:
+    """Rasterize sector polygons onto the grid (pixel centres), within ``mask``."""
+    import geopandas
+    from affine import Affine
+    from rasterio.features import rasterize
+
+    frame = geopandas.read_file(path)
+    if frame.crs is not None:
+        frame = frame.to_crs(crs)
+    if id_field not in frame.columns:
+        raise ValueError(f'Sector file {path} has no field {id_field!r}.')
+    affine = Affine(*transform[:6])
+    sectors = {}
+    for identifier, geometry in zip(frame[id_field], frame.geometry):
+        burned = rasterize(
+            [(geometry, 1)], out_shape=shape, transform=affine, fill=0, dtype='uint8'
+        )
+        sectors[str(identifier)] = (burned > 0) & mask
+    if not sectors:
+        raise ValueError(f'Sector file {path} contains no polygons.')
+    return sectors
+
+
+def aggregate_sectors(
+    severity: np.ndarray,
+    sectors: dict[str, np.ndarray],
+    coherence: dict[str, Any],
+    min_pixels: int,
+    min_fraction: float,
+) -> SectorSummary:
+    """Sector level = highest level held by enough coherent pixels.
+
+    For each level L in 1..3, pixels with severity >= L pass through
+    :class:`SpatialCoherenceDetector` (minimum area, temporal persistence,
+    overlap) on the whole grid. A sector reaches L at an acquisition when its
+    coherent pixels at >= L number at least ``min_pixels`` or at least
+    ``min_fraction`` of its valid pixels. Level 0 when it has valid pixels
+    but reaches no level; -1 (NO_DATA) without valid pixels.
+    """
+    if min_pixels < 1 or not 0.0 < min_fraction <= 1.0:
+        raise ValueError('Need min_pixels >= 1 and 0 < min_fraction <= 1.')
+    severity = np.asarray(severity)
+    ids = tuple(sectors)
+    union = np.zeros(severity.shape[1:], dtype=bool)
+    for cells in sectors.values():
+        union |= cells
+    detector = SpatialCoherenceDetector({**coherence, 'enabled': True})
+    time_count = severity.shape[0]
+    coherent_counts = np.zeros((time_count, len(ids), 3), dtype=np.int64)
+    for level in (1, 2, 3):
+        coherent = detector.detect(severity >= level, union).binary_stack
+        for position, sector in enumerate(ids):
+            coherent_counts[:, position, level - 1] = np.count_nonzero(
+                coherent[:, sectors[sector]], axis=1
+            )
+    pixel_counts = np.zeros((time_count, len(ids), 5), dtype=np.int64)
+    for position, sector in enumerate(ids):
+        values = severity[:, sectors[sector]]
+        for code, value in enumerate((-1, 0, 1, 2, 3)):
+            pixel_counts[:, position, code] = np.count_nonzero(values == value, axis=1)
+    valid = pixel_counts[:, :, 1:].sum(axis=2)
+    by_count = coherent_counts >= min_pixels
+    by_fraction = (coherent_counts >= min_fraction * valid[:, :, None]) & (
+        coherent_counts > 0
+    )
+    enough = by_count | by_fraction
+    sector_severity = np.where(valid > 0, 0, -1).astype(np.int8)
+    for level in (1, 2, 3):
+        sector_severity[enough[:, :, level - 1] & (valid > 0)] = level
+    return SectorSummary(
+        sector_ids=ids,
+        severity=sector_severity,
+        valid_pixels=valid,
+        pixel_counts=pixel_counts,
+        coherent_counts=coherent_counts,
+        rule={
+            'method': 'SpatialCoherenceDetector per level, then min_pixels or min_fraction',
+            'coherence': {**coherence, 'enabled': True},
+            'min_pixels': int(min_pixels),
+            'min_fraction': float(min_fraction),
+        },
+    )

@@ -206,3 +206,169 @@ def make_contract(
 def iso(day: int, start: str = '2020-01-01') -> str:
     """ISO date ``day`` days after ``start``."""
     return (date.fromisoformat(start) + timedelta(days=day)).isoformat()
+
+
+def write_long_table(
+    directory: Path,
+    *,
+    n_dates: int = 48,
+    height: int = 12,
+    width: int = 12,
+    monitoring_index: int = 28,
+    seed: int = 7,
+    patch=(slice(3, 9), slice(3, 9)),
+    failure_start: int = 34,
+) -> Path:
+    """A MAP-format lead-1 residual table long enough for both engines.
+
+    12-day cadence with one 24-day gap; cumulative LOS in mm with noise and a
+    patch that accelerates away from the satellite from ``failure_start``.
+    The forecast is persistence plus the mean stable trend (lead 1).
+    """
+    rng = np.random.default_rng(seed)
+    offsets = np.cumsum([0] + [24 if i == 10 else 12 for i in range(1, n_dates)])
+    dates = [(date(2020, 1, 1) + timedelta(days=int(d))).isoformat() for d in offsets]
+    trend = -0.02 * offsets[:, None, None] * np.ones((1, height, width))
+    noise = rng.normal(0.0, 0.8, size=(n_dates, height, width))
+    series = trend + noise
+    extra = np.zeros(n_dates)
+    for index in range(failure_start, n_dates):
+        extra[index] = -0.15 * (index - failure_start + 1) ** 2
+    series[:, patch[0], patch[1]] += extra[:, None, None]
+    columns: dict[str, list] = {name: [] for name in TABLE_COLUMNS}
+    monitoring_start = dates[monitoring_index]
+    for origin in range(n_dates - 1):
+        target = origin + 1
+        dt = offsets[target] - offsets[origin]
+        for row in range(height):
+            for col in range(width):
+                persistence = series[origin, row, col]
+                predicted = persistence - 0.02 * dt
+                observed = series[target, row, col]
+                in_monitoring = dates[target] >= monitoring_start
+                role = 'none'
+                if not in_monitoring:
+                    fraction = target / monitoring_index
+                    role = (
+                        'train'
+                        if fraction < 0.6
+                        else 'validation'
+                        if fraction < 0.8
+                        else 'test'
+                    )
+                _append_row(
+                    columns,
+                    row,
+                    col,
+                    width,
+                    dates[origin],
+                    1,
+                    dates[target],
+                    persistence,
+                    predicted,
+                    observed,
+                    'monitoring' if in_monitoring else 'calibration',
+                    role,
+                )
+    arrays = {name: np.asarray(values) for name, values in columns.items()}
+    sidecar = {
+        'schema_version': '2.0',
+        'model': 'trf',
+        'model_version': 'slope_trf@long',
+        'target_variable': 'cumulative_los',
+        'target_feature': 'cumulative_los_current',
+        'target_units': 'mm',
+        'horizon': 1,
+        'calibration_window': [dates[0], dates[monitoring_index - 1]],
+        'monitoring_window': [monitoring_start, dates[-1]],
+        'grid': {
+            'crs': 'EPSG:32735',
+            'transform': [10.0, 0.0, 500000.0, 0.0, -10.0, 7000000.0],
+            'height': height,
+            'width': width,
+        },
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / 'residuals.npz'
+    np.savez_compressed(path, **arrays)
+    path.with_suffix('.json').write_text(json.dumps(sidecar), encoding='utf-8')
+    return path
+
+
+TABLE_COLUMNS = (
+    'series_id',
+    'row',
+    'col',
+    'x',
+    'y',
+    'forecast_origin_date',
+    'lead',
+    'target_date',
+    'target_date_status',
+    'last_observation_date',
+    'persistence_value',
+    'predicted_value',
+    'prediction_lower',
+    'prediction_upper',
+    'period',
+    'sample_role',
+    'observed_value',
+    'residual',
+)
+
+
+def _append_row(
+    columns,
+    row,
+    col,
+    width,
+    origin,
+    lead,
+    target,
+    persistence,
+    predicted,
+    observed,
+    period,
+    role,
+):
+    columns['series_id'].append(row * width + col)
+    columns['row'].append(row)
+    columns['col'].append(col)
+    columns['x'].append(500005.0 + 10 * col)
+    columns['y'].append(6999995.0 - 10 * row)
+    columns['forecast_origin_date'].append(origin)
+    columns['lead'].append(lead)
+    columns['target_date'].append(target)
+    columns['target_date_status'].append('acquired')
+    columns['last_observation_date'].append(origin)
+    columns['persistence_value'].append(persistence)
+    columns['predicted_value'].append(predicted)
+    columns['prediction_lower'].append(predicted - 1.0)
+    columns['prediction_upper'].append(predicted + 1.0)
+    columns['period'].append(period)
+    columns['sample_role'].append(role)
+    columns['observed_value'].append(observed)
+    columns['residual'].append(observed - predicted)
+
+
+def write_run_config(directory: Path, table: Path, **sections) -> Path:
+    """An ALE config layered on the default ale.yaml, pointing at ``table``."""
+    import yaml
+    from ale_3levels.config import DEFAULT_CONFIG
+
+    engine_dir = DEFAULT_CONFIG.parent
+    config = {
+        'base': str(DEFAULT_CONFIG),
+        'engines': {
+            'fixed_gates': str(engine_dir / 'fixed_gates.yaml'),
+            'three_level': str(engine_dir / 'three_level.yaml'),
+        },
+        'input': {'residuals': str(table), 'model_id': 'trf'},
+        'spatial': {'min_pixels': 4, 'coherence': {'minimum_area_pixels': 4}},
+    }
+    for key, value in sections.items():
+        config[key] = {**config.get(key, {}), **value}
+    path = directory / 'ale_test.yaml'
+    directory.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(config), encoding='utf-8')
+    return path

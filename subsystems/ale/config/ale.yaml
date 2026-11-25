@@ -32,10 +32,17 @@ site:
   reference_point: null
 
 spatial:
-  # Sector polygons (GeoPackage/GeoJSON in the grid CRS). null = whole grid.
+  # Sector polygons (GeoPackage/GeoJSON; reprojected to the grid CRS).
+  # null = one sector covering the TSF mask.
   sectors_file: null
   sector_id_field: sector_id
-  # SpatialCoherenceDetector parameters, applied per severity level.
+  # A sector reaches level L when its coherent pixels at severity >= L number
+  # at least min_pixels OR at least min_fraction of its valid pixels.
+  min_pixels: 25
+  min_fraction: 0.10
+  # SpatialCoherenceDetector, applied per severity level on the whole grid:
+  # connected areas >= minimum_area_pixels that persist for `persistence`
+  # consecutive acquisitions with IoU >= minimum_overlap.
   coherence:
     minimum_area_pixels: 25
     persistence: 3

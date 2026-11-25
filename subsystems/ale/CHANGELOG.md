@@ -5,6 +5,18 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- Common output schema and `run` command; sector aggregation. Pixel results
+  of both engines unchanged (format only). Engine B no longer writes the
+  prototype files (series, pixel_stacks.npz, metadata) during `run`; the
+  golden test still produces and compares them. New sector level: highest
+  level held by coherence-qualified pixels (SpatialCoherenceDetector per
+  level; min_pixels 25 or min_fraction 0.10). Expected: sector levels lag
+  pixel levels by the coherence persistence (3 acquisitions). Observed on the
+  synthetic site (one sector = whole TSF, monitoring): A GREEN for 3 dates,
+  then RED from 2019-01-27 (59 dates); B NONE until 2019-04-09, L2 from
+  2019-04-09 (first pixel L2 2019-03-16), L3 from 2019-12-05 (first pixel L3
+  2019-06-20; L3 alerts are not persistent for 3 consecutive acquisitions
+  until December).
 - Engine B in the common schema (`ThreeLevelEngine`): no engine-B number
   changes (golden test unchanged; adapter tests check that z, the L2 CUSUM
   and the L3 score pass through bit-identically). New per-pixel labels

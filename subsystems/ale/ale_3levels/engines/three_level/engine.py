@@ -85,7 +85,9 @@ class ThreeLevelEngine:
         self.config_hash = config_hash(self.raw_config)
         self.work_dir = Path(work_dir)
         self.run_mode = run_mode
-        self.pipeline = ThreeLevelPipeline(self.raw_config, self.work_dir)
+        self.pipeline = ThreeLevelPipeline(
+            self.raw_config, self.work_dir, write_legacy=False
+        )
         self.last_run: ThreeLevelRun | None = None
 
     def fit(self, calibration_data: ForecastContract) -> None:

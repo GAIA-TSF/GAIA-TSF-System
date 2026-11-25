@@ -81,7 +81,9 @@ def test_engine_b_numbers_pass_through_unchanged(golden):
 def test_pixel_cusum_series_reproduces_the_prototype_maximum(golden):
     _, run, result = golden
     start, end = run.details['monitoring_window']
-    series_max = np.fmax.reduce(result.metric_values['pixel_cusum_pos'][start:end], axis=0)
+    series_max = np.fmax.reduce(
+        result.metric_values['pixel_cusum_pos'][start:end], axis=0
+    )
     prototype = run.arrays['level2_maximum_instability_cusum']
     valid = np.isfinite(prototype)
     np.testing.assert_array_equal(np.maximum(series_max, 0.0)[valid], prototype[valid])

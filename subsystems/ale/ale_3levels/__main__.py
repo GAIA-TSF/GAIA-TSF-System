@@ -9,30 +9,13 @@ import sys
 from pathlib import Path
 
 from ale_3levels.config import DEFAULT_CONFIG, load_config
-from ale_3levels.contract import ContractError, load_contract, read_mask, summary
+from ale_3levels.contract import ContractError, summary
+from ale_3levels.run import load_input
+from ale_3levels.run import run as run_engines
 
 
 def _contract_from_config(input_path: Path | None, config_path: Path):
-    config = load_config(config_path)
-    source = config.get('input') or {}
-    site = config.get('site') or {}
-    path = input_path or source.get('residuals')
-    if path is None:
-        raise ContractError('No MAP table given (--input or input.residuals).')
-    mask_file = source.get('mask_file')
-    return load_contract(
-        Path(path),
-        lead=int(source.get('lead', 1)),
-        model_id=source.get('model_id'),
-        source_units_override=source.get('source_units_override'),
-        mask=read_mask(Path(mask_file)) if mask_file else None,
-        site_id=site.get('site_id'),
-        los_sign_convention=site.get(
-            'los_sign_convention', 'negative_away_from_satellite'
-        ),
-        reference_date=site.get('reference_date'),
-        reference_point=site.get('reference_point'),
-    )
+    return load_input(load_config(config_path), input_path)
 
 
 def _not_yet(step: str) -> int:
@@ -81,7 +64,12 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(summary(contract), indent=2))
             return 0
         if args.command == 'run':
-            return _not_yet('steps 5-6')
+            written = run_engines(
+                args.engine, args.out, config_path=args.config, input_path=args.input
+            )
+            for engine, paths in written.items():
+                print(f'{engine}: {paths["alerts"].parent}')
+            return 0
         if args.command == 'calibrate':
             return _not_yet('step 8')
         return _not_yet('step 9')
