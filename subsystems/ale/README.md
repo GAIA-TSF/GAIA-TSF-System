@@ -91,6 +91,19 @@ python -m ale_3levels calibrate --engine three_level --input <...> --out <dir>  
 python -m ale_3levels compare --a <dir_a> --b <dir_b> --out <dir>                                              # later step
 ```
 
+### Data (kept outside the repository)
+
+Generated data lives in the ALE data directory, by default
+`~/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV` (override with
+`ALE_DATA_DIR`). Nothing generated is committed.
+
+```bash
+# Small simulated demo site (about 2.5 MB, ~1 s; no MAP, no site data):
+python3 subsystems/ale/scripts/make_demo_data.py --run          # -> ALE-DEV/demo
+# Real synthetic site: copy from tsf_experiments + MAP inference (~1.5 min):
+subsystems/ale/scripts/prepare_synthetic.sh                       # -> ALE-DEV/synthetic_site
+```
+
 ### Tests
 
 ```bash

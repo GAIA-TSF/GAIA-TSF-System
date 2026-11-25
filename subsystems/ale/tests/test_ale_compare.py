@@ -126,7 +126,9 @@ def test_ground_truth_is_read_only_by_the_report():
     offenders = [
         str(path.relative_to(PACKAGE))
         for path in PACKAGE.rglob('*.py')
-        if path.name not in {'compare.py', '__main__.py'}
+        # compare.py and its CLI read the mask; demo.py only *writes* the
+        # simulated truth mask of the demo site.
+        if path.name not in {'compare.py', '__main__.py', 'demo.py'}
         and pattern.search(path.read_text())
     ]
     assert offenders == []
