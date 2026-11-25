@@ -1,0 +1,185 @@
+experiment:
+  name: slope_lstm
+  description: Stable-pixel model for synthetic TSF deformation monitoring
+  seed: 42
+experiment_dir: /tmp/claude-1000/-home-lukas-src-GAIA-TSF-System/5eab3b88-7295-459d-9851-56e3f635b16b/scratchpad/golden_crop
+variable: slope
+model: lstm
+dataset: slope_dataset
+data:
+  temporal_alignment_method: exact
+variables:
+  slope:
+    description: Slope stability from InSAR deformation
+  amd:
+    description: Acid Mine Drainage index from Sentinel-2
+datasets:
+  slope_dataset:
+    mask_file: tsf_mask.tif
+    stable_file: tsf_stable.tif
+    calibration_spatial_selection:
+      method: configured_mask
+    features:
+    - velocity_lag2
+    - velocity_lag3
+    - acceleration_lag1
+    - acceleration_lag2
+    - acceleration_lag3
+    target_feature: velocity_current
+    split:
+      method: spatial
+      random_seed: 42
+      train_ratio: 0.5
+      validation_ratio: 0.25
+      test_ratio: 0.25
+    temporal_windows:
+      calibration:
+        full_period: true
+      monitoring:
+        start_date: '2018-01-01'
+        end_date: '2020-12-31'
+  amd_dataset:
+    mask_file: tsf_mask.tif
+    features:
+    - amd_lag1
+    target_feature: amd
+    split:
+      method: temporal
+      train_ratio: 0.9
+      validation_ratio: 0.15
+      test_ratio: 0.15
+    temporal_windows:
+      calibration:
+        start_date: '2018-01-01'
+        end_date: '2020-01-27'
+      monitoring:
+        start_date: '2020-02-08'
+        end_date: '2020-12-28'
+baseline_model:
+  stable_pixel_std_threshold: 0.008
+models:
+  constant:
+    statistic: mean
+  trf:
+    n_estimators: 200
+    max_depth: 20
+    random_state: 42
+    n_jobs: 7
+  gbr:
+    n_estimators: 100
+    learning_rate: 0.1
+    max_depth: 3
+  lstm:
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    bidirectional: false
+    look_back: 12
+    horizon: 1
+    device: cpu
+    optimizer:
+      lr: 0.001
+    training:
+      batch_size: 256
+      epochs: 100
+      early_stopping:
+        enabled: true
+        patience: 10
+        min_delta: 0.0
+        restore_best_weights: true
+  tcn: {}
+  ensemble: []
+training:
+  random_seed: 42
+explainability:
+  enabled: false
+  parallel:
+    n_jobs: 4
+  shap:
+    sample_size: 1000
+    dependence_features:
+    - velocity_lag2
+    - acceleration_lag1
+  grouped_permutation:
+    n_repeats: 5
+    groups:
+      velocity_history:
+      - velocity_lag2
+      - velocity_lag3
+      acceleration_history:
+      - acceleration_lag1
+      - acceleration_lag2
+      - acceleration_lag3
+      annual_seasonality:
+      - annual_sin
+      - annual_cos
+plotting:
+  native_deformation_rate_unit: mm/day
+  deformation_unit: mm/day
+  value_scale: 1.0
+  cumulative_displacement_unit: mm
+  fallback_interval_days: 30.0
+  cumulative_observation_max_points: 100000
+  observation_window_size: 3
+  latest_residual_colormap: RdBu
+  latest_residual_percentile: 98.0
+  latest_residual_window: 10
+  mean_residual_colormap: RdBu
+  mean_residual_percentile: 98.0
+  persistent_residual_colormap: magma
+  persistent_fraction_display_max: 0.25
+  persistent_fraction_gamma: 1.0
+  observation_points_file: observation_points.gpkg
+  observation_points_layer: observation_points
+  observation_points_name_field: label
+anomaly_detection:
+  zscore_threshold: 1.5
+  direction: negative
+  persistence: 3
+  calibration_file: monitoring/l1_calibration.json
+level2:
+  reference_value: 0.5
+  decision_threshold: 5.0
+  bias_warning_ratio: 0.25
+  calibration_file: monitoring/l2_calibration.json
+level3:
+  watch_threshold: 0.4
+  alert_threshold: 0.7
+  consecutive_acquisitions: 2
+  calibration_file: monitoring/l3_calibration.json
+quality:
+  minimum_coverage: 0.5
+  minimum_calibration_samples: 20
+monitoring:
+  run_after_inference: false
+  animation:
+    enabled: false
+    output_directory: monitoring/animation
+    filename: tsf_monitoring.mp4
+  dashboard:
+    enabled: false
+    filename: slope_stability_dashboard.png
+    spatial_support:
+      population: fixed_calibration_valid
+      minimum_observation_coverage: 0.95
+    spatial_coherence:
+      enabled: true
+      minimum_area_pixels: 25
+      persistence: 3
+      minimum_overlap: 0.3
+      connectivity: 8
+    anomaly_magnitude_threshold: 0.1
+    acceleration_cusum:
+      instability_direction: negative
+      signal: observed_velocity
+      spatial_aggregation: directional_tail_mean
+      spatial_quantile: 0.05
+      reference_value: 0.5
+      decision_threshold: 3.0
+      derivative_window: 3
+      smoothing_span: 3
+      persistence_window: 10
+      persistence_threshold: 0.25
+    regime:
+      signal: unexpected_acceleration
+      smoothing_span: 3
