@@ -289,6 +289,14 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
 - **Short L3 calibration (Checkpoint 2, 2026-11-25):** accepted for the
   prototype with the `short_calibration` warning; documented in the README
   under known limitations.
+- **Final review (2026-11-25):**
+  - `state.reset_after_l3` stays `false` (CUSUM never resets after L3).
+  - Engine B's L2 stays a TSF-wide alarm by design; localisation is L3's job.
+  - The package stays in `subsystems/ale/` (not `map/ale-3levels/`).
+  - Handed to MAP, not ALE work: `tsf_version` from the LOS inputs instead of
+    the forecast table; the correct `target_units` for the synthetic site
+    (metres, currently labelled `mm`); porting LSTM early stopping and
+    `validate_predictors` to `map-dev`.
 
 ## 9. Open points as of revision 2 (now resolved; kept for the record)
 
