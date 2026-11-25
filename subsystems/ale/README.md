@@ -255,9 +255,12 @@ calibration).
 - **TSF-level L3 and acceleration baselines** are taken at calibration-split
   dates, but their causal derivative (3 acquisitions) still looks back at up to
   two earlier dates, which may be model-training dates.
-- **Inherited region levels.** Engine B's L2 is a TSF-wide alarm; every TSF pixel
-  inherits it (`level_scope = region`). On the synthetic site the stable control
-  area therefore shows the same L2 dates as the failure area. L3 is localised to
+- **Inherited region levels.** Engine B's L2 is a TSF-wide alarm by design
+  (decided 2026-11-25): it signals instability of the facility as a whole, and
+  localisation is L3's job. Every TSF pixel inherits it (`level_scope = region`),
+  so on the synthetic site the stable control area shows the same L2 dates as the
+  failure area; read engine B's L2 false-alert count in the comparison report as
+  a facility-level alarm, not a pixel error. L3 is localised to
   coherent regions. The regional L2 series is one combined series (any region
   alarming), so all active regions inherit it.
 - **Noise near the 1 mm gate (engine A).** With about 12 mm atmospheric noise
