@@ -5,6 +5,14 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.4 Rename.** Engine B's L3 output is `regime_change_score` (a
+  heuristic score in [0, 1), not a probability). `P_regime` and the older
+  `regime_risk` are documented legacy aliases (`alerts.json:
+  metric_aliases`, `outputs.get_metric`); the prototype's deprecated
+  `medium_risk_threshold`/`high_risk_threshold` keys still map to
+  `level3.watch_threshold`/`alert_threshold` with a warning. Expected and
+  observed: no change to any result (only `alerts.json` gains
+  `metric_aliases`).
 - **B2.3 Model-version guard.** Frozen engine-B calibrations record their
   model identity (`model_id`, `model_version`, `lead`) and live under
   `calibration/<model_id>/lead<k>/`. `run --calibration DIR` scores with a

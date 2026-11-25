@@ -114,6 +114,13 @@ ALE_SYNTHETIC_TABLE=<residuals.npz> ALE_SYNTHETIC_MASK=<tsf_mask.tif> \
 
 `tests/golden/` holds the prototype's golden outputs (see its README).
 
+### Metric names
+
+Engine B's L3 output is `regime_change_score`: a heuristic score in [0, 1)
+(not a probability). The MAP prototype called it `P_regime` (earlier
+`regime_risk`); both remain documented aliases (`alerts.json:
+metric_aliases`, `outputs.get_metric(arrays, metadata, 'P_regime')`).
+
 ### Known limitations
 
 - **Short independent calibration (engine B).** With `calibration.population:

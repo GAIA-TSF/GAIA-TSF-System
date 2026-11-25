@@ -36,6 +36,16 @@ from ale_3levels.engines.base import LEVEL_SCOPES, NO_DATA, SEVERITY, AlertResul
 from ale_3levels.spatial import SectorSummary
 
 SCHEMA_VERSION = '1.0'
+# Legacy metric names (B2.4). The MAP prototype called the L3 score P_regime
+# (earlier regime_risk), which suggested a probability; it is a heuristic
+# score in [0, 1) and is written as regime_change_score.
+METRIC_ALIASES = {
+    'three_level': {
+        'P_regime': 'regime_change_score',
+        'regime_risk': 'regime_change_score',
+    },
+    'fixed_gates': {},
+}
 ZIP_DATE = (1980, 1, 1, 0, 0, 0)
 SEVERITY_NOTE = (
     'Ordinal severity for comparison only: WHITE/NONE=0, GREEN/L1=1, '
@@ -149,6 +159,11 @@ def write_engine_output(
         'trigger_reasons': list(result.trigger_reasons),
         'level_scopes': list(LEVEL_SCOPES),
         'metrics': sorted(result.metric_values),
+        'metric_aliases': {
+            alias: target
+            for alias, target in METRIC_ALIASES[result.engine].items()
+            if target in result.metric_values
+        },
         'recommended_actions': result.recommended_actions,
         'recommended_actions_note': 'Advisory text only; ALE executes no action.',
         'engine_attrs': result.attrs,
@@ -271,3 +286,14 @@ def read_alerts(engine_dir: Path) -> tuple[dict[str, np.ndarray], dict[str, Any]
         arrays = {name: archive[name] for name in archive.files}
     metadata = json.loads((engine_dir / 'alerts.json').read_text(encoding='utf-8'))
     return arrays, metadata
+
+
+def get_metric(
+    arrays: dict[str, np.ndarray], metadata: dict[str, Any], name: str
+) -> np.ndarray:
+    """A metric stack by name or legacy alias (e.g. ``P_regime``)."""
+    target = metadata.get('metric_aliases', {}).get(name, name)
+    key = f'metric_{target}'
+    if key not in arrays:
+        raise KeyError(f'{metadata.get("engine")} output has no metric {name!r}.')
+    return arrays[key]
