@@ -218,7 +218,7 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
 | 2. Golden capture | done (`66e9eac`) |
 | 3. Package scaffold, contract, boundary test | done (`fc6ede1`); moved to `subsystems/ale` (`b3ce19e`) |
 | MAP: LSTM early stopping port | done (`95823f6`) |
-| MAP: `validate_predictors` port | **open**: the stash rule conflicts with map-dev's origin-based samples (see summary) |
+| MAP: `validate_predictors` port | done, adapted to origin-based samples: blocks only features using later acquisitions (`236cba3`) |
 | 4. B1 move + golden test; remove from MAP | done (`2bafd43`, `40698f8`) |
 | 5-9 | to do |
 
