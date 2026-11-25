@@ -137,3 +137,72 @@ def write_map_table(
 def site_table(tmp_path: Path) -> Path:
     """A valid table under ``<tmp>/site_a/results/forecasts/slope_trf``."""
     return write_map_table(tmp_path / 'site_a' / 'results' / 'forecasts' / 'slope_trf')
+
+
+def make_contract(
+    dates,
+    cumulative_mm,
+    *,
+    residual_mm=None,
+    mask=None,
+    monitoring_start=None,
+):
+    """A lead-1 ForecastContract built directly from a cumulative LOS series.
+
+    ``dates`` are acquisition dates (ISO), ``cumulative_mm`` is shaped
+    ``(len(dates), rows, cols)``. Targets are ``dates[1:]`` with origins
+    ``dates[:-1]``. Without ``residual_mm`` the forecast is persistence (zero
+    change), so the residual equals the observed increment.
+    """
+    from ale_3levels.contract import MONITORING, ForecastContract, Grid
+
+    dates = np.asarray(dates, dtype='<U10')
+    series = np.asarray(cumulative_mm, dtype=np.float64)
+    days = dates.astype('datetime64[D]').astype(np.int64)
+    targets, origins = dates[1:], dates[:-1]
+    observed = series[1:]
+    persistence = series[:-1]
+    if residual_mm is None:
+        predicted = persistence.copy()
+    else:
+        predicted = observed - np.asarray(residual_mm, dtype=np.float64)
+    residual = observed - predicted
+    dt = np.broadcast_to(
+        np.diff(days).astype(np.float64)[:, None, None], observed.shape
+    )
+    if mask is None:
+        mask = np.ones(series.shape[1:], dtype=bool)
+    mask = np.asarray(mask, dtype=bool)
+    shape = observed.shape
+    return ForecastContract(
+        attrs={
+            'site_id': 'test',
+            'model_id': 'trf',
+            'model_version': 'test',
+            'target_feature': 'cumulative_los_current',
+            'monitoring_start': str(monitoring_start or targets[0]),
+            'los_sign_convention': 'negative_away_from_satellite',
+        },
+        grid=Grid('EPSG:32735', (10.0, 0.0, 0.0, 0.0, -10.0, 0.0), *series.shape[1:]),
+        lead=1,
+        dates=targets,
+        forecast_origin=origins,
+        delta_t_days=np.array(dt),
+        observed_mm=observed,
+        predicted_mm=predicted,
+        persistence_mm=persistence,
+        residual_mm=residual,
+        observed_mm_per_day=(observed - persistence) / dt,
+        predicted_mm_per_day=(predicted - persistence) / dt,
+        residual_mm_per_day=residual / dt,
+        split=np.full(shape, MONITORING, dtype=np.int8),
+        mask=mask,
+        valid_mask=mask[None] & np.isfinite(observed),
+        series_dates=dates,
+        observed_series_mm=series,
+    )
+
+
+def iso(day: int, start: str = '2020-01-01') -> str:
+    """ISO date ``day`` days after ``start``."""
+    return (date.fromisoformat(start) + timedelta(days=day)).isoformat()
