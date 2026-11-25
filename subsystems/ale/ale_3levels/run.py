@@ -179,3 +179,57 @@ def run(
         },
     )
     return written
+
+
+def calibrate(
+    out_dir: Path,
+    *,
+    config_path: Path,
+    input_path: Path | None = None,
+    model_id: str | None = None,
+) -> Path:
+    """Freeze engine-B calibration for one model and lead (B2.3, spec §6.3).
+
+    Fits L1, L2 and L3 baselines from the pre-monitoring records of the
+    selected MAP table (``calibration.population`` decides which) and writes
+    them to ``<out>/calibration/<model_id>/lead<k>/`` with a manifest. Use the
+    returned ``<out>/calibration`` directory with ``run --calibration``.
+    """
+    import tempfile
+
+    from ale_3levels.engines.three_level.pipeline import (
+        ThreeLevelPipeline,
+        inputs_from_contract,
+    )
+
+    config = load_config(config_path)
+    out_dir = Path(out_dir)
+    root = out_dir / 'calibration'
+    if root.exists() and any(root.iterdir()):
+        raise FileExistsError(f'{root} is not empty; calibrations are frozen once.')
+    contract = load_input(config, input_path, model_id)
+    run_mode = (config.get('input') or {}).get('run_mode') or UNKNOWN
+    with tempfile.TemporaryDirectory() as scratch:
+        pipeline = ThreeLevelPipeline(
+            config['engine_configs']['three_level'], Path(scratch), write_legacy=False
+        )
+        result = pipeline.run(inputs_from_contract(contract, run_mode=run_mode))
+        identity = result.metadata['calibration_identity']
+        source = Path(result.metadata['l1_calibration_path']).parent
+        target = root / identity['model_id'] / f'lead{identity["lead"]}'
+        target.mkdir(parents=True)
+        for path in sorted(source.glob('*.json')):
+            (target / path.name).write_bytes(path.read_bytes())
+    write_json(
+        out_dir / 'calibration_manifest.json',
+        {
+            'ale_version': __version__,
+            'identity': identity,
+            'calibration_population': result.metadata['calibration_population'],
+            'zscore_formula': result.metadata['zscore_formula'],
+            'n_calibration': result.metadata['n_calibration'],
+            'files': sorted(path.name for path in target.iterdir()),
+            'input': input_identity(contract),
+        },
+    )
+    return root

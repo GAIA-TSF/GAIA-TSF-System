@@ -12,14 +12,10 @@ from ale_3levels.compare import compare as compare_engines
 from ale_3levels.config import DEFAULT_CONFIG, load_config
 from ale_3levels.contract import ContractError, summary
 from ale_3levels.engines.three_level.calibration import CalibrationError
+from ale_3levels.run import calibrate as calibrate_engine
 from ale_3levels.run import load_input
 from ale_3levels.run import run as run_engines
 from ale_3levels.state import StateMismatchError
-
-
-def _not_yet(step: str) -> int:
-    print(f'Not implemented yet ({step} in ALE_PLAN.md §7).', file=sys.stderr)
-    return 2
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -61,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     calibrate.add_argument('--input', type=Path)
     calibrate.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     calibrate.add_argument('--out', type=Path, required=True)
+    calibrate.add_argument('--model', help='MAP model (default input.model_id)')
 
     compare = commands.add_parser(
         'compare', help='compare two engine output directories'
@@ -96,7 +93,14 @@ def main(argv: list[str] | None = None) -> int:
                 print(f'{engine}: {paths["alerts"].parent}')
             return 0
         if args.command == 'calibrate':
-            return _not_yet('step 8')
+            root = calibrate_engine(
+                args.out,
+                config_path=args.config,
+                input_path=args.input,
+                model_id=args.model,
+            )
+            print(root)
+            return 0
         paths = compare_engines(
             args.a, args.b, args.out, truth=args.truth, title=args.title
         )
