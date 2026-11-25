@@ -5,6 +5,13 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.5 Model selection.** `input.residuals` may map MAP models to their
+  tables (`{trf: ..., lstm: ...}`); `input.model_id` or `--model` selects the
+  model that drives the alerts. Each model has its own engine-B calibration
+  (`calibration/<model_id>/lead<k>/`); one model's calibration cannot serve
+  another. Expected: no change for a single-model site. Observed on the
+  synthetic site (only `trf` exists): both engines' outputs identical to the
+  B2.1 run.
 - **B2.4 Rename.** Engine B's L3 output is `regime_change_score` (a
   heuristic score in [0, 1), not a probability). `P_regime` and the older
   `regime_risk` are documented legacy aliases (`alerts.json:

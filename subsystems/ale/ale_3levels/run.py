@@ -24,20 +24,49 @@ LOGGER = logging.getLogger(__name__)
 ENGINES = ('fixed_gates', 'three_level')
 
 
+def select_model(config: dict[str, Any], model_id: str | None = None) -> str | None:
+    """The MAP model that drives the alerts (B2.5): CLI, else input.model_id."""
+    return model_id or (config.get('input') or {}).get('model_id')
+
+
+def table_for(
+    config: dict[str, Any], model_id: str | None, input_path: Path | None = None
+) -> Path:
+    """The residual table of the selected model.
+
+    ``input.residuals`` is either one path or a mapping ``{model_id: path}``
+    (one MAP table per model, each with its own engine-B calibration).
+    """
+    if input_path is not None:
+        return Path(input_path)
+    residuals = (config.get('input') or {}).get('residuals')
+    if residuals is None:
+        raise ValueError('No MAP table given (--input or input.residuals).')
+    if isinstance(residuals, dict):
+        if model_id not in residuals:
+            raise ValueError(
+                f'input.residuals has no table for model {model_id!r}; '
+                f'configured: {sorted(residuals)}.'
+            )
+        return Path(residuals[model_id])
+    return Path(residuals)
+
+
 def load_input(
-    config: dict[str, Any], input_path: Path | None = None
+    config: dict[str, Any],
+    input_path: Path | None = None,
+    model_id: str | None = None,
 ) -> ForecastContract:
-    """Load the MAP residual table named by the CLI or the configuration."""
+    """Load the MAP residual table of the selected model."""
     source = config.get('input') or {}
     site = config.get('site') or {}
-    path = input_path or source.get('residuals')
-    if path is None:
-        raise ValueError('No MAP table given (--input or input.residuals).')
+    model = select_model(config, model_id)
+    path = table_for(config, model, input_path)
     mask_file = source.get('mask_file')
     return load_contract(
-        Path(path),
+        path,
         lead=int(source.get('lead', 1)),
-        model_id=source.get('model_id'),
+        model_id=model,
         source_units_override=source.get('source_units_override'),
         mask=read_mask(Path(mask_file)) if mask_file else None,
         site_id=site.get('site_id'),
@@ -88,6 +117,7 @@ def run(
     config_path: Path,
     input_path: Path | None = None,
     calibration_dir: Path | None = None,
+    model_id: str | None = None,
 ) -> dict[str, dict[str, Path]]:
     """Score with ``engine`` (``fixed_gates``, ``three_level`` or ``both``)."""
     names = ENGINES if engine == 'both' else (engine,)
@@ -102,7 +132,7 @@ def run(
                 f'{target} is not empty; ALE outputs are written once. '
                 'Use a new --out directory.'
             )
-    contract = load_input(config, input_path)
+    contract = load_input(config, input_path, model_id)
     sectors = sectors_for(config, contract)
     spatial = config.get('spatial') or {}
     written: dict[str, dict[str, Path]] = {}

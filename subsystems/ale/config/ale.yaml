@@ -9,11 +9,14 @@ engines:
 
 input:
   # MAP forecast-residual table (schema 2.0): <dir>/residuals.npz + residuals.json.
-  # The CLI --input overrides this path.
+  # One path, or one table per MAP model, e.g. {trf: <path>, lstm: <path>};
+  # model_id (or --model) selects the table that drives the alerts. Each model
+  # has its own engine-B calibration. The CLI --input overrides the path.
   residuals: null
   # Lead (acquisitions after the forecast origin) that drives alerts.
   lead: 1
-  # Which MAP model drives alerts: trf | lstm. Must match the table sidecar.
+  # Which MAP model drives alerts: trf | lstm (CLI --model overrides). Must
+  # match the table sidecar.
   model_id: trf
   # Unit of MAP's target values. null = trust the sidecar's target_units.
   # The synthetic generators write metres although MAP declares mm; set 'm'

@@ -16,10 +16,6 @@ from ale_3levels.run import load_input
 from ale_3levels.run import run as run_engines
 
 
-def _contract_from_config(input_path: Path | None, config_path: Path):
-    return load_input(load_config(config_path), input_path)
-
-
 def _not_yet(step: str) -> int:
     print(f'Not implemented yet ({step} in ALE_PLAN.md §7).', file=sys.stderr)
     return 2
@@ -34,6 +30,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     validate.add_argument('--input', type=Path, help='MAP residuals.npz')
     validate.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
+    validate.add_argument(
+        '--model', help='MAP model driving the alerts (default input.model_id)'
+    )
 
     run = commands.add_parser('run', help='score MAP output with one or both engines')
     run.add_argument(
@@ -41,6 +40,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     run.add_argument('--input', type=Path)
     run.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
+    run.add_argument(
+        '--model', help='MAP model driving the alerts (default input.model_id)'
+    )
     run.add_argument('--out', type=Path, required=True)
     run.add_argument(
         '--calibration',
@@ -71,7 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         if args.command == 'validate':
-            contract = _contract_from_config(args.input, args.config)
+            contract = load_input(load_config(args.config), args.input, args.model)
             print(json.dumps(summary(contract), indent=2))
             return 0
         if args.command == 'run':
@@ -81,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
                 config_path=args.config,
                 input_path=args.input,
                 calibration_dir=args.calibration,
+                model_id=args.model,
             )
             for engine, paths in written.items():
                 print(f'{engine}: {paths["alerts"].parent}')

@@ -50,11 +50,18 @@ def _resolve_paths(config: dict[str, Any], directory: Path) -> dict[str, Any]:
         value = (config.get(section) or {}).get(key)
         if not value:
             continue
-        path = Path(str(value)).expanduser()
-        config[section][key] = str(
-            path if path.is_absolute() else (directory / path).resolve()
-        )
+        if isinstance(value, dict):  # e.g. input.residuals per model (B2.5)
+            config[section][key] = {
+                name: _resolve(item, directory) for name, item in value.items()
+            }
+        else:
+            config[section][key] = _resolve(value, directory)
     return config
+
+
+def _resolve(value: Any, directory: Path) -> str:
+    path = Path(str(value)).expanduser()
+    return str(path if path.is_absolute() else (directory / path).resolve())
 
 
 def _load_layered(path: Path, seen: tuple[Path, ...] = ()) -> dict[str, Any]:

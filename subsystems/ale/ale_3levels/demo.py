@@ -97,6 +97,7 @@ def write_residual_table(
     noise_mm: float = 0.8,
     mask: np.ndarray | None = None,
     model_version: str = 'slope_trf@long',
+    model_id: str = 'trf',
 ) -> Path:
     """Write ``residuals.npz`` + ``residuals.json`` (MAP table schema 2.0).
 
@@ -155,7 +156,7 @@ def write_residual_table(
     arrays = {name: np.asarray(values) for name, values in columns.items()}
     sidecar = {
         'schema_version': '2.0',
-        'model': 'trf',
+        'model': model_id,
         'model_version': model_version,
         'target_variable': 'cumulative_los',
         'target_feature': 'cumulative_los_current',
