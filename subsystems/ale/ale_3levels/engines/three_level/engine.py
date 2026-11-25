@@ -82,13 +82,19 @@ class ThreeLevelEngine:
         work_dir: Path,
         *,
         run_mode: str = UNKNOWN,
+        calibration_dir: Path | None = None,
     ) -> None:
         self.raw_config = dict(config)
         self.config_hash = config_hash(self.raw_config)
         self.work_dir = Path(work_dir)
         self.run_mode = run_mode
+        # calibration_dir: a frozen calibration (from 'calibrate'); its model
+        # identity must match the residuals (B2.3). None: fit into work_dir.
         self.pipeline = ThreeLevelPipeline(
-            self.raw_config, self.work_dir, write_legacy=False
+            self.raw_config,
+            self.work_dir,
+            write_legacy=False,
+            calibration_dir=calibration_dir,
         )
         self.last_run: ThreeLevelRun | None = None
 
@@ -243,6 +249,8 @@ def to_alert_result(
             'l1_center': details['l1_center'],
             'calibration_population': details['calibration_population'],
             'n_calibration': details['n_calibration'],
+            'calibration_identity': run.metadata.get('calibration_identity'),
+            'calibration_reused': run.metadata.get('calibration_reused'),
             'regions': [
                 {
                     'region_id': number,

@@ -11,6 +11,7 @@ from pathlib import Path
 from ale_3levels.compare import compare as compare_engines
 from ale_3levels.config import DEFAULT_CONFIG, load_config
 from ale_3levels.contract import ContractError, summary
+from ale_3levels.engines.three_level.calibration import CalibrationError
 from ale_3levels.run import load_input
 from ale_3levels.run import run as run_engines
 
@@ -41,6 +42,11 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument('--input', type=Path)
     run.add_argument('--config', type=Path, default=DEFAULT_CONFIG)
     run.add_argument('--out', type=Path, required=True)
+    run.add_argument(
+        '--calibration',
+        type=Path,
+        help="frozen engine-B calibration directory (from 'calibrate')",
+    )
 
     calibrate = commands.add_parser('calibrate', help='freeze engine calibration')
     calibrate.add_argument('--engine', choices=('three_level',), default='three_level')
@@ -70,7 +76,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == 'run':
             written = run_engines(
-                args.engine, args.out, config_path=args.config, input_path=args.input
+                args.engine,
+                args.out,
+                config_path=args.config,
+                input_path=args.input,
+                calibration_dir=args.calibration,
             )
             for engine, paths in written.items():
                 print(f'{engine}: {paths["alerts"].parent}')
@@ -84,6 +94,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     except ContractError as error:
         print(f'Contract error: {error}', file=sys.stderr)
+        return 1
+    except CalibrationError as error:
+        print(f'Calibration error: {error}', file=sys.stderr)
         return 1
 
 

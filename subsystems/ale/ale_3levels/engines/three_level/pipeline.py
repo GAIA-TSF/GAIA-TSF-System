@@ -32,6 +32,7 @@ from ale_3levels.engines.three_level.calibration import (
     CONTRACT_VERSION,
     SCHEMA_VERSION,
     UNKNOWN,
+    MissingCalibrationError,
 )
 from ale_3levels.engines.three_level.grid import GridDataset
 from ale_3levels.engines.three_level.level1_zscore import (
@@ -77,9 +78,9 @@ UNIFIED_FORMULA = 'z = (e - mu_cal) / sigma_cal'
 # independent (B2.2): only records with split == calibration.
 CALIBRATION_POPULATIONS = ('prototype', 'independent')
 CALIBRATION_FILES = {
-    'l1': 'calibration/l1_calibration.json',
-    'l2': 'calibration/l2_calibration.json',
-    'l3': 'calibration/l3_calibration.json',
+    'l1': 'l1_calibration.json',
+    'l2': 'l2_calibration.json',
+    'l3': 'l3_calibration.json',
 }
 
 
@@ -131,6 +132,10 @@ def inputs_from_contract(
         'has_uncertainty': False,
         'mask': contract.mask,
         'fixed_support_mask': contract.mask.copy(),
+        # B2.3: model identity checked against frozen calibrations.
+        'model_id': contract.attrs['model_id'],
+        'model_version': contract.attrs['model_version'],
+        'lead': contract.lead,
         # B2.2: records never used for training/validation (split == calibration).
         'calibration_records': contract.split == CALIBRATION,
         'dates': tuple(str(value) for value in contract.dates),
@@ -148,6 +153,17 @@ def inputs_from_contract(
         'transform': contract.grid.transform,
         'crs': contract.grid.crs,
         'nodata': float('nan'),
+    }
+
+
+def model_identity(inputs: dict[str, Any]) -> dict[str, Any] | None:
+    """(model_id, model_version, lead) of the residuals, when the inputs carry it."""
+    if not inputs.get('model_version'):
+        return None
+    return {
+        'model_id': str(inputs['model_id']),
+        'model_version': str(inputs['model_version']),
+        'lead': int(inputs['lead']),
     }
 
 
@@ -201,6 +217,7 @@ class ThreeLevelPipeline:
         output_dir: Path,
         *,
         write_legacy: bool = True,
+        calibration_dir: Path | None = None,
     ) -> None:
         formula = str(three_level.get('zscore_formula', 'unified'))
         if formula not in ZSCORE_FORMULAS:
@@ -223,6 +240,12 @@ class ThreeLevelPipeline:
         # The ALE run writes the common schema instead; the golden test keeps
         # them. Calibration artifacts are always written (engine state).
         self.write_legacy = write_legacy
+        # B2.3: an external frozen calibration (from 'calibrate') must exist and
+        # match the residuals' model identity; otherwise calibration is fitted
+        # once into <output>/calibration.
+        self.calibration_dir = (
+            None if calibration_dir is None else Path(calibration_dir)
+        )
 
     def run(self, inputs: dict[str, Any]) -> ThreeLevelRun:
         """Run the prototype's monitoring computation on ``inputs``."""
@@ -237,14 +260,16 @@ class ThreeLevelPipeline:
         calibration = tuple(int(value) for value in inputs['calibration_window'])
         monitoring = tuple(int(value) for value in inputs['monitoring_window'])
         residual_stack = inputs['residual_stack']
+        identity = model_identity(inputs)
+        paths = self._calibration_paths(identity)
         calibration_residuals, calibration_dates, population = (
             self._calibration_population(
                 inputs, residual_stack, dataset.mask, calibration, monitoring
             )
         )
         detector = StatisticalAnomalyDetector(self.config['anomaly_detection'])
-        reused = self._existing_calibrations()
-        calibration_path = self._results_path(CALIBRATION_FILES['l1'])
+        reused = [level for level, path in paths.items() if path.exists()]
+        calibration_path = paths['l1']
         l1_calibration = frozen_residual_calibration(
             calibration_path,
             calibration_residuals,
@@ -256,6 +281,7 @@ class ThreeLevelPipeline:
             unit=RATE_UNIT,
             target_feature=dataset.target_feature,
             population=population,
+            identity=identity,
         )
         unified = self.zscore_formula == 'unified'
         # B2.1: centre every residual z on its frozen calibration mean.
@@ -272,7 +298,7 @@ class ThreeLevelPipeline:
         if unified:
             level1['center'] = l1_center
         level2_parameters = Level2Parameters.from_config(self.config)
-        l2_calibration_path = self._results_path(CALIBRATION_FILES['l2'])
+        l2_calibration_path = paths['l2']
         l2_calibration = frozen_level2_calibration(
             l2_calibration_path,
             calibration_residuals,
@@ -284,6 +310,7 @@ class ThreeLevelPipeline:
             target_feature=dataset.target_feature,
             parameters=level2_parameters,
             population=population,
+            identity=identity,
         )
         anomalies = detector.detect(
             dataset,
@@ -349,13 +376,14 @@ class ThreeLevelPipeline:
             fixed_support_mask=inputs['fixed_support_mask'],
             coherent_regions=coherence.regions,
         )
-        l3_calibration_path = self._results_path(CALIBRATION_FILES['l3'])
+        l3_calibration_path = paths['l3']
         l3_calibration = frozen_level3_calibration(
             l3_calibration_path,
             temporal.regime_calibration,
             dataset.dates,
             unit=RATE_UNIT,
             target_feature=dataset.target_feature,
+            identity=identity,
         )
         level3 = compute_level3(
             temporal.regime_change_score,
@@ -463,6 +491,8 @@ class ThreeLevelPipeline:
             'engine': 'three_level',
             'zscore_formula': self.zscore_formula,
             'calibration_population': self.calibration_population,
+            'calibration_identity': identity,
+            'calibration_reused': reused,
             'n_calibration': self._n_calibration(
                 calibration_dates, calibration, monitoring
             ),
@@ -599,13 +629,25 @@ class ThreeLevelPipeline:
             return int(min(calibration[1], monitoring[0]) - calibration[0])
         return int(dates[calibration[0] : calibration[1]].sum())
 
-    def _existing_calibrations(self) -> list[str]:
-        """Levels whose frozen calibration artifact predates this run."""
-        return [
-            level
-            for level, name in CALIBRATION_FILES.items()
-            if self._results_path(name).exists()
-        ]
+    def _calibration_paths(self, identity: dict[str, Any] | None) -> dict[str, Path]:
+        """Calibration files, keyed by model and lead (B2.3/B2.5).
+
+        ``<root>/<model_id>/lead<k>/l*_calibration.json``; without a model
+        identity (prototype inputs) ``<root>/l*_calibration.json``. An external
+        ``calibration_dir`` must already hold all three files.
+        """
+        root = self.calibration_dir or self.output_root / 'calibration'
+        if identity is not None:
+            root = root / str(identity['model_id']) / f'lead{identity["lead"]}'
+        paths = {level: root / name for level, name in CALIBRATION_FILES.items()}
+        if self.calibration_dir is not None:
+            missing = [str(path) for path in paths.values() if not path.is_file()]
+            if missing:
+                raise MissingCalibrationError(
+                    f'No frozen calibration for this model and lead: {missing}. '
+                    "Run 'calibrate' first."
+                )
+        return paths
 
     def _dashboard_config(self) -> dict[str, Any]:
         return self.config['monitoring']['dashboard']
@@ -671,11 +713,6 @@ class ThreeLevelPipeline:
                 temporal.regional_cusum_available, temporal.regional_dynamics, ''
             ),
         }
-
-    def _results_path(self, value: Any) -> Path:
-        """Resolve a configured path relative to the engine output directory."""
-        path = Path(str(value))
-        return path if path.is_absolute() else self.output_root / path
 
 
 def lead_time_summary(series: list[dict[str, Any]]) -> dict[str, Any]:

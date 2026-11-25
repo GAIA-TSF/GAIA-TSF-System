@@ -34,6 +34,7 @@ from typing import Any
 import numpy as np
 from ale_3levels.engines.three_level.calibration import (
     SCHEMA_VERSION,
+    check_identity,
     compatible_schema,
 )
 from ale_3levels.engines.three_level.level1_zscore import positive_finite
@@ -201,6 +202,7 @@ def frozen_level3_calibration(
     *,
     unit: str,
     target_feature: str,
+    identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Record the pre-monitoring regime baseline once; reject later changes.
 
@@ -216,6 +218,7 @@ def frozen_level3_calibration(
     fingerprint = digest.hexdigest()
     if path.exists():
         payload = json.loads(path.read_text(encoding='utf-8'))
+        check_identity(payload, identity, 'L3')
         if (
             not compatible_schema(payload.get('schema_version'))
             or payload.get('method') != METHOD
@@ -248,6 +251,8 @@ def frozen_level3_calibration(
         'last_date': dates[last],
         'input_fingerprint': fingerprint,
     }
+    if identity is not None:
+        payload['identity'] = dict(identity)
     path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation prevents silently replacing another run's calibration.
     with path.open('x', encoding='utf-8') as stream:

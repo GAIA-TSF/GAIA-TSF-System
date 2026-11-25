@@ -63,13 +63,21 @@ def sectors_for(config: dict[str, Any], contract: ForecastContract):
     return whole_grid_sectors(contract.mask)
 
 
-def make_engine(name: str, config: dict[str, Any], engine_dir: Path):
+def make_engine(
+    name: str,
+    config: dict[str, Any],
+    engine_dir: Path,
+    calibration_dir: Path | None = None,
+):
     engine_config = config['engine_configs'][name]
     if name == 'fixed_gates':
         return FixedGatesEngine(engine_config)
     run_mode = (config.get('input') or {}).get('run_mode') or UNKNOWN
     return ThreeLevelEngine(
-        engine_config, engine_dir / 'engine_state', run_mode=run_mode
+        engine_config,
+        engine_dir / 'engine_state',
+        run_mode=run_mode,
+        calibration_dir=calibration_dir,
     )
 
 
@@ -79,6 +87,7 @@ def run(
     *,
     config_path: Path,
     input_path: Path | None = None,
+    calibration_dir: Path | None = None,
 ) -> dict[str, dict[str, Path]]:
     """Score with ``engine`` (``fixed_gates``, ``three_level`` or ``both``)."""
     names = ENGINES if engine == 'both' else (engine,)
@@ -99,7 +108,7 @@ def run(
     written: dict[str, dict[str, Path]] = {}
     for name in names:
         engine_dir = out_dir / name
-        scorer = make_engine(name, config, engine_dir)
+        scorer = make_engine(name, config, engine_dir, calibration_dir)
         scorer.fit(contract)
         result = scorer.score(contract, None)
         summary = aggregate_sectors(

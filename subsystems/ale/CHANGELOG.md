@@ -5,6 +5,14 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.3 Model-version guard.** Frozen engine-B calibrations record their
+  model identity (`model_id`, `model_version`, `lead`) and live under
+  `calibration/<model_id>/lead<k>/`. `run --calibration DIR` scores with a
+  frozen calibration only if it exists (`MissingCalibrationError`) and its
+  identity matches the residuals (`CalibrationMismatchError`, naming both
+  versions; CLI exit code 1). Expected: no change to results of a normal run.
+  Observed on the synthetic site: every output array identical to the B2.1
+  run; calibration identity `trf` / `slope_trf@51fd24bbbf12` / lead 1.
 - **B2.1 Unified z-score** (`zscore_formula: unified`, new default):
   `z = (e - mu_cal) / sigma_cal` for every engine-B residual z (L1, pixel
   CUSUM, TSF-wide L2, regional L2), each with the frozen calibration mean and

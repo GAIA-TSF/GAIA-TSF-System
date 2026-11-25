@@ -12,6 +12,7 @@ from typing import Any
 import numpy as np
 from ale_3levels.engines.three_level.calibration import (
     SCHEMA_VERSION,
+    check_identity,
     compatible_schema,
 )
 
@@ -74,6 +75,7 @@ def frozen_residual_calibration(
     unit: str,
     target_feature: str,
     population: str = 'prototype',
+    identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fit once from pre-monitoring calibration pixels; reject changed history.
 
@@ -117,6 +119,7 @@ def frozen_residual_calibration(
         fingerprint = digest.hexdigest()
     if path.exists():
         payload = json.loads(path.read_text(encoding='utf-8'))
+        check_identity(payload, identity, 'L1')
         if (
             not compatible_schema(payload.get('schema_version'))
             or payload.get('method') != method
@@ -170,6 +173,8 @@ def frozen_residual_calibration(
         'calibration_dates': used,
         'input_fingerprint': fingerprint,
     }
+    if identity is not None:
+        payload['identity'] = dict(identity)
     path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation prevents silently replacing another run's calibration.
     with path.open('x', encoding='utf-8') as stream:
