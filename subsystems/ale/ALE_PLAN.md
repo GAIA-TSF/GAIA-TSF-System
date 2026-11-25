@@ -278,6 +278,10 @@ scripts/run_pipeline.py    # MAP then ALE via their CLIs; imports neither packag
 - **Engine A doubling floor (2026-11-25):** kept: velocity doubling is tested
   only when the previous window's rate is >= `min_prev_rate_mm` (1.0 mm).
 
+- **Short L3 calibration (Checkpoint 2, 2026-11-25):** accepted for the
+  prototype with the `short_calibration` warning; documented in the README
+  under known limitations.
+
 ## 9. Open points as of revision 2 (now resolved; kept for the record)
 
 **P1 — Branch operation.** OK to merge `map-dev` into `ale-dev` and commit the prototype

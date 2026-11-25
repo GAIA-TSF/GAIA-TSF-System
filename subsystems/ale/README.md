@@ -113,3 +113,19 @@ ALE_SYNTHETIC_TABLE=<residuals.npz> ALE_SYNTHETIC_MASK=<tsf_mask.tif> \
 ```
 
 `tests/golden/` holds the prototype's golden outputs (see its README).
+
+### Known limitations
+
+- **Short independent calibration (engine B).** With `calibration.population:
+  independent` (B2.2), engine-B baselines use only calibration-period records
+  that the model never saw. On the synthetic site (temporal split) that is
+  10 acquisitions, mostly from one season (2018-09-17 to 2018-12-10). They
+  underestimate the seasonal variability of the L3 regime signal (sigma -36 %
+  against the 54-date prototype baseline), so L3 is more sensitive than a
+  full-year baseline would make it. The run logs a warning and raises the
+  `short_calibration` quality flag when fewer than `calibration.minimum_dates`
+  (20) dates are available. Accepted for the prototype (decision 2026-11-25);
+  a spatial MAP split or a longer independent calibration period removes it.
+- **TSF-level L3 and acceleration baselines** are taken at calibration-split
+  dates, but their causal derivative (3 acquisitions) still looks back at up
+  to two earlier dates, which may be model-training dates.
