@@ -70,6 +70,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     compare.add_argument('--title', default='ALE engine comparison')
 
+    plot = commands.add_parser('plot', help='plots from a saved run (both engines)')
+    plot.add_argument(
+        '--run', type=Path, required=True, help="'run --engine both' output"
+    )
+    plot.add_argument('--out', type=Path, required=True)
+    plot.add_argument(
+        '--no-maps', action='store_true', help='skip per-acquisition maps'
+    )
+    plot.add_argument('--animation', action='store_true', help='also write alerts.gif')
+
     args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.INFO, format='%(levelname)s %(name)s: %(message)s'
@@ -100,6 +110,14 @@ def main(argv: list[str] | None = None) -> int:
                 model_id=args.model,
             )
             print(root)
+            return 0
+        if args.command == 'plot':
+            from ale_3levels.plots import plot_run
+
+            written = plot_run(
+                args.run, args.out, maps=not args.no_maps, animation=args.animation
+            )
+            print(f'{len(written)} files in {args.out}')
             return 0
         paths = compare_engines(
             args.a, args.b, args.out, truth=args.truth, title=args.title

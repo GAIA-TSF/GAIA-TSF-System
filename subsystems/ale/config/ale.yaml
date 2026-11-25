@@ -55,5 +55,5 @@ spatial:
 outputs:
   # Plots and animations read saved results only; disabling them never
   # changes numerical outputs.
-  plots: false
-  animations: false
+  plots: false        # <out>/plots: histories, sector timeline, level counts, maps
+  animations: false   # <out>/plots/alerts.gif (needs plots data only)

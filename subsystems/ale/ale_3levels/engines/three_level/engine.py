@@ -261,6 +261,9 @@ def to_alert_result(
                 'regional alarm (active coherent regions); L3 alert (active '
                 'coherent regions only)'
             ),
+            'l2_decision_threshold': level2.parameters.decision_threshold,
+            'l3_watch_threshold': level3.parameters.watch_threshold,
+            'l3_alert_threshold': level3.parameters.alert_threshold,
             'first_l2_alarm_date': run.metadata['level2']['first_alarm_date'],
             'first_l3_alert_date': run.metadata['level3']['first_alert_date'],
         },

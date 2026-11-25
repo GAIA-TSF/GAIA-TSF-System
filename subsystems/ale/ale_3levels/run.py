@@ -166,6 +166,19 @@ def run(
         if getattr(scorer, 'last_state', None) is not None:
             written[name]['state'] = save_state(scorer.last_state, engine_dir / 'state')
         LOGGER.info('Engine %s written to %s', name, engine_dir)
+    outputs = config.get('outputs') or {}
+    if set(names) == set(ENGINES) and (
+        outputs.get('plots') or outputs.get('animations')
+    ):
+        # Plots read the files just written; they never change a number.
+        from ale_3levels.plots import plot_run
+
+        plot_run(
+            out_dir,
+            out_dir / 'plots',
+            maps=bool(outputs.get('plots')),
+            animation=bool(outputs.get('animations')),
+        )
     write_json(
         out_dir / 'run.json',
         {
