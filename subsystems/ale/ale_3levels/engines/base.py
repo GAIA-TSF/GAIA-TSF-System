@@ -11,6 +11,11 @@ from ale_3levels.contract import ForecastContract
 
 NO_DATA = 'NO_DATA'
 NO_DATA_SEVERITY = -1
+# Where a pixel's level was decided: at the pixel, or inherited from a region
+# (region_id 0 = whole TSF, k >= 1 = coherence-qualified region k; -1 = none).
+LEVEL_SCOPES = ('pixel', 'region')
+PIXEL_SCOPE, REGION_SCOPE = range(2)
+NO_REGION = -1
 
 # Ordinal severity, for comparison between engines only (README: severity mapping).
 SEVERITY = {
@@ -26,6 +31,9 @@ class AlertResult:
     ``level`` and ``trigger_reason`` are integer codes into ``levels`` and
     ``trigger_reasons``. ``severity`` is the ordinal 0-3, or -1 for NO_DATA.
     ``recommended_actions`` maps a level label to advisory text from config.
+    ``level_scope`` codes index ``LEVEL_SCOPES``; ``region_id`` names the
+    region a ``region``-scope level was inherited from (``NO_REGION`` else).
+    Both default to pixel scope without region.
     """
 
     engine: str
@@ -40,8 +48,20 @@ class AlertResult:
     trigger_reason: np.ndarray
     recommended_actions: dict[str, list[str]] = field(default_factory=dict)
     attrs: dict[str, Any] = field(default_factory=dict)
+    level_scope: np.ndarray | None = None
+    region_id: np.ndarray | None = None
 
     def __post_init__(self) -> None:
+        if self.level_scope is None:
+            object.__setattr__(
+                self,
+                'level_scope',
+                np.full(self.level.shape, PIXEL_SCOPE, dtype=np.int8),
+            )
+        if self.region_id is None:
+            object.__setattr__(
+                self, 'region_id', np.full(self.level.shape, NO_REGION, dtype=np.int32)
+            )
         if self.engine not in SEVERITY:
             raise ValueError(f'Unknown engine {self.engine!r}.')
         if NO_DATA not in self.levels:
@@ -57,6 +77,8 @@ class AlertResult:
         for name, values in (
             ('severity', self.severity),
             ('trigger_reason', self.trigger_reason),
+            ('level_scope', self.level_scope),
+            ('region_id', self.region_id),
             *self.metric_values.items(),
         ):
             if values.shape != shape:

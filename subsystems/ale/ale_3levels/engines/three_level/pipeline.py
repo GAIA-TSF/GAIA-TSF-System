@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -178,6 +178,9 @@ class ThreeLevelRun:
     metadata: dict[str, Any]
     arrays: dict[str, np.ndarray]
     series_paths: tuple[Path, Path]
+    # In-memory results (level objects, regions, windows) for the AlertResult
+    # adapter; not written and not part of the prototype outputs.
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class ThreeLevelPipeline:
@@ -455,7 +458,17 @@ class ThreeLevelPipeline:
         }
         write_json(self.output_root / 'monitoring_metadata.json', result)
         LOGGER.info('Engine three_level completed in %s', self.output_root)
-        return ThreeLevelRun(result, arrays, series_paths)
+        details = {
+            'anomalies': anomalies,
+            'coherence': coherence,
+            'level2': level2,
+            'level2_parameters': level2_parameters,
+            'level3': level3,
+            'l1_sigma': float(l1_calibration['sigma']),
+            'calibration_window': calibration,
+            'monitoring_window': monitoring,
+        }
+        return ThreeLevelRun(result, arrays, series_paths, details)
 
     def _existing_calibrations(self) -> list[str]:
         """Levels whose frozen calibration artifact predates this run."""

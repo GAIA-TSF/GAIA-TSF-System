@@ -441,6 +441,43 @@ def pixel_level2(
     return np.where(valid, maximum, np.nan), np.where(valid, first_alarm, np.nan)
 
 
+def pixel_level2_series(
+    residual_stack: np.ndarray,
+    sigma: float,
+    mask: np.ndarray,
+    monitoring_window: tuple[int, int],
+    parameters: Level2Parameters,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-date per-pixel instability and over-forecast CUSUM (ALE addition).
+
+    The same recursion as :func:`pixel_level2` (which keeps only the maximum
+    and the first alarm), with the over-forecast side as in
+    :func:`residual_cusum`. NaN outside the monitoring window and ``mask``.
+    """
+    sigma = positive_finite(sigma, 'L1 sigma')
+    start, end = monitoring_window
+    upper = np.zeros(mask.shape, dtype=np.float64)
+    lower = np.zeros(mask.shape, dtype=np.float64)
+    instability = np.full(residual_stack.shape, np.nan, dtype=np.float64)
+    overforecast = np.full(residual_stack.shape, np.nan, dtype=np.float64)
+    for index in range(start, end):
+        evidence = parameters.sign * residual_stack[index] / sigma
+        finite = np.isfinite(evidence)
+        upper = np.where(
+            finite,
+            np.maximum(0.0, upper + evidence - parameters.reference_value),
+            upper,
+        )
+        lower = np.where(
+            finite,
+            np.maximum(0.0, lower - evidence - parameters.reference_value),
+            lower,
+        )
+        instability[index] = np.where(mask, upper, np.nan)
+        overforecast[index] = np.where(mask, lower, np.nan)
+    return instability, overforecast
+
+
 def level2_metadata(result: Level2Result, dates: tuple[str, ...]) -> dict[str, Any]:
     """JSON-ready L2 contract block for monitoring metadata and exports."""
     parameters = result.parameters
