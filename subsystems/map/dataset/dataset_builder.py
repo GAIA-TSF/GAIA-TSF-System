@@ -9,11 +9,35 @@ Targets are the configured target stack at acquisitions ``t + 1 .. t + H``.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 
 import numpy as np
 
 from subsystems.map.dataset.feature_loader import LoadedFeatures, RasterGrid
+
+# DAG products whose value at acquisition t uses later acquisitions:
+# ``*_smooth`` is a centred Savitzky-Golay filter (also when lagged), and
+# explicit forward shifts (``*_leadK``, ``*_next``, ``*_future``).
+FUTURE_DATA_FEATURE = re.compile(r'.*(_smooth|_lead[0-9]+|_next|_future)(_|$).*')
+
+
+def validate_predictors(feature_names: list[str] | tuple[str, ...]) -> None:
+    """Reject predictors that may contain data from after the forecast origin.
+
+    Predictors are read at the origin ``t`` and targets are ``t + 1 .. t + H``,
+    so anything known at ``t`` is allowed: lags, differences, trailing rolling
+    windows (``*_roll_mean``, ``*_roll_std``, ``precip_30d``), calendar
+    features and current values (``*_current``). Products that look ahead of
+    ``t`` would leak future observations into the forecast.
+    """
+    unsafe = [name for name in feature_names if FUTURE_DATA_FEATURE.fullmatch(name)]
+    if unsafe:
+        raise ValueError(
+            'Predictors must be known at the forecast origin; these use data '
+            'from later acquisitions (centred smoothing or forward shifts): '
+            f'{", ".join(unsafe)}'
+        )
 
 
 @dataclass(frozen=True)
@@ -91,6 +115,7 @@ def build_forecast_samples(
     """
     if horizon < 1:
         raise ValueError('Forecast horizon must be positive.')
+    validate_predictors(feature_names)
     if target_feature not in loaded.features:
         raise KeyError(f'Target feature was not loaded: {target_feature}')
     missing = [name for name in feature_names if name not in loaded.features]
