@@ -3,18 +3,20 @@
 #
 # 1. Copy the synthetic external-trigger site (inputs, static, DAG features,
 #    trained slope_trf model) from its source experiment directory into
-#    subsystems/ale/work/synthetic_site (git-ignored). The source is only read.
+#    $ALE_DATA_DIR/synthetic_site, outside the repository. The source is only read.
 # 2. Run MAP inference on the copy with MAP's own config, changing only
 #    datasets.slope_dataset.experiment_dir.
 # 3. Validate the MAP residual table with ALE's contract reader.
 #
 # Usage: subsystems/ale/scripts/prepare_synthetic.sh [--force]
 #   SYNTHETIC_SOURCE   source experiment directory (default below)
+#   ALE_DATA_DIR       ALE data directory (default below; config/ale_synthetic.yaml
+#                      points to the same default location)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ALE="$ROOT/subsystems/ale"
-WORK="$ALE/work"
+WORK="${ALE_DATA_DIR:-$HOME/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV}"
 SITE="$WORK/synthetic_site"
 SOURCE="${SYNTHETIC_SOURCE:-$HOME/ownCloud/Projects/GAIA_TSF/tsf_experiments/slope_synthetic_western_platinum_external_trigger}"
 EXPECTED_MODEL_SHA="51fd24bbbf12"   # slope_trf@51fd24bbbf12 (golden files)
@@ -32,6 +34,11 @@ if [[ "$model_sha" != "$EXPECTED_MODEL_SHA" ]]; then
   echo "Warning: model.pkl sha256 $model_sha differs from $EXPECTED_MODEL_SHA;" \
        "results will not match the documented baseline." >&2
 fi
+
+case "$(cd "$(dirname "$WORK")" 2>/dev/null && pwd)/$(basename "$WORK")" in
+  "$ROOT"|"$ROOT"/*) echo "ALE_DATA_DIR must be outside the repository: $WORK" >&2; exit 1 ;;
+esac
+mkdir -p "$WORK"
 
 echo "== copying site from $SOURCE"
 rm -rf "$SITE"

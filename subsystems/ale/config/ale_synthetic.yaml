@@ -1,10 +1,11 @@
 # Synthetic external-trigger site (slope_synthetic_western_platinum_external_trigger),
-# restored by scripts/prepare_synthetic.sh into ../work/synthetic_site.
+# restored by scripts/prepare_synthetic.sh into the ALE data directory outside
+# the repository (default ~/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV).
 base: ale.yaml
 
 input:
-  residuals: ../work/synthetic_site/results/forecasts/slope_trf/residuals.npz
-  mask_file: ../work/synthetic_site/static/tsf_mask.tif
+  residuals: ~/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV/synthetic_site/results/forecasts/slope_trf/residuals.npz
+  mask_file: ~/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV/synthetic_site/static/tsf_mask.tif
   model_id: trf
   # The synthetic generator writes metres (STAC simulation:unit: m) although
   # MAP declares target_units: mm.

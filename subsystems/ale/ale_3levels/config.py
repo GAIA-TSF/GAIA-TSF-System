@@ -2,8 +2,9 @@
 
 A configuration file may name a ``base`` file (relative to itself); its
 mappings are merged recursively, the derived file winning. Relative file paths
-(``input.residuals``, ``input.mask_file``, ``spatial.sectors_file``) resolve
-against the directory of the file that sets them.
+(``input.residuals``, ``input.mask_file``, ``spatial.sectors_file``,
+``engines.fixed_gates``, ``engines.three_level``) expand
+``~`` and resolve against the directory of the file that sets them.
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ PATH_KEYS = (
     ('input', 'residuals'),
     ('input', 'mask_file'),
     ('spatial', 'sectors_file'),
+    ('engines', 'fixed_gates'),
+    ('engines', 'three_level'),
 )
 
 
@@ -45,8 +48,12 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
 def _resolve_paths(config: dict[str, Any], directory: Path) -> dict[str, Any]:
     for section, key in PATH_KEYS:
         value = (config.get(section) or {}).get(key)
-        if value and not Path(str(value)).expanduser().is_absolute():
-            config[section][key] = str((directory / str(value)).resolve())
+        if not value:
+            continue
+        path = Path(str(value)).expanduser()
+        config[section][key] = str(
+            path if path.is_absolute() else (directory / path).resolve()
+        )
     return config
 
 
@@ -69,8 +76,10 @@ def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
     selected = engines.get('selected', 'both')
     if selected not in (*ENGINE_NAMES, 'both'):
         raise ValueError(f'engines.selected must be one of {ENGINE_NAMES} or both.')
+    # Engine files resolve against the file that names them (see PATH_KEYS);
+    # unnamed ones default to the directory of the loaded file.
     config['engine_configs'] = {
-        name: _read_yaml(path.parent / str(engines.get(name, f'{name}.yaml')))
+        name: _read_yaml(Path(engines.get(name) or path.parent / f'{name}.yaml'))
         for name in ENGINE_NAMES
     }
     config['_config_path'] = str(path)
