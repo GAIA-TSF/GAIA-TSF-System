@@ -5,6 +5,25 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.6 Persisted CUSUM state** (`state.py`, `run --state DIR`). Each
+  engine-B run writes `<out>/three_level/state/` (model identity,
+  calibration fingerprints, last date, reset history, TSF and per-pixel
+  CUSUM accumulators). A later run with `--state` re-applies earlier resets
+  and checks that the recomputed accumulators at the previous last date
+  equal the stored ones (`StateMismatchError` otherwise; CLI exit 1). CUSUM
+  accumulators (TSF, regional, per pixel) restart from zero at the first new
+  date after a recalibration or a model-version change, and after each L3
+  alert when `state.reset_after_l3: true` (default false = the prototype's
+  never-reset behaviour). After a recalibration/model change the output
+  recomputes the history with the new calibration/model; issued values stay
+  in the earlier output.
+  Expected: no change with the default; with reset_after_l3 lower L2
+  accumulators after L3 alerts. Observed on the synthetic site: default
+  outputs identical to B2.1 (final TSF CUSUM 190.8, no resets);
+  reset_after_l3 = true (experiment, config in ALE-DEV/configs): 38 resets
+  from 2019-07-02, maximum TSF L2 CUSUM 190.8 -> 17.9, failure-area L3
+  unchanged (21.5 %), L2 on the rest of the TSF 87.0 % -> 85.4 %, control
+  area false alerts >= L1/L2 52 -> 49 dates.
 - **B2.5 Model selection.** `input.residuals` may map MAP models to their
   tables (`{trf: ..., lstm: ...}`); `input.model_id` or `--model` selects the
   model that drives the alerts. Each model has its own engine-B calibration

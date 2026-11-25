@@ -19,6 +19,7 @@ from ale_3levels.engines.three_level.calibration import UNKNOWN
 from ale_3levels.engines.three_level.engine import ThreeLevelEngine
 from ale_3levels.outputs import input_identity, write_engine_output, write_json
 from ale_3levels.spatial import aggregate_sectors, read_sectors, whole_grid_sectors
+from ale_3levels.state import load_state, save_state
 
 LOGGER = logging.getLogger(__name__)
 ENGINES = ('fixed_gates', 'three_level')
@@ -118,6 +119,7 @@ def run(
     input_path: Path | None = None,
     calibration_dir: Path | None = None,
     model_id: str | None = None,
+    state_dir: Path | None = None,
 ) -> dict[str, dict[str, Path]]:
     """Score with ``engine`` (``fixed_gates``, ``three_level`` or ``both``)."""
     names = ENGINES if engine == 'both' else (engine,)
@@ -140,7 +142,10 @@ def run(
         engine_dir = out_dir / name
         scorer = make_engine(name, config, engine_dir, calibration_dir)
         scorer.fit(contract)
-        result = scorer.score(contract, None)
+        # B2.6: engine B continues from the previous run's state (resets,
+        # identity, accumulators); its new state is written next to the output.
+        state = load_state(state_dir) if (state_dir and name == 'three_level') else None
+        result = scorer.score(contract, state)
         summary = aggregate_sectors(
             result.severity,
             sectors,
@@ -158,6 +163,8 @@ def run(
                 'ale_config_path': config['_config_path'],
             },
         )
+        if getattr(scorer, 'last_state', None) is not None:
+            written[name]['state'] = save_state(scorer.last_state, engine_dir / 'state')
         LOGGER.info('Engine %s written to %s', name, engine_dir)
     write_json(
         out_dir / 'run.json',

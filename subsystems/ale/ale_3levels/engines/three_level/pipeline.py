@@ -45,6 +45,7 @@ from ale_3levels.engines.three_level.level2_cusum import (
     frozen_level2_calibration,
     level2_metadata,
     pixel_level2,
+    pixel_level2_series,
 )
 from ale_3levels.engines.three_level.level3_regime import (
     Level3Parameters,
@@ -65,6 +66,12 @@ from ale_3levels.engines.three_level.series import (
 )
 from ale_3levels.engines.three_level.temporal_monitoring import TemporalResidualMonitor
 from ale_3levels.spatial import SpatialCoherenceDetector
+from ale_3levels.state import (
+    EngineState,
+    calibration_fingerprints,
+    check_continuity,
+    plan_resets,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -136,6 +143,7 @@ def inputs_from_contract(
         'model_id': contract.attrs['model_id'],
         'model_version': contract.attrs['model_version'],
         'lead': contract.lead,
+        'tsf_version': contract.attrs.get('tsf_version'),
         # B2.2: records never used for training/validation (split == calibration).
         'calibration_records': contract.split == CALIBRATION,
         'dates': tuple(str(value) for value in contract.dates),
@@ -203,6 +211,7 @@ class ThreeLevelRun:
     metadata: dict[str, Any]
     arrays: dict[str, np.ndarray]
     series_paths: tuple[Path, Path] | None
+    state: EngineState | None = None
     # In-memory results (level objects, regions, windows) for the AlertResult
     # adapter; not written and not part of the prototype outputs.
     details: dict[str, Any] = field(default_factory=dict)
@@ -233,6 +242,10 @@ class ThreeLevelPipeline:
             raise ValueError('Only calibration.mode: pooled is implemented.')
         self.calibration_population = population
         self.minimum_calibration_dates = int(calibration.get('minimum_dates', 20))
+        # B2.6: restart the CUSUM accumulators after each L3 alert (optional).
+        self.reset_after_l3 = bool(
+            (three_level.get('state') or {}).get('reset_after_l3', False)
+        )
         self.three_level = three_level
         self.config = prototype_config(three_level)
         self.output_root = Path(output_dir)
@@ -247,7 +260,9 @@ class ThreeLevelPipeline:
             None if calibration_dir is None else Path(calibration_dir)
         )
 
-    def run(self, inputs: dict[str, Any]) -> ThreeLevelRun:
+    def run(
+        self, inputs: dict[str, Any], state: EngineState | None = None
+    ) -> ThreeLevelRun:
         """Run the prototype's monitoring computation on ``inputs``."""
         dataset = GridDataset(
             dates=tuple(inputs['dates']),
@@ -330,28 +345,6 @@ class ThreeLevelPipeline:
             dataset.mask,
         )
 
-        level2 = compute_level2(
-            residual_stack,
-            dataset.mask,
-            calibration,
-            monitoring,
-            l2_calibration,
-            level2_parameters,
-            coherence.regions,
-            calibration_dates=calibration_dates,
-            center=float(l2_calibration['mean_residual']) if unified else 0.0,
-            center_regions=unified,
-        )
-        level2_summary = level2_metadata(level2, dataset.dates)
-        pixel_l2_maximum, pixel_l2_first_alarm = pixel_level2(
-            residual_stack,
-            l1_calibration['sigma'],
-            dataset.mask,
-            monitoring,
-            level2_parameters,
-            center=l1_center,
-        )
-
         dashboard_config = self._dashboard_config()
         residual_monitor = TemporalResidualMonitor(dashboard_config)
         residual_monitor.calibration_dates = calibration_dates
@@ -385,17 +378,86 @@ class ThreeLevelPipeline:
             target_feature=dataset.target_feature,
             identity=identity,
         )
-        level3 = compute_level3(
-            temporal.regime_change_score,
-            temporal.regional_regime_change_score,
-            level2,
+        # B2.6: resets from the previous state (recalibration, model version
+        # change) and, optionally, after each L3 alert. Resolved iteratively;
+        # everything is causal, so this equals a date-by-date evaluation.
+        fingerprints = calibration_fingerprints(
+            {'l1': l1_calibration, 'l2': l2_calibration, 'l3': l3_calibration}
+        )
+        resets = plan_resets(state, identity, fingerprints, dataset.dates)
+        level3_parameters = Level3Parameters.from_config(self.config)
+        l2_center = float(l2_calibration['mean_residual']) if unified else 0.0
+        while True:
+            reset_indices = frozenset(dataset.dates.index(r['date']) for r in resets)
+            level2 = compute_level2(
+                residual_stack,
+                dataset.mask,
+                calibration,
+                monitoring,
+                l2_calibration,
+                level2_parameters,
+                coherence.regions,
+                calibration_dates=calibration_dates,
+                center=l2_center,
+                center_regions=unified,
+                resets=reset_indices,
+            )
+            level3 = compute_level3(
+                temporal.regime_change_score,
+                temporal.regional_regime_change_score,
+                level2,
+                monitoring,
+                level3_parameters,
+                coherence.regions,
+                calibration=l3_calibration,
+                calibration_scores=temporal.regime_calibration_score,
+            )
+            event = self._l3_reset(level3, resets, dataset.dates, monitoring)
+            if event is None:
+                break
+            resets.append(event)
+        level2_summary = level2_metadata(level2, dataset.dates)
+        pixel_l2_maximum, pixel_l2_first_alarm = pixel_level2(
+            residual_stack,
+            l1_calibration['sigma'],
+            dataset.mask,
             monitoring,
-            Level3Parameters.from_config(self.config),
-            coherence.regions,
-            calibration=l3_calibration,
-            calibration_scores=temporal.regime_calibration_score,
+            level2_parameters,
+            center=l1_center,
+            resets=reset_indices,
+        )
+        pixel_cusum = pixel_level2_series(
+            residual_stack,
+            l1_calibration['sigma'],
+            dataset.mask,
+            monitoring,
+            level2_parameters,
+            center=l1_center,
+            resets=reset_indices,
         )
         level3_summary = level3_metadata(level3, dataset.dates)
+        check_continuity(
+            state,
+            resets,
+            (level2.instability_cusum, level2.overforecast_cusum),
+            pixel_cusum,
+            dataset.dates,
+        )
+        last = monitoring[1] - 1
+        new_state = EngineState(
+            identity=identity,
+            calibration=fingerprints,
+            last_date=dataset.dates[last],
+            resets=tuple(resets),
+            tsf_cusum=(
+                float(level2.instability_cusum[last]),
+                float(level2.overforecast_cusum[last]),
+            ),
+            pixel_cusum_pos=pixel_cusum[0][last],
+            pixel_cusum_neg=pixel_cusum[1][last],
+            tsf_version=inputs.get('tsf_version'),
+            attrs={'reset_after_l3': self.reset_after_l3},
+        )
 
         quality_parameters = QualityParameters.from_config(self.config)
         quality_states, coverage = acquisition_quality(
@@ -492,6 +554,9 @@ class ThreeLevelPipeline:
             'zscore_formula': self.zscore_formula,
             'calibration_population': self.calibration_population,
             'calibration_identity': identity,
+            'resets': list(resets),
+            'reset_after_l3': self.reset_after_l3,
+            'continued_from_state': None if state is None else state.last_date,
             'calibration_reused': reused,
             'n_calibration': self._n_calibration(
                 calibration_dates, calibration, monitoring
@@ -562,6 +627,8 @@ class ThreeLevelPipeline:
             write_json(self.output_root / 'monitoring_metadata.json', result)
         LOGGER.info('Engine three_level completed in %s', self.output_root)
         details = {
+            'pixel_cusum': pixel_cusum,
+            'resets': list(resets),
             'anomalies': anomalies,
             'coherence': coherence,
             'level2': level2,
@@ -576,7 +643,7 @@ class ThreeLevelPipeline:
             'calibration_window': calibration,
             'monitoring_window': monitoring,
         }
-        return ThreeLevelRun(result, arrays, series_paths, details)
+        return ThreeLevelRun(result, arrays, series_paths, new_state, details)
 
     def _calibration_population(
         self,
@@ -628,6 +695,24 @@ class ThreeLevelPipeline:
         if dates is None:
             return int(min(calibration[1], monitoring[0]) - calibration[0])
         return int(dates[calibration[0] : calibration[1]].sum())
+
+    def _l3_reset(
+        self,
+        level3: Any,
+        resets: list[dict[str, str]],
+        dates: tuple[str, ...],
+        monitoring: tuple[int, int],
+    ) -> dict[str, str] | None:
+        """The next 'reset after L3' (the acquisition after the next alert)."""
+        if not self.reset_after_l3:
+            return None
+        done = [dates.index(r['date']) for r in resets if r['reason'] == 'l3_event']
+        floor = max(done, default=-1)
+        for alert in np.flatnonzero(level3.level == 'alert'):
+            target = int(alert) + 1
+            if target > floor and target < monitoring[1]:
+                return {'date': dates[target], 'reason': 'l3_event'}
+        return None
 
     def _calibration_paths(self, identity: dict[str, Any] | None) -> dict[str, Path]:
         """Calibration files, keyed by model and lead (B2.3/B2.5).

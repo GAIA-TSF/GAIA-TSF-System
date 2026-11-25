@@ -46,7 +46,6 @@ from ale_3levels.engines.base import (
     severity_from_levels,
 )
 from ale_3levels.engines.three_level.calibration import UNKNOWN
-from ale_3levels.engines.three_level.level2_cusum import pixel_level2_series
 from ale_3levels.engines.three_level.pipeline import (
     ThreeLevelPipeline,
     ThreeLevelRun,
@@ -97,6 +96,7 @@ class ThreeLevelEngine:
             calibration_dir=calibration_dir,
         )
         self.last_run: ThreeLevelRun | None = None
+        self.last_state = None
 
     def fit(self, calibration_data: ForecastContract) -> None:
         """Calibration is frozen inside the run (prototype behaviour, pre-B2)."""
@@ -106,8 +106,9 @@ class ThreeLevelEngine:
     ) -> AlertResult:
         """Run the prototype pipeline and express its result per pixel."""
         inputs = inputs_from_contract(monitoring_data, run_mode=self.run_mode)
-        run = self.pipeline.run(inputs)
+        run = self.pipeline.run(inputs, state)
         self.last_run = run
+        self.last_state = run.state
         return to_alert_result(
             run,
             monitoring_data,
@@ -200,14 +201,7 @@ def to_alert_result(
         scope[cells] = PIXEL_SCOPE
         region_out[cells] = NO_REGION
 
-    pixel_pos, pixel_neg = pixel_level2_series(
-        contract.residual_mm_per_day,
-        details['l1_sigma'],
-        contract.mask,
-        (start, end),
-        details['level2_parameters'],
-        center=details['l1_center'],
-    )
+    pixel_pos, pixel_neg = details['pixel_cusum']
     tsf = np.where(mask, 1.0, np.nan)
     regional_cells = np.where(in_region, 1.0, np.nan)
     metric_values = {
@@ -251,6 +245,9 @@ def to_alert_result(
             'n_calibration': details['n_calibration'],
             'calibration_identity': run.metadata.get('calibration_identity'),
             'calibration_reused': run.metadata.get('calibration_reused'),
+            'resets': run.metadata.get('resets'),
+            'reset_after_l3': run.metadata.get('reset_after_l3'),
+            'continued_from_state': run.metadata.get('continued_from_state'),
             'regions': [
                 {
                     'region_id': number,

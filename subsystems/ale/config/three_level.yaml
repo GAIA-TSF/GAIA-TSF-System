@@ -78,3 +78,10 @@ calibration:
   population: independent
   # Warn (and flag short_calibration) below this many calibration dates.
   minimum_dates: 20
+
+state:
+  # B2.6. CUSUM accumulators (TSF-wide, regional, per pixel) restart from zero
+  # after a recalibration and after a model-version change (always, when a
+  # previous state is given with 'run --state'), and after each L3 alert when
+  # reset_after_l3 is true. false keeps the prototype's "never reset".
+  reset_after_l3: false

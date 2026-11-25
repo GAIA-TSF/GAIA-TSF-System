@@ -14,6 +14,7 @@ from ale_3levels.contract import ContractError, summary
 from ale_3levels.engines.three_level.calibration import CalibrationError
 from ale_3levels.run import load_input
 from ale_3levels.run import run as run_engines
+from ale_3levels.state import StateMismatchError
 
 
 def _not_yet(step: str) -> int:
@@ -48,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
         '--calibration',
         type=Path,
         help="frozen engine-B calibration directory (from 'calibrate')",
+    )
+    run.add_argument(
+        '--state',
+        type=Path,
+        help='previous engine-B state directory (<previous out>/three_level/state)',
     )
 
     calibrate = commands.add_parser('calibrate', help='freeze engine calibration')
@@ -84,6 +90,7 @@ def main(argv: list[str] | None = None) -> int:
                 input_path=args.input,
                 calibration_dir=args.calibration,
                 model_id=args.model,
+                state_dir=args.state,
             )
             for engine, paths in written.items():
                 print(f'{engine}: {paths["alerts"].parent}')
@@ -100,6 +107,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except CalibrationError as error:
         print(f'Calibration error: {error}', file=sys.stderr)
+        return 1
+    except StateMismatchError as error:
+        print(f'State error: {error}', file=sys.stderr)
         return 1
 
 
