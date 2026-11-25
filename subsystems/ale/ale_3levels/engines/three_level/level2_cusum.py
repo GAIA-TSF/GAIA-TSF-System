@@ -209,12 +209,17 @@ def frozen_level2_calibration(
     unit: str,
     target_feature: str,
     parameters: Level2Parameters,
+    population: str = 'prototype',
 ) -> dict[str, Any]:
     """Fit the TSF-wide aggregate sigma once, before monitoring; reject changes.
 
     Mirrors the L1 artifact contract: exclusive creation, pre-monitoring
     cutoff, unit/target checks and a fingerprint of the calibration history.
+    With ``population='calibration_split'`` (B2.2) the caller has set records
+    outside the independent calibration split to NaN: the aggregate series
+    then exists only on calibration-split dates.
     """
+    method = METHOD if population == 'prototype' else f'{METHOD}+{population}'
     if residual_stack.shape != (len(dates), *mask.shape):
         raise ValueError(
             'L2 residual stack, dates and mask must share a grid/time axis.'
@@ -242,7 +247,7 @@ def frozen_level2_calibration(
         payload = json.loads(path.read_text(encoding='utf-8'))
         if (
             not compatible_schema(payload.get('schema_version'))
-            or payload.get('method') != METHOD
+            or payload.get('method') != method
             or payload.get('unit') != unit
             or payload.get('target_feature') != target_feature
         ):
@@ -267,19 +272,30 @@ def frozen_level2_calibration(
                 'prior calibration period or supply an existing calibration_file.'
             )
         sigma, count = residual_scale(series)
+        used = list(dates[start:end])
+        if population != 'prototype':
+            used = [
+                day
+                for day, value in zip(dates[start:end], series)
+                if np.isfinite(value)
+            ]
         payload = {
             'schema_version': SCHEMA_VERSION,
-            'method': METHOD,
+            'method': method,
             'formula': FORMULA,
-            'population': 'daily_mean_residual_on_static_tsf_mask',
+            'population': (
+                'daily_mean_residual_on_static_tsf_mask'
+                if population == 'prototype'
+                else f'daily_mean_residual_on_static_tsf_mask,{population}_records'
+            ),
             'unit': unit,
             'target_feature': target_feature,
             'sigma': sigma,
             'sample_count': count,
             **calibration_diagnostics(series, sigma),
-            'first_date': dates[start],
-            'last_date': dates[end - 1],
-            'calibration_dates': list(dates[start:end]),
+            'first_date': used[0],
+            'last_date': used[-1],
+            'calibration_dates': used,
             'input_fingerprint': fingerprint,
         }
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -316,13 +332,15 @@ def compute_level2(
     calibration: dict[str, Any],
     parameters: Level2Parameters,
     regions: tuple[SpatialCoherenceRegion, ...] = (),
+    calibration_dates: np.ndarray | None = None,
 ) -> Level2Result:
     """Calculate TSF-wide and coherence-qualified regional L2 series.
 
     Each region is standardized by the sigma of its own aggregate residual on
     pre-monitoring dates, over the support frozen at activation. Its CUSUM
     starts at the activation acquisition; earlier monitoring residuals helped
-    select the region and would bias its statistic upwards.
+    select the region and would bias its statistic upwards. With
+    ``calibration_dates`` (B2.2) only those dates fit the regional sigma.
     """
     time_count = residual_stack.shape[0]
     monitoring_start, monitoring_end = monitoring_window
@@ -345,10 +363,12 @@ def compute_level2(
     calibration_end = min(calibration_window[1], monitoring_start)
     for region in regions:
         series = aggregate_residual(residual_stack, region.support)
+        baseline = series[calibration_window[0] : calibration_end]
+        if calibration_dates is not None:
+            selected = calibration_dates[calibration_window[0] : calibration_end]
+            baseline = np.where(selected, baseline, np.nan)
         try:
-            region_sigma, count = residual_scale(
-                series[calibration_window[0] : calibration_end]
-            )
+            region_sigma, count = residual_scale(baseline)
         except ValueError:
             LOGGER.warning(
                 'Skipping L2 for the coherent region activated at index %d: its '
@@ -356,9 +376,7 @@ def compute_level2(
                 region.activation_index,
             )
             continue
-        diagnostics = calibration_diagnostics(
-            series[calibration_window[0] : calibration_end], region_sigma
-        )
+        diagnostics = calibration_diagnostics(baseline, region_sigma)
         warn_on_bias(diagnostics, parameters, f'Region@{region.activation_index}')
         regional_sigmas.append(
             {

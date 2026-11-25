@@ -64,9 +64,15 @@ regime:
   smoothing_span: 3
 
 calibration:
-  # per_pixel | pooled. Pooled is the default: the synthetic site has only
-  # 10 independent calibration dates (plan P3). Used from B2.2 on.
+  # pooled: one sigma over all TSF pixels (per_pixel is not implemented; the
+  # synthetic site has only 10 independent calibration dates, plan P3).
   mode: pooled
-  # Which records estimate mu/sigma: prototype = every pre-monitoring record
-  # (includes model-training dates); independent = split == calibration (B2.2).
-  population: prototype
+  # Which records estimate engine-B baselines (L1/L2 sigma, regional L2 sigma,
+  # L3 regime baseline, acceleration-CUSUM baseline):
+  #   independent (B2.2): only split == calibration records (never used for
+  #                training, validation or early stopping);
+  #   prototype: every pre-monitoring record (includes model-training dates;
+  #              kept for comparison and the golden test).
+  population: independent
+  # Warn (and flag short_calibration) below this many calibration dates.
+  minimum_dates: 20

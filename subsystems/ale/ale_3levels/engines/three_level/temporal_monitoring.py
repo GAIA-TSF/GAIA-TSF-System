@@ -57,6 +57,9 @@ class TemporalResidualMonitor:
 
     def __init__(self, config: dict[str, Any]) -> None:
         """Configure monitoring thresholds and smoothing from a mapping."""
+        # B2.2: optional per-date mask of independent calibration dates. None
+        # keeps the prototype's baseline window (all pre-monitoring dates).
+        self.calibration_dates: np.ndarray | None = None
         self.anomaly_threshold = self._positive(config, 'anomaly_magnitude_threshold')
         if 'acceleration_cusum' not in config and 'cusum' in config:
             LOGGER.warning(
@@ -271,7 +274,9 @@ class TemporalResidualMonitor:
             rate * self.instability_direction,
             self.smoothing_span,
         )
-        calibration = directional_rate[calibration_window[0] : calibration_window[1]]
+        calibration = self._baseline(
+            directional_rate, calibration_window[0], calibration_window[1]
+        )
         finite_calibration = np.isfinite(calibration)
         calibration_count = np.sum(finite_calibration, axis=0)
         baseline_mean = np.divide(
@@ -350,7 +355,9 @@ class TemporalResidualMonitor:
             acceleration * self.instability_direction,
             self.smoothing_span,
         )
-        calibration = directional[calibration_window[0] : calibration_window[1]]
+        calibration = self._baseline(
+            directional, calibration_window[0], calibration_window[1]
+        )
         finite = np.isfinite(calibration)
         count = np.sum(finite, axis=0)
         baseline_mean = np.divide(
@@ -412,7 +419,7 @@ class TemporalResidualMonitor:
         # Same rule as L1-L3: baseline from calibration dates before monitoring.
         calibration_start = calibration_window[0]
         calibration_end = min(calibration_window[1], monitoring_window[0])
-        baseline = trend[calibration_start:calibration_end]
+        baseline = self._baseline(trend, calibration_start, calibration_end)
         baseline = baseline[np.isfinite(baseline)]
         if baseline.size < 3:
             raise ValueError(
@@ -420,7 +427,9 @@ class TemporalResidualMonitor:
             )
         baseline_std = max(float(np.std(baseline, ddof=1)), np.finfo(np.float64).eps)
         directional_trend = trend * self.instability_direction
-        directional_baseline = directional_trend[calibration_start:calibration_end]
+        directional_baseline = self._baseline(
+            directional_trend, calibration_start, calibration_end
+        )
         directional_baseline = directional_baseline[np.isfinite(directional_baseline)]
         zscore = (
             directional_trend - float(np.mean(directional_baseline))
@@ -614,7 +623,9 @@ class TemporalResidualMonitor:
             ) * self.instability_direction
         else:
             regime_signal = directional_trend
-        baseline_window = regime_signal[calibration_start:calibration_end]
+        baseline_window = self._baseline(
+            regime_signal, calibration_start, calibration_end
+        )
         finite = np.isfinite(baseline_window)
         regime_baseline = baseline_window[finite]
         if regime_baseline.size < 3:
@@ -652,6 +663,16 @@ class TemporalResidualMonitor:
             calibration,
             calibration_score,
         )
+
+    def _baseline(self, values: np.ndarray, start: int, end: int) -> np.ndarray:
+        """Calibration slice ``values[start:end]``; with ``calibration_dates``
+        set (B2.2), dates outside the independent calibration split are NaN."""
+        window = values[start:end]
+        if self.calibration_dates is None:
+            return window
+        selected = self.calibration_dates[start:end]
+        shape = (selected.size,) + (1,) * (window.ndim - 1)
+        return np.where(selected.reshape(shape), window, np.nan)
 
     def _cusum(
         self, zscore: np.ndarray, monitoring_start: int

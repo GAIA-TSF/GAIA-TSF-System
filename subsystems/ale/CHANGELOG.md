@@ -5,6 +5,30 @@ states the expected difference in outputs.
 
 ## Unreleased
 
+- **B2.2 Independent calibration** (`calibration.population: independent`,
+  new default; `prototype` keeps the old behaviour and pins the golden test).
+  Every engine-B baseline (L1 and L2 sigma, regional L2 sigma, L3 regime
+  mean/sigma, acceleration-CUSUM baseline) uses only `split == calibration`
+  records: calibration-period records never used for training, validation or
+  early stopping. Pooled sigma. `n_calibration` is recorded; fewer than
+  `calibration.minimum_dates` (20) logs a warning and raises the
+  `short_calibration` quality flag. Limitation: the TSF-level L3/acceleration
+  baselines are taken at calibration-split dates, but their causal derivative
+  (3 acquisitions) still looks back at up to two earlier dates.
+  Expected: larger sigma, fewer and later L1 alerts.
+  Observed on the synthetic site (54 -> 10 calibration dates; 757,296 ->
+  140,240 L1 records): L1 sigma 0.3565 -> 0.3576 mm/day (+0.3 %), negative
+  |z| > 1.5 pixel-dates 81,692 -> 81,160 (-0.7 %), first L1 unchanged
+  (2018-12-22) — the model's in-sample and held-out residuals have almost the
+  same scale, so L1 barely moves. L2 sigma 0.01166 -> 0.01297 (+11 %), first
+  L2 2019-03-16 -> 2019-03-28 (12 d later) — as expected. L3 regime sigma
+  3.83e-4 -> 2.44e-4 (-36 %; mean -6.7e-5 -> -4.8e-5): *not* as expected; the
+  10 independent dates lie mostly in one season (2018-09-17..2018-12-10) and
+  underestimate the variability of the model-relative acceleration across
+  seasons, so L3 becomes more sensitive: failure-area L3 (area level)
+  2019-12-05 -> 2019-11-23 (12 d earlier), control-area L3 false alerts
+  0 -> 0; pixel shares failure area L3 20.5 % -> 21.6 %, L2 68.2 % -> 65.5 %.
+  Engine A unchanged.
 - Engine B: L3 attributed to the coherence-qualified regions active at the
   alert date (region_id k), no longer to the whole TSF (decision
   2026-11-25). Engine-B numbers unchanged; only per-pixel levels move.

@@ -26,8 +26,13 @@ GOLDEN = Path(__file__).resolve().parent / 'golden' / 'synthetic_crop'
 
 
 def _three_level(**overrides):
+    """The prototype (pre-B2) configuration the golden files were made with."""
     config = load_config()['engine_configs']['three_level']
-    return {**config, **overrides}
+    legacy = {
+        **config,
+        'calibration': {**config['calibration'], 'population': 'prototype'},
+    }
+    return {**legacy, **overrides}
 
 
 @pytest.fixture(scope='module')

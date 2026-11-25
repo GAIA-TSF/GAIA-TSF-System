@@ -239,6 +239,8 @@ def to_alert_result(
             'monitoring_window': [int(start), int(end)],
             'calibration_window': list(details['calibration_window']),
             'l1_sigma': details['l1_sigma'],
+            'calibration_population': details['calibration_population'],
+            'n_calibration': details['n_calibration'],
             'regions': [
                 {
                     'region_id': number,

@@ -68,13 +68,23 @@ def frozen_residual_calibration(
     *,
     unit: str,
     target_feature: str,
+    population: str = 'prototype',
 ) -> dict[str, Any]:
     """Fit once from pre-monitoring calibration pixels; reject changed history.
 
     A supplied earlier artifact may be reused when this stack has no calibration
     history. Its cutoff must still precede monitoring and its unit/target match.
     Monitoring residuals are neither hashed nor used to fit the scale.
+
+    ``population='calibration_split'`` (B2.2): the caller has set every record
+    outside the independent calibration split to NaN, so only those records
+    fit the scale; the method name and the recorded dates say so.
     """
+    method = (
+        'sample_std_ddof1_no_demeaning'
+        if population == 'prototype'
+        else f'sample_std_ddof1_no_demeaning+{population}'
+    )
     if residual_stack.shape != (len(dates), *mask.shape):
         raise ValueError(
             'L1 residual stack, dates and mask must share a grid/time axis.'
@@ -104,7 +114,7 @@ def frozen_residual_calibration(
         payload = json.loads(path.read_text(encoding='utf-8'))
         if (
             not compatible_schema(payload.get('schema_version'))
-            or payload.get('method') != 'sample_std_ddof1_no_demeaning'
+            or payload.get('method') != method
             or payload.get('unit') != unit
             or payload.get('target_feature') != target_feature
         ):
@@ -132,19 +142,27 @@ def frozen_residual_calibration(
         )
     sigma, count = residual_scale(values)
     finite = values[np.isfinite(values)]
+    used = list(dates[start:end])
+    if population != 'prototype':
+        has_value = np.any(np.isfinite(values), axis=1)
+        used = [day for day, keep in zip(dates[start:end], has_value) if keep]
     payload = {
         'schema_version': SCHEMA_VERSION,
-        'method': 'sample_std_ddof1_no_demeaning',
+        'method': method,
         'formula': FORMULA,
-        'population': 'pooled_pixel_residuals_on_static_tsf_mask',
+        'population': (
+            'pooled_pixel_residuals_on_static_tsf_mask'
+            if population == 'prototype'
+            else f'pooled_pixel_residuals_on_static_tsf_mask,{population}_records'
+        ),
         'unit': unit,
         'target_feature': target_feature,
         'sigma': sigma,
         'sample_count': count,
         'mean_residual_diagnostic': float(np.mean(finite)),
-        'first_date': dates[start],
-        'last_date': dates[end - 1],
-        'calibration_dates': list(dates[start:end]),
+        'first_date': used[0],
+        'last_date': used[-1],
+        'calibration_dates': used,
         'input_fingerprint': fingerprint,
     }
     path.parent.mkdir(parents=True, exist_ok=True)

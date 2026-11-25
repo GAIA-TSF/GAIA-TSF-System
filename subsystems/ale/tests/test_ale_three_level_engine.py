@@ -55,6 +55,11 @@ def _contract_from_inputs(inputs) -> ForecastContract:
 def golden(tmp_path_factory):
     inputs = inputs_from_npz(GOLDEN / 'inputs.npz')
     config = load_config()['engine_configs']['three_level']
+    # Pre-B2 prototype calibration: the golden inputs carry no split.
+    config = {
+        **config,
+        'calibration': {**config['calibration'], 'population': 'prototype'},
+    }
     run = ThreeLevelPipeline(config, tmp_path_factory.mktemp('b')).run(inputs)
     contract = _contract_from_inputs(inputs)
     result = to_alert_result(

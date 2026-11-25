@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from ale_3levels.contract import ForecastContract
+from ale_3levels.contract import CALIBRATION, ForecastContract
 from ale_3levels.engines.three_level.anomaly_detection import (
     LegacyGlobalZScoreDetector,
     StatisticalAnomalyDetector,
@@ -69,6 +69,9 @@ LOGGER = logging.getLogger(__name__)
 
 RATE_UNIT = 'mm/day'
 ZSCORE_FORMULAS = ('frozen_sigma', 'legacy_global')
+# prototype: every pre-monitoring record (includes model-training dates);
+# independent (B2.2): only records with split == calibration.
+CALIBRATION_POPULATIONS = ('prototype', 'independent')
 CALIBRATION_FILES = {
     'l1': 'calibration/l1_calibration.json',
     'l2': 'calibration/l2_calibration.json',
@@ -124,6 +127,8 @@ def inputs_from_contract(
         'has_uncertainty': False,
         'mask': contract.mask,
         'fixed_support_mask': contract.mask.copy(),
+        # B2.2: records never used for training/validation (split == calibration).
+        'calibration_records': contract.split == CALIBRATION,
         'dates': tuple(str(value) for value in contract.dates),
         'target_dates': tuple(str(value) for value in contract.dates),
         'forecast_origin_dates': tuple(
@@ -197,6 +202,16 @@ class ThreeLevelPipeline:
         if formula not in ZSCORE_FORMULAS:
             raise ValueError(f'zscore_formula must be one of {ZSCORE_FORMULAS}.')
         self.zscore_formula = formula
+        calibration = three_level.get('calibration') or {}
+        population = str(calibration.get('population', 'prototype'))
+        if population not in CALIBRATION_POPULATIONS:
+            raise ValueError(
+                f'calibration.population must be one of {CALIBRATION_POPULATIONS}.'
+            )
+        if str(calibration.get('mode', 'pooled')) != 'pooled':
+            raise ValueError('Only calibration.mode: pooled is implemented.')
+        self.calibration_population = population
+        self.minimum_calibration_dates = int(calibration.get('minimum_dates', 20))
         self.three_level = three_level
         self.config = prototype_config(three_level)
         self.output_root = Path(output_dir)
@@ -218,12 +233,17 @@ class ThreeLevelPipeline:
         calibration = tuple(int(value) for value in inputs['calibration_window'])
         monitoring = tuple(int(value) for value in inputs['monitoring_window'])
         residual_stack = inputs['residual_stack']
+        calibration_residuals, calibration_dates, population = (
+            self._calibration_population(
+                inputs, residual_stack, dataset.mask, calibration, monitoring
+            )
+        )
         detector = StatisticalAnomalyDetector(self.config['anomaly_detection'])
         reused = self._existing_calibrations()
         calibration_path = self._results_path(CALIBRATION_FILES['l1'])
         l1_calibration = frozen_residual_calibration(
             calibration_path,
-            residual_stack,
+            calibration_residuals,
             dataset.dates,
             calibration,
             monitoring[0],
@@ -231,6 +251,7 @@ class ThreeLevelPipeline:
             dataset.mask,
             unit=RATE_UNIT,
             target_feature=dataset.target_feature,
+            population=population,
         )
         level1 = {
             'formula': FORMULA,
@@ -243,7 +264,7 @@ class ThreeLevelPipeline:
         l2_calibration_path = self._results_path(CALIBRATION_FILES['l2'])
         l2_calibration = frozen_level2_calibration(
             l2_calibration_path,
-            residual_stack,
+            calibration_residuals,
             dataset.dates,
             calibration,
             monitoring[0],
@@ -251,6 +272,7 @@ class ThreeLevelPipeline:
             unit=RATE_UNIT,
             target_feature=dataset.target_feature,
             parameters=level2_parameters,
+            population=population,
         )
         anomalies = detector.detect(
             dataset,
@@ -277,6 +299,7 @@ class ThreeLevelPipeline:
             l2_calibration,
             level2_parameters,
             coherence.regions,
+            calibration_dates=calibration_dates,
         )
         level2_summary = level2_metadata(level2, dataset.dates)
         pixel_l2_maximum, pixel_l2_first_alarm = pixel_level2(
@@ -289,6 +312,7 @@ class ThreeLevelPipeline:
 
         dashboard_config = self._dashboard_config()
         residual_monitor = TemporalResidualMonitor(dashboard_config)
+        residual_monitor.calibration_dates = calibration_dates
         coherent_cusum = residual_monitor.spatial_coherent_acceleration_cusum(
             inputs['observed_stack'],
             dataset.dates,
@@ -423,6 +447,18 @@ class ThreeLevelPipeline:
             'contract_version': CONTRACT_VERSION,
             'engine': 'three_level',
             'zscore_formula': self.zscore_formula,
+            'calibration_population': self.calibration_population,
+            'n_calibration': self._n_calibration(
+                calibration_dates, calibration, monitoring
+            ),
+            'n_calibration_records': (
+                int(
+                    np.isfinite(
+                        calibration_residuals[: monitoring[0]][:, dataset.mask]
+                    ).sum()
+                )
+            ),
+            'minimum_calibration_dates': self.minimum_calibration_dates,
             'run_mode': run_mode,
             'run_mode_reason': inputs.get('run_mode_reason', ''),
             'lead_time': lead_time_summary(
@@ -487,10 +523,65 @@ class ThreeLevelPipeline:
             'level2_parameters': level2_parameters,
             'level3': level3,
             'l1_sigma': float(l1_calibration['sigma']),
+            'calibration_population': self.calibration_population,
+            'n_calibration': self._n_calibration(
+                calibration_dates, calibration, monitoring
+            ),
             'calibration_window': calibration,
             'monitoring_window': monitoring,
         }
         return ThreeLevelRun(result, arrays, series_paths, details)
+
+    def _calibration_population(
+        self,
+        inputs: dict[str, Any],
+        residual_stack: np.ndarray,
+        mask: np.ndarray,
+        calibration: tuple[int, int],
+        monitoring: tuple[int, int],
+    ) -> tuple[np.ndarray, np.ndarray | None, str]:
+        """Residuals and dates that may estimate engine-B baselines.
+
+        ``prototype``: the full residual stack (the calibration window is the
+        whole pre-monitoring period, as in the prototype); no date mask.
+        ``independent`` (B2.2): only records with ``split == calibration``,
+        i.e. neither trained on nor used for validation/early stopping; other
+        records are NaN for calibration. The date mask marks acquisitions with
+        such records; TSF-level baselines (L3 regime, acceleration CUSUM,
+        regional L2) use only those dates.
+        """
+        if self.calibration_population == 'prototype':
+            return residual_stack, None, 'prototype'
+        records = inputs.get('calibration_records')
+        if records is None:
+            raise ValueError(
+                'calibration.population: independent needs calibration_records '
+                '(split == calibration) in the inputs.'
+            )
+        records = np.asarray(records, dtype=bool) & mask[np.newaxis]
+        dates = np.any(records, axis=(1, 2))
+        dates[monitoring[0] :] = False
+        n_dates = int(dates[calibration[0] : calibration[1]].sum())
+        if n_dates < self.minimum_calibration_dates:
+            LOGGER.warning(
+                'Independent calibration has %d dates (< calibration.minimum_dates '
+                '%d); engine-B baselines are uncertain.',
+                n_dates,
+                self.minimum_calibration_dates,
+            )
+        residuals = np.where(records, residual_stack, np.nan)
+        return residuals, dates, 'calibration_split'
+
+    def _n_calibration(
+        self,
+        dates: np.ndarray | None,
+        calibration: tuple[int, int],
+        monitoring: tuple[int, int],
+    ) -> int:
+        """Number of acquisitions that estimate the baselines."""
+        if dates is None:
+            return int(min(calibration[1], monitoring[0]) - calibration[0])
+        return int(dates[calibration[0] : calibration[1]].sum())
 
     def _existing_calibrations(self) -> list[str]:
         """Levels whose frozen calibration artifact predates this run."""
