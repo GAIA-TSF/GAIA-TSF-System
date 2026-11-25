@@ -1,0 +1,16 @@
+# Synthetic external-trigger site (slope_synthetic_western_platinum_external_trigger),
+# restored by scripts/prepare_synthetic.sh into ../work/synthetic_site.
+base: ale.yaml
+
+input:
+  residuals: ../work/synthetic_site/results/forecasts/slope_trf/residuals.npz
+  mask_file: ../work/synthetic_site/static/tsf_mask.tif
+  model_id: trf
+  # The synthetic generator writes metres (STAC simulation:unit: m) although
+  # MAP declares target_units: mm.
+  source_units_override: m
+
+site:
+  site_id: slope_synthetic_western_platinum_external_trigger
+  reference_date: '2017-01-01'     # first acquisition; cumulative LOS = 0
+  reference_point: null            # generator output, no reference pixel

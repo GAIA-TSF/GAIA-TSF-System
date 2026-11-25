@@ -1,7 +1,11 @@
 """Golden prototype set: integrity (fast) and contract equivalence (slow, local).
 
 The slow test checks that the contract reproduces the golden prototype inputs
-bit for bit. Set ``ALE_SYNTHETIC_TABLE`` to the synthetic site's MAP
+from a fresh MAP inference run: observations bit for bit, predictions to
+``rtol=1e-10``. MAP's random forest predicts with ``n_jobs > 1`` and sums the
+trees in thread order, so repeated MAP runs differ by ~1e-14 mm/day (measured
+2026-11-25: 401 of 118784 values, max 9.3e-15). The contract itself is
+deterministic (same table -> identical stacks). Set ``ALE_SYNTHETIC_TABLE`` to the synthetic site's MAP
 ``results/forecasts/slope_trf/residuals.npz`` and ``ALE_SYNTHETIC_MASK`` to its
 ``static/tsf_mask.tif``. Skipped when the data is not available.
 """
@@ -51,12 +55,16 @@ def test_contract_matches_golden_prototype_inputs():
             contract.forecast_origin.tolist()
             == golden['forecast_origin_dates'].tolist()
         )
+        np.testing.assert_array_equal(
+            contract.observed_mm_per_day[window], golden['observed_stack']
+        )
         for field, key in (
-            ('observed_mm_per_day', 'observed_stack'),
             ('predicted_mm_per_day', 'prediction_stack'),
             ('residual_mm_per_day', 'residual_stack'),
         ):
-            np.testing.assert_array_equal(getattr(contract, field)[window], golden[key])
+            np.testing.assert_allclose(
+                getattr(contract, field)[window], golden[key], rtol=1e-10, atol=1e-12
+            )
         np.testing.assert_array_equal(contract.mask[r0:r1, c0:c1], golden['mask'])
         start = int(golden['monitoring_window'][0])
         assert contract.monitoring_start_index == start

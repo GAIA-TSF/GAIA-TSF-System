@@ -1,4 +1,10 @@
-"""ALE configuration loading and hashing."""
+"""ALE configuration loading and hashing.
+
+A configuration file may name a ``base`` file (relative to itself); its
+mappings are merged recursively, the derived file winning. Relative file paths
+(``input.residuals``, ``input.mask_file``, ``spatial.sectors_file``) resolve
+against the directory of the file that sets them.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +17,11 @@ import yaml
 
 ENGINE_NAMES = ('fixed_gates', 'three_level')
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / 'config' / 'ale.yaml'
+PATH_KEYS = (
+    ('input', 'residuals'),
+    ('input', 'mask_file'),
+    ('spatial', 'sectors_file'),
+)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -21,10 +32,39 @@ def _read_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
+def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _resolve_paths(config: dict[str, Any], directory: Path) -> dict[str, Any]:
+    for section, key in PATH_KEYS:
+        value = (config.get(section) or {}).get(key)
+        if value and not Path(str(value)).expanduser().is_absolute():
+            config[section][key] = str((directory / str(value)).resolve())
+    return config
+
+
+def _load_layered(path: Path, seen: tuple[Path, ...] = ()) -> dict[str, Any]:
+    if path in seen:
+        raise ValueError(f'Circular configuration base: {path}')
+    config = _resolve_paths(_read_yaml(path), path.parent)
+    base = config.pop('base', None)
+    if base is None:
+        return config
+    base_path = (path.parent / str(base)).resolve()
+    return _merge(_load_layered(base_path, (*seen, path)), config)
+
+
 def load_config(path: Path = DEFAULT_CONFIG) -> dict[str, Any]:
-    """Load ``ale.yaml`` and the engine files it references (relative to it)."""
+    """Load an ALE configuration and the engine files it references."""
     path = Path(path).resolve()
-    config = _read_yaml(path)
+    config = _load_layered(path)
     engines = config.get('engines') or {}
     selected = engines.get('selected', 'both')
     if selected not in (*ENGINE_NAMES, 'both'):
