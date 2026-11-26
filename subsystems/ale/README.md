@@ -203,13 +203,16 @@ Run from `subsystems/ale`, or anywhere with `subsystems/ale` on `PYTHONPATH`:
 
 ```bash
 python -m ale_3levels validate  --config CONFIG [--input TABLE] [--model trf|lstm]
-python -m ale_3levels run       --engine fixed_gates|three_level|both --config CONFIG --out DIR \
+python -m ale_3levels run       --engine A|B|both --config CONFIG --out DIR \
                                 [--input TABLE] [--model M] [--calibration DIR/calibration] [--state PREV/three_level/state]
 python -m ale_3levels calibrate --engine three_level --config CONFIG --out DIR [--model M]
 python -m ale_3levels compare   --a RUN/fixed_gates --b RUN/three_level --out DIR [--truth roi_failure_mask.tif]
 python -m ale_3levels plot      --run RUN --out DIR [--animation] [--no-maps]
 python3 scripts/run_pipeline.py --map-config MAP.yaml --ale-config ALE.yaml --out DIR [--truth MASK]   # repository root
 ```
+
+`--engine A` is `fixed_gates` and `--engine B` is `three_level`; the full names
+also work.
 
 Changing any ALE threshold only needs an ALE re-run; MAP outputs are never
 touched. The comparison report is the only reader of a ground-truth mask.
@@ -219,6 +222,13 @@ touched. The comparison report is the only reader of a ground-truth mask.
 Generated data lives in the ALE data directory, by default
 `~/ownCloud/Projects/GAIA_TSF/tsf_experiments/ALE-DEV` (override with
 `ALE_DATA_DIR`). Nothing generated is committed.
+
+For a demonstration of both engines, use the showcase site and follow
+[DEMO.md](DEMO.md):
+
+```bash
+python3 subsystems/ale/scripts/run_demo.py [--engine A|B|both]   # -> ALE-DEV/showcase
+```
 
 ```bash
 # Small simulated demo site (about 2.5 MB, ~1 s; no MAP, no site data):
