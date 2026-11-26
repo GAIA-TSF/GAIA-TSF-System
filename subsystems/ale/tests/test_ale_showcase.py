@@ -132,3 +132,27 @@ def test_script_refuses_the_repository_and_foreign_directories(tmp_path):
     with pytest.raises(SystemExit):
         script.main(['--out', str(tmp_path), '--quick'])
     assert (tmp_path / 'other.txt').is_file()
+
+
+def test_zone_timeline_plot(demo_run, tmp_path):
+    script = _script()
+    import rasterio
+
+    with rasterio.open(demo_run / 'static' / 'demo_zones.tif') as raster:
+        zones = raster.read(1)
+    scenario = json.loads((demo_run / 'scenario.json').read_text())
+    levels = script.zone_levels(demo_run / 'runs', zones, ('three_level',))
+    path = script.zone_timeline(
+        tmp_path / 'zone_timeline.png',
+        demo_run / 'results' / 'forecasts' / 'slope_trf' / 'residuals.npz',
+        zones,
+        levels,
+        scenario,
+    )
+    assert path.stat().st_size > 10_000
+    dates, means = script.zone_displacement(
+        demo_run / 'results' / 'forecasts' / 'slope_trf' / 'residuals.npz', zones
+    )
+    # The failure zone ends far below the stable zone.
+    assert means['failure'][-1] < means['stable'][-1] - 50
+    assert len(dates) == len(means['creep'])

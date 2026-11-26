@@ -29,6 +29,7 @@ python3 -m ale_3levels run --engine B --config <site>/ale_showcase.yaml --out <d
 |---|---|
 | `zone_summary.md` | First date each zone reaches each level, per engine; also printed on screen |
 | `report/report.md` | Comparison report: failure area against a stable control area, lead times, flip rates |
+| `plots/zone_timeline.png` | Per zone over time: mean displacement, and engine A's and engine B's zone level, with monitoring start, failure onset and the atmospheric artefact marked |
 | `plots/alerts.gif` | Engine A and engine B alert maps side by side, one frame per acquisition |
 | `plots/maps/alerts_<date>.png` | The same maps as single images |
 | `plots/three_level_history.png` | Engine B's TSF-wide L2 CUSUM and L3 score over time, with thresholds |
@@ -70,7 +71,7 @@ The results below come from the default site (seed 11). A zone "holds" a level w
 1. **Engine A sees motion; engine B sees surprise.**
    - The creep zone moves steadily and as expected. Engine A keeps it YELLOW all the time, because it moves more than 4 mm per 30 days.
    - Engine B stays quiet there, because MAP predicts that motion. Show `plots/alerts.gif`: the west beach is YELLOW on the left and white on the right.
-2. **Engine A is faster on the accelerating dam wall.**
+2. **Engine A is faster on the accelerating dam wall.** Show `plots/zone_timeline.png`: the dam wall's displacement curve bends down after the failure begins, and the two engines' zone levels step up at different times.
    - Engine A reaches YELLOW about 7 weeks after the acceleration begins, and RED about 9 months after.
    - Engine B escalates step by step: L1, then L2, and L3 only near the end. Show `plots/three_level_history.png`: the L3 score crosses watch (0.4) in May 2024 and alert (0.7) in July 2024.
 3. **What each engine costs in false alerts.**

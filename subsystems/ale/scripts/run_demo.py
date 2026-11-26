@@ -54,8 +54,8 @@ ZONE_NOTES = {
 }
 
 
-def zone_summary(run_dir: Path, zones: np.ndarray, engines) -> str:
-    """Per engine and zone: first flagged date per level and dates flagged.
+def zone_levels(run_dir: Path, zones: np.ndarray, engines) -> dict:
+    """Per engine: monitoring dates, level labels, and each zone's level series.
 
     Zones are aggregated like sectors and like the comparison report's areas
     (the engine's sector rule: coherent pixels, ``min_pixels`` or
@@ -63,12 +63,10 @@ def zone_summary(run_dir: Path, zones: np.ndarray, engines) -> str:
     """
     names = [zone for zone, code in SHOWCASE_ZONES.items() if code]
     areas = {zone: zones == SHOWCASE_ZONES[zone] for zone in names}
-    lines = []
-    n_dates = 0
+    levels = {}
     for engine in engines:
         arrays, metadata = read_alerts(run_dir / engine)
         monitoring = arrays['dates'] >= metadata['input']['monitoring_start']
-        dates, n_dates = arrays['dates'][monitoring], int(monitoring.sum())
         rule = metadata['sector_rule']
         aggregated = aggregate_sectors(
             arrays['severity'][monitoring],
@@ -77,10 +75,26 @@ def zone_summary(run_dir: Path, zones: np.ndarray, engines) -> str:
             rule['min_pixels'],
             rule['min_fraction'],
         )
-        labels = metadata['levels'][2:5]
-        for position, zone in enumerate(names):
-            for level, label in zip((1, 2, 3), labels):
-                flagged = aggregated.severity[:, position] >= level
+        levels[engine] = {
+            'dates': arrays['dates'][monitoring],
+            'labels': metadata['levels'][1:5],
+            'zones': {
+                zone: aggregated.severity[:, position]
+                for position, zone in enumerate(names)
+            },
+        }
+    return levels
+
+
+def zone_summary(levels: dict) -> str:
+    """Per engine and zone: first flagged date per level and dates flagged."""
+    lines = []
+    n_dates = 0
+    for engine, data in levels.items():
+        dates, n_dates = data['dates'], len(data['dates'])
+        for zone, series in data['zones'].items():
+            for level, label in zip((1, 2, 3), data['labels'][1:]):
+                flagged = series >= level
                 first = str(dates[np.argmax(flagged)]) if flagged.any() else '-'
                 lines.append(
                     f'| {engine} | {zone} | >= {label} | {first} | {int(flagged.sum())} |'
@@ -99,6 +113,98 @@ def zone_summary(run_dir: Path, zones: np.ndarray, engines) -> str:
     ]
     notes = ['', 'Zones: ' + '; '.join(f'{k}: {v}' for k, v in ZONE_NOTES.items())]
     return '\n'.join(header + lines + notes) + '\n'
+
+
+def zone_displacement(table: Path, zones: np.ndarray) -> tuple[np.ndarray, dict]:
+    """Mean observed cumulative LOS (mm) per zone and acquisition, from MAP's table."""
+    with np.load(table, allow_pickle=False) as archive:
+        rows, cols = archive['row'], archive['col']
+        targets = archive['target_date']
+        observed = archive['observed_value']
+    dates, index = np.unique(targets, return_inverse=True)
+    codes = zones[rows, cols]
+    means = {}
+    for zone, code in SHOWCASE_ZONES.items():
+        if not code:
+            continue
+        keep = codes == code
+        total = np.bincount(index[keep], observed[keep], minlength=dates.size)
+        count = np.bincount(index[keep], minlength=dates.size)
+        means[zone] = total / np.maximum(count, 1)
+    return dates.astype('datetime64[D]'), means
+
+
+def zone_timeline(
+    path: Path, table: Path, zones: np.ndarray, levels: dict, scenario: dict
+) -> Path:
+    """Time plot per zone: mean displacement and each engine's zone level."""
+    import matplotlib
+
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    dates, displacement = zone_displacement(table, zones)
+    names = list(displacement)
+    figure, axes = plt.subplots(
+        2 * len(names),
+        1,
+        figsize=(12, 3.0 * len(names) + 1),
+        sharex=True,
+        gridspec_kw={'height_ratios': [2, 1] * len(names)},
+    )
+    events = [
+        (scenario['monitoring'][0], 'monitoring starts', 'black'),
+        (scenario['failure_onset'], 'failure begins', 'red'),
+        (scenario['atmospheric_artefact'], 'atmospheric artefact', 'grey'),
+    ]
+    styles = {
+        'fixed_gates': ('A  fixed_gates', '#1f77b4'),
+        'three_level': ('B  three_level', '#9467bd'),
+    }
+    for position, zone in enumerate(names):
+        top, bottom = axes[2 * position], axes[2 * position + 1]
+        top.plot(dates, displacement[zone], color='black', lw=1.2)
+        top.set_ylabel('mean LOS (mm)')
+        top.set_title(f'{zone}: {ZONE_NOTES[zone]}', loc='left', fontsize=10)
+        for engine, data in levels.items():
+            label, colour = styles[engine]
+            # Extend by one 12-day step so the last date's level is drawn.
+            days = data['dates'].astype('datetime64[D]')
+            series = data['zones'][zone]
+            bottom.step(
+                np.append(days, days[-1] + np.timedelta64(12, 'D')),
+                np.append(series, series[-1]),
+                where='post',
+                color=colour,
+                lw=1.8,
+                label=label + ' (' + ' / '.join(data['labels'][1:]) + ')',
+            )
+        bottom.set_ylim(-0.3, 3.4)
+        bottom.set_yticks([0, 1, 2, 3])
+        bottom.set_ylabel('zone level')
+        bottom.grid(axis='y', alpha=0.3)
+        bottom.legend(loc='upper left', fontsize=8)
+        for axis in (top, bottom):
+            for day, text, colour in events:
+                axis.axvline(np.datetime64(day), color=colour, ls='--', lw=0.8)
+        if position == 0:
+            for day, text, colour in events:
+                top.annotate(
+                    text,
+                    (np.datetime64(day), 1.0),
+                    xycoords=('data', 'axes fraction'),
+                    rotation=90,
+                    va='top',
+                    ha='right',
+                    fontsize=8,
+                    color=colour,
+                )
+    figure.suptitle('ALE showcase: displacement and alert level per zone')
+    figure.tight_layout()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(path, dpi=100)
+    plt.close(figure)
+    return path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -145,7 +251,8 @@ def main(argv: list[str] | None = None) -> int:
 
     with rasterio.open(out / 'static' / 'demo_zones.tif') as raster:
         zones = raster.read(1)
-    text = zone_summary(out / 'runs', zones, engines)
+    levels = zone_levels(out / 'runs', zones, engines)
+    text = zone_summary(levels)
     (out / 'zone_summary.md').write_text(text, encoding='utf-8')
     print(
         f'\nmonitoring {scenario["monitoring"][0]} .. {scenario["monitoring"][1]}; '
@@ -153,6 +260,15 @@ def main(argv: list[str] | None = None) -> int:
         f'atmospheric artefact {scenario["atmospheric_artefact"]}\n'
     )
     print(text)
+    if not args.no_plots:
+        timeline = zone_timeline(
+            out / 'plots' / 'zone_timeline.png',
+            out / 'results' / 'forecasts' / 'slope_trf' / 'residuals.npz',
+            zones,
+            levels,
+            scenario,
+        )
+        print(f'time plot: {timeline}')
     if engine == 'both':
         report = compare(
             out / 'runs' / 'fixed_gates',
