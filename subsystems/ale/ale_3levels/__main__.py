@@ -12,8 +12,8 @@ from ale_3levels.compare import compare as compare_engines
 from ale_3levels.config import DEFAULT_CONFIG, load_config
 from ale_3levels.contract import ContractError, summary
 from ale_3levels.engines.three_level.calibration import CalibrationError
+from ale_3levels.run import ENGINE_CHOICES, load_input
 from ale_3levels.run import calibrate as calibrate_engine
-from ale_3levels.run import load_input
 from ale_3levels.run import run as run_engines
 from ale_3levels.state import StateMismatchError
 
@@ -33,7 +33,10 @@ def main(argv: list[str] | None = None) -> int:
 
     run = commands.add_parser('run', help='score MAP output with one or both engines')
     run.add_argument(
-        '--engine', choices=('fixed_gates', 'three_level', 'both'), default='both'
+        '--engine',
+        choices=ENGINE_CHOICES,
+        default='both',
+        help='A = fixed_gates, B = three_level, or both (default)',
     )
     run.add_argument('--input', type=Path)
     run.add_argument('--config', type=Path, default=DEFAULT_CONFIG)

@@ -23,6 +23,9 @@ from ale_3levels.state import load_state, save_state
 
 LOGGER = logging.getLogger(__name__)
 ENGINES = ('fixed_gates', 'three_level')
+#: Short names: option A (fixed gates) and option B (three levels).
+ENGINE_ALIASES = {'A': 'fixed_gates', 'B': 'three_level'}
+ENGINE_CHOICES = (*ENGINES, *ENGINE_ALIASES, 'both')
 
 
 def select_model(config: dict[str, Any], model_id: str | None = None) -> str | None:
@@ -121,7 +124,8 @@ def run(
     model_id: str | None = None,
     state_dir: Path | None = None,
 ) -> dict[str, dict[str, Path]]:
-    """Score with ``engine`` (``fixed_gates``, ``three_level`` or ``both``)."""
+    """Score with ``engine``: ``fixed_gates`` (``A``), ``three_level`` (``B``) or ``both``."""
+    engine = ENGINE_ALIASES.get(engine, engine)
     names = ENGINES if engine == 'both' else (engine,)
     if any(name not in ENGINES for name in names):
         raise ValueError(f'Unknown engine {engine!r}.')

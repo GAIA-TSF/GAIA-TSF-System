@@ -39,7 +39,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--ale-config', type=Path, help='ALE configuration')
     parser.add_argument('--out', type=Path, help='ALE output directory')
     parser.add_argument(
-        '--engine', choices=('fixed_gates', 'three_level', 'both'), default='both'
+        '--engine',
+        choices=('fixed_gates', 'three_level', 'A', 'B', 'both'),
+        default='both',
+        help='A = fixed_gates, B = three_level, or both (default)',
     )
     parser.add_argument('--model', help='MAP model driving the alerts')
     parser.add_argument('--calibration', type=Path, help='frozen engine-B calibration')
